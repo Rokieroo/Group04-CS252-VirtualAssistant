@@ -34,8 +34,8 @@ MAX_CONCEPTS = 20
 BLOOM_LEVELS = ("remember", "understand", "apply", "analyze", "evaluate", "create")
 # Backstop for the prompt rule; compared after normalize().
 DECORATIVE = {"q a", "content", "contents", "agenda", "outline", "questions", "thank you"}
-_BLOCK_TAG = re.compile(r"</?\s*(slide_text|known_concepts|previous_concepts|candidates)\s*>",
-                        re.IGNORECASE)
+_BLOCK_TAG = re.compile(
+    r"</?\s*(slide_text|known_concepts|previous_concepts|candidates|concept)\s*>", re.IGNORECASE)
 
 EXTRACT_SCHEMA = {
     "type": "object",

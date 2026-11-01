@@ -94,6 +94,40 @@ def _concepts(args: argparse.Namespace) -> int:
     return 0
 
 
+def _items(args: argparse.Namespace) -> int:
+    from dotenv import load_dotenv
+
+    from app.items.generate import generate_items
+    from app.llm import get_client
+    from assistant.backend.ingest import InvalidPdf, extract_pages
+
+    load_dotenv(ROOT / ".env")
+    path = Path(args.file)
+    try:
+        pages = extract_pages(path.read_bytes())
+        concepts = json.loads(Path(args.concepts).read_text(encoding="utf-8"))
+    except (OSError, InvalidPdf, ValueError) as exc:
+        print(f"Không đọc được đầu vào: {exc}")
+        return 1
+    sources = [{"id": f"p{n}", "page": n, "text": t} for n, t in enumerate(pages, 1) if t.strip()]
+    llm = get_client()
+    result = [{**c, "items": generate_items(llm, c, sources)} for c in concepts[:args.limit]]
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    for c in result:
+        print(f"## {c['title']}")
+        for item in c["items"]:
+            print(f"- [{item['type']}, trang {item['source_id'][1:]}] {item['prompt']}")
+            for choice in item["choices"]:
+                print(f"    {'*' if choice == item['answer'] else ' '} {choice}")
+            if item["rubric"]:
+                print(f"    Đáp án: {item['answer']}")
+                print(f"    Rubric: {'; '.join(item['rubric'])}")
+    print(f"{path.name}: {sum(len(c['items']) for c in result)} item cho {len(result)} concept")
+    return 0
+
+
 def register(sub: argparse._SubParsersAction) -> None:
     p = sub.add_parser("ai", help="AI implementation: benchmark và trợ lý")
     ai_sub = p.add_subparsers(dest="ai_command", required=True)
@@ -111,3 +145,10 @@ def register(sub: argparse._SubParsersAction) -> None:
     concepts.add_argument("file")
     concepts.add_argument("--json", action="store_true", help="in kết quả dạng JSON")
     concepts.set_defaults(func=_concepts)
+
+    items = ai_sub.add_parser("items", help="sinh câu hỏi có trích dẫn trang cho concept của một PDF")
+    items.add_argument("file")
+    items.add_argument("--concepts", required=True, help="JSON từ `ai concepts <file> --json`")
+    items.add_argument("--limit", type=int, default=5, help="số concept tối đa (mặc định 5)")
+    items.add_argument("--json", action="store_true", help="in kết quả dạng JSON")
+    items.set_defaults(func=_items)

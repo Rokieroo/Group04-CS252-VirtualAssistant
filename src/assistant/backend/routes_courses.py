@@ -1,4 +1,4 @@
-"""Courses, page-level PDF sources (UC-01, issue #13) and concept proposals (UC-02, issue #9)."""
+"""Courses, page-level PDF sources (UC-01, #13), concept proposals (UC-02, #9) and cited items (UC-03, #10)."""
 
 import json
 from typing import Annotated
@@ -9,12 +9,20 @@ from sqlalchemy.exc import IntegrityError
 
 from app.concepts.extract import extract_concepts, save_concepts
 from app.concepts.visual import read_visuals
+from app.items.generate import generate_items, save_items
 from app.llm import LLMClient, get_client, get_vision_client
 
 from .dependencies import DB, CurrentUser
 from .ingest import MAX_UPLOAD_BYTES, InvalidPdf, extract_pages, looks_scanned
 from .models import Course, Source
-from .schemas import ConceptGraphOut, CourseCreate, CourseOut, SourceOut, UploadOut
+from .schemas import (
+    ConceptGraphOut,
+    CourseCreate,
+    CourseOut,
+    ItemOut,
+    SourceOut,
+    UploadOut,
+)
 
 router = APIRouter(tags=["Courses and sources"])
 
@@ -148,3 +156,56 @@ def propose_concepts(
     concepts = [{**row, "source_pages": json.loads(row["source_pages"] or "[]")} for row in rows]
     concepts.sort(key=lambda c: (c["source_pages"] or [0])[0])
     return {"concepts": concepts, "prereqs": []}
+
+
+def course_concept(db, course_id: str, concept_id: str) -> dict:
+    row = db.execute(text(
+        "SELECT id, title, summary, source_pages FROM concepts "
+        "WHERE id = :id AND course_id = :course_id"),
+        {"id": concept_id, "course_id": course_id}).mappings().first()
+    if row is None:
+        raise HTTPException(404, "Concept not found")
+    return {**row, "source_pages": json.loads(row["source_pages"] or "[]")}
+
+
+def concept_items(db, concept_id: str) -> list[dict]:
+    rows = db.execute(text(
+        "SELECT i.id, i.type, i.prompt, i.choices, i.answer, i.rubric, i.source_id, i.status, "
+        "s.page, s.file_name FROM items i JOIN sources s ON s.id = i.source_id "
+        "WHERE i.concept_id = :id ORDER BY s.file_name, s.page, i.type, i.id"),
+        {"id": concept_id}).mappings()
+    return [{**row, "choices": json.loads(row["choices"] or "[]"),
+             "rubric": json.loads(row["rubric"] or "[]")} for row in rows]
+
+
+@router.get("/courses/{course_id}/concepts/{concept_id}/items", response_model=list[ItemOut])
+def list_items(course_id: str, concept_id: str, db: DB, user: CurrentUser):
+    owned_course(db, course_id, user.id)
+    course_concept(db, course_id, concept_id)
+    return concept_items(db, concept_id)
+
+
+@router.post("/courses/{course_id}/concepts/{concept_id}/items:generate",
+             response_model=list[ItemOut], status_code=201)
+def generate_concept_items(
+    course_id: str,
+    concept_id: str,
+    db: DB,
+    user: CurrentUser,
+    llm: Annotated[LLMClient, Depends(get_client)],
+):
+    """Write cited practice items for one concept, store them as drafts and return all of the
+    concept's items (UC-03, issue #10)."""
+    owned_course(db, course_id, user.id)
+    concept = course_concept(db, course_id, concept_id)
+    sources = [dict(row) for row in db.execute(
+        select(Source.id, Source.page, Source.text).where(Source.course_id == course_id)
+        .order_by(Source.file_name, Source.page)).mappings()]
+    if not sources:
+        raise HTTPException(404, "no_sources")
+    items = generate_items(llm, concept, sources)
+    if not items:  # every LLM call failed, or every item was refused for lack of a citation
+        raise HTTPException(503, "items_unavailable")
+    save_items(db, concept_id, items)
+    db.commit()
+    return concept_items(db, concept_id)

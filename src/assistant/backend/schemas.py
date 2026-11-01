@@ -419,6 +419,19 @@ class PrereqOut(Output):
     confidence: float
 
 
+class ItemOut(Output):
+    id: str
+    type: str
+    prompt: str
+    choices: list[str]
+    answer: str
+    rubric: list[str]
+    source_id: str
+    page: int
+    file_name: str
+    status: str
+
+
 class ConceptGraphOut(Output):
     concepts: list[ConceptOut]
     prereqs: list[PrereqOut]

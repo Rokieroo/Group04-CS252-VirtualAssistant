@@ -14,6 +14,7 @@ type Code =
   | "invalid_pdf"
   | "scanned_pdf"
   | "concepts_unavailable"
+  | "items_unavailable"
   | "upload_in_progress";
 const CODES: readonly string[] = [
   "not_pdf",
@@ -21,6 +22,7 @@ const CODES: readonly string[] = [
   "invalid_pdf",
   "scanned_pdf",
   "concepts_unavailable",
+  "items_unavailable",
   "upload_in_progress",
 ];
 export class ApiError extends Error {
@@ -60,6 +62,29 @@ function courseId(title: string): Promise<string> {
 }
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** A cited practice question (spec 10.2), stored as a draft for the course owner to review. */
+export type Item = {
+  id: string;
+  type: "mcq" | "short";
+  prompt: string;
+  choices: string[];
+  answer: string;
+  rubric: string[];
+  source_id: string;
+  page: number;
+  file_name: string;
+  status: string;
+};
+
+/** Writes new questions for a stored concept and returns all of its questions (backend only). */
+export async function generateItems(course: string, conceptId: string): Promise<Item[]> {
+  const id = await courseId(course);
+  return backend<Item[]>(
+    `/courses/${id}/concepts/${encodeURIComponent(conceptId)}/items:generate`,
+    { method: "POST" },
+  );
+}
 
 export async function uploadSource(course: string, file: File): Promise<UploadResult> {
   const rejected = checkFile(file);
