@@ -1,11 +1,11 @@
 import { type RefObject } from "react";
-import { Button } from "../components/Button";
-import { Meter } from "../components/ProgressMeter";
-import { courseFor } from "../demo/selectors";
+import { Button } from "../../components/Button";
+import { Meter } from "../../components/ProgressMeter";
+import { courseFor } from "../selectors";
 import type { State } from "../domain";
-import { formatted } from "../format";
-import type { Proposal } from "../navigation";
-import { dateKey, today } from "../time";
+import { formatted } from "../../format";
+import type { Proposal } from "../domain";
+import { dateKey, today } from "../../time";
 
 type Props = {
   state: State;

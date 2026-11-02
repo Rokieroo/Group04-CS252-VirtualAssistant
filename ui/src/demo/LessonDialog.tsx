@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { checkSetup } from "../../api/service";
-import type { CheckResult } from "../../api/types";
-import { Button } from "../../components/Button";
-import { Modal } from "../../components/Modal";
-import { courseFor } from "../../demo/selectors";
-import type { Session } from "../../domain";
-import { LearningCheck } from "./LearningCheck";
+import { checkSetup } from "../api/service";
+import type { CheckResult } from "../api/types";
+import { Button } from "../components/Button";
+import { Modal } from "../components/Modal";
+import { courseFor } from "./selectors";
+import type { Session } from "./domain";
+import { LearningCheck } from "../features/learning-check/LearningCheck";
 
 type Props = {
   session: Session;

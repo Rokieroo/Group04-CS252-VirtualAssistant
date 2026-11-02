@@ -1,10 +1,7 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
-import { backendEnabled } from "../api/backend";
 import {
   ApiError,
-  generateItems,
-  proposeConcepts,
-  uploadSource,
+  type CourseService,
   type Item,
   type UploadResult,
 } from "../api/courses";
@@ -74,8 +71,14 @@ function Questions({
   );
 }
 
-/** S3 Upload + S4 Concept editor (spec section 5); api/courses.ts picks the backend or the demo. */
-export function CoursesPage({ course }: { course: string }) {
+/** S3 Upload + S4 Concept editor (spec section 5); the caller passes the backend or the demo service. */
+export function CoursesPage({
+  course,
+  service,
+}: {
+  course: string;
+  service: CourseService;
+}) {
   const [files, setFiles] = useState<Row[]>([]);
   const [graph, setGraph] = useState<Graph | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
@@ -113,7 +116,7 @@ export function CoursesPage({ course }: { course: string }) {
       ]);
       if (rejected) continue;
       try {
-        const result = await uploadSource(course, file);
+        const result = await service.uploadSource(course, file);
         update(file.name, { ...result, error: result.warning && ERRORS[result.warning] });
       } catch (err) {
         update(file.name, {
@@ -128,12 +131,12 @@ export function CoursesPage({ course }: { course: string }) {
         continue;
       }
       // The backend extracts each new file; the demo shows its fixed sample once.
-      if (proposed && !backendEnabled) continue;
+      if (proposed && !service.live) continue;
       proposed = true;
       setProposing(true);
       setProposeError("");
       try {
-        setGraph(await proposeConcepts(course, file.name));
+        setGraph(await service.proposeConcepts(course, file.name));
       } catch (err) {
         setProposeError(
           err instanceof ApiError
@@ -157,7 +160,7 @@ export function CoursesPage({ course }: { course: string }) {
   const ask = async (id: string) => {
     setQuestions((q) => ({ ...q, [id]: { ...q[id], busy: true, error: undefined } }));
     try {
-      const items = await generateItems(course, id);
+      const items = await service.generateItems(course, id);
       setQuestions((q) => ({ ...q, [id]: { items } }));
     } catch (err) {
       const error =
@@ -183,7 +186,7 @@ export function CoursesPage({ course }: { course: string }) {
       <div className="card">
         <h2 id="upload-title">Course materials</h2>
         <p className="hint">
-          {backendEnabled
+          {service.live
             ? "AI reads your slides and proposes concepts; this can take a minute or two per file. Concept edits are not saved yet."
             : "Demo: files are checked locally. Concepts are fixed Week 1 examples, not extracted from your PDF. Edits last until you reload."}
         </p>
@@ -336,7 +339,7 @@ export function CoursesPage({ course }: { course: string }) {
                       </p>
                     )}
                     {/* Demo concepts are not stored, so only the backend can write questions. */}
-                    {backendEnabled && (
+                    {service.live && (
                       <Questions
                         title={c.title}
                         state={questions[c.id] ?? {}}

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { navigate, signIn } from "./helpers";
+import { navigate, openGoal, signIn } from "./helpers";
 
 test("quiz credit persists and retakes cannot inflate it", async ({
   page,
@@ -39,7 +39,7 @@ test("quiz credit persists and retakes cannot inflate it", async ({
   await expect(
     page.getByRole("button", { name: "Retake quiz", exact: true }),
   ).toBeVisible();
-  await navigate(page, "Mastery");
+  await openGoal(page, "English foundations");
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "Mastery",
   );
@@ -54,7 +54,7 @@ test("Mastery cards open their own session and update after a check", async ({
 }) => {
   await page.goto("/");
   await signIn(page);
-  await navigate(page, "Mastery");
+  await openGoal(page, "English foundations");
 
   const vocabulary = page
     .locator(".milestone")
@@ -104,8 +104,8 @@ test("search, empty state, enrollment, navigation and calendar still work", asyn
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Ask");
   await page.getByRole("button", { name: "I meet the prerequisite" }).click();
   await page.getByRole("button", { name: "Approve plan" }).click();
-  await navigate(page, "Review");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Review");
+  await navigate(page, "Schedule");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Schedule");
   await page.getByLabel("Calendar view").selectOption("Month");
   await expect(page.locator(".calendar.month")).toBeVisible();
   await expect(
@@ -130,7 +130,7 @@ test("search, empty state, enrollment, navigation and calendar still work", asyn
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
-  await navigate(page, "Review");
+  await navigate(page, "Schedule");
   await expect(page.getByLabel("Calendar view")).toHaveValue("Month");
   await page.screenshot({ path: testInfo.outputPath("review.png") });
   await page.emulateMedia({ colorScheme: "dark" });
@@ -181,9 +181,9 @@ test("mock login, upload and concept edits work across navigation", async ({
   await expect(
     page.getByRole("button", { name: "All confirmed" }),
   ).toBeDisabled();
-  await navigate(page, "Companion");
+  await navigate(page, "Roadmap");
   await expect(
-    page.getByRole("heading", { name: "Choose a mode" }),
+    page.getByRole("heading", { name: "No roadmap yet" }),
   ).toBeVisible();
   await navigate(page, "Courses");
   await expect(

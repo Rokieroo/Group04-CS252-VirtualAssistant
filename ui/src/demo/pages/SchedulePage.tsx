@@ -1,9 +1,9 @@
 import type { Dispatch, SetStateAction } from "react";
-import { Button } from "../components/Button";
-import { courseFor } from "../demo/selectors";
+import { Button } from "../../components/Button";
+import { courseFor } from "../selectors";
 import type { Session, State } from "../domain";
-import { formatted } from "../format";
-import { addDays, dateKey, today } from "../time";
+import { formatted } from "../../format";
+import { addDays, dateKey, today } from "../../time";
 
 type Props = {
   state: State;

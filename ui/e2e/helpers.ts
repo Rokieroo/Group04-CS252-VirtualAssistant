@@ -20,3 +20,13 @@ export async function navigate(page: Page, name: string) {
     : page.getByRole("navigation", { name: "Main navigation", exact: true });
   await navigation.getByRole("button", { name, exact: true }).click();
 }
+
+/** Mastery opens from a course goal in the sidebar (behind the menu button on phones). */
+export async function openGoal(page: Page, course: string) {
+  const menu = page.getByRole("button", { name: "Toggle navigation" });
+  if (await menu.isVisible()) await menu.click();
+  await page
+    .locator(".goals")
+    .getByRole("button", { name: new RegExp(course) })
+    .click();
+}

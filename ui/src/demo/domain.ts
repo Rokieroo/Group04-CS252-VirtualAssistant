@@ -30,3 +30,10 @@ export type State = {
   hours: number;
   messages: { role: "user" | "assistant"; text: string }[];
 };
+/** A scripted plan change the demo assistant offers for approval. */
+export type Proposal = {
+  kind: "enroll" | "balance";
+  courseId?: string;
+  stage: "check" | "review";
+  hours: number;
+};

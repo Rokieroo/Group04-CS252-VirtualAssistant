@@ -4,7 +4,7 @@ type Call = { method: string; path: string; body: unknown; auth: string | null }
 const BASE = "http://api.test";
 const pdf = () => new File(["%PDF-1.7"], "week01.pdf", { type: "application/pdf" });
 
-/** api/courses.ts and api/mock.ts in VITE_BACKEND_MODE=api, with fetch answered by `reply`. */
+/** api/courses.ts and api/account.ts in VITE_BACKEND_MODE=api, with fetch answered by `reply`. */
 async function live(reply: (call: Call) => Response) {
   vi.stubEnv("VITE_BACKEND_MODE", "api");
   vi.stubEnv("VITE_API_URL", BASE);
@@ -31,7 +31,7 @@ async function live(reply: (call: Call) => Response) {
   );
   vi.resetModules();
   const courses = await import("./courses");
-  const mock = await import("./mock");
+  const mock = await import("./account");
   return { ...courses, authenticate: mock.authenticate, calls, store };
 }
 
