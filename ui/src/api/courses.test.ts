@@ -45,6 +45,19 @@ const concept = {
   confirmed: false,
 };
 
+const item = {
+  id: "i1",
+  type: "mcq",
+  prompt: "Bậc nào dùng BM25?",
+  choices: ["Rules", "Search (BM25)", "ML", "LLM"],
+  answer: "Search (BM25)",
+  rubric: [],
+  source_id: "s77",
+  page: 77,
+  file_name: "week01.pdf",
+  status: "draft",
+};
+
 function happyBackend({ method, path }: Call): Response {
   if (path === "/api/v1/auth/register")
     return Response.json({ access_token: "tok-1" }, { status: 201 });
@@ -56,6 +69,7 @@ function happyBackend({ method, path }: Call): Response {
       { status: 201 },
     );
   if (path.includes("concepts:propose")) return Response.json({ concepts: [concept], prereqs: [] });
+  if (path.endsWith("items:generate")) return Response.json([item], { status: 201 });
   return Response.json({ detail: "unexpected" }, { status: 500 });
 }
 
@@ -94,6 +108,27 @@ describe("concept extraction against the real backend", () => {
     expect(api.calls[2].body).toEqual({ title: "CSC10014" });
     expect((api.calls[3].body as FormData).get("file")).toBeInstanceOf(File);
     expect(api.calls.slice(1).every((c) => c.auth === "Bearer tok-1")).toBe(true);
+  });
+
+  it("generates cited questions for a stored concept", async () => {
+    const api = await live(happyBackend);
+    expect(await api.generateItems("CSC10014", "c/1")).toEqual([item]);
+    expect(api.calls.map((c) => `${c.method} ${c.path}`)).toEqual([
+      "GET /api/v1/courses",
+      "POST /api/v1/courses",
+      "POST /api/v1/courses/course-1/concepts/c%2F1/items:generate",
+    ]);
+  });
+
+  it("turns a refused generation into items_unavailable", async () => {
+    const api = await live((call) =>
+      call.path.endsWith("items:generate")
+        ? Response.json({ detail: "items_unavailable" }, { status: 503 })
+        : happyBackend(call),
+    );
+    await expect(api.generateItems("CSC10014", "c1")).rejects.toEqual(
+      new api.ApiError("items_unavailable"),
+    );
   });
 
   it("reuses an existing course with the same title", async () => {

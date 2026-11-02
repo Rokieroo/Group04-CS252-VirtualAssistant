@@ -96,7 +96,7 @@ Put `VITE_BACKEND_MODE=api` in `ui/.env.local`, start the backend (`python -m uv
 
 ## Prototype boundaries
 
-No API keys, backend, database, or real LLM are needed. AI replies are deterministic examples, prerequisite confirmation is self-reported, schedule topics are sample data, and workload uses an illustrative 3 hours per active course estimate. Weekly budget adjustment resizes existing planned sessions (10–60 minutes), not a scheduling optimizer. English has four sample grammar questions; other modules use a clearly labeled workflow check. Progress milestones are illustrative, while the completion counter tracks local demo checks. The initial English goal begins at 6/14 verified lessons.
+No API keys, backend, database, or real LLM are needed. AI replies are deterministic examples, prerequisite confirmation is self-reported, schedule topics are sample data, and workload uses an illustrative 3 hours per active course estimate. Weekly budget adjustment resizes existing planned sessions (10–60 minutes), not a scheduling optimizer. English has four sample grammar questions; other modules use a clearly labeled workflow check. Mastery lists the scheduled demo sessions and updates each status after a passing check. The initial English goal begins with six example lessons already completed, plus seven scheduled sessions (6/13 verified).
 
 State is stored under `pathly.demo.v1` in browser localStorage, not an account. Lesson scratch notes last only while the dialog is open. Removing that storage key resets the demo. Saved demo schedules are rebased when the date changes so the relative calendar remains usable.
 

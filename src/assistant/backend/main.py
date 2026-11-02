@@ -7,6 +7,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.companion import ChatProvider, Companion
+from app.ingest import MAX_UPLOAD_BYTES
+
 from . import (
     routes_ai,
     routes_auth,
@@ -17,7 +20,6 @@ from . import (
 )
 from .config import Settings
 from .database import Database
-from .ingest import MAX_UPLOAD_BYTES
 from .models import utcnow
 
 API = "/api/v1"
@@ -46,7 +48,17 @@ def create_app(settings: Settings | None = None, *, now=utcnow, ai_transport=Non
     application.state.database = database
     application.state.settings = settings
     application.state.now = now
-    application.state.ai_transport = ai_transport
+    application.state.companion = Companion(
+        ChatProvider(
+            settings.llm_base_url,
+            settings.llm_api_key,
+            settings.llm_model,
+            settings.llm_timeout_seconds,
+            ai_transport,
+        )
+        if settings.llm_api_key and settings.llm_model
+        else None
+    )
     # SQLite has no row locks, so one process-wide lock serializes schedule writes.
     # PostgreSQL already serializes them per user with SELECT ... FOR UPDATE.
     application.state.schedule_lock = (

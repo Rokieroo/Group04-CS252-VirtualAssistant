@@ -2,7 +2,7 @@ import { Button } from "../components/Button";
 import { Meter } from "../components/ProgressMeter";
 import { courseFor } from "../demo/selectors";
 import type { Session, State } from "../domain";
-import { pendingCount, progress, verifiedCount } from "../model";
+import { completion, pendingCount, verifiedCount } from "../model";
 import { pageLabels, type Page } from "../navigation";
 import { dateKey, today } from "../time";
 
@@ -14,6 +14,7 @@ type Props = {
 export function HomePage({ state, go, openLesson }: Props) {
   const todays = state.sessions.filter((s) => s.date === dateKey(today()));
   const plannedToday = todays.filter((s) => s.status === "planned").length;
+  const english = completion(state, "english");
   return (
     <>
       <section className="card hero">
@@ -50,10 +51,12 @@ export function HomePage({ state, go, openLesson }: Props) {
                 </p>
               </div>
               <Button onClick={() => openLesson(s)}>
-                {s.status === "verified"
-                  ? "Review result"
-                  : s.kind === "quiz"
-                    ? "Take quiz"
+                {s.kind === "quiz"
+                  ? s.status === "verified"
+                    ? "Retake quiz"
+                    : "Take quiz"
+                  : s.status === "verified"
+                    ? "Open lesson"
                     : "Start lesson"}
               </Button>
             </article>
@@ -62,19 +65,13 @@ export function HomePage({ state, go, openLesson }: Props) {
         <section className="card overview">
           <h3>Goal overview</h3>
           <div className="metric-line">
-            <strong>{progress(state, "english")}%</strong>
+            <strong>{english.percent}%</strong>
             <span>Verified progress</span>
           </div>
-          <Meter value={progress(state, "english")} />
+          <Meter value={english.percent} />
           <hr />
           <b>
-            {6 +
-              state.verified.filter(
-                (id) =>
-                  state.sessions.find((s) => s.id === id)?.courseId ===
-                  "english",
-              ).length}{" "}
-            of 14 lessons verified
+            {english.verified} of {english.total} demo lessons verified
           </b>
           <p className="amber-text">
             {pendingCount(state, "english")} lessons awaiting assessment

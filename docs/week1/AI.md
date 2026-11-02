@@ -22,8 +22,8 @@ Dưới đây là các hạng mục công việc cần hoàn thiện:
   - **Thư viện**: `rank-bm25`; tokenize giữ dấu tiếng Việt.
   - **Ngưỡng**: dưới `MIN_SCORE` trả rỗng → "không tìm thấy".
   - **Đo**: top-5 hit rate trên benchmark.
-- [ ] **Task 4: Sinh câu hỏi bắt buộc trích dẫn (#10, Minh, 10 giờ)**
-  - **Input**: concept + top-3 trang từ BM25.
+- [x] **Task 4: Sinh câu hỏi bắt buộc trích dẫn (#10, Minh, 10 giờ)**
+  - **Input**: concept + top-3 trang từ BM25 (xếp hạng trong các trang `source_pages` của concept; thiếu thì lấy thêm trang của concept).
   - **Output**: 3–5 item (≥ 1 MCQ, ≥ 1 short answer có rubric).
   - **Cite or refuse**: item có `source_id` ngoài danh sách trang đã đưa vào bị bỏ.
   *(Ghi chú PM: đây là phần demo chính thứ Sáu. Nếu #11 trễ, tạm đưa trang nguồn của concept từ `source_pages` của #9.)*
@@ -89,10 +89,35 @@ Chạy ngày 28/10/2026 bằng `gemini-3.5-flash-lite` (quota ngày của `gemin
 ¹ Cửa sổ trang 37–76 bị Gemini trả 503 nên bị bỏ qua; chạy lại sẽ có thêm concept. ² Chạy trước khi prompt v2 thêm quy tắc "không gộp nhiều ý thành một chủ đề lớn" (Week03 tăng từ 6 lên 10 concept sau quy tắc này). ³ Chạy với hai model, cửa sổ 20 trang (`extract_v3`); bản `extract_v2` ra 8. Gemini 3.1 trả 503 cho trang 41–80 nên các trang đó không có ghi chú ảnh; cả lần chạy mất ~6 phút vì retry.
 Thời gian Week02: chạy tuần tự 6 phút 12 giây → song song (4 luồng, chuyển model ngay khi 503, timeout 90 giây) 1 phút 54 giây, dù lúc đo Gemini quá tải: cả 4 khối ảnh và 2/4 cửa sổ concept bị 503.
 
-**Item generation (#10), kiểm tra tay 20 item**
+**Item generation (#10), kiểm tra tay 20 item**, prompt `generate_v1`
+
+Chạy ngày 31/10/2026 bằng `gemini-3.5-flash-lite` trên Week01 Problem Framing (5 concept × 4 item), concept lấy từ `python dev.py ai concepts <pdf> --json`, rồi `python dev.py ai items <pdf> --concepts <json>`. Mỗi item được đối chiếu với text của trang nó trích dẫn. Lần chạy trước đó (BM25 trên cả deck) bị lấy nhầm trang ngoài concept (vd. trang 122, 125) và một item short bị bỏ vì rubric 5 tiêu chí; từ đó BM25 xếp hạng trong `source_pages` của concept.
 
 | # | Concept | Loại | Đúng nội dung? | Đúng trang? | Ghi chú |
 |---|---|---|---|---|---|
+| 1 | Framing Ladder | mcq | ✅ | ✅ 26 | Thứ tự 5 bậc |
+| 2 | Framing Ladder | short | ✅ | ✅ 26 | Bậc 5: number + target |
+| 3 | Framing Ladder | mcq | ✅ | ✅ 26 | "Never skip a rung" |
+| 4 | Framing Ladder | short | ✅ | ✅ 25 | Ví dụ well-defined: < 5 s, ≥ 85% trên 60 câu |
+| 5 | The Mom Test | mcq | ✅ | ✅ 46 | |
+| 6 | The Mom Test | short | ✅ | ✅ 47 | Evidence, not praise |
+| 7 | The Mom Test | mcq | ✅ | ✅ 47 | |
+| 8 | The Mom Test | mcq | ✅ | ✅ 48 | Lặp lại câu quiz có sẵn trên slide |
+| 9 | FR vs NFR | mcq | ✅ | ✅ 55 | |
+| 10 | FR vs NFR | short | ✅ | ✅ 56 | ISO/IEC 25010 |
+| 11 | FR vs NFR | mcq | ✅ | ✅ 57 | |
+| 12 | FR vs NFR | short | ✅ | ✅ 55 | Rubric lỏng (tiêu chí 1 chấp nhận 1 ví dụ dù đề hỏi 2) |
+| 13 | Solution Ladder | mcq | ✅ | ✅ 77 | |
+| 14 | Solution Ladder | short | ✅ | ✅ 77 | Tiêu chí 2 của rubric hơi suy diễn |
+| 15 | Solution Ladder | mcq | ✅ | ✅ 78 | Chi tiết bảng ví dụ (1 ngày, ~40%) |
+| 16 | Solution Ladder | short | ✅ | ✅ 78 | Chi tiết bảng ví dụ |
+| 17 | Five Metric Layers | mcq | ✅ | ✅ 79 | Phương án nhiễu là chỉ số của tầng khác |
+| 18 | Five Metric Layers | short | ✅ | ✅ 79 | |
+| 19 | Five Metric Layers | mcq | ✅ | ✅ 80 | |
+| 20 | Five Metric Layers | short | ✅ | ✅ 81 | Leading vs lagging |
+
+- Đúng nội dung **và** đúng trang: **100% (20/20)**, đạt ngưỡng ≥ 80%. Người chấm: Claude Code (đối chiếu text trang); team cần chấm lại trước demo.
+- Cần cải thiện ở `generate_v2`: rubric phải khớp số ý đề hỏi; hạn chế hỏi chi tiết số liệu trong bảng ví dụ; không chép lại câu quiz có sẵn.
 
 **Retrieval (#11)** — chạy `python eval/run_retrieval.py` trên `eval/benchmark.jsonl` mẫu (2 case `normal`, 1 case `missing_knowledge`) với fixture 6 trang slide CSC10014.
 

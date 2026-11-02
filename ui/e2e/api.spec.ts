@@ -50,10 +50,10 @@ test("API errors retry without demo fallback; answers are graded by the response
     answers: [{ questionId: "q1", optionId: "went" }],
   });
   await page.keyboard.press("Escape");
-  await expect(page.locator(".overview .metric-line")).toContainText("42%");
+  await expect(page.locator(".overview .metric-line")).toContainText("46%");
   await page.reload();
   await signIn(page);
-  await expect(page.locator(".overview .metric-line")).toContainText("42%");
+  await expect(page.locator(".overview .metric-line")).toContainText("46%");
 });
 
 test("API empty checks and malformed responses have explicit states", async ({

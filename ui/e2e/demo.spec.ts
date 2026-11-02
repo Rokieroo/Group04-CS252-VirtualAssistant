@@ -35,9 +35,9 @@ test("quiz credit persists and retakes cannot inflate it", async ({
   await page.keyboard.press("Escape");
   await page.reload();
   await signIn(page);
-  await expect(page.locator(".overview .metric-line")).toContainText("50%");
+  await expect(page.locator(".overview .metric-line")).toContainText("53%");
   await expect(
-    page.getByRole("button", { name: "Review result", exact: true }),
+    page.getByRole("button", { name: "Retake quiz", exact: true }),
   ).toBeVisible();
   await navigate(page, "Mastery");
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
@@ -47,6 +47,43 @@ test("quiz credit persists and retakes cannot inflate it", async ({
     page.getByRole("heading", { name: "Assessment summary" }),
   ).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test("Mastery cards open their own session and update after a check", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await signIn(page);
+  await navigate(page, "Mastery");
+
+  const vocabulary = page
+    .locator(".milestone")
+    .filter({ hasText: "Vocabulary" });
+  await expect(vocabulary).toContainText("Planned");
+  await vocabulary.getByRole("button", { name: "Open lesson" }).click();
+  await expect(page.getByRole("dialog", { name: "Vocabulary" })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  const quiz = page
+    .locator(".milestone")
+    .filter({ hasText: "Practice & short knowledge check" });
+  await expect(quiz).toContainText("Planned");
+  await quiz.getByRole("button", { name: "Take check" }).click();
+  const dialog = page.getByRole("dialog", { name: "Knowledge check" });
+  for (const answer of ["went", "was", "They were playing.", "saw"])
+    await dialog.getByRole("radio", { name: answer, exact: true }).check();
+  await dialog.getByRole("button", { name: "Submit answers" }).click();
+  await expect(dialog.getByRole("status")).toContainText("100% · Passed");
+  await page.keyboard.press("Escape");
+
+  await expect(quiz).toContainText("Verified");
+  await expect(
+    quiz.getByRole("button", { name: "Retake check" }),
+  ).toBeVisible();
+  await expect(page.locator(".progress-summary").first()).toContainText("53%");
+  await expect(page.locator(".progress-summary").first()).toContainText(
+    "7 / 13",
+  );
 });
 
 test("search, empty state, enrollment, navigation and calendar still work", async ({

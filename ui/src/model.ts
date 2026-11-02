@@ -34,7 +34,12 @@ export function saveFuture(s: State, id: string): State {
     : { ...s, future: [...s.future, id] };
 }
 export function verify(s: State, id: string, score: number): State {
-  if (score < 70 || s.verified.includes(id)) return s;
+  if (
+    score < 70 ||
+    s.verified.includes(id) ||
+    !s.sessions.some((x) => x.id === id)
+  )
+    return s;
   return {
     ...s,
     verified: [...s.verified, id],
@@ -43,14 +48,25 @@ export function verify(s: State, id: string, score: number): State {
     ),
   };
 }
-export function progress(s: State, id: string) {
-  const extra = s.verified.filter(
-    (v) => s.sessions.find((x) => x.id === v)?.courseId === id,
+export function completion(s: State, id: string) {
+  const sessions = s.sessions.filter((session) => session.courseId === id);
+  const verifiedSessions = sessions.filter((session) =>
+    s.verified.includes(session.id),
   ).length;
-  return Math.min(
-    100,
-    Math.floor((((id === "english" ? 6 : 0) + extra) / 14) * 100),
-  );
+  // The English demo begins with six completed lessons that have no session records.
+  const baseline = id === "english" ? 6 : 0;
+  const total = baseline + sessions.length;
+  const verified = baseline + verifiedSessions;
+  return {
+    verified,
+    total,
+    percent: total ? Math.floor((verified / total) * 100) : 0,
+    baseline,
+  };
+}
+
+export function progress(s: State, id: string) {
+  return completion(s, id).percent;
 }
 export function verifiedCount(s: State, courseId: string) {
   return s.verified.filter(

@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from threading import Event
 from types import SimpleNamespace
 
@@ -25,7 +25,7 @@ def test_task_update_rechecks_progress_after_acquiring_assignee_lock(
     created = task(client, headers, duration_minutes=60)
     plan(client, headers)
     entry = client.get("/api/v1/schedule", headers=headers).json()[0]
-    clock[0] = datetime(2030, 1, 7, 3, tzinfo=timezone.utc)
+    clock[0] = datetime(2030, 1, 7, 3, tzinfo=UTC)
     request = SimpleNamespace(app=app)
     with (
         app.state.database.sessions() as earlier,
@@ -51,7 +51,7 @@ def test_task_update_rechecks_progress_after_acquiring_assignee_lock(
 
 
 def test_delete_and_checkin_cannot_both_succeed_and_erase_history(tmp_path):
-    clock = [datetime(2030, 1, 7, 0, tzinfo=timezone.utc)]
+    clock = [datetime(2030, 1, 7, 0, tzinfo=UTC)]
     settings = Settings(
         database_url="sqlite:///" + (tmp_path / "race.db").as_posix(),
         session_minutes=43200,
@@ -74,7 +74,7 @@ def test_delete_and_checkin_cannot_both_succeed_and_erase_history(tmp_path):
         created = task(client, headers, duration_minutes=60)
         plan(client, headers)
         entry = client.get("/api/v1/schedule", headers=headers).json()[0]
-        clock[0] = datetime(2030, 1, 7, 3, tzinfo=timezone.utc)
+        clock[0] = datetime(2030, 1, 7, 3, tzinfo=UTC)
         event.listen(app.state.database.engine, "before_cursor_execute", pause_delete)
 
         def complete():
@@ -118,7 +118,7 @@ def test_delete_and_checkin_cannot_both_succeed_and_erase_history(tmp_path):
 def test_availability_change_cannot_interleave_with_committed_plan(
     tmp_path, monkeypatch
 ):
-    clock = datetime(2030, 1, 7, 0, tzinfo=timezone.utc)
+    clock = datetime(2030, 1, 7, 0, tzinfo=UTC)
     settings = Settings(
         database_url="sqlite:///" + (tmp_path / "plan-race.db").as_posix(),
         session_minutes=43200,
@@ -172,7 +172,7 @@ def test_replan_recovers_past_unchecked_work_without_changing_history_during_pre
     created = task(client, headers, duration_minutes=60)
     plan(client, headers)
     old_entry = client.get("/api/v1/schedule", headers=headers).json()[0]
-    clock[0] = datetime(2030, 1, 7, 3, tzinfo=timezone.utc)
+    clock[0] = datetime(2030, 1, 7, 3, tzinfo=UTC)
     request = {
         "starts_at": "2030-01-07T10:00:00+07:00",
         "ends_at": "2030-01-07T12:00:00+07:00",

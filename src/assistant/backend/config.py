@@ -6,6 +6,15 @@ from dataclasses import dataclass, field
 from dotenv import load_dotenv
 
 
+def _with_psycopg_driver(url: str) -> str:
+    # Hosted Postgres (e.g. Neon on Vercel) hands out postgres:// URLs; SQLAlchemy
+    # would pick psycopg2 for those, but only psycopg 3 is installed.
+    for scheme in ("postgres://", "postgresql://"):
+        if url.startswith(scheme):
+            return "postgresql+psycopg://" + url[len(scheme) :]
+    return url
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str = "sqlite:///./local.db"
@@ -31,7 +40,9 @@ class Settings:
         load_dotenv()
         return cls(
             # One database for the whole app, shared with Alembic and the dev CLI.
-            database_url=os.getenv("DATABASE_URL", "sqlite:///./local.db"),
+            database_url=_with_psycopg_driver(
+                os.getenv("DATABASE_URL", "sqlite:///./local.db")
+            ),
             cors_origins=tuple(
                 value.strip()
                 for value in os.getenv(

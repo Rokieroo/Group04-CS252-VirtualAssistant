@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wireframes · Group04 Study Companion</title>
+<!--
+  Low-fidelity wireframes for issue #5 (spec docs/roadmap/APP_SPECIFICATION.md sections 4, 5, 11).
+  Open this file in a browser. Sections mirror the planned Figma pages: Wireframes, States, Components, Flows.
+  ?frame=<id> renders one frame at 1:1 and ?section=<id> renders one section; capture.mjs uses both for screenshots.
+-->
+<style>
+  :root { --ink:#222; --muted:#666; --line:#c4c4c4; --fill:#e8e8e8; --soft:#f5f5f5; --page:#dcdcdc; --bad:#b3261e; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:24px; background:var(--page); color:var(--ink); font:16px/1.45 Inter, system-ui, "Segoe UI", sans-serif; }
+  h1,h2,h3,p { margin:0; }
+  .board > h1 { font-size:28px; margin-bottom:4px; }
+  .board > p { color:#444; margin-bottom:24px; max-width:900px; }
+  section.sec { margin-bottom:40px; }
+  section.sec > h2 { font-size:22px; margin-bottom:4px; }
+  section.sec > p { color:#444; margin-bottom:16px; }
+  .row { display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start; margin-bottom:24px; }
+  .card { display:flex; flex-direction:column; gap:6px; }
+  .card > .label { font-size:13px; font-weight:600; color:#333; }
+  .thumb { zoom:.4; border:2px solid #999; background:#fff; }
+  a.thumb-link { color:inherit; text-decoration:none; }
+  .arrow { align-self:center; font-size:28px; color:#555; }
+  body.solo { padding:0; background:#fff; }
+  body.solo .thumb { zoom:1; border:0; }
+
+  /* App shell */
+  .frame { position:relative; overflow:hidden; background:#fff; }
+  .app { display:flex; height:100%; }
+  .app.d .side { width:232px; flex:none; border-right:1px solid var(--line); padding:24px 16px; display:flex; flex-direction:column; gap:4px; background:var(--soft); }
+  .logo { display:block; font-size:18px; margin-bottom:24px; padding-left:8px; }
+  .nav-i { display:flex; align-items:center; gap:12px; min-height:44px; padding:0 12px; border-radius:8px; color:var(--muted); font-size:15px; }
+  .nav-i.on { background:var(--fill); color:var(--ink); font-weight:600; }
+  .app main { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .top { display:flex; align-items:center; justify-content:space-between; gap:16px; height:64px; padding:0 32px; border-bottom:1px solid var(--line); flex:none; }
+  .top h1 { font-size:24px; }
+  .avatar { width:36px; height:36px; border-radius:50%; background:var(--fill); border:1px solid var(--line); flex:none; }
+  .content { flex:1; overflow:hidden; padding:24px 32px; display:flex; flex-direction:column; gap:16px; }
+  .app.m { flex-direction:column; }
+  .app.m .top { height:56px; padding:0 16px; }
+  .app.m .top h1 { font-size:20px; }
+  .app.m .content { padding:16px; }
+  .bottom { display:flex; border-top:1px solid var(--line); height:72px; flex:none; background:var(--soft); }
+  .bottom .nav-i { flex:1; flex-direction:column; justify-content:center; gap:2px; font-size:11px; padding:0; border-radius:0; }
+  .cols { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:24px; flex:1; min-height:0; }
+  .app.m .cols { display:flex; flex-direction:column; gap:16px; }
+  .app.m .d-only, .app.d .m-only { display:none !important; }
+  .stack { display:flex; flex-direction:column; gap:12px; min-height:0; }
+  .panel { border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:12px; background:#fff; }
+  .panel.soft { background:var(--soft); }
+  .panel h3, .h3 { font-size:20px; }
+  .between { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .inline { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .grow { flex:1; }
+  .muted { color:var(--muted); }
+  .sm { font-size:14px; }
+  .center { text-align:center; }
+  .spacer { flex:1; }
+  .content > *, .stack > *, .cols > * { flex-shrink:0; }
+  .content > .spacer, .stack > .spacer { flex-shrink:1; }
+  .wrap { flex-wrap:wrap; }
+  .app.m .h3 { font-size:18px; }
+  .app.m .m-hide { display:none; }
+
+  /* Pieces */
+  .ico { display:inline-block; width:20px; height:20px; border-radius:5px; background:var(--line); flex:none; }
+  .ico.lg { width:48px; height:48px; border-radius:12px; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; min-width:44px; padding:0 16px; border:1px solid #888; border-radius:10px; background:#fff; font:inherit; font-size:15px; font-weight:600; color:var(--ink); white-space:nowrap; }
+  .btn.primary { background:#333; border-color:#333; color:#fff; }
+  .btn.ghost { border-color:transparent; background:transparent; }
+  .btn.off { opacity:.45; }
+  .btn.block { width:100%; }
+  .chip { display:inline-flex; align-items:center; gap:4px; min-height:28px; padding:0 10px; border:1px solid #888; border-radius:999px; font-size:13px; font-weight:600; color:var(--ink); text-decoration:underline; background:var(--soft); white-space:nowrap; }
+  .chip.none { text-decoration:none; border-style:dashed; color:var(--muted); }
+  .tag { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius:999px; background:var(--fill); font-size:13px; }
+  .tag.on { background:#333; color:#fff; }
+  .bar { height:8px; border-radius:99px; background:var(--fill); overflow:hidden; }
+  .bar > i { display:block; height:100%; background:#555; }
+  .skel { height:14px; border-radius:6px; background:var(--fill); }
+  .skel.w60 { width:60%; } .skel.w80 { width:80%; } .skel.w40 { width:40%; }
+  .skel.block { height:72px; border-radius:12px; }
+  .input { display:flex; align-items:center; min-height:44px; padding:0 14px; border:1px solid #888; border-radius:10px; color:var(--muted); background:#fff; }
+  .input.area { align-items:flex-start; min-height:96px; padding-top:10px; }
+  .field { display:flex; flex-direction:column; gap:6px; font-size:14px; font-weight:600; }
+  .check { width:20px; height:20px; border:1.5px solid #777; border-radius:4px; flex:none; display:inline-flex; align-items:center; justify-content:center; font-size:14px; }
+  .check.on { background:#333; color:#fff; border-color:#333; }
+  .lock { width:16px; height:16px; flex:none; }
+  .note { border:1px dashed #8a8a8a; border-radius:8px; padding:8px 12px; font-size:13px; color:#444; background:#fafafa; }
+  .alert { display:flex; gap:12px; align-items:flex-start; border:2px solid #333; border-radius:12px; padding:12px 16px; }
+  .alert.bad { border-color:var(--bad); }
+  .alert .ico { background:#333; }
+  .alert.bad .ico { background:var(--bad); }
+  .toast { position:absolute; left:50%; bottom:96px; transform:translateX(-50%); display:flex; align-items:center; gap:16px; padding:8px 8px 8px 16px; border-radius:12px; background:#333; color:#fff; font-size:14px; white-space:nowrap; }
+  .toast .btn { min-height:36px; background:transparent; color:#fff; border-color:#fff; }
+  .app.m .toast { bottom:144px; }
+  .app.d .toast { bottom:84px; }
+  .drop { border:2px dashed #888; border-radius:16px; padding:28px; display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; background:var(--soft); }
+  .drop.big { padding:64px 28px; }
+  .app.m .drop:not(.big) { padding:16px; }
+  .app.m .drop:not(.big) > .ico, .app.m .drop:not(.big) > span:first-of-type { display:none; }
+  .file { display:flex; align-items:center; gap:12px; border:1px solid var(--line); border-radius:12px; padding:12px 16px; }
+  .file.err { border:2px solid var(--bad); }
+  .file > .ico { width:28px; height:36px; border-radius:4px; }
+  .file .meta { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+  .err-text { color:var(--bad); font-weight:600; font-size:14px; }
+  .concept { display:flex; gap:12px; align-items:flex-start; border:1px solid var(--line); border-radius:12px; padding:12px 16px; }
+  .concept .meta { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
+  .concept .acts { display:flex; gap:4px; }
+  .one-line { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .edge { display:flex; align-items:center; gap:8px; font-size:14px; padding:6px 10px; border:1px solid var(--line); border-radius:8px; }
+  .edge.bad { border:2px dashed var(--bad); color:var(--bad); font-weight:600; }
+  .opt { display:flex; align-items:center; gap:12px; min-height:52px; padding:0 16px; border:1px solid #999; border-radius:12px; }
+  .opt.on { border:2px solid #333; background:var(--soft); font-weight:600; }
+  .opt .k { width:28px; height:28px; border-radius:50%; border:1px solid #777; display:inline-flex; align-items:center; justify-content:center; font-size:13px; flex:none; }
+  .rate { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .rate .btn { flex-direction:column; gap:0; min-height:56px; padding:4px; }
+  .rate small { font-weight:400; font-size:12px; color:var(--muted); }
+  .seg { display:grid; grid-template-columns:repeat(3,1fr); border:1px solid #888; border-radius:10px; overflow:hidden; }
+  .seg > span { display:flex; align-items:center; justify-content:center; gap:6px; min-height:44px; font-size:14px; font-weight:600; border-left:1px solid #888; }
+  .seg > span:first-child { border-left:0; }
+  .seg > span.on { background:#333; color:#fff; }
+  .seg > span.locked { color:#999; background:var(--soft); }
+  .msg { max-width:80%; padding:10px 14px; border-radius:14px; background:var(--fill); font-size:15px; }
+  .msg.me { align-self:flex-end; background:#fff; border:1px solid #999; }
+  .portrait { width:100%; aspect-ratio:3/2; border-radius:12px; background:repeating-linear-gradient(45deg,var(--fill) 0 10px,#f0f0f0 10px 20px); display:flex; align-items:center; justify-content:center; text-align:center; padding:8px; color:var(--muted); font-size:14px; border:1px solid var(--line); flex:none; }
+  .app.d .portrait { aspect-ratio:auto; height:280px; }
+  .app.m .portrait { aspect-ratio:auto; height:96px; }
+  .scene { display:flex; align-items:center; gap:12px; font-size:14px; }
+  .scene .thumbnail { width:56px; height:40px; border-radius:6px; background:var(--fill); border:1px solid var(--line); flex:none; }
+  .switch { width:44px; height:26px; border-radius:99px; background:#333; position:relative; flex:none; }
+  .switch::after { content:""; position:absolute; right:3px; top:3px; width:20px; height:20px; border-radius:50%; background:#fff; }
+  .pageprev { flex:1; border:1px solid var(--line); border-radius:8px; padding:20px; display:flex; flex-direction:column; gap:10px; background:#fff; }
+  .hl { background:#d6d6d6; outline:2px solid #555; }
+  .stat { font-size:40px; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const SIZE = { d: [1440, 900], m: [390, 844] };
+const NAV = [["home", "Trang chủ"], ["courses", "Môn học"], ["review", "Ôn tập"], ["ask", "Hỏi đáp"], ["companion", "Companion"]];
+const LOCK = '<svg class="lock" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7" width="10" height="8" rx="1.5" fill="currentColor"/><path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
+
+const btn = (label, kind = "") => `<span class="btn ${kind}">${label}</span>`;
+const chip = (file, page) => `<span class="chip">${file} · tr. ${page}</span>`;
+const bar = (pct) => `<div class="bar"><i style="width:${pct}%"></i></div>`;
+const skel = (...w) => w.map((c) => `<div class="skel ${c}"></div>`).join("");
+const progress = (pct, text) => `${bar(pct)}<span class="sm">${text}</span>`;
+const alert = (title, body, kind = "") => `<div class="alert ${kind}"><i class="ico"></i><div class="stack" style="gap:6px"><b>${title}</b>${body}</div></div>`;
+const empty = (title, text, actions) => `<div class="drop big"><i class="ico lg"></i><b>${title}</b><span class="muted sm">${text}</span><div class="inline">${actions}</div></div>`;
+
+function shell(size, active, title, body) {
+  const nav = NAV.map(([k, l]) => `<span class="nav-i ${k === active ? "on" : ""}"><i class="ico"></i>${l}</span>`).join("");
+  const top = `<header class="top"><h1>${title}</h1><span class="avatar"></span></header>`;
+  return size === "d"
+    ? `<div class="app d"><aside class="side"><b class="logo">Study Companion</b>${nav}</aside><main>${top}<div class="content">${body}</div></main></div>`
+    : `<div class="app m">${top}<div class="content">${body}</div><nav class="bottom">${nav}</nav></div>`;
+}
+
+// ---------- S3 Upload ----------
+function file(name, meta, status, extra = "") {
+  const right = { done: '<span class="tag">✓ Xong</span>', wait: '<span class="tag">Đang chờ</span>', prog: "", err: btn("Xóa", "ghost") }[status];
+  return `<div class="file ${status === "err" ? "err" : ""}"><i class="ico"></i><div class="meta"><b class="one-line">${name}</b><span class="muted sm">${meta}</span>${extra}</div>${right}</div>`;
+}
+const fileError = (text, action = "") => `<span class="err-text">${text}</span>${action}`;
+
+function s3(state) {
+  const drop = `<div class="drop ${state === "empty" ? "big" : ""}"><i class="ico lg"></i><b>Kéo thả file PDF vào đây</b><span class="muted sm">hoặc</span>${btn("Chọn file")}<span class="muted sm">Chỉ PDF · tối đa 20 MB mỗi file</span></div>`;
+  const steps = `<div class="panel soft d-only"><h3>Sau khi tải lên</h3>
+    <div class="inline"><span class="tag">1</span>Trích text theo trang (≈ 2 phút / 100 trang)</div>
+    <div class="inline"><span class="tag">2</span>Đề xuất 8–20 concept</div>
+    <div class="inline"><span class="tag">3</span>Bạn đổi tên, gộp, xóa rồi xác nhận</div>
+    <div class="note">Tài liệu chỉ dùng cho tài khoản của bạn.</div></div>`;
+  const files = {
+    empty: `<p class="center muted">Chưa có tài liệu nào. Tải slide đầu tiên để hệ thống đề xuất concept.</p>`,
+    default: file("Week01.pdf", "84 trang · 6,2 MB", "done")
+      + file("Week02.pdf", "62 trang · 4,8 MB", "prog", progress(50, "Đang trích trang 31/62"))
+      + file("Week03.pdf", "Chưa bắt đầu · 3,1 MB", "wait"),
+    loading: file("Week01.pdf", "84 trang · 6,2 MB", "prog", progress(80, "Đang trích trang 67/84"))
+      + file("Week02.pdf", "62 trang · 4,8 MB", "prog", progress(10, "Đang trích trang 6/62"))
+      + `<p class="muted sm center">Đang xử lý… khoảng 2 phút cho 100 trang. Bạn có thể rời trang, tiến trình vẫn chạy.</p>`,
+    error: file("notes.docx", "1,2 MB", "err", fileError("Hiện chỉ hỗ trợ file PDF."))
+      + file("Lecture-full.pdf", "48,0 MB", "err", fileError("File lớn hơn 20 MB. Hãy tách file hoặc nén lại."))
+      + file("Scan-week4.pdf", "22 trang · 9,4 MB", "err", fileError("Không đọc được chữ trong file này. Bạn có thể dán nội dung trang cần học.", `<span>${btn("Dán nội dung")}</span>`))
+      + file("Week05.pdf", "2,0 MB", "err", fileError("File bị hỏng, không mở được. Hãy xuất lại PDF rồi tải lên.")),
+  }[state];
+  const hint = state === "error" ? "Xóa hoặc sửa các file lỗi để tiếp tục" : "Bấm được khi mọi file đã xử lý xong";
+  const cta = state === "empty" ? "" : `<div class="between"><span class="muted sm">${hint}</span>${btn("Đề xuất concept →", "primary off")}</div>`;
+  return { title: "Tải tài liệu · CS252", nav: "courses", body: `<div class="cols"><div class="stack">${drop}${files}<div class="spacer"></div>${cta}</div>${steps}</div>` };
+}
+
+// ---------- S4 Concept editor ----------
+const CONCEPTS = [
+  ["Decomposition", "Chia bài toán lớn thành các bài toán con độc lập", 3, "3, 4, 9", ""],
+  ["Pattern recognition", "Tìm điểm giống nhau giữa các bài toán đã gặp", 2, "11, 12", "Decomposition"],
+  ["Abstraction", "Giữ chi tiết quan trọng, bỏ chi tiết không cần", 4, "15–18", "Pattern recognition"],
+  ["Algorithm design", "Viết các bước giải rõ ràng, lặp lại được", 3, "21, 22, 30", "Abstraction"],
+  ["Evaluation", "Kiểm tra lời giải đúng và đủ hiệu quả", 2, "34, 35", ""],
+];
+function conceptRow([name, desc, count, pages, pre], i) {
+  return `<div class="concept"><span class="check ${i < 2 ? "on" : ""}">${i < 2 ? "✓" : ""}</span><div class="meta"><b>${name}</b><span class="muted sm one-line">${desc}</span>
+    <div class="inline sm"><span class="tag">${count} trang nguồn · tr. ${pages}</span>${pre ? `<span class="tag">Cần trước: ${pre}</span>` : ""}</div></div>
+    <div class="acts d-only">${btn("Đổi tên", "ghost")}${btn("+ Prerequisite", "ghost")}${btn("Xóa", "ghost")}</div><div class="acts m-only">${btn("⋯", "ghost")}</div></div>`;
+}
+function s4(state) {
+  const page = (body) => ({ title: "Concept · CS252", nav: "courses", body });
+  if (state === "empty") return page(empty("Chưa có concept nào", "Tải tài liệu ở bước trước để hệ thống đề xuất, hoặc tự thêm.", btn("+ Thêm concept thủ công", "primary") + btn("Quay lại tải tài liệu")));
+  if (state === "loading") return page(`<div class="panel"><b>Đang đề xuất concept từ 146 trang…</b>${bar(45)}<span class="muted sm">Khoảng 1 phút. Bạn sửa được danh sách ngay khi xong.</span></div>${skel("block", "block", "block", "block")}`);
+  const cycle = state === "error";
+  const toolbar = `<div class="between wrap"><span class="muted"><b>12 concept đề xuất</b> · đã chọn 2</span><div class="inline">${btn("Gộp")}${btn("+ Prerequisite")}<span class="d-only">${btn("+ Thêm concept")}</span></div></div>`;
+  const warn = cycle ? alert("Thêm cạnh này sẽ tạo vòng lặp. Hãy bỏ một cạnh trước.", `<span class="sm">Algorithm design → Decomposition → Pattern recognition → Abstraction → Algorithm design</span><div class="inline">${btn("Bỏ cạnh mới", "primary")}${btn("Chọn cạnh khác để bỏ")}</div>`, "bad") : "";
+  const graph = `<div class="panel soft d-only"><h3>Prerequisite</h3>
+    <div class="edge">Decomposition → Pattern recognition</div><div class="edge">Pattern recognition → Abstraction</div><div class="edge">Abstraction → Algorithm design</div>
+    ${cycle ? '<div class="edge bad">Algorithm design → Decomposition (cạnh mới)</div>' : ""}
+    <div class="note">Graph view 2D làm ở tuần 2. Tuần 1 hiện danh sách cạnh.</div></div>`;
+  const toast = state === "default" ? `<div class="toast">Đã xóa “Debugging”${btn("Hoàn tác (5 s)")}</div>` : "";
+  return page(`<div class="cols"><div class="stack">${toolbar}${warn}${CONCEPTS.map(conceptRow).join("")}<div class="spacer"></div>${btn("Xác nhận tất cả (12)", "primary block")}</div>${graph}</div>${toast}`);
+}
+
+// ---------- S6 Review session ----------
+const OPTIONS = ["Decomposition", "Pattern recognition", "Abstraction", "Algorithm design"];
+const QUESTION = "Bản đồ tàu điện ngầm bỏ khoảng cách thật giữa các ga, chỉ giữ thứ tự ga và tuyến. Đây là ví dụ của kỹ năng nào?";
+function s6(state) {
+  const page = (body) => ({ title: "Ôn tập", nav: "review", body });
+  const head = (n, pct) => `<div class="stack" style="gap:8px"><div class="between"><b>Câu ${n}/12</b><span class="tag on m-only">Core</span><div class="inline sm d-only"><span class="tag">Warm-up</span><span class="tag on">Core</span><span class="tag">Wrap</span></div><span class="muted sm d-only">≈ 7 phút còn lại</span>${btn("Kết thúc", "ghost")}</div>${bar(pct)}</div>`;
+  const question = `<div class="inline sm"><span class="tag">Abstraction</span><span class="tag">Trắc nghiệm</span></div><p class="h3">${QUESTION}</p>`;
+  const opts = (graded) => OPTIONS.map((o, i) => `<div class="opt ${i === 2 ? "on" : graded ? "m-hide" : ""}"><span class="k">${"ABCD"[i]}</span><span class="grow">${o}</span>${graded && i === 2 ? "<b>✓ Đúng</b>" : ""}</div>`).join("");
+  if (state === "empty") return page(empty("Không còn câu đến hạn hôm nay", "Câu tiếp theo quay lại ngày mai lúc 07:00. Nghỉ học không bị dồn bài.", btn("Học 2 concept mới", "primary") + btn("Về trang chủ")));
+  if (state === "loading") return page(`${head(0, 0)}<div class="panel"><b>Đang chuẩn bị buổi học 10 phút…</b>${skel("w80", "w60", "block", "block")}</div>`);
+  if (state === "submitted") return page(`${head(3, 25)}<div class="panel">${question}${opts(true)}
+    ${alert("Đúng rồi!", `<span class="sm">Abstraction giữ thông tin cần cho mục tiêu (thứ tự ga, tuyến) và bỏ chi tiết thừa (khoảng cách thật).</span><span>${chip("Week01.pdf", 16)}</span>`)}</div>
+    <div class="stack" style="gap:8px"><b>Câu này với bạn thế nào?</b><div class="rate">${[["Again", "< 1 phút"], ["Hard", "1 ngày"], ["Good", "3 ngày"], ["Easy", "7 ngày"]].map(([l, t]) => `<span class="btn">${l}<small>${t}</small></span>`).join("")}</div></div>`);
+  const offline = state === "error" ? alert("Mất kết nối. Thay đổi của bạn sẽ được lưu khi có mạng lại.", '<span class="sm">2 câu trả lời đang chờ đồng bộ. Bạn vẫn học tiếp được.</span>') : "";
+  const hint = state === "default" ? `<div class="note"><b>Gợi ý 1/2:</b> Bước nào giúp bỏ chi tiết không cần cho mục tiêu? Người đi tàu có cần biết khoảng cách thật không?</div>` : "";
+  return page(`${offline}${head(3, 25)}<div class="panel">${question}${opts(false)}${hint}</div><div class="spacer"></div><div class="between">${btn(hint ? "Gợi ý (còn 1)" : "Gợi ý")}${btn("Nộp", "primary")}</div>`);
+}
+
+// ---------- S8 Ask panel ----------
+function s8(state) {
+  const q = (text) => `<div class="msg me">${text}</div>`;
+  const convo = {
+    empty: empty("Hỏi bất cứ điều gì trong tài liệu của bạn", "Mỗi ý trong câu trả lời đều có trích dẫn file và trang.", btn("Abstraction là gì?") + btn("So sánh decomposition và abstraction")),
+    loading: `${q("Abstraction khác decomposition thế nào?")}<div class="panel"><b>Đang tìm trong 146 trang…</b>${skel("w80", "w60", "w40")}</div>`,
+    error: `${q("Định lý Bayes là gì?")}<div class="panel"><div class="between"><b>Không tìm thấy trong tài liệu của bạn.</b><span class="chip none">không có nguồn</span></div><span class="sm">Trợ lý chỉ trả lời từ slide đã tải lên. Thử hỏi cách khác hoặc tải thêm tài liệu.</span><span>${btn("Tải thêm tài liệu")}</span></div>`,
+    default: `${q("Abstraction khác decomposition thế nào?")}<div class="panel">
+      <p>Decomposition chia bài toán thành các phần nhỏ để giải từng phần. ${chip("Week01.pdf", 77)}</p>
+      <p>Abstraction giữ lại chi tiết quan trọng và bỏ chi tiết không cần cho mục tiêu. ${chip("Week01.pdf", 81)} ${chip("Week02.pdf", 12)}</p>
+      <span class="muted sm">Bấm vào trích dẫn để mở đúng trang.</span></div>`,
+  }[state];
+  const input = `<div class="inline"><div class="input grow">Hỏi về tài liệu của bạn…</div>${btn("Hỏi", "primary")}</div><span class="muted sm">Câu trả lời chỉ dựa trên tài liệu bạn đã tải lên.</span>`;
+  const preview = state === "default" ? `<div class="panel soft d-only"><div class="between"><b>Week01.pdf · trang 77</b>${btn("Mở file", "ghost")}</div><div class="pageprev">${skel("w60")}<div class="skel hl w80"></div>${skel("w80", "w40", "w60", "w80")}</div></div>` : "";
+  return { title: "Hỏi đáp · CS252", nav: "ask", body: `<div class="cols"><div class="stack">${convo}<div class="spacer"></div>${input}</div>${preview}</div>` };
+}
+
+// ---------- S10 Companion panel ----------
+function s10(state) {
+  const modes = `<div class="stack" style="gap:6px"><b class="sm">Chế độ</b><div class="seg"><span class="on">Buddy</span><span>Mentor</span><span class="locked">${LOCK}Girlfriend 18+</span></div>
+    <span class="inline muted sm" style="flex-wrap:nowrap;align-items:flex-start">${LOCK}Chỉ dành cho người dùng 18+ đã xác minh. Tài khoản K-12 chỉ có Buddy hoặc Mentor.</span></div>`;
+  const scene = (name, done, note = "") => `<div class="scene"><span class="thumbnail"></span><div class="grow stack" style="gap:4px"><b>${name}</b>${note}</div>${done ? '<span class="tag">✓ Đã mở</span>' : LOCK}</div>`;
+  const first = state === "empty";
+  const stable = first ? 0 : 6;
+  const scenes = `<div class="panel soft"><h3>Cảnh</h3>
+    ${first ? "" : scene("Quán cà phê học bài", true) + scene("Dã ngoại", true)}
+    ${scene(first ? "Quán cà phê học bài" : "Cổ vũ ngày thi", false, `<span class="muted sm">Còn ${10 - stable} concept ổn định nữa (${stable}/10)</span>${bar(stable * 10)}`)}
+    <span class="muted sm">Mở theo mức thành thạo, không theo thời gian. Nghỉ học không mất tiến độ.</span></div>`;
+  const toggle = `<div class="between"><span class="sm">Bật companion <span class="muted">(tắt vẫn học bình thường)</span></span><span class="switch"></span></div>`;
+  const ai = (t) => `<div class="msg">${t}</div>`;
+  const chat = {
+    default: ai("Mình là AI đồng hành của bạn.") + ai("Hôm nay bạn làm 12 câu, đúng 9. Abstraction tiến bộ rõ đó!") + ai("Đạt mục tiêu ngày rồi, nghỉ chút nhé. Mai gặp lại."),
+    empty: ai("Chào bạn! Mình là AI đồng hành, đang ở chế độ Buddy.") + ai("Mỗi khi 10 concept của bạn ổn định, mình mở một cảnh mới cùng nhau. Bắt đầu buổi ôn đầu tiên nhé?"),
+    loading: skel("block w60", "block w40"),
+    error: alert("Không tải được tin nhắn của companion.", `<span class="sm">Mọi tính năng học vẫn chạy bình thường.</span><span>${btn("Thử lại")}</span>`),
+  }[state];
+  const input = `<div class="inline"><div class="input grow">Nhắn cho companion…</div>${btn("Gửi", "primary")}</div><span class="muted sm">Còn 11/15 phút trò chuyện hôm nay</span>`;
+  const summary = `<div class="panel soft m-only"><div class="between"><b class="sm">Cảnh: ${first ? "chưa mở cảnh nào" : "đã mở 2"}</b>${btn("Xem", "ghost")}</div><span class="muted sm">Tiếp theo: ${first ? "Quán cà phê học bài" : "Cổ vũ ngày thi"} (${stable}/10 concept ổn định)</span>${bar(stable * 10)}</div>`;
+  const left = `<div class="stack"><div class="portrait">Avatar nhân vật (không dùng hình lãng mạn khi chưa mở mode)</div><div class="m-only">${modes}</div>${chat}<div class="spacer"></div>${summary}${input}</div>`;
+  return { title: "Companion", nav: "companion", body: `<div class="cols">${left}<div class="stack d-only">${modes}${scenes}${toggle}</div></div>` };
+}
+
+// ---------- Screens only drawn to complete flow 4.1 (desktop) ----------
+const FLOW_ONLY = {
+  s1: () => ({ raw: `<div style="display:grid;place-items:center;height:100%;background:var(--soft)"><div class="panel" style="width:420px"><b class="logo" style="margin:0;padding:0">Study Companion</b><h3>Tạo tài khoản</h3>
+    <label class="field">Email<div class="input">ban@student.example.edu</div></label><label class="field">Mật khẩu<div class="input">••••••••</div></label><label class="field">Năm sinh<div class="input">2005</div></label>
+    <div class="field">Cấp học<div class="inline"><span class="tag on">◉ Đại học</span><span class="tag">○ K-12</span></div></div>${btn("Tạo tài khoản", "primary block")}<span class="center muted sm">Đã có tài khoản? Đăng nhập</span></div></div>` }),
+  s2: () => ({ title: "Môn học", nav: "courses", body: `<div class="cols">${empty("Tạo môn đầu tiên", "Mỗi môn có tài liệu, concept và lịch ôn riêng.", "")}
+    <div class="panel"><h3>Môn mới</h3><label class="field">Tên môn<div class="input">CS252 – Tư duy tính toán</div></label><label class="field">Ngày thi (không bắt buộc)<div class="input">15/01/2027</div></label>${btn("Tạo môn và tải tài liệu →", "primary block")}</div></div>` }),
+  s5: () => ({ title: "Duyệt câu hỏi · CS252", nav: "courses", body: `<div class="between"><b>Còn 18 câu chờ duyệt</b>${btn("Giữ tất cả còn lại")}</div><div class="panel"><div class="inline sm"><span class="tag">Abstraction</span><span class="tag">Trắc nghiệm</span></div>
+    <p class="h3">${QUESTION}</p><span><b>Đáp án:</b> Abstraction</span><span>${chip("Week01.pdf", 16)}</span><div class="inline">${btn("Bỏ")}${btn("Sửa")}${btn("Giữ", "primary")}</div></div>` }),
+  s7: () => ({ title: "Kết quả buổi học", nav: "review", body: `<div class="inline" style="gap:48px"><div><div class="stat">9/12</div><span class="muted">câu đúng</span></div><div><div class="stat">9:40</div><span class="muted">thời gian</span></div></div>
+    <div class="panel"><h3>Khi nào câu hỏi quay lại</h3><div class="between"><span>Ngày mai</span><b>4 câu</b></div><div class="between"><span>3 ngày nữa</span><b>5 câu</b></div><div class="between"><span>7 ngày nữa</span><b>3 câu</b></div></div>
+    <div class="inline">${btn("Gặp companion", "primary")}${btn("Về trang chủ")}</div>` }),
+};
+
+const SCREENS = { s3: ["S3 Upload", s3], s4: ["S4 Concept editor", s4], s6: ["S6 Review session", s6], s8: ["S8 Ask panel", s8], s10: ["S10 Companion panel", s10] };
+const STATES = ["empty", "loading", "error"];
+const STATE_NOTE = {
+  s3: { empty: "chưa có file", loading: "đang trích text", error: "không phải PDF, > 20 MB, chỉ có ảnh, file hỏng" },
+  s4: { empty: "chưa có concept", loading: "đang đề xuất", error: "vòng lặp prerequisite" },
+  s6: { empty: "hết câu đến hạn", loading: "đang chuẩn bị", error: "mất mạng, lưu offline" },
+  s8: { empty: "chưa hỏi gì", loading: "đang tìm", error: "không tìm thấy trong tài liệu" },
+  s10: { empty: "chưa mở cảnh nào", loading: "đang tải tin nhắn", error: "không tải được" },
+};
+
+// Every frame: [id, screen, state, size, label]
+const FRAMES = [];
+const add = (screen, state, size, label) => FRAMES.push([`${screen}-${state}-${size}`, screen, state, size, label]);
+for (const [k, [name]] of Object.entries(SCREENS)) {
+  add(k, "default", "d", `${name} · desktop 1440×900`);
+  add(k, "default", "m", `${name} · mobile 390×844`);
+  if (k === "s6") { add(k, "submitted", "d", `${name} · sau khi nộp · desktop`); add(k, "submitted", "m", `${name} · sau khi nộp · mobile`); }
+  for (const s of STATES) add(k, s, "m", `${name} · ${s}: ${STATE_NOTE[k][s]}`);
+}
+for (const k of Object.keys(FLOW_ONLY)) add(k, "default", "d", k.toUpperCase());
+const byId = Object.fromEntries(FRAMES.map((f) => [f[0], f]));
+
+function frameHtml(id) {
+  const [, screen, state, size] = byId[id];
+  const view = (SCREENS[screen] ? SCREENS[screen][1] : FLOW_ONLY[screen])(state);
+  const [w, h] = SIZE[size];
+  return `<div class="frame" style="width:${w}px;height:${h}px">${view.raw || shell(size, view.nav, view.title, view.body)}</div>`;
+}
+const card = (id, label) => `<div class="card"><span class="label">${label}</span><div class="thumb">${frameHtml(id)}</div></div>`;
+
+// First-use journey, spec section 4.1
+const FLOW = [
+  ["s1-default-d", "1. Đăng ký, chọn cấp học (S1)"],
+  ["s2-default-d", "2. Tạo môn (S2)"],
+  ["s3-empty-m", "2. Kéo thả PDF (S3)"],
+  ["s3-loading-m", "3. Trích text theo trang (S3)"],
+  ["s4-loading-m", "3. Đề xuất 8–20 concept (S4)"],
+  ["s4-default-m", "4. Đổi tên, gộp, xóa, xác nhận (S4)"],
+  ["s5-default-d", "5. Duyệt nhanh câu hỏi (S5)"],
+  ["s6-default-m", "6. Buổi ôn 10 phút (S6)"],
+  ["s6-submitted-m", "6. Chấm và tự đánh giá (S6)"],
+  ["s7-default-d", "6. Kết quả + lịch quay lại (S7)"],
+  ["s10-empty-m", "7. Companion chào, giải thích unlock (S10)"],
+];
+
+const COMPONENTS = `<div class="row" style="background:#fff;padding:24px;border-radius:12px">
+  <div class="stack"><b>Nút (≥ 44×44 px)</b><div class="inline">${btn("Chính", "primary")}${btn("Phụ")}${btn("Không bấm được", "primary off")}${btn("Không viền", "ghost")}</div></div>
+  <div class="stack"><b>Trích dẫn</b><div class="inline">${chip("Week01.pdf", 77)}<span class="chip none">không có nguồn</span></div></div>
+  <div class="stack" style="width:360px"><b>Đánh giá sau khi nộp</b><div class="rate">${["Again", "Hard", "Good", "Easy"].map((l) => `<span class="btn">${l}<small>khoảng lặp</small></span>`).join("")}</div></div>
+  <div class="stack" style="width:320px"><b>Ô trả lời tự luận (thay cho MCQ)</b><div class="input area">Nhập câu trả lời của bạn…</div></div>
+  <div class="stack" style="width:320px"><b>Chọn mode companion</b><div class="seg"><span class="on">Buddy</span><span>Mentor</span><span class="locked">${LOCK}18+</span></div></div>
+  <div class="stack" style="width:280px"><b>Tiến trình theo trang</b>${progress(50, "Đang trích trang 31/62")}</div>
+  <div class="stack" style="width:420px"><b>Thông báo lỗi</b>${alert("Thêm cạnh này sẽ tạo vòng lặp. Hãy bỏ một cạnh trước.", "", "bad")}${alert("Mất kết nối. Thay đổi của bạn sẽ được lưu khi có mạng lại.", "")}</div>
+  <div class="stack" style="width:320px"><b>Đang tải (skeleton)</b>${skel("w80", "w60", "block")}</div>
+</div>`;
+
+const SECTIONS = {
+  wireframes: ["Wireframes", "5 màn hình chính, mỗi màn hình ở desktop 1440×900 và mobile 390×844 (spec mục 5).",
+    Object.keys(SCREENS).map((k) => `<div class="row">${FRAMES.filter((f) => f[1] === k && !STATES.includes(f[2])).map((f) => card(f[0], f[4])).join("")}</div>`).join("")],
+  states: ["States", "Empty, loading, error cho từng màn hình (vẽ ở mobile; desktop đặt cùng nội dung vào cột trái).",
+    Object.keys(SCREENS).map((k) => `<div class="row">${STATES.map((s) => card(`${k}-${s}-m`, byId[`${k}-${s}-m`][4])).join("")}</div>`).join("")],
+  components: ["Components", "Thành phần dùng lại trong các màn hình.", COMPONENTS],
+  flows: ["Flows", "Luồng “lần đầu sử dụng” (spec mục 4.1). Bấm vào một khung để sang bước tiếp theo.",
+    `<div class="row">${FLOW.map(([id, label], i) => `<a class="thumb-link" id="flow-${i}" href="#flow-${(i + 1) % FLOW.length}">${card(id, label)}</a>${i < FLOW.length - 1 ? '<span class="arrow">→</span>' : ""}`).join("")}</div>`],
+};
+
+const params = new URLSearchParams(location.search);
+const root = document.getElementById("root");
+const section = (k) => { const [title, desc, html] = SECTIONS[k]; return `<section class="sec" id="${k}"><h2>${title}</h2><p>${desc}</p>${html}</section>`; };
+if (params.has("frame")) {
+  document.body.classList.add("solo");
+  root.innerHTML = `<div class="thumb">${frameHtml(params.get("frame"))}</div>`;
+} else if (params.has("section")) {
+  root.innerHTML = section(params.get("section"));
+} else {
+  const toc = Object.keys(SECTIONS).map((k) => `<a href="#${k}">${SECTIONS[k][0]}</a>`).join(" · ");
+  root.innerHTML = `<div class="board"><h1>Group04 · Study Companion · Wireframes</h1><p>Low-fidelity (xám trắng) cho issue #5. Bốn phần tương ứng bốn page dự kiến trên Figma: ${toc}.</p>${Object.keys(SECTIONS).map(section).join("")}</div>`;
+}
+window.FRAMES = FRAMES;
+</script>
+</body>
+</html>

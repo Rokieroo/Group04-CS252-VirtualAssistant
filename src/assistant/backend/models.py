@@ -4,7 +4,7 @@ Alembic (``alembic/versions``) and ``db/schema.sql`` own the DDL; these mappings
 must match them, which ``tests/test_schema_sync.py`` enforces.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from sqlalchemy import (
@@ -23,7 +23,7 @@ from sqlalchemy.types import TypeDecorator
 
 
 def utcnow():
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class UTCDateTime(TypeDecorator):
@@ -35,10 +35,10 @@ class UTCDateTime(TypeDecorator):
             return None
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("Timestamps must include a UTC offset")
-        return value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value.astimezone(UTC).replace(tzinfo=None)
 
     def process_result_value(self, value, dialect):
-        return value.replace(tzinfo=timezone.utc) if value is not None else None
+        return value.replace(tzinfo=UTC) if value is not None else None
 
 
 class Base(DeclarativeBase):

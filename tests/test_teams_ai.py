@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -373,7 +373,7 @@ def test_checkin_of_other_users_calendar_is_not_allowed(client, headers, clock):
     entry = client.get("/api/v1/schedule", headers=headers).json()[0]
     other = register(client, "Other", "other@example.com")
     other_headers = {"Authorization": "Bearer " + other["access_token"]}
-    clock[0] = datetime(2030, 1, 7, 4, tzinfo=timezone.utc)
+    clock[0] = datetime(2030, 1, 7, 4, tzinfo=UTC)
     assert (
         client.post(
             "/api/v1/schedule/" + entry["id"] + "/check-in",
