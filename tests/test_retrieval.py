@@ -8,9 +8,11 @@ from types import SimpleNamespace
 from app.retrieval import (
     MIN_SCORE,
     NOT_FOUND_MESSAGE,
+    Bm25Index,
     BM25Retriever,
     RetrievalHit,
     retrieve_top_k,
+    score_against,
     tokenize_vi,
 )
 
@@ -82,6 +84,53 @@ def test_tokenize_vi_keeps_diacritics_and_normalises_nfc_nfd():
 def test_tokenize_vi_removes_stopwords_but_keeps_tokens_when_all_are_stopwords():
     assert "nào" not in tokenize_vi("Bậc nào của solution ladder dùng BM25?")
     assert tokenize_vi("là gì?") == ["là", "gì"]
+
+
+def test_bm25_index_scores_plain_documents_without_source_schema():
+    docs = [
+        "Solution ladder dùng Search BM25 cho tìm kiếm tài liệu.",
+        "Problem framing trước khi chọn giải pháp.",
+        "Công thức nấu phở bò Nam Định.",
+        "Decomposition chia bài toán lớn thành bài toán con.",
+    ]
+    scores = Bm25Index(docs).scores("BM25")
+
+    assert len(scores) == len(docs)
+    assert scores[0] > 0.0
+    assert scores[0] == max(scores)
+
+
+def test_score_against_empty_docs_and_blank_query_are_zeroed():
+    docs = [source["text"] for source in SOURCES]
+
+    assert score_against("BM25", []) == []
+    assert score_against("", docs) == [0.0] * len(docs)
+    assert score_against("   \n\t  ", docs) == [0.0] * len(docs)
+
+
+def test_score_against_vietnamese_scores_are_normalized_and_rank_the_best_match():
+    docs = [source["text"] for source in SOURCES]
+    scores = score_against("Bậc nào của solution ladder dùng BM25?", docs)
+
+    assert len(scores) == len(docs)
+    assert all(0.0 <= score <= 1.0 for score in scores)
+    assert max(scores) == 1.0
+    assert scores[3] == max(scores)  # s_77: solution ladder
+    assert scores[3] > scores[0]
+
+
+def test_score_against_treats_nfc_and_nfd_vietnamese_as_equal():
+    nfc = "Bậc giải pháp"
+    nfd = unicodedata.normalize("NFD", nfc)
+    docs = [source["text"] for source in SOURCES]
+
+    assert score_against(nfc, docs) == score_against(nfd, docs)
+
+
+def test_score_against_returns_zeros_when_nothing_matches():
+    docs = [source["text"] for source in SOURCES]
+
+    assert score_against("xyzzy qwerty", docs) == [0.0] * len(docs)
 
 
 def test_solution_ladder_query_ranks_page_77_first():
