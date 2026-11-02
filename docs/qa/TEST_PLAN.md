@@ -1,26 +1,26 @@
 # Kế hoạch kiểm thử (Test Plan) — Tuần 1
 
-Tài liệu này mô tả phạm vi, các tầng kiểm thử, tiêu chí pass/fail và quy trình báo bug của dự án. Cập nhật mỗi tuần khi phạm vi đổi. Tham chiếu: spec mục 12.1 (safeguards) và 14 (metrics), `docs/week1/QA_QC.md`.
+Tài liệu này mô tả phạm vi, các tầng kiểm thử, tiêu chí pass/fail và quy trình báo bug của dự án. Cập nhật mỗi tuần khi phạm vi đổi. Tham chiếu: spec mục 13.1 (safeguards) và 15 (metrics), `docs/week1/QA_QC.md`.
 
 ## 1. Phạm vi tuần 1 (Scope)
 
 | Tính năng | Use case | Ghi chú |
-|---|---|---|
-| Ingest PDF theo trang | UC-01 | Trích text deterministic, mỗi trang một bản ghi |
-| Retrieval có trích dẫn | UC-06 | Top-5 trang; dưới ngưỡng → "không tìm thấy" |
-| Sinh câu hỏi (item generation) | UC-03 | 3–5 item draft, mỗi item có `source_id` hợp lệ |
+| --- | --- | --- |
+| Ingest PDF theo trang | UC-04 | Trích text deterministic, mỗi trang một bản ghi, gắn vào tài liệu chặng |
+| Retrieval có trích dẫn | UC-12 | Top-5 trang trong tài liệu của chặng; dưới ngưỡng → "không tìm thấy" |
+| Sinh câu hỏi (item generation) | UC-10 | 3–5 item draft từ concept của chặng, mỗi item có `source_id` hợp lệ |
 | Auth và phân quyền | — | Đăng ký, đăng nhập, user chỉ thấy dữ liệu của mình |
-| UI Upload + Concept editor | UC-01, UC-02 | Kiểm thử thủ công |
+| UI Upload + Concept editor | UC-04, UC-09 | Kiểm thử thủ công |
 
-**Ngoài phạm vi tuần 1**: FSRS scheduler (UC-04), hint ladder đầy đủ (UC-07), companion (UC-10). Case benchmark cho các phần này đã có sẵn để đo khi tính năng xong.
+**Ngoài phạm vi tuần 1**: FSRS scheduler (UC-11), hint ladder đầy đủ (UC-13), companion (UC-14). Case benchmark cho các phần này đã có sẵn để đo khi tính năng xong.
 
 ## 2. Các tầng kiểm thử (Test layers)
 
 | Tầng | Công cụ | Lệnh | Pass khi |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Unit | pytest, vitest | `python dev.py qa test` · `cd ui && npm test` | 100% pass, không cần mạng hay API key |
 | Integration (API + DB) | pytest + fixture `client`, `user_a`, `user_b`, `sample_pdf` (#16) | `python dev.py qa test` | 100% pass, chạy offline với `LLM_PROVIDER=fake` |
-| Benchmark (AI quality) | `eval/benchmark.jsonl` | `python dev.py ai benchmark validate` · `stats` | Định dạng hợp lệ; khi có pipeline: ≥ 90% trích dẫn đúng trang (spec mục 14) |
+| Benchmark (AI quality) | `eval/benchmark.jsonl` | `python dev.py ai benchmark validate` · `stats` | Định dạng hợp lệ; khi có pipeline: ≥ 90% trích dẫn đúng trang (spec mục 15) |
 | Red-team (safeguards) | Case `missing_knowledge`, `privacy`, `safety` | Chấm theo `expected` | 0 lần lộ đáp án item graded; 0 lần lộ dữ liệu người khác; "không tìm thấy" khi không có nguồn |
 | Manual (UI) | Checklist với UI/UX | — | Không có bug Blocker/Major mở |
 | CI | GitHub Actions | `python dev.py devops ci` | Ruff, pytest, scan-secrets, benchmark validate đều xanh |
@@ -35,7 +35,7 @@ Tài liệu này mô tả phạm vi, các tầng kiểm thử, tiêu chí pass/f
 ## 4. Mức độ bug (Severity)
 
 | Mức | Định nghĩa | Thời hạn sửa |
-|---|---|---|
+| --- | --- | --- |
 | Blocker | Chặn demo hoặc lộ dữ liệu / secret | Trong ngày |
 | Major | Sai chức năng chính, có cách né | Trong tuần |
 | Minor | Giao diện, câu chữ | Tuần sau |
@@ -50,7 +50,7 @@ Tài liệu này mô tả phạm vi, các tầng kiểm thử, tiêu chí pass/f
 ## 6. Lịch hằng tuần
 
 | Ngày | Việc |
-|---|---|
+| --- | --- |
 | Thứ Hai | Đọc issue của tuần, comment danh sách test cần có |
 | Thứ Ba–Năm | Review PR trong 24 giờ; viết integration test khi PR tính năng mở |
 | Thứ Năm | Chạy `python dev.py devops ci` trên `main`; thêm case benchmark |
