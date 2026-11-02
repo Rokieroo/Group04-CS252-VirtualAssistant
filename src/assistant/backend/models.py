@@ -10,6 +10,7 @@ from uuid import uuid4
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -118,6 +119,10 @@ class Source(Base):
     text: Mapped[str] = mapped_column(Text)
     # A vision model's notes on what text extraction misses; never cited (issue #9).
     visual_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # material | syllabus (issue #49/#63).
+    kind: Mapped[str] = mapped_column(
+        Text, default="material", server_default="material"
+    )
     __table_args__ = (
         CheckConstraint("page >= 1", name="ck_sources_page"),
         UniqueConstraint("course_id", "file_name", "page"),
@@ -191,6 +196,9 @@ class Task(Entity, Base):
     priority: Mapped[int] = mapped_column(default=2)
     due_at: Mapped[datetime] = mapped_column(UTCDateTime())
     status: Mapped[str] = mapped_column(String(16), default="pending")
+    roadmap_node_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("roadmap_nodes.id", ondelete="SET NULL"), nullable=True
+    )
     __table_args__ = (
         CheckConstraint("duration_minutes > 0"),
         CheckConstraint(
@@ -257,3 +265,143 @@ class ChatMessage(Entity, Base):
     )
     role: Mapped[str] = mapped_column(String(16))
     content: Mapped[str] = mapped_column(Text)
+
+
+class Syllabus(Base):
+    __tablename__ = "syllabi"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    course_id: Mapped[str] = mapped_column(
+        ForeignKey("courses.id", ondelete="CASCADE")
+    )
+    raw_text: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), default=utcnow, server_default=func.current_timestamp()
+    )
+
+    @property
+    def syllabus_id(self) -> str:
+        return self.id
+
+
+class LearningOutcome(Base):
+    __tablename__ = "learning_outcomes"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    syllabus_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("syllabi.id", ondelete="CASCADE")
+    )
+    code: Mapped[str] = mapped_column(Text)
+    description: Mapped[str] = mapped_column(Text)
+    bloom_level: Mapped[str] = mapped_column(
+        Text, default="understand", server_default="understand"
+    )
+
+
+class Assessment(Base):
+    __tablename__ = "assessments"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    syllabus_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("syllabi.id", ondelete="CASCADE")
+    )
+    name: Mapped[str] = mapped_column(Text)
+    weight: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    due_week: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class Roadmap(Base):
+    __tablename__ = "roadmaps"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    course_id: Mapped[str] = mapped_column(
+        ForeignKey("courses.id", ondelete="CASCADE")
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE")
+    )
+    title: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), default=utcnow, server_default=func.current_timestamp()
+    )
+
+    @property
+    def roadmap_id(self) -> str:
+        return self.id
+
+
+class RoadmapNode(Base):
+    __tablename__ = "roadmap_nodes"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    roadmap_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("roadmaps.id", ondelete="CASCADE")
+    )
+    type: Mapped[str] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text)
+    week: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    due_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    covers: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    @property
+    def kind(self) -> str:
+        return self.type
+
+
+class Resource(Base):
+    __tablename__ = "resources"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    url: Mapped[str] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text)
+    provider: Mapped[str] = mapped_column(
+        Text, default="web", server_default="web"
+    )
+    kind: Mapped[str] = mapped_column(
+        Text, default="article", server_default="article"
+    )
+    lang: Mapped[str] = mapped_column(Text, default="vi", server_default="vi")
+
+
+class NodeResource(Base):
+    __tablename__ = "node_resources"
+    node_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("roadmap_nodes.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    resource_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("resources.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    relevance_score: Mapped[float] = mapped_column(
+        Float, default=0.0, server_default="0"
+    )
+
+
+class ResourceFeedback(Base):
+    __tablename__ = "resource_feedback"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE")
+    )
+    resource_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("resources.id", ondelete="CASCADE")
+    )
+    rating: Mapped[int] = mapped_column(Integer)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class SearchRun(Base):
+    __tablename__ = "search_runs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE")
+    )
+    query: Mapped[str] = mapped_column(Text)
+    provider: Mapped[str] = mapped_column(
+        Text, default="web", server_default="web"
+    )
+    status: Mapped[str] = mapped_column(
+        Text, default="pending", server_default="pending"
+    )
+    results_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), default=utcnow, server_default=func.current_timestamp()
+    )

@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS sources (
     page        INTEGER NOT NULL CHECK (page >= 1),
     text        TEXT NOT NULL,
     visual_notes TEXT,                                           -- vision model's notes on diagrams/images; never cited
+    kind        TEXT NOT NULL DEFAULT 'material',                 -- material | syllabus
     UNIQUE (course_id, file_name, page)
 );
 
@@ -158,6 +159,86 @@ CREATE TABLE IF NOT EXISTS invitations (
 );
 CREATE INDEX IF NOT EXISTS ix_invitations_team_id ON invitations (team_id);
 
+-- ---------------------------------------------------------------------------
+-- Core loop: syllabus -> roadmap -> scheduled tasks (migration 0004_core_loop).
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS syllabi (
+    id          VARCHAR(36) PRIMARY KEY,
+    course_id   TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    raw_text    TEXT NOT NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS learning_outcomes (
+    id           VARCHAR(36) PRIMARY KEY,
+    syllabus_id  VARCHAR(36) NOT NULL REFERENCES syllabi(id) ON DELETE CASCADE,
+    code         TEXT NOT NULL,
+    description  TEXT NOT NULL,
+    bloom_level  TEXT NOT NULL DEFAULT 'understand'
+);
+
+CREATE TABLE IF NOT EXISTS assessments (
+    id          VARCHAR(36) PRIMARY KEY,
+    syllabus_id  VARCHAR(36) NOT NULL REFERENCES syllabi(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    weight      REAL NOT NULL DEFAULT 0,
+    due_week    INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS roadmaps (
+    id          VARCHAR(36) PRIMARY KEY,
+    course_id   TEXT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title       TEXT NOT NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS roadmap_nodes (
+    id                VARCHAR(36) PRIMARY KEY,
+    roadmap_id        VARCHAR(36) NOT NULL REFERENCES roadmaps(id) ON DELETE CASCADE,
+    type              TEXT NOT NULL,                            -- topic | milestone
+    title             TEXT NOT NULL,
+    week              INTEGER,
+    duration_minutes  INTEGER,
+    due_at            TIMESTAMP,
+    covers            TEXT                                      -- JSON array of covered node ids
+);
+
+CREATE TABLE IF NOT EXISTS resources (
+    id        VARCHAR(36) PRIMARY KEY,
+    url       TEXT NOT NULL,
+    title     TEXT NOT NULL,
+    provider  TEXT NOT NULL DEFAULT 'web',                      -- catalog | youtube | web
+    kind      TEXT NOT NULL DEFAULT 'article',                  -- video | article | slide
+    lang      TEXT NOT NULL DEFAULT 'vi'
+);
+
+CREATE TABLE IF NOT EXISTS node_resources (
+    node_id          VARCHAR(36) NOT NULL REFERENCES roadmap_nodes(id) ON DELETE CASCADE,
+    resource_id      VARCHAR(36) NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    relevance_score  REAL NOT NULL DEFAULT 0,
+    PRIMARY KEY (node_id, resource_id)
+);
+
+CREATE TABLE IF NOT EXISTS resource_feedback (
+    id           VARCHAR(36) PRIMARY KEY,
+    user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    resource_id  VARCHAR(36) NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    rating       INTEGER NOT NULL,
+    comment      TEXT
+);
+
+CREATE TABLE IF NOT EXISTS search_runs (
+    id             VARCHAR(36) PRIMARY KEY,
+    user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    query          TEXT NOT NULL,
+    provider       TEXT NOT NULL DEFAULT 'web',
+    status         TEXT NOT NULL DEFAULT 'pending',
+    results_count  INTEGER NOT NULL DEFAULT 0,
+    created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS tasks (
     id                 VARCHAR(36) PRIMARY KEY,
     created_at         TIMESTAMP NOT NULL,
@@ -172,6 +253,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     priority           INTEGER NOT NULL CHECK (priority BETWEEN 1 AND 3),
     due_at             TIMESTAMP NOT NULL,
     status             VARCHAR(16) NOT NULL,                     -- pending | completed | cancelled
+    roadmap_node_id    VARCHAR(36) CONSTRAINT fk_tasks_roadmap_node_id REFERENCES roadmap_nodes(id) ON DELETE SET NULL,
     CHECK (completed_minutes >= 0 AND completed_minutes <= duration_minutes)
 );
 CREATE INDEX IF NOT EXISTS ix_tasks_owner_id ON tasks (owner_id);
@@ -241,5 +323,5 @@ CREATE TABLE IF NOT EXISTS alembic_version (
     version_num VARCHAR(32) NOT NULL PRIMARY KEY
 );
 INSERT INTO alembic_version (version_num)
-SELECT '0003_source_visual_notes'
+SELECT '0004_core_loop'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);

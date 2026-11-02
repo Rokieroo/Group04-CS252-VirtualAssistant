@@ -13,6 +13,7 @@ from app.ingest import MAX_UPLOAD_BYTES
 from . import (
     routes_ai,
     routes_auth,
+    routes_core,
     routes_courses,
     routes_schedule,
     routes_tasks,
@@ -85,6 +86,7 @@ def create_app(settings: Settings | None = None, *, now=utcnow, ai_transport=Non
     for router in (
         routes_auth.router,
         routes_courses.router,
+        routes_core.router,
         routes_tasks.router,
         routes_schedule.router,
         routes_teams.router,
