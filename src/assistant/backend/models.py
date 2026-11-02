@@ -106,7 +106,7 @@ class Course(Base):
 
 
 class Source(Base):
-    """One row per PDF page: the unit every citation points to."""
+    """One row per document page (PDF, DOCX or text): the unit every citation points to."""
 
     __tablename__ = "sources"
     id: Mapped[str] = mapped_column(Text, primary_key=True, default=_uuid)
@@ -118,6 +118,9 @@ class Source(Base):
     text: Mapped[str] = mapped_column(Text)
     # A vision model's notes on what text extraction misses; never cited (issue #9).
     visual_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    kind: Mapped[str] = mapped_column(
+        Text, default="material", server_default="material"
+    )  # syllabus | material
     __table_args__ = (
         CheckConstraint("page >= 1", name="ck_sources_page"),
         UniqueConstraint("course_id", "file_name", "page"),
