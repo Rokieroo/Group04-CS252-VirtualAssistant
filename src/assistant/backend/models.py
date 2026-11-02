@@ -196,7 +196,10 @@ class Task(Entity, Base):
     due_at: Mapped[datetime] = mapped_column(UTCDateTime())
     status: Mapped[str] = mapped_column(String(16), default="pending")
     roadmap_node_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("roadmap_nodes.id", ondelete="SET NULL"), nullable=True
+        String(36),
+        ForeignKey("roadmap_nodes.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
     __table_args__ = (
         CheckConstraint("duration_minutes > 0"),
@@ -270,7 +273,7 @@ class Syllabus(Base):
     __tablename__ = "syllabi"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     course_id: Mapped[str] = mapped_column(
-        ForeignKey("courses.id", ondelete="CASCADE")
+        ForeignKey("courses.id", ondelete="CASCADE"), index=True
     )
     raw_text: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(
@@ -286,7 +289,7 @@ class LearningOutcome(Base):
     __tablename__ = "learning_outcomes"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     syllabus_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("syllabi.id", ondelete="CASCADE")
+        String(36), ForeignKey("syllabi.id", ondelete="CASCADE"), index=True
     )
     code: Mapped[str] = mapped_column(Text)
     description: Mapped[str] = mapped_column(Text)
@@ -299,7 +302,7 @@ class Assessment(Base):
     __tablename__ = "assessments"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     syllabus_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("syllabi.id", ondelete="CASCADE")
+        String(36), ForeignKey("syllabi.id", ondelete="CASCADE"), index=True
     )
     name: Mapped[str] = mapped_column(Text)
     weight: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
@@ -310,10 +313,10 @@ class Roadmap(Base):
     __tablename__ = "roadmaps"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     course_id: Mapped[str] = mapped_column(
-        ForeignKey("courses.id", ondelete="CASCADE")
+        ForeignKey("courses.id", ondelete="CASCADE"), index=True
     )
     user_id: Mapped[str] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE")
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     title: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
@@ -329,7 +332,7 @@ class RoadmapNode(Base):
     __tablename__ = "roadmap_nodes"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     roadmap_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("roadmaps.id", ondelete="CASCADE")
+        String(36), ForeignKey("roadmaps.id", ondelete="CASCADE"), index=True
     )
     type: Mapped[str] = mapped_column(Text)
     title: Mapped[str] = mapped_column(Text)
@@ -365,7 +368,7 @@ class NodeResource(Base):
     )
     resource_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("resources.id", ondelete="CASCADE"),
-        primary_key=True,
+        primary_key=True, index=True,
     )
     relevance_score: Mapped[float] = mapped_column(
         Float, default=0.0, server_default="0"
@@ -376,10 +379,10 @@ class ResourceFeedback(Base):
     __tablename__ = "resource_feedback"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     user_id: Mapped[str] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE")
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     resource_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("resources.id", ondelete="CASCADE")
+        String(36), ForeignKey("resources.id", ondelete="CASCADE"), index=True
     )
     rating: Mapped[int] = mapped_column(Integer)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -389,7 +392,7 @@ class SearchRun(Base):
     __tablename__ = "search_runs"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     user_id: Mapped[str] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE")
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     query: Mapped[str] = mapped_column(Text)
     provider: Mapped[str] = mapped_column(

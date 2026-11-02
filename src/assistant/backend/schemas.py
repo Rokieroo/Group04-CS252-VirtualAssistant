@@ -483,7 +483,6 @@ class SyllabusIn(FlexibleInput):
 
 
 class RoadmapNodeIn(FlexibleInput):
-    id: str | None = None
     type: str | None = None
     kind: str | None = None
     title: str | None = None
@@ -502,15 +501,15 @@ class RoadmapGenerateIn(FlexibleInput):
     syllabus_id: str | None = None
     title: str | None = None
     nodes: list[RoadmapNodeIn] = Field(default_factory=list)
-    weekly_minutes: int | None = None
-    max_daily_minutes: int | None = None
 
 
 class RoadmapScheduleIn(FlexibleInput):
-    weekly_minutes: int = Field(default=300, ge=1, le=10080)
-    max_daily_minutes: int = Field(default=120, ge=1, le=1440)
-    use_availability: bool = True
-    starts_at: datetime | None = None
+    """Sessions always fit availability minus busy blocks (spec 10.4); a weekly budget
+    is not enforced yet, so ``weekly_minutes`` is ignored like any unknown field."""
+
+    # At least one 25-minute session a day (spec 10.3.4).
+    max_daily_minutes: int = Field(default=120, ge=25, le=1440)
+    starts_at: Timestamp | None = None
 
 
 class LearningOutcomeOut(Output):
@@ -567,3 +566,4 @@ class RoadmapScheduleOut(Output):
     tasks: list[TaskOut] = Field(default_factory=list)
     sessions: list[EntryOut] = Field(default_factory=list)
     entries: list[EntryOut] = Field(default_factory=list)
+    unscheduled: list[Unscheduled] = Field(default_factory=list)

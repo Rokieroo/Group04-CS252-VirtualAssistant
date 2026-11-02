@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from conftest import availability
+
 
 def create_course(client, headers, title="Algorithms"):
     response = client.post(
@@ -96,6 +98,8 @@ def test_core_loop_owner_can_create_update_generate_and_schedule(client, headers
     assert len(milestones) == 1
     assert milestones[0]["covers"] == [topics[0]["id"]]
 
+    # One 3-hour window, capped at 30 minutes a day: one session fits, the rest does not.
+    availability(client, headers_a)
     scheduled = client.post(
         f"/api/v1/roadmaps/{roadmap['id']}:schedule",
         headers=headers_a,
@@ -105,9 +109,12 @@ def test_core_loop_owner_can_create_update_generate_and_schedule(client, headers
     plan = scheduled.json()
     assert plan["roadmap_id"] == roadmap["id"]
     assert len(plan["tasks"]) == len(roadmap["nodes"])
-    assert plan["sessions"]
+    assert [(s["starts_at"], s["ends_at"]) for s in plan["sessions"]] == [
+        ("2030-01-07T02:00:00Z", "2030-01-07T02:30:00Z")
+    ]
     assert all(session["status"] == "planned" for session in plan["sessions"])
-    assert all(session["ends_at"] > session["starts_at"] for session in plan["sessions"])
+    planned = 30 + sum(item["minutes"] for item in plan["unscheduled"])
+    assert planned == sum(node["duration_minutes"] for node in roadmap["nodes"])
 
     again = client.post(
         f"/api/v1/roadmaps/{roadmap['id']}:schedule",
@@ -123,6 +130,26 @@ def test_core_loop_owner_can_create_update_generate_and_schedule(client, headers
     assert len([task for task in tasks.json() if task["roadmap_node_id"]]) == len(
         roadmap["nodes"]
     )
+
+
+def test_roadmap_schedule_without_availability_reports_every_node_unscheduled(
+    client, headers_a
+):
+    course = create_course(client, headers_a)
+    roadmap = client.post(
+        f"/api/v1/courses/{course['id']}/roadmap:generate",
+        headers=headers_a,
+        json={"nodes": [{"title": "Framing", "est_minutes": 50, "week": 1}]},
+    ).json()
+
+    plan = client.post(
+        f"/api/v1/roadmaps/{roadmap['id']}:schedule", headers=headers_a, json={}
+    ).json()
+
+    assert plan["sessions"] == []
+    [missing] = plan["unscheduled"]
+    assert (missing["task_id"], missing["minutes"]) == (plan["tasks"][0]["id"], 50)
+    assert missing["reason"]
 
 
 def test_core_loop_cross_user_requests_are_404(client, headers_a, headers_b):

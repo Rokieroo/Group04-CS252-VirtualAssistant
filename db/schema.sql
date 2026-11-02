@@ -239,6 +239,17 @@ CREATE TABLE IF NOT EXISTS search_runs (
     created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS ix_syllabi_course_id ON syllabi (course_id);
+CREATE INDEX IF NOT EXISTS ix_learning_outcomes_syllabus_id ON learning_outcomes (syllabus_id);
+CREATE INDEX IF NOT EXISTS ix_assessments_syllabus_id ON assessments (syllabus_id);
+CREATE INDEX IF NOT EXISTS ix_roadmaps_course_id ON roadmaps (course_id);
+CREATE INDEX IF NOT EXISTS ix_roadmaps_user_id ON roadmaps (user_id);
+CREATE INDEX IF NOT EXISTS ix_roadmap_nodes_roadmap_id ON roadmap_nodes (roadmap_id);
+CREATE INDEX IF NOT EXISTS ix_node_resources_resource_id ON node_resources (resource_id);
+CREATE INDEX IF NOT EXISTS ix_resource_feedback_user_id ON resource_feedback (user_id);
+CREATE INDEX IF NOT EXISTS ix_resource_feedback_resource_id ON resource_feedback (resource_id);
+CREATE INDEX IF NOT EXISTS ix_search_runs_user_id ON search_runs (user_id);
+
 CREATE TABLE IF NOT EXISTS tasks (
     id                 VARCHAR(36) PRIMARY KEY,
     created_at         TIMESTAMP NOT NULL,
@@ -259,6 +270,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 CREATE INDEX IF NOT EXISTS ix_tasks_owner_id ON tasks (owner_id);
 CREATE INDEX IF NOT EXISTS ix_tasks_assignee_id ON tasks (assignee_id);
 CREATE INDEX IF NOT EXISTS ix_tasks_team_id ON tasks (team_id);
+CREATE INDEX IF NOT EXISTS ix_tasks_roadmap_node_id ON tasks (roadmap_node_id);
 CREATE INDEX IF NOT EXISTS ix_tasks_assignee_status_due ON tasks (assignee_id, status, due_at);
 
 CREATE TABLE IF NOT EXISTS availability (

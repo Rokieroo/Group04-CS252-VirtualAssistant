@@ -659,6 +659,7 @@
           "Syllabus and roadmap"
         ],
         "summary": "Update Syllabus",
+        "description": "Updates ``syllabus_id`` from the body, else the latest syllabus (or creates one).",
         "operationId": "update_syllabus_api_v1_courses__course_id__syllabus_put",
         "security": [
           {
@@ -723,7 +724,7 @@
           "Syllabus and roadmap"
         ],
         "summary": "Update Syllabus By Id",
-        "description": "Spec-compatible alias; the phase 2 issue uses the course-scoped PUT above.",
+        "description": "Spec 8.2's path; the course-scoped PUT above does the same for the latest one.",
         "operationId": "update_syllabus_by_id_api_v1_courses__course_id__syllabus__syllabus_id__put",
         "security": [
           {
@@ -797,6 +798,7 @@
           "Syllabus and roadmap"
         ],
         "summary": "Generate Roadmap",
+        "description": "Nodes from the body, else derived from the syllabus (the given or latest one).",
         "operationId": "generate_roadmap_api_v1_courses__course_id__roadmap_generate_post",
         "security": [
           {
@@ -908,6 +910,7 @@
           "Syllabus and roadmap"
         ],
         "summary": "Schedule Roadmap",
+        "description": "One task per node, then sessions from the shared planner; nodes that do not fit\nbefore their deadline come back in ``unscheduled``.",
         "operationId": "schedule_roadmap_api_v1_roadmaps__roadmap_id__schedule_post",
         "security": [
           {
@@ -3982,28 +3985,6 @@
             },
             "type": "array",
             "title": "Nodes"
-          },
-          "weekly_minutes": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Weekly Minutes"
-          },
-          "max_daily_minutes": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Max Daily Minutes"
           }
         },
         "type": "object",
@@ -4011,17 +3992,6 @@
       },
       "RoadmapNodeIn": {
         "properties": {
-          "id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Id"
-          },
           "type": {
             "anyOf": [
               {
@@ -4312,24 +4282,12 @@
       },
       "RoadmapScheduleIn": {
         "properties": {
-          "weekly_minutes": {
-            "type": "integer",
-            "maximum": 10080.0,
-            "minimum": 1.0,
-            "title": "Weekly Minutes",
-            "default": 300
-          },
           "max_daily_minutes": {
             "type": "integer",
             "maximum": 1440.0,
-            "minimum": 1.0,
+            "minimum": 25.0,
             "title": "Max Daily Minutes",
             "default": 120
-          },
-          "use_availability": {
-            "type": "boolean",
-            "title": "Use Availability",
-            "default": true
           },
           "starts_at": {
             "anyOf": [
@@ -4345,7 +4303,8 @@
           }
         },
         "type": "object",
-        "title": "RoadmapScheduleIn"
+        "title": "RoadmapScheduleIn",
+        "description": "Sessions always fit availability minus busy blocks (spec 10.4); a weekly budget\nis not enforced yet, so ``weekly_minutes`` is ignored like any unknown field."
       },
       "RoadmapScheduleOut": {
         "properties": {
@@ -4373,6 +4332,13 @@
             },
             "type": "array",
             "title": "Entries"
+          },
+          "unscheduled": {
+            "items": {
+              "$ref": "#/components/schemas/Unscheduled"
+            },
+            "type": "array",
+            "title": "Unscheduled"
           }
         },
         "type": "object",

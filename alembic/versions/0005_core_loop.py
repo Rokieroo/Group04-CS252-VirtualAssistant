@@ -191,6 +191,18 @@ def upgrade() -> None:
         ),
     )
 
+    # Foreign keys are not indexed automatically; every lookup below is by one of them.
+    op.create_index("ix_syllabi_course_id", "syllabi", ["course_id"])
+    op.create_index("ix_learning_outcomes_syllabus_id", "learning_outcomes", ["syllabus_id"])
+    op.create_index("ix_assessments_syllabus_id", "assessments", ["syllabus_id"])
+    op.create_index("ix_roadmaps_course_id", "roadmaps", ["course_id"])
+    op.create_index("ix_roadmaps_user_id", "roadmaps", ["user_id"])
+    op.create_index("ix_roadmap_nodes_roadmap_id", "roadmap_nodes", ["roadmap_id"])
+    op.create_index("ix_node_resources_resource_id", "node_resources", ["resource_id"])
+    op.create_index("ix_resource_feedback_user_id", "resource_feedback", ["user_id"])
+    op.create_index("ix_resource_feedback_resource_id", "resource_feedback", ["resource_id"])
+    op.create_index("ix_search_runs_user_id", "search_runs", ["user_id"])
+
     # SQLite's op.add_column cannot attach a foreign key, so recreate tasks in
     # batch mode. Pass the existing unnamed CHECK constraints explicitly so the
     # recreate does not silently drop them.
@@ -212,6 +224,7 @@ def upgrade() -> None:
             ["id"],
             ondelete="SET NULL",
         )
+        batch.create_index("ix_tasks_roadmap_node_id", ["roadmap_node_id"])
 
 
 def downgrade() -> None:
@@ -225,6 +238,7 @@ def downgrade() -> None:
             sa.CheckConstraint("priority BETWEEN 1 AND 3"),
         ),
     ) as batch:
+        batch.drop_index("ix_tasks_roadmap_node_id")
         batch.drop_column("roadmap_node_id")
 
     # Reverse foreign-key order.
