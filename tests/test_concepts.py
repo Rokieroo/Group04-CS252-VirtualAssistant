@@ -1,9 +1,10 @@
-"""Concept extraction (#9): windows, validation, merging, consolidation and storage, offline."""
+"""Concept extraction (#9) and topic normalization (#50), offline."""
 
 import json
 import logging
 import threading
 import time
+import unicodedata
 from io import BytesIO
 from itertools import pairwise
 
@@ -23,6 +24,7 @@ from app.concepts.extract import (
     save_concepts,
     windows,
 )
+from app.concepts.normalize import TopicIn, normalize_topics
 from app.concepts.visual import PAGES_PER_CALL, read_visuals
 from app.llm import FakeLLM, LLMResult, RetryableError, get_client, get_vision_client
 
@@ -107,6 +109,42 @@ def test_merge_joins_equal_slugs_and_near_equal_titles():
         ("solution-ladder", [77, 78, 79]),
         ("framing-ladder", [26]),
     ]
+
+
+def test_normalize_topics_merges_case_space_and_punctuation_variants():
+    topics = [
+        TopicIn("Solution Ladder", week=2, source_page=42, summary="Một ý chính."),
+        TopicIn("solution ladder", week=3, source_page=51),
+        TopicIn("Solution  ladder ", week=4, source_page=60),
+        TopicIn("Solution Ladder!", week=5, source_page=70),
+    ]
+    assert normalize_topics(topics) == [{
+        "slug": "solution-ladder",
+        "title": "Solution Ladder",
+        "week": 2,
+        "source_page": 42,
+        "summary": "Một ý chính.",
+    }]
+
+
+def test_normalize_topics_keeps_the_earliest_week_and_its_citation():
+    result = normalize_topics([
+        TopicIn("Framing Ladder", week=3, source_page=30, summary="Week 3."),
+        TopicIn("framing  ladder", week=1, source_page=10, summary="Week 1."),
+    ])
+    assert [(t["slug"], t["week"], t["source_page"], t["summary"]) for t in result] == [
+        ("framing-ladder", 1, 10, "Week 1.")]
+
+
+def test_normalize_topics_treats_nfc_and_nfd_vietnamese_as_equal():
+    composed = "Giải pháp"
+    decomposed = unicodedata.normalize("NFD", composed)
+    result = normalize_topics([
+        TopicIn(composed, week=3, source_page=30),
+        TopicIn(decomposed, week=1, source_page=10),
+    ])
+    assert [(t["slug"], t["week"], t["source_page"]) for t in result] == [
+        ("giai-phap", 1, 10)]
 
 
 def test_valid_answers_are_extracted_and_saved(app, course):
