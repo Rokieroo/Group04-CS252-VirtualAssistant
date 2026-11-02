@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from pathlib import Path
@@ -17,6 +16,7 @@ from pathlib import Path
 from pypdf import PdfReader, PdfWriter
 
 from app.llm import LLMClient
+from app.llm.blocks import BLOCKS
 
 log = logging.getLogger("app.concepts")
 
@@ -25,7 +25,6 @@ PAGES_PER_CALL = 20  # small enough that the model looks at every page closely
 PARALLEL = 4  # chunks in flight at once; chunks never share a page
 MAX_NOTE = 1200
 MAX_INLINE_BYTES = 14 * 1024 * 1024  # Gemini's 20 MB request limit counts base64 overhead
-_BLOCK_TAG = re.compile(r"</?\s*previous_notes\s*>", re.IGNORECASE)
 SCHEMA = {
     "type": "object",
     "properties": {
@@ -65,7 +64,7 @@ def read_visuals(llm: LLMClient, pdf: bytes, page_count: int,
             if any(earlier):
                 listing = "\n".join(f"[Page {n}]\n{note}"
                                     for n, note in enumerate(earlier, start=1) if note)
-                prompt += f"\n<previous_notes>\n{_BLOCK_TAG.sub('', listing)}\n</previous_notes>"
+                prompt += "\n" + BLOCKS.wrap("previous_notes", listing)
             answer = llm.complete(prompt, system=system, json_schema=SCHEMA, max_tokens=8192,
                                   temperature=0.2, pdf=chunk).text
             notes = [""] * (last - first)

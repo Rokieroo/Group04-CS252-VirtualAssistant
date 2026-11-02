@@ -1,4 +1,6 @@
 /** The real workspace API. Session credentials stay in this tab's sessionStorage. */
+import { API_ORIGIN, errorDetail } from "./api/backend";
+
 export type User = {
   id: string; name: string; email: string; timezone: string; personality: string;
   role: string; account_level: "university" | "k12"; birth_year: number | null;
@@ -41,7 +43,7 @@ export class ApiClient {
   constructor(
     private token = "",
     private onUnauthorized: () => void = () => {},
-    private baseUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000",
+    private baseUrl = API_ORIGIN,
   ) {}
 
   async request<T>(path: string, method = "GET", body?: unknown): Promise<T> {
@@ -58,11 +60,7 @@ export class ApiClient {
       });
       if (!response.ok) {
         if (response.status === 401 && this.token) this.onUnauthorized();
-        const error = await response.json().catch(() => ({}));
-        const detail = typeof error.detail === "string" ? error.detail
-          : Array.isArray(error.detail) ? error.detail.map((x: { msg: string }) => x.msg).join("; ")
-          : `Request failed (${response.status})`;
-        throw new ApiError(response.status, detail);
+        throw new ApiError(response.status, await errorDetail(response));
       }
       if (response.status === 204) return undefined as T;
       return await response.json() as T;
