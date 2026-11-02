@@ -125,4 +125,6 @@ Issue → nhánh `<role>-<name>/<issue>-<task>` → commit `<type>(<scope>): <m�
 
 ## Scheduling Workspace (legacy eight-week plan)
 
+Luồng học từ slide mới (#13 → #9 → #10): API `app.api.main:app`, hướng dẫn khởi chạy, migration và hợp đồng ghép auth/BM25 tại [docs/minh-slide-pipeline.md](docs/minh-slide-pipeline.md).
+
 The optional scheduling backend and connected Workspace are documented in [docs/minh-handoff.md](docs/minh-handoff.md). Run `.venv/Scripts/python.exe -m uvicorn assistant.backend.main:app --app-dir src --host 127.0.0.1 --port 8000`, then open `http://127.0.0.1:5173/#workspace`. It has its own real account/session flow. This feature is separate from the current concept extraction and cited-question roadmap.

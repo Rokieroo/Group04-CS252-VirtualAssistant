@@ -1,0 +1,5 @@
+Trích xuất các concept học tập từ các trang slide bên dưới.
+Trả {"concepts": [{"slug": "lowercase-hyphenated", "title": "...", "summary": "...", "bloom_level": "understand", "source_pages": [1]}]}.
+bloom_level: remember, understand, apply, analyze, evaluate, create.
+source_pages chỉ được chứa số trang thực tế trong cửa sổ đã cung cấp.
+Không có kiến thức học tập thì trả {"concepts": []}. Không bịa concept.
