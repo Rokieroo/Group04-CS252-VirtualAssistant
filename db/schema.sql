@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS sources (
     page        INTEGER NOT NULL CHECK (page >= 1),
     text        TEXT NOT NULL,
     visual_notes TEXT,                                           -- vision model's notes on diagrams/images; never cited
-    kind        TEXT NOT NULL DEFAULT 'material',                 -- material | syllabus
+    kind        TEXT NOT NULL DEFAULT 'material',                -- syllabus | material
     UNIQUE (course_id, file_name, page)
 );
 
@@ -160,7 +160,7 @@ CREATE TABLE IF NOT EXISTS invitations (
 CREATE INDEX IF NOT EXISTS ix_invitations_team_id ON invitations (team_id);
 
 -- ---------------------------------------------------------------------------
--- Core loop: syllabus -> roadmap -> scheduled tasks (migration 0004_core_loop).
+-- Core loop: syllabus -> roadmap -> scheduled tasks (migration 0005_core_loop).
 -- ---------------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS syllabi (
@@ -323,5 +323,5 @@ CREATE TABLE IF NOT EXISTS alembic_version (
     version_num VARCHAR(32) NOT NULL PRIMARY KEY
 );
 INSERT INTO alembic_version (version_num)
-SELECT '0004_core_loop'
+SELECT '0005_core_loop'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);

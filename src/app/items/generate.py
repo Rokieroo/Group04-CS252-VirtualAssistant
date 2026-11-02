@@ -15,13 +15,13 @@ from uuid import uuid4
 
 from sqlalchemy import text
 
-from app.concepts.extract import _data
 from app.llm import LLMClient, RetryableError
+from app.llm.blocks import BLOCKS
 from app.retrieval import retrieve_top_k
 
 log = logging.getLogger("app.items")
 
-PROMPT = Path(__file__).parent / "prompts" / "generate_v1.txt"
+PROMPT = Path(__file__).parent / "prompts" / "generate_v2.txt"
 TOP_K = 3
 MAX_ITEMS = 5
 TYPES = ("mcq", "short")
@@ -95,8 +95,8 @@ def generate_items(llm: LLMClient, concept: dict, sources: list[dict]) -> list[d
         log.warning("items: no source page for concept %r", concept["title"])
         return []
     slides = "\n".join(f"[source_id={p['id']}, page {p['page']}] {p['text']}" for p in pages)
-    prompt = (f"<concept>\n{_data(concept['title'] + ' | ' + concept['summary'])}\n</concept>\n"
-              f"<slide_text>\n{_data(slides)}\n</slide_text>")
+    prompt = (BLOCKS.wrap("concept", concept["title"] + " | " + concept["summary"]) + "\n"
+              + BLOCKS.wrap("document_text", slides))
     try:
         answer = llm.complete(prompt, system=PROMPT.read_text(encoding="utf-8"),
                               json_schema=ITEMS_SCHEMA, max_tokens=8192,

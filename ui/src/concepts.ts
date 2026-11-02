@@ -22,6 +22,9 @@ export const ERRORS = {
   not_pdf: "Only PDF files are supported.",
   file_too_large: "This file is larger than 20 MB. Split or compress it first.",
   invalid_pdf: "This PDF is damaged or cannot be opened.",
+  // Backend codes for any upload type (#49): PDF, DOCX and UTF-8 .txt are accepted.
+  unsupported_type: "Only PDF, DOCX and plain-text (.txt) files are supported.",
+  invalid_file: "This file is damaged or has no readable text.",
   scanned_pdf:
     "No readable text in this file. You can paste the page content instead.",
   concepts_unavailable:

@@ -1,11 +1,11 @@
 """Core syllabus -> roadmap -> schedule loop (issue #63).
 
-Adds the Phase 2 tables and the two columns that connect the loop to the
-existing sources/tasks tables. The DDL is portable: SQLite for local tests and
-PostgreSQL for staging/production.
+Adds the Phase 2 tables and tasks.roadmap_node_id, which connects the loop to
+the existing tasks table (sources.kind came first, in 0004_source_kind). The
+DDL is portable: SQLite for local tests and PostgreSQL for staging/production.
 
-Revision ID: 0004_core_loop
-Revises: 0003_source_visual_notes
+Revision ID: 0005_core_loop
+Revises: 0004_source_kind
 Create Date: 2026-11-02
 """
 
@@ -17,8 +17,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "0004_core_loop"
-down_revision: str | None = "0003_source_visual_notes"
+revision: str = "0005_core_loop"
+down_revision: str | None = "0004_source_kind"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -28,13 +28,6 @@ def _id() -> sa.Column:
 
 
 def upgrade() -> None:
-    # Issue #49 also owns this column; keep it here because #63 is the migration
-    # that lands the phase 2 core loop.
-    op.add_column(
-        "sources",
-        sa.Column("kind", sa.Text(), server_default="material", nullable=False),
-    )
-
     op.create_table(
         "syllabi",
         _id(),
@@ -233,7 +226,6 @@ def downgrade() -> None:
         ),
     ) as batch:
         batch.drop_column("roadmap_node_id")
-    op.execute("ALTER TABLE sources DROP COLUMN kind")
 
     # Reverse foreign-key order.
     for table in (

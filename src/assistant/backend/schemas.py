@@ -36,6 +36,7 @@ Email = Annotated[
 Personality = Literal["warm", "direct", "playful"]
 CompanionMode = Literal["off", "buddy", "mentor", "girlfriend"]
 AccountLevel = Literal["university", "k12"]
+SourceKind = Literal["syllabus", "material"]
 
 
 class Input(BaseModel):
@@ -394,12 +395,13 @@ class SourceOut(Output):
     file_name: str
     page: int
     text: str
-    kind: str = "material"
+    kind: SourceKind
 
 
 class UploadOut(Output):
     file_name: str
     pages: int
+    kind: SourceKind
     status: Literal["processed"]
     warning: Literal["scanned_pdf"] | None = None
 

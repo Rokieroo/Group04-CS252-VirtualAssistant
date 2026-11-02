@@ -309,6 +309,7 @@
           "Courses and sources"
         ],
         "summary": "Upload Source",
+        "description": "PDF, DOCX or UTF-8 .txt up to 20 MB; the type comes from name and content, not the client.",
         "operationId": "upload_source_api_v1_courses__course_id__sources_post",
         "security": [
           {
@@ -2785,6 +2786,15 @@
             "type": "string",
             "contentMediaType": "application/octet-stream",
             "title": "File"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "syllabus",
+              "material"
+            ],
+            "title": "Kind",
+            "default": "material"
           }
         },
         "type": "object",
@@ -4416,8 +4426,11 @@
           },
           "kind": {
             "type": "string",
-            "title": "Kind",
-            "default": "material"
+            "enum": [
+              "syllabus",
+              "material"
+            ],
+            "title": "Kind"
           }
         },
         "type": "object",
@@ -4425,7 +4438,8 @@
           "id",
           "file_name",
           "page",
-          "text"
+          "text",
+          "kind"
         ],
         "title": "SourceOut"
       },
@@ -5001,6 +5015,14 @@
             "type": "integer",
             "title": "Pages"
           },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "syllabus",
+              "material"
+            ],
+            "title": "Kind"
+          },
           "status": {
             "type": "string",
             "const": "processed",
@@ -5023,6 +5045,7 @@
         "required": [
           "file_name",
           "pages",
+          "kind",
           "status"
         ],
         "title": "UploadOut"
