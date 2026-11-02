@@ -18,11 +18,12 @@ from uuid import uuid4
 from sqlalchemy import text
 
 from app.llm import LLMClient, RetryableError
+from app.llm.blocks import BLOCKS
 
 log = logging.getLogger("app.concepts")
 
 PROMPTS = Path(__file__).parent / "prompts"
-EXTRACT_PROMPT = "extract_v3"
+EXTRACT_PROMPT = "extract_v4"
 CONSOLIDATE_PROMPT = "consolidate_v1"
 # 20 pages, no overlap: windows run in parallel, so each page is read exactly once and a
 # concept split across two windows is joined by merge(). 20 pages is few enough that the
@@ -34,8 +35,6 @@ MAX_CONCEPTS = 20
 BLOOM_LEVELS = ("remember", "understand", "apply", "analyze", "evaluate", "create")
 # Backstop for the prompt rule; compared after normalize().
 DECORATIVE = {"q a", "content", "contents", "agenda", "outline", "questions", "thank you"}
-_BLOCK_TAG = re.compile(
-    r"</?\s*(slide_text|known_concepts|previous_concepts|candidates|concept)\s*>", re.IGNORECASE)
 
 EXTRACT_SCHEMA = {
     "type": "object",
@@ -163,10 +162,9 @@ def extract_concepts(llm: LLMClient, pages: list[str], visuals: list[str] | None
         earlier = "\n".join(f"{c['slug']} | {c['title']} | {c['summary']} | pages "
                             f"{c['source_pages']}" for c in previous
                             if set(c["source_pages"]) & set(numbers))
-        prompt = (f"<known_concepts>\n{_data(known)}\n</known_concepts>\n"
-                  + (f"<previous_concepts>\n{_data(earlier)}\n</previous_concepts>\n"
-                     if earlier else "")
-                  + f"<slide_text>\n{_data(slides)}\n</slide_text>")
+        prompt = (BLOCKS.wrap("known_concepts", known) + "\n"
+                  + (BLOCKS.wrap("previous_concepts", earlier) + "\n" if earlier else "")
+                  + BLOCKS.wrap("document_text", slides))
         try:
             answer = llm.complete(prompt, system=system, json_schema=EXTRACT_SCHEMA,
                                   max_tokens=8192, temperature=0.2).text  # thinking counts
@@ -197,7 +195,7 @@ def consolidate(llm: LLMClient, candidates: list[dict]) -> list[dict]:
     kept: list[dict] = []
     used: set[str] = set()
     try:
-        answer = llm.complete(f"<candidates>\n{_data(listing)}\n</candidates>", system=system,
+        answer = llm.complete(BLOCKS.wrap("candidates", listing), system=system,
                               json_schema=CONSOLIDATE_SCHEMA, max_tokens=8192,
                               temperature=0.2).text
         for group in json.loads(answer)["concepts"]:
@@ -255,7 +253,3 @@ def save_concepts(db, course_id: str, concepts: list[dict]) -> list[dict]:
 def _prompt(name: str) -> str:
     return (PROMPTS / f"{name}.txt").read_text(encoding="utf-8")
 
-
-def _data(value: str) -> str:
-    """Strip our block tags so slide text cannot close its data block early."""
-    return _BLOCK_TAG.sub("", value)
