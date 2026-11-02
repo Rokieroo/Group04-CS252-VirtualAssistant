@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS concepts (
     summary      TEXT NOT NULL DEFAULT '',
     bloom_level  TEXT NOT NULL DEFAULT 'understand',             -- remember | understand | apply | analyze | evaluate | create
     source_pages TEXT,                                           -- JSON array of page numbers
+    source_ids   TEXT NOT NULL DEFAULT '[]',                      -- JSON source IDs preserve file/page provenance
     confirmed    INTEGER NOT NULL DEFAULT 0,
     UNIQUE (course_id, slug)
 );

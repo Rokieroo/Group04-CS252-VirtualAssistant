@@ -14,6 +14,10 @@ dependencies = [
     "httpx>=0.27,<1",
     "python-dotenv>=1,<2",
     "tzdata>=2024.1",
+    "pypdf>=6,<7",
+    "python-multipart>=0.0.20,<1",
+    "PyJWT>=2.10,<3",
+    "alembic>=1.13,<2",
 ]
 
 [project.optional-dependencies]
@@ -25,6 +29,10 @@ devcli = "devcli.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"app.concepts" = ["prompts/*.txt"]
+"app.items" = ["prompts/*.txt"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

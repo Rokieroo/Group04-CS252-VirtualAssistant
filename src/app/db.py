@@ -3,7 +3,7 @@
 The connection URL comes from ``DATABASE_URL`` (default: ``sqlite:///./local.db``).
 SQLite is used for local development and tests; PostgreSQL 16 is used in
 staging/production. The canonical schema lives in ``db/schema.sql`` and is kept
-in sync with Alembic migration ``0001_initial``.
+in sync with Alembic migrations through ``0002_concept_source_ids``.
 """
 
 from __future__ import annotations

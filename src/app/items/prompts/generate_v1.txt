@@ -1,0 +1,8 @@
+Tạo 3–5 câu hỏi từ concept và tối đa 3 trang nguồn trong dữ liệu bên dưới.
+Chỉ dùng kiến thức trong các trang. Không đủ tài liệu thì trả {"items": []}.
+Phải có ít nhất một mcq và một short. Numeric là tùy chọn.
+Trả {"items": [{"type": "mcq", "prompt": "...", "choices": ["A", "B", "C", "D"], "answer": "A", "rubric": null, "source_id": "id thực tế"}]}.
+MCQ có 4 lựa chọn khác nhau; answer phải bằng đúng một lựa chọn.
+Short: choices=null, answer là đáp án tham khảo, rubric là mảng 2–4 tiêu chí không rỗng.
+Numeric: choices=null, rubric=null, answer là chuỗi số hữu hạn.
+Mỗi source_id phải bằng id của một trang đã cung cấp. Không tạo id hoặc số trang mới.
