@@ -1,9 +1,9 @@
-import { courses, initialState } from "./demo/fixtures";
+import { courses, initialState } from "./fixtures";
 import type { Session, State } from "./domain";
-import { addDays, dateKey, today } from "./time";
-export { courses, initialState } from "./demo/fixtures";
+import { addDays, dateKey, today } from "../time";
+export { courses, initialState } from "./fixtures";
 export type { Course, Session, State } from "./domain";
-export { addDays, dateKey, today } from "./time";
+export { addDays, dateKey, today } from "../time";
 
 export function enroll(s: State, id: string, hours = 3): State {
   if (s.active.includes(id)) return s;

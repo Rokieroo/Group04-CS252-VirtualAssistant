@@ -1,6 +1,6 @@
-import { Button } from "../components/Button";
-import { Meter } from "../components/ProgressMeter";
-import { courseFor } from "../demo/selectors";
+import { Button } from "../../components/Button";
+import { Meter } from "../../components/ProgressMeter";
+import { courseFor } from "../selectors";
 import type { Session, State } from "../domain";
 import { completion, pendingCount, verifiedCount } from "../model";
 

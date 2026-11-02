@@ -1,9 +1,15 @@
 import { useState, type FormEvent } from "react";
-import { authenticate } from "../api/mock";
+import type { Authenticate } from "../api/account";
 import { validateAuth, type AuthErrors, type AuthForm } from "../auth";
 
 /** S1 Sign in / Register. The token goes to the caller, which keeps it in memory only. */
-export function AuthScreen({ onAuth }: { onAuth: (token: string) => void }) {
+export function AuthScreen({
+  onAuth,
+  authenticate,
+}: {
+  onAuth: (token: string) => void;
+  authenticate: Authenticate;
+}) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [form, setForm] = useState<AuthForm>({
     email: "",
