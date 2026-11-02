@@ -1,7 +1,7 @@
 """Validated request/response contracts, shared by Swagger and generated OpenAPI."""
 
 from datetime import UTC, date, datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import (
@@ -201,6 +201,7 @@ class TaskOut(Output):
     priority: int
     due_at: datetime
     status: str
+    roadmap_node_id: str | None = None
 
 
 class TimeRange(Input):
@@ -438,3 +439,131 @@ class ItemOut(Output):
 class ConceptGraphOut(Output):
     concepts: list[ConceptOut]
     prereqs: list[PrereqOut]
+
+
+# ---------------------------------------------------------------------------
+# Core loop: syllabus -> roadmap -> schedule (issue #63).
+# ---------------------------------------------------------------------------
+
+
+class FlexibleInput(BaseModel):
+    """Accept the schema/spec aliases without rejecting forward-compatible fields."""
+
+    model_config = ConfigDict(extra="ignore")
+
+
+class LearningOutcomeIn(FlexibleInput):
+    code: str | None = Field(default=None, max_length=50)
+    description: str | None = Field(default=None, max_length=4000)
+    text: str | None = Field(default=None, max_length=4000)
+    bloom_level: str | None = Field(default=None, max_length=50)
+
+
+class AssessmentIn(FlexibleInput):
+    name: str | None = Field(default=None, max_length=200)
+    title: str | None = Field(default=None, max_length=200)
+    weight: float | str | None = None
+    due_week: int | str | None = None
+    due: str | None = None
+    kind: str | None = None
+
+
+class SyllabusIn(FlexibleInput):
+    raw_text: str | None = None
+    text: str | None = None
+    learning_outcomes: list[LearningOutcomeIn | str] = Field(default_factory=list)
+    outcomes: list[LearningOutcomeIn | str] = Field(default_factory=list)
+    assessments: list[AssessmentIn | str] = Field(default_factory=list)
+    parsed: dict[str, Any] | None = None
+    syllabus_id: str | None = None
+    title: str | None = None
+    version: int | None = None
+    pages: int | None = None
+    status: str | None = None
+
+
+class RoadmapNodeIn(FlexibleInput):
+    type: str | None = None
+    kind: str | None = None
+    title: str | None = None
+    description: str | None = None
+    week: int | str | None = None
+    duration_minutes: int | str | None = None
+    est_minutes: int | str | None = None
+    duration: int | str | None = None
+    due_at: datetime | None = None
+    covers: list[str] | str | None = None
+    outcomes: list[str] = Field(default_factory=list)
+    status: str | None = None
+
+
+class RoadmapGenerateIn(FlexibleInput):
+    syllabus_id: str | None = None
+    title: str | None = None
+    nodes: list[RoadmapNodeIn] = Field(default_factory=list)
+
+
+class RoadmapScheduleIn(FlexibleInput):
+    """Sessions always fit availability minus busy blocks (spec 10.4); a weekly budget
+    is not enforced yet, so ``weekly_minutes`` is ignored like any unknown field."""
+
+    # At least one 25-minute session a day (spec 10.3.4).
+    max_daily_minutes: int = Field(default=120, ge=25, le=1440)
+    starts_at: Timestamp | None = None
+
+
+class LearningOutcomeOut(Output):
+    id: str
+    syllabus_id: str
+    code: str
+    description: str
+    bloom_level: str
+
+
+class AssessmentOut(Output):
+    id: str
+    syllabus_id: str
+    name: str
+    weight: float
+    due_week: int | None
+
+
+class SyllabusOut(Output):
+    id: str
+    syllabus_id: str
+    course_id: str
+    raw_text: str
+    created_at: datetime
+    learning_outcomes: list[LearningOutcomeOut] = Field(default_factory=list)
+    assessments: list[AssessmentOut] = Field(default_factory=list)
+
+
+class RoadmapNodeOut(Output):
+    id: str
+    roadmap_id: str
+    type: str
+    kind: str | None = None
+    title: str
+    week: int | None = None
+    duration_minutes: int | None = None
+    est_minutes: int | None = None
+    due_at: datetime | None = None
+    covers: list[str] = Field(default_factory=list)
+
+
+class RoadmapOut(Output):
+    id: str
+    roadmap_id: str
+    course_id: str
+    user_id: str
+    title: str
+    created_at: datetime
+    nodes: list[RoadmapNodeOut] = Field(default_factory=list)
+
+
+class RoadmapScheduleOut(Output):
+    roadmap_id: str
+    tasks: list[TaskOut] = Field(default_factory=list)
+    sessions: list[EntryOut] = Field(default_factory=list)
+    entries: list[EntryOut] = Field(default_factory=list)
+    unscheduled: list[Unscheduled] = Field(default_factory=list)

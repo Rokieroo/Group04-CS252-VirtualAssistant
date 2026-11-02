@@ -21,6 +21,7 @@ from app.companion import (
     companion_mode,
 )
 from app.planner import WorkItem, build_plan, minutes
+from app.roadmap import task_due_at
 
 from .models import (
     Availability,
@@ -29,14 +30,18 @@ from .models import (
     Goal,
     Membership,
     Notification,
+    Roadmap,
+    RoadmapNode,
     ScheduleEntry,
     Task,
     Team,
     User,
 )
-from .schemas import ChatOut, ChatRequest, PlanOut, PlanRequest, ReportOut
+from .schemas import ChatOut, ChatRequest, PlanOut, PlanRequest, ReportOut, Unscheduled
 
 REMINDER_LEAD = timedelta(minutes=15)
+ROADMAP_SESSION_MINUTES = (25, 50)  # spec 10.3.4
+MAX_PLAN_HORIZON = timedelta(days=90)  # PlanRequest's limit
 
 
 def serialize_schedule_changes(handler):
@@ -232,6 +237,67 @@ def make_plan(db: Session, user: User, data: PlanRequest, now: datetime):
         db.commit()
         plan.committed = True
     return plan
+
+
+def schedule_roadmap(
+    db: Session,
+    user: User,
+    roadmap: Roadmap,
+    nodes: list[RoadmapNode],
+    max_daily_minutes: int,
+    starts_at: datetime | None,
+    now: datetime,
+) -> tuple[list[Task], list[ScheduleEntry], list[Unscheduled]]:
+    """Give each node one task (reused on later calls), then plan through make_plan so
+    sessions fit availability minus busy blocks and existing sessions (spec 10.4)."""
+    existing = {
+        task.roadmap_node_id: task
+        for task in db.scalars(
+            select(Task).where(
+                Task.owner_id == user.id,
+                Task.roadmap_node_id.in_([node.id for node in nodes]),
+            )
+        )
+    }
+    tasks = []
+    for node in nodes:
+        task = existing.get(node.id)
+        if task is None:
+            task = Task(
+                owner_id=user.id,
+                assignee_id=user.id,
+                title=node.title,
+                description=f"Roadmap: {roadmap.title}",
+                duration_minutes=max(1, node.duration_minutes or 60),
+                priority=2,
+                due_at=task_due_at(node.due_at, node.week, now),
+                roadmap_node_id=node.id,
+            )
+            db.add(task)
+        tasks.append(task)
+    db.flush()
+
+    start = max(starts_at or now, now)
+    if start.second or start.microsecond:
+        start = start.replace(second=0, microsecond=0) + timedelta(minutes=1)
+    latest_due = max(task.due_at for task in tasks).replace(second=0, microsecond=0)
+    shortest, longest = ROADMAP_SESSION_MINUTES
+    request = PlanRequest(
+        starts_at=start,
+        ends_at=min(start + MAX_PLAN_HORIZON, max(latest_due, start + timedelta(days=1))),
+        min_session_minutes=shortest,
+        max_session_minutes=longest,
+        daily_limit_minutes=max_daily_minutes,
+        commit=True,
+    )
+    plan = make_plan(db, user, request, now)
+    task_ids = {task.id for task in tasks}
+    sessions = db.scalars(
+        select(ScheduleEntry)
+        .where(ScheduleEntry.task_id.in_(task_ids), ScheduleEntry.status == "planned")
+        .order_by(ScheduleEntry.starts_at)
+    ).all()
+    return tasks, list(sessions), [i for i in plan.unscheduled if i.task_id in task_ids]
 
 
 def progress_report(db: Session, user: User, start_date):

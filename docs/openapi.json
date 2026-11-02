@@ -546,6 +546,429 @@
         }
       }
     },
+    "/api/v1/courses/{course_id}/syllabus": {
+      "get": {
+        "tags": [
+          "Syllabus and roadmap"
+        ],
+        "summary": "Get Syllabus",
+        "operationId": "get_syllabus_api_v1_courses__course_id__syllabus_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Course Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Syllabus and roadmap"
+        ],
+        "summary": "Create Syllabus",
+        "operationId": "create_syllabus_api_v1_courses__course_id__syllabus_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Course Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SyllabusIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Data"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Syllabus and roadmap"
+        ],
+        "summary": "Update Syllabus",
+        "description": "Updates ``syllabus_id`` from the body, else the latest syllabus (or creates one).",
+        "operationId": "update_syllabus_api_v1_courses__course_id__syllabus_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Course Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SyllabusIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Data"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/courses/{course_id}/syllabus/{syllabus_id}": {
+      "put": {
+        "tags": [
+          "Syllabus and roadmap"
+        ],
+        "summary": "Update Syllabus By Id",
+        "description": "Spec 8.2's path; the course-scoped PUT above does the same for the latest one.",
+        "operationId": "update_syllabus_by_id_api_v1_courses__course_id__syllabus__syllabus_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Course Id"
+            }
+          },
+          {
+            "name": "syllabus_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Syllabus Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SyllabusIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Data"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyllabusOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/courses/{course_id}/roadmap:generate": {
+      "post": {
+        "tags": [
+          "Syllabus and roadmap"
+        ],
+        "summary": "Generate Roadmap",
+        "description": "Nodes from the body, else derived from the syllabus (the given or latest one).",
+        "operationId": "generate_roadmap_api_v1_courses__course_id__roadmap_generate_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Course Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RoadmapGenerateIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Data"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoadmapOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmaps/{roadmap_id}": {
+      "get": {
+        "tags": [
+          "Syllabus and roadmap"
+        ],
+        "summary": "Get Roadmap",
+        "operationId": "get_roadmap_api_v1_roadmaps__roadmap_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roadmap_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Roadmap Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoadmapOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmaps/{roadmap_id}:schedule": {
+      "post": {
+        "tags": [
+          "Syllabus and roadmap"
+        ],
+        "summary": "Schedule Roadmap",
+        "description": "One task per node, then sessions from the shared planner; nodes that do not fit\nbefore their deadline come back in ``unscheduled``.",
+        "operationId": "schedule_roadmap_api_v1_roadmaps__roadmap_id__schedule_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roadmap_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Roadmap Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RoadmapScheduleIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Data"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoadmapScheduleOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/goals": {
       "get": {
         "tags": [
@@ -2222,6 +2645,126 @@
   },
   "components": {
     "schemas": {
+      "AssessmentIn": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight"
+          },
+          "due_week": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Week"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          }
+        },
+        "type": "object",
+        "title": "AssessmentIn"
+      },
+      "AssessmentOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "syllabus_id": {
+            "type": "string",
+            "title": "Syllabus Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight"
+          },
+          "due_week": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Week"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "syllabus_id",
+          "name",
+          "weight",
+          "due_week"
+        ],
+        "title": "AssessmentOut"
+      },
       "AvailabilityPut": {
         "properties": {
           "windows": {
@@ -2913,6 +3456,93 @@
         ],
         "title": "ItemOut"
       },
+      "LearningOutcomeIn": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "bloom_level": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bloom Level"
+          }
+        },
+        "type": "object",
+        "title": "LearningOutcomeIn"
+      },
+      "LearningOutcomeOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "syllabus_id": {
+            "type": "string",
+            "title": "Syllabus Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "bloom_level": {
+            "type": "string",
+            "title": "Bloom Level"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "syllabus_id",
+          "code",
+          "description",
+          "bloom_level"
+        ],
+        "title": "LearningOutcomeOut"
+      },
       "Login": {
         "properties": {
           "email": {
@@ -3325,6 +3955,398 @@
         ],
         "title": "ReportOut"
       },
+      "RoadmapGenerateIn": {
+        "properties": {
+          "syllabus_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Syllabus Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/RoadmapNodeIn"
+            },
+            "type": "array",
+            "title": "Nodes"
+          }
+        },
+        "type": "object",
+        "title": "RoadmapGenerateIn"
+      },
+      "RoadmapNodeIn": {
+        "properties": {
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "week": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Week"
+          },
+          "duration_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Minutes"
+          },
+          "est_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Est Minutes"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "covers": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Covers"
+          },
+          "outcomes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Outcomes"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "title": "RoadmapNodeIn"
+      },
+      "RoadmapNodeOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "roadmap_id": {
+            "type": "string",
+            "title": "Roadmap Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "week": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Week"
+          },
+          "duration_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Minutes"
+          },
+          "est_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Est Minutes"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "covers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Covers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "roadmap_id",
+          "type",
+          "title"
+        ],
+        "title": "RoadmapNodeOut"
+      },
+      "RoadmapOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "roadmap_id": {
+            "type": "string",
+            "title": "Roadmap Id"
+          },
+          "course_id": {
+            "type": "string",
+            "title": "Course Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/RoadmapNodeOut"
+            },
+            "type": "array",
+            "title": "Nodes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "roadmap_id",
+          "course_id",
+          "user_id",
+          "title",
+          "created_at"
+        ],
+        "title": "RoadmapOut"
+      },
+      "RoadmapScheduleIn": {
+        "properties": {
+          "max_daily_minutes": {
+            "type": "integer",
+            "maximum": 1440.0,
+            "minimum": 25.0,
+            "title": "Max Daily Minutes",
+            "default": 120
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          }
+        },
+        "type": "object",
+        "title": "RoadmapScheduleIn",
+        "description": "Sessions always fit availability minus busy blocks (spec 10.4); a weekly budget\nis not enforced yet, so ``weekly_minutes`` is ignored like any unknown field."
+      },
+      "RoadmapScheduleOut": {
+        "properties": {
+          "roadmap_id": {
+            "type": "string",
+            "title": "Roadmap Id"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/TaskOut"
+            },
+            "type": "array",
+            "title": "Tasks"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/EntryOut"
+            },
+            "type": "array",
+            "title": "Sessions"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/EntryOut"
+            },
+            "type": "array",
+            "title": "Entries"
+          },
+          "unscheduled": {
+            "items": {
+              "$ref": "#/components/schemas/Unscheduled"
+            },
+            "type": "array",
+            "title": "Unscheduled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "roadmap_id"
+        ],
+        "title": "RoadmapScheduleOut"
+      },
       "ShareTask": {
         "properties": {
           "team_id": {
@@ -3386,6 +4408,191 @@
           "kind"
         ],
         "title": "SourceOut"
+      },
+      "SyllabusIn": {
+        "properties": {
+          "raw_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Text"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "learning_outcomes": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/LearningOutcomeIn"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Learning Outcomes"
+          },
+          "outcomes": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/LearningOutcomeIn"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Outcomes"
+          },
+          "assessments": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/AssessmentIn"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Assessments"
+          },
+          "parsed": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parsed"
+          },
+          "syllabus_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Syllabus Id"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "title": "SyllabusIn"
+      },
+      "SyllabusOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "syllabus_id": {
+            "type": "string",
+            "title": "Syllabus Id"
+          },
+          "course_id": {
+            "type": "string",
+            "title": "Course Id"
+          },
+          "raw_text": {
+            "type": "string",
+            "title": "Raw Text"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "learning_outcomes": {
+            "items": {
+              "$ref": "#/components/schemas/LearningOutcomeOut"
+            },
+            "type": "array",
+            "title": "Learning Outcomes"
+          },
+          "assessments": {
+            "items": {
+              "$ref": "#/components/schemas/AssessmentOut"
+            },
+            "type": "array",
+            "title": "Assessments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "syllabus_id",
+          "course_id",
+          "raw_text",
+          "created_at"
+        ],
+        "title": "SyllabusOut"
       },
       "TaskCreate": {
         "properties": {
@@ -3527,6 +4734,17 @@
           "status": {
             "type": "string",
             "title": "Status"
+          },
+          "roadmap_node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roadmap Node Id"
           }
         },
         "type": "object",
