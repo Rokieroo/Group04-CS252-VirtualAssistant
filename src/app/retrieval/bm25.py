@@ -1,9 +1,10 @@
-"""BM25 retrieval over slide pages (issue #11).
+"""BM25 retrieval over slide pages and plain documents (issues #11 and #51).
 
 The retriever works on the ``sources`` table / fixture rows: one row per page
-with ``id`` (or ``source_id``), ``text``, ``page`` and ``file_name``. Vietnamese
-diacritics are preserved; only Unicode composition is normalised so NFC and NFD
-inputs produce the same tokens.
+with ``id`` (or ``source_id``), ``text``, ``page`` and ``file_name``. The shared
+:class:`Bm25Index` also accepts plain strings, so callers can score topics
+without a database. Vietnamese diacritics are preserved; only Unicode
+composition is normalised so NFC and NFD inputs produce the same tokens.
 """
 
 from __future__ import annotations
@@ -86,6 +87,40 @@ def tokenize_vi(text: str, remove_stopwords: bool = True) -> list[str]:
     return meaningful or tokens
 
 
+class Bm25Index:
+    """A BM25 index over plain documents, independent of the ``sources`` table."""
+
+    def __init__(self, docs: list[str]) -> None:
+        self.docs = list(docs)
+        corpus = [tokenize_vi(text) or [_EMPTY_TOKEN] for text in self.docs]
+        self._bm25 = BM25Okapi(corpus) if corpus else None
+
+    def scores(self, query: str) -> list[float]:
+        """Raw BM25 score per document; zeros for an empty query, [] for no docs."""
+        if self._bm25 is None:
+            return []
+        query_tokens = tokenize_vi(query)
+        if not query_tokens:
+            return [0.0] * len(self.docs)
+        return [float(score) for score in self._bm25.get_scores(query_tokens)]
+
+
+def score_against(query: str, docs: list[str]) -> list[float]:
+    """Score ``query`` against plain ``docs`` and normalize each score to [0, 1].
+
+    The best matching document receives 1.0 and the others are scaled relative to
+    it. When no document matches (``max <= 0``) or ``docs`` is empty, the result is
+    all zeros rather than raw negative/zero BM25 values.
+    """
+    if not docs:
+        return []
+    scores = Bm25Index(docs).scores(query)
+    best = max(scores, default=0.0)
+    if best <= 0.0:
+        return [0.0] * len(docs)
+    return [min(1.0, max(0.0, score / best)) for score in scores]
+
+
 def _field(source: Any, name: str, default: Any = None) -> Any:
     """Read a field from a dict, an object, or a SQLAlchemy ``Row``."""
     if isinstance(source, Mapping):
@@ -134,9 +169,7 @@ class BM25Retriever:
         self._texts = [_source_text(source) for source in self.sources]
         self._pages = [_source_page(source) for source in self.sources]
         self._file_names = [_source_file_name(source) for source in self.sources]
-
-        corpus = [tokenize_vi(text) or [_EMPTY_TOKEN] for text in self._texts]
-        self._bm25 = BM25Okapi(corpus) if corpus else None
+        self._index = Bm25Index(self._texts)
 
     def retrieve(
         self,
@@ -151,14 +184,10 @@ class BM25Retriever:
         the LLM. Ties are broken by page number, then input order, so the output
         is deterministic.
         """
-        if self._bm25 is None or top_k <= 0:
+        if top_k <= 0:
             return []
 
-        query_tokens = tokenize_vi(query)
-        if not query_tokens:
-            return []
-
-        scores = [float(score) for score in self._bm25.get_scores(query_tokens)]
+        scores = self._index.scores(query)
         if not scores:
             return []
 
