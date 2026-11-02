@@ -2,8 +2,11 @@
  * On when VITE_BACKEND_MODE=api; otherwise the demo mocks run with no server. */
 export const backendEnabled = import.meta.env.VITE_BACKEND_MODE === "api";
 
-const BASE =
-  String(import.meta.env.VITE_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "") + "/api/v1";
+export const API_ORIGIN = String(import.meta.env.VITE_API_URL || "http://127.0.0.1:8000").replace(
+  /\/$/,
+  "",
+);
+const BASE = API_ORIGIN + "/api/v1";
 const SESSION = "pathly.session"; // shared with Workspace, so one sign-in serves both
 
 export const session = {
@@ -46,6 +49,16 @@ export class BackendError extends Error {
   }
 }
 
+/** FastAPI's `detail`: a code string, or a 422's list of validation messages. */
+export async function errorDetail(response: Response): Promise<string> {
+  const body = await response.json().catch(() => ({}));
+  return typeof body.detail === "string"
+    ? body.detail
+    : Array.isArray(body.detail)
+      ? body.detail.map((d: { msg: string }) => d.msg).join("; ")
+      : `Request failed (${response.status})`;
+}
+
 /** No timeout: concept extraction can take minutes while the AI works. */
 export async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = session.get();
@@ -64,13 +77,7 @@ export async function call<T>(path: string, init: RequestInit = {}): Promise<T> 
     throw new BackendError(0, "unreachable");
   }
   if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    const code =
-      typeof body.detail === "string"
-        ? body.detail
-        : Array.isArray(body.detail)
-          ? body.detail.map((d: { msg: string }) => d.msg).join("; ")
-          : `Request failed (${response.status})`;
+    const code = await errorDetail(response);
     if (response.status === 401) session.clear();
     throw new BackendError(response.status, code);
   }
