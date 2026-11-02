@@ -6,9 +6,10 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 from sqlalchemy import delete, select
 
+from app.planner import merge, minutes
+
 from .dependencies import DB, CurrentUser
 from .models import Availability, BusyBlock, Notification, ScheduleEntry, Task, User
-from .scheduler import merge, minutes
 from .schemas import (
     AvailabilityPut,
     BusyCreate,

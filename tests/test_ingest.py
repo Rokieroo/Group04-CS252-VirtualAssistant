@@ -3,7 +3,7 @@
 import pytest
 from conftest import make_pdf, register
 
-from assistant.backend.ingest import MAX_UPLOAD_BYTES
+from app.ingest import MAX_UPLOAD_BYTES
 from assistant.backend.models import Source
 
 

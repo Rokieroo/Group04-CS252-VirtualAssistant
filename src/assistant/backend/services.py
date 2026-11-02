@@ -1,4 +1,8 @@
-"""Scheduling transactions and ownership rules shared by the API routes."""
+"""Database transactions and ownership rules shared by the API routes.
+
+Each function loads rows, hands plain values to the pure parts in app/ and writes
+the result back; the decisions themselves live in app/ (ADR 003).
+"""
 
 from datetime import datetime, time, timedelta
 from functools import wraps
@@ -9,9 +13,19 @@ from fastapi import HTTPException
 from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
+from app.companion import (
+    Companion,
+    CompanionContext,
+    NextSession,
+    PendingTask,
+    companion_mode,
+)
+from app.planner import WorkItem, build_plan, minutes
+
 from .models import (
     Availability,
     BusyBlock,
+    ChatMessage,
     Goal,
     Membership,
     Notification,
@@ -20,8 +34,7 @@ from .models import (
     Team,
     User,
 )
-from .scheduler import WorkItem, build_plan, minutes
-from .schemas import PlanRequest, ReportOut
+from .schemas import ChatOut, ChatRequest, PlanOut, PlanRequest, ReportOut
 
 REMINDER_LEAD = timedelta(minutes=15)
 
@@ -141,7 +154,7 @@ def make_plan(db: Session, user: User, data: PlanRequest, now: datetime):
     tasks = db.scalars(
         select(Task).where(Task.assignee_id == user.id, Task.status == "pending")
     ).all()
-    plan = build_plan(
+    proposal = build_plan(
         [
             WorkItem(
                 task.id,
@@ -163,7 +176,15 @@ def make_plan(db: Session, user: User, data: PlanRequest, now: datetime):
         data,
         user.timezone,
     )
-    plan.expired_sessions = len(expired_ids)
+    plan = PlanOut.model_validate(
+        {
+            "committed": False,
+            "expired_sessions": len(expired_ids),
+            "entries": proposal.entries,
+            "unscheduled": proposal.unscheduled,
+        },
+        from_attributes=True,
+    )
     if data.commit:
         if expired_ids:
             db.execute(
@@ -266,3 +287,77 @@ def progress_report(db: Session, user: User, start_date):
     if cache is not None:
         cache.put(cache_key, report, generation)
     return report
+
+
+def companion_reply(
+    db: Session,
+    user: User,
+    data: ChatRequest,
+    companion: Companion,
+    now: datetime,
+) -> ChatOut:
+    """One chat turn: gather read-only facts, ask the companion, store both messages."""
+    local_date = now.astimezone(ZoneInfo(user.timezone)).date()
+    report = progress_report(
+        db, user, local_date - timedelta(days=local_date.weekday())
+    )
+    tasks = db.scalars(
+        select(Task)
+        .where(Task.assignee_id == user.id, Task.status == "pending")
+        .order_by(Task.priority, Task.due_at, Task.id)
+        .limit(5)
+    ).all()
+    next_entry = db.scalar(
+        select(ScheduleEntry)
+        .where(
+            ScheduleEntry.user_id == user.id,
+            ScheduleEntry.status == "planned",
+            ScheduleEntry.ends_at > now,
+        )
+        .order_by(ScheduleEntry.starts_at)
+        .limit(1)
+    )
+    history = db.scalars(
+        select(ChatMessage)
+        .where(ChatMessage.user_id == user.id)
+        .order_by(ChatMessage.created_at.desc(), ChatMessage.id.desc())
+        .limit(10)
+    ).all()
+    context = CompanionContext(
+        name=user.name,
+        timezone=user.timezone,
+        mood=data.mood,
+        mode=companion_mode(user, now.date()),
+        personality=user.personality,
+        weekly_progress=report.model_dump(mode="json"),
+        pending_tasks=[
+            PendingTask(
+                task.title, task.due_at, task.duration_minutes - task.completed_minutes
+            )
+            for task in tasks
+        ],
+        next_session=NextSession(
+            db.get(Task, next_entry.task_id).title, next_entry.starts_at
+        )
+        if next_entry
+        else None,
+        history=[(row.role, row.content) for row in reversed(history)],
+    )
+    reply = companion.reply(context, data.message)
+    db.add(
+        ChatMessage(user_id=user.id, role="user", content=data.message, created_at=now)
+    )
+    db.add(
+        ChatMessage(
+            user_id=user.id,
+            role="assistant",
+            content=reply.text,
+            created_at=now + timedelta(microseconds=1),
+        )
+    )
+    db.commit()
+    return ChatOut(
+        reply=reply.text,
+        provider=reply.provider,
+        fallback_reason=reply.fallback_reason,
+    )
