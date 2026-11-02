@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 
+from app.planner import intersect, minutes, subtract
+
 from .dependencies import DB, CurrentUser
 from .models import (
     Availability,
@@ -18,7 +20,6 @@ from .models import (
     Team,
     User,
 )
-from .scheduler import intersect, minutes, subtract
 from .schemas import (
     CommonSlot,
     CoordinateRequest,

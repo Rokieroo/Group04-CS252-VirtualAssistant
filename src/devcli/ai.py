@@ -71,8 +71,8 @@ def _concepts(args: argparse.Namespace) -> int:
 
     from app.concepts.extract import extract_concepts
     from app.concepts.visual import read_visuals
+    from app.ingest import InvalidPdf, extract_pages
     from app.llm import get_client, get_vision_client
-    from assistant.backend.ingest import InvalidPdf, extract_pages
 
     load_dotenv(ROOT / ".env")  # LLM_PROVIDER / LLM_API_KEY; real env vars win
     path = Path(args.file)
@@ -97,9 +97,9 @@ def _concepts(args: argparse.Namespace) -> int:
 def _items(args: argparse.Namespace) -> int:
     from dotenv import load_dotenv
 
+    from app.ingest import InvalidPdf, extract_pages
     from app.items.generate import generate_items
     from app.llm import get_client
-    from assistant.backend.ingest import InvalidPdf, extract_pages
 
     load_dotenv(ROOT / ".env")
     path = Path(args.file)

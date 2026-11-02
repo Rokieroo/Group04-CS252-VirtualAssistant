@@ -9,11 +9,11 @@ from sqlalchemy.exc import IntegrityError
 
 from app.concepts.extract import extract_concepts, save_concepts
 from app.concepts.visual import read_visuals
+from app.ingest import MAX_UPLOAD_BYTES, InvalidPdf, extract_pages, looks_scanned
 from app.items.generate import generate_items, save_items
 from app.llm import LLMClient, get_client, get_vision_client
 
 from .dependencies import DB, CurrentUser
-from .ingest import MAX_UPLOAD_BYTES, InvalidPdf, extract_pages, looks_scanned
 from .models import Course, Source
 from .schemas import (
     ConceptGraphOut,

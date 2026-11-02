@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from assistant.backend.scheduler import (
+from app.planner import (
     WorkItem,
     build_plan,
     intersect,

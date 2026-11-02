@@ -8,7 +8,8 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 
-from .companion import girlfriend_mode_allowed
+from app.companion import girlfriend_mode_allowed
+
 from .dependencies import DB, CurrentUser
 from .models import AuthSession, User
 from .schemas import Login, ProfilePatch, Register, TokenOut, UserOut
