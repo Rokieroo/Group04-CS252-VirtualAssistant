@@ -1,31 +1,39 @@
-"""PDF to per-page text (UC-01). Slide text is data only, never a prompt."""
+"""PDF: one page of extracted text per PDF page (UC-01)."""
 
 from io import BytesIO
 
 from pypdf import PdfReader
 
-MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+from app.ingest.base import DocumentFormat, InvalidDocument
+
 SCANNED_RATIO = 0.8
 
 
-class InvalidPdf(ValueError):
-    pass
+class InvalidPdf(InvalidDocument):
+    code = "invalid_pdf"
 
 
-def extract_pages(data: bytes) -> list[str]:
-    """Return one whitespace-normalized string per page; empty pages stay empty."""
-    try:
-        reader = PdfReader(BytesIO(data))
-        if reader.is_encrypted:
-            raise InvalidPdf("encrypted")
-        pages = [" ".join((page.extract_text() or "").split()) for page in reader.pages]
-    except InvalidPdf:
-        raise
-    except Exception as exc:  # pypdf raises many types for malformed files
-        raise InvalidPdf(type(exc).__name__) from exc
-    if not pages:
-        raise InvalidPdf("no pages")
-    return pages
+class PdfFormat(DocumentFormat):
+    media_type = "application/pdf"
+    extensions = (".pdf",)
+    magic = b"%PDF"
+
+    def read(self, data: bytes) -> list[str]:
+        """Return one whitespace-normalized string per page; empty pages stay empty."""
+        try:
+            reader = PdfReader(BytesIO(data))
+            if reader.is_encrypted:
+                raise InvalidPdf("encrypted")
+            pages = [
+                " ".join((page.extract_text() or "").split()) for page in reader.pages
+            ]
+        except InvalidPdf:
+            raise
+        except Exception as exc:  # pypdf raises many types for malformed files
+            raise InvalidPdf(type(exc).__name__) from exc
+        if not pages:
+            raise InvalidPdf("no pages")
+        return pages
 
 
 def looks_scanned(pages: list[str]) -> bool:
