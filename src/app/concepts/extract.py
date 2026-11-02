@@ -6,7 +6,6 @@ slug/normalization helpers in ``normalize.py``. Existing imports from
 """
 from __future__ import annotations
 
-# Backward compatibility: app.items.generate imports _data from this module.
 from .from_pages import (  # noqa: F401
     BLOOM_LEVELS,
     CONSOLIDATE_PROMPT,
@@ -19,7 +18,6 @@ from .from_pages import (  # noqa: F401
     PROMPTS,
     STEP,
     WINDOW,
-    _data,
     _prompt,
     consolidate,
     extract_concepts,

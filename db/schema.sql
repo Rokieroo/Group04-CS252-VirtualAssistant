@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS sources (
     page        INTEGER NOT NULL CHECK (page >= 1),
     text        TEXT NOT NULL,
     visual_notes TEXT,                                           -- vision model's notes on diagrams/images; never cited
+    kind        TEXT NOT NULL DEFAULT 'material',                -- syllabus | material
     UNIQUE (course_id, file_name, page)
 );
 
@@ -241,5 +242,5 @@ CREATE TABLE IF NOT EXISTS alembic_version (
     version_num VARCHAR(32) NOT NULL PRIMARY KEY
 );
 INSERT INTO alembic_version (version_num)
-SELECT '0003_source_visual_notes'
+SELECT '0004_source_kind'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);

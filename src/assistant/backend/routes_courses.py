@@ -1,15 +1,23 @@
-"""Courses, page-level PDF sources (UC-01, #13), concept proposals (UC-02, #9) and cited items (UC-03, #10)."""
+"""Courses, page-level PDF/DOCX/text sources (UC-01, #13, #49), concept proposals (UC-02, #9) and cited items (UC-03, #10)."""
 
 import json
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
 from sqlalchemy import delete, select, text
 from sqlalchemy.exc import IntegrityError
 
 from app.concepts.extract import extract_concepts, save_concepts
 from app.concepts.visual import read_visuals
-from app.ingest import MAX_UPLOAD_BYTES, InvalidPdf, extract_pages, looks_scanned
+from app.ingest import (
+    MAX_UPLOAD_BYTES,
+    PDF,
+    InvalidDocument,
+    UnsupportedType,
+    detect_media_type,
+    extract_pages,
+    looks_scanned,
+)
 from app.items.generate import generate_items, save_items
 from app.llm import LLMClient, get_client, get_vision_client
 
@@ -20,6 +28,7 @@ from .schemas import (
     CourseCreate,
     CourseOut,
     ItemOut,
+    SourceKind,
     SourceOut,
     UploadOut,
 )
@@ -66,7 +75,9 @@ def upload_source(
     db: DB,
     user: CurrentUser,
     vision: Annotated[LLMClient, Depends(get_vision_client)],
+    kind: Annotated[SourceKind, Form()] = "material",
 ):
+    """PDF, DOCX or UTF-8 .txt up to 20 MB; the type comes from name and content, not the client."""
     owned_course(db, course_id, user.id)
     # Browsers may send a Windows path; keep only the base name.
     name = (file.filename or "").replace("\\", "/").rsplit("/", 1)[-1].strip()
@@ -75,28 +86,27 @@ def upload_source(
     data = file.file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(413, "file_too_large")
-    if not data:
-        raise HTTPException(400, "invalid_pdf")
-    if not name.lower().endswith(".pdf") or not data.startswith(b"%PDF"):
-        raise HTTPException(415, "not_pdf")
     try:
-        pages = extract_pages(data)
-    except InvalidPdf:
-        raise HTTPException(400, "invalid_pdf") from None
-    # A re-upload revises the notes kept from last time; a failed chunk keeps them.
-    previous = [""] * len(pages)
-    for number, note in db.execute(select(Source.page, Source.visual_notes).where(
-            Source.course_id == course_id, Source.file_name == name)):
-        if number <= len(pages):
-            previous[number - 1] = note or ""
-    notes = read_visuals(vision, data, len(pages), previous)
+        media_type = detect_media_type(name, data)
+        pages = extract_pages(data, media_type)
+    except UnsupportedType:
+        raise HTTPException(415, "unsupported_type") from None
+    except InvalidDocument as exc:
+        raise HTTPException(400, exc.code) from None
+    is_pdf = media_type == PDF
+    # Only PDFs have page images for the vision model to read.
+    notes = (
+        read_visuals(vision, data, len(pages), _previous_notes(db, course_id, name, len(pages)))
+        if is_pdf
+        else [""] * len(pages)
+    )
     # Re-uploading the same file name replaces its pages.
     db.execute(
         delete(Source).where(Source.course_id == course_id, Source.file_name == name)
     )
     db.add_all(
         Source(course_id=course_id, file_name=name, page=number, text=text,
-               visual_notes=note or None)
+               visual_notes=note or None, kind=kind)
         for number, (text, note) in enumerate(zip(pages, notes, strict=True), start=1)
     )
     try:
@@ -107,9 +117,20 @@ def upload_source(
     return UploadOut(
         file_name=name,
         pages=len(pages),
+        kind=kind,
         status="processed",
-        warning="scanned_pdf" if looks_scanned(pages) else None,
+        warning="scanned_pdf" if is_pdf and looks_scanned(pages) else None,
     )
+
+
+def _previous_notes(db, course_id: str, name: str, page_count: int) -> list[str]:
+    """A re-upload revises the notes kept from last time; a failed chunk keeps them."""
+    previous = [""] * page_count
+    for number, note in db.execute(select(Source.page, Source.visual_notes).where(
+            Source.course_id == course_id, Source.file_name == name)):
+        if number <= page_count:
+            previous[number - 1] = note or ""
+    return previous
 
 
 @router.post("/courses/{course_id}/concepts:propose", response_model=ConceptGraphOut)

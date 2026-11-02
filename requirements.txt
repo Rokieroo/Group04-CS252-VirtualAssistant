@@ -16,8 +16,9 @@ sqlalchemy~=2.1
 alembic~=1.20
 psycopg[binary]~=3.3      # driver Postgres cho Docker Compose và staging
 
-# --- Ingest PDF (#13) ---
+# --- Ingest PDF, DOCX, text (#13, #49) ---
 pypdf~=6.21
+python-docx~=1.2          # đọc syllabus DOCX theo trang
 
 # --- Security (#14) ---
 argon2-cffi~=25.1         # hash mật khẩu

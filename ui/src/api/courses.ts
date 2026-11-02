@@ -10,16 +10,20 @@ export type UploadResult = {
 };
 type Code =
   | "not_pdf"
+  | "unsupported_type"
   | "file_too_large"
   | "invalid_pdf"
+  | "invalid_file"
   | "scanned_pdf"
   | "concepts_unavailable"
   | "items_unavailable"
   | "upload_in_progress";
 const CODES: readonly string[] = [
   "not_pdf",
+  "unsupported_type",
   "file_too_large",
   "invalid_pdf",
+  "invalid_file",
   "scanned_pdf",
   "concepts_unavailable",
   "items_unavailable",
