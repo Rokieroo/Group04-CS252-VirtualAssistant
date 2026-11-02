@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { backendEnabled } from "../api/backend";
-import { ApiError, proposeConcepts, uploadSource, type UploadResult } from "../api/courses";
+import {
+  ApiError,
+  generateItems,
+  proposeConcepts,
+  uploadSource,
+  type Item,
+  type UploadResult,
+} from "../api/courses";
 import {
   addPrereq,
   checkFile,
@@ -16,6 +23,57 @@ import {
 type Row = UploadResult & { error?: string };
 const STATUS = { processing: "Processing…", processed: "Done", error: "Error" };
 
+/** A concept's cited practice questions (UC-03), each with its slide page. */
+function Questions({
+  title,
+  state,
+  onAsk,
+}: {
+  title: string;
+  state: { busy?: boolean; error?: string; items?: Item[] };
+  onAsk: () => void;
+}) {
+  return (
+    <div className="questions">
+      <button className="secondary-action" disabled={state.busy} onClick={onAsk}>
+        {state.busy ? "Writing questions…" : state.items ? "More questions" : "Generate questions"}
+      </button>
+      {state.error && (
+        <p role="alert" className="row-error">
+          {state.error}
+        </p>
+      )}
+      {state.items && (
+        <ol className="question-list" aria-label={`Questions for ${title}`}>
+          {state.items.map((i) => (
+            <li key={i.id}>
+              <p>{i.prompt}</p>
+              {i.type === "mcq" ? (
+                <ul>
+                  {i.choices.map((choice) => (
+                    <li key={choice}>
+                      {choice === i.answer ? <strong>{choice} (answer)</strong> : choice}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="hint">
+                  Answer: {i.answer}
+                  <br />
+                  Rubric: {i.rubric.join("; ")}
+                </p>
+              )}
+              <span className="citation">
+                {i.file_name} · p. {i.page}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 /** S3 Upload + S4 Concept editor (spec section 5); api/courses.ts picks the backend or the demo. */
 export function CoursesPage({ course }: { course: string }) {
   const [files, setFiles] = useState<Row[]>([]);
@@ -26,6 +84,9 @@ export function CoursesPage({ course }: { course: string }) {
   const [dragging, setDragging] = useState(false);
   const [proposing, setProposing] = useState(false);
   const [proposeError, setProposeError] = useState("");
+  const [questions, setQuestions] = useState<
+    Record<string, { busy?: boolean; error?: string; items?: Item[] }>
+  >({});
   const picker = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -91,6 +152,22 @@ export function CoursesPage({ course }: { course: string }) {
     e.preventDefault();
     setDragging(false);
     void upload(e.dataTransfer.files);
+  };
+
+  const ask = async (id: string) => {
+    setQuestions((q) => ({ ...q, [id]: { ...q[id], busy: true, error: undefined } }));
+    try {
+      const items = await generateItems(course, id);
+      setQuestions((q) => ({ ...q, [id]: { items } }));
+    } catch (err) {
+      const error =
+        err instanceof ApiError
+          ? ERRORS[err.code]
+          : err instanceof Error
+            ? err.message
+            : ERRORS.items_unavailable;
+      setQuestions((q) => ({ ...q, [id]: { ...q[id], busy: false, error } }));
+    }
   };
 
   const edit = (next: Graph) => {
@@ -257,6 +334,14 @@ export function CoursesPage({ course }: { course: string }) {
                       <p role="alert" className="row-error">
                         {edgeError.text}
                       </p>
+                    )}
+                    {/* Demo concepts are not stored, so only the backend can write questions. */}
+                    {backendEnabled && (
+                      <Questions
+                        title={c.title}
+                        state={questions[c.id] ?? {}}
+                        onAsk={() => void ask(c.id)}
+                      />
                     )}
                   </div>
                   <button

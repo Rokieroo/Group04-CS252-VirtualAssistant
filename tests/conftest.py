@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import BytesIO
 from uuid import uuid4
 
@@ -20,7 +20,7 @@ os.environ["LLM_PROVIDER"] = "fake"
 
 @pytest.fixture
 def clock():
-    return [datetime(2030, 1, 7, 0, 0, tzinfo=timezone.utc)]
+    return [datetime(2030, 1, 7, 0, 0, tzinfo=UTC)]
 
 
 @pytest.fixture(
@@ -85,6 +85,26 @@ def account(client):
 @pytest.fixture
 def headers(account):
     return {"Authorization": "Bearer " + account["access_token"]}
+
+# Fixtures for Issue #16 integration tests: two isolated accounts for access-control tests.
+@pytest.fixture
+def user_a(client):
+    return register(client, name="Lan", email="lan@example.com")
+
+
+@pytest.fixture
+def headers_a(user_a):
+    return {"Authorization": "Bearer " + user_a["access_token"]}
+
+
+@pytest.fixture
+def user_b(client):
+    return register(client, name="Han", email="han@example.com")
+
+
+@pytest.fixture
+def headers_b(user_b):
+    return {"Authorization": "Bearer " + user_b["access_token"]}
 
 
 def task(client, headers, **changes):

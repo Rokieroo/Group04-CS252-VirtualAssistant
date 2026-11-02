@@ -1,17 +1,19 @@
 # Study Companion — Group 04 (CS252 Virtual Assistant)
 
-Trợ lý học tập AI cho **chính môn học bạn đang học**, từ THPT (K-12) đến đại học: thả slide bài giảng vào, ứng dụng biến chúng thành câu hỏi luyện tập có trích dẫn trang, lịch ôn tập hằng ngày và bản đồ kiến thức đã nắm vững, kèm một nhân vật đồng hành động viên bạn học.
+Trợ lý học tập AI cho **chính môn học bạn đang học**, từ THPT (K-12) đến đại học: nạp đề cương (syllabus) để dựng lộ trình học tập (Roadmap) kèm tài liệu chọn lọc theo từng chặng, hỏi đáp trích dẫn đúng slide/trang, luyện tập ngắt quãng (FSRS) và nhân vật đồng hành động viên bạn học.
 
 ## 📌 Tóm tắt ý tưởng (Improved idea)
 
 **Vấn đề.** Học sinh, sinh viên nhận slide mới mỗi tuần nhưng thường chỉ đọc lại vào đêm trước khi thi, cách học kém hiệu quả nhất và quên rất nhanh. Coursera bán nội dung của họ; chưa có công cụ tốt làm việc trên **nội dung giáo viên của bạn đã đưa**.
 
 **Giải pháp.**
-- **Slide → câu hỏi có trích dẫn**: AI đề xuất concept và câu hỏi; mỗi câu trỏ về đúng trang slide, không có nguồn thì không trả lời (*cite or refuse*).
-- **Ôn tập đúng lúc sắp quên**: lịch ôn theo thuật toán FSRS, buổi 10 phút gồm warm-up, core (xen kẽ chủ đề), wrap.
-- **Gợi ý thay vì đáp án**: hint ladder; bài được chấm điểm chỉ nhận gợi ý.
+
+- **Syllabus → Lộ trình (Roadmap) & Tài liệu chọn lọc**: Xương sống của ứng dụng; chia môn học thành các chặng (milestones) với mục tiêu, bài giảng và tài liệu chọn lọc liên kết.
+- **Hỏi đáp theo chặng có trích dẫn (UC-12)**: Giải đáp thắc mắc dựa trên tài liệu đính kèm chặng, mỗi câu trỏ về đúng trang slide, không có nguồn thì từ chối (*cite or refuse*).
+- **Luyện tập ngắt quãng (FSRS) theo concept (UC-10, UC-11)**: Sinh câu hỏi từ tài liệu chặng, ôn tập đúng lúc sắp quên, buổi 10 phút gồm warm-up, core (xen kẽ chủ đề), wrap.
+- **Gợi ý thay vì đáp án (UC-13)**: hint ladder; bài được chấm điểm chỉ nhận gợi ý.
 - **Sửa lỗ hổng nền**: sai 2 lần thì quay lại concept tiên quyết.
-- **Companion 3 mode**: study buddy (mặc định, mọi lứa tuổi), mentor, và girlfriend mode **chỉ cho người dùng 18+ đã xác minh tự bật**; không nội dung tình dục; unlock theo mức độ nắm vững, không theo thời gian dùng app.
+- **Companion 3 mode (UC-14)**: study buddy (mặc định, mọi lứa tuổi), mentor, và girlfriend mode **chỉ cho người dùng 18+ đã xác minh tự bật**; không nội dung tình dục; unlock theo mức độ nắm vững trên roadmap, không theo thời gian dùng app.
 - **Cho trường học (từ tuần 4)**: dashboard giáo viên, báo cáo phụ huynh, tài khoản K-12 an toàn.
 
 **Nguyên tắc kỹ thuật.** Dùng giải pháp đơn giản nhất đủ dùng (*solution ladder*): graph, lịch ôn, chấm trắc nghiệm là thuật toán thường; LLM chỉ soạn câu hỏi, gợi ý và phản hồi, luôn có fallback.
@@ -19,7 +21,7 @@ Trợ lý học tập AI cho **chính môn học bạn đang học**, từ THPT 
 **Lộ trình.** 6 tuần xây phần mềm cho toàn bộ 7 phase của lộ trình startup 18 tháng; kết quả pilot, hợp đồng trường học và gọi vốn tiếp tục sau đó.
 
 | Tài liệu | Nội dung |
-|---|---|
+| --- | --- |
 | [docs/roadmap/PLAN.md](docs/roadmap/PLAN.md) | Kế hoạch 6 tuần, việc theo 5 mảng mỗi tuần |
 | [docs/roadmap/APP_SPECIFICATION.md](docs/roadmap/APP_SPECIFICATION.md) | Đặc tả đầy đủ: use case, màn hình, kiến trúc, dữ liệu, API, AI, companion, bảo mật |
 | [docs/week1/](docs/week1/README.md) | Nhiệm vụ tuần 1 theo từng role |
@@ -28,7 +30,7 @@ Trợ lý học tập AI cho **chính môn học bạn đang học**, từ THPT 
 ## 👥 Team
 
 | MSSV | Họ tên | Vai trò (theo danh sách lớp) | Mã role trong repo | `<name>` cho nhánh |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | 25125052 | Võ Thành Đạt | Leader, Presenter, Developer | `pm`, `devops` | `dat` |
 | 25125040 | Lê Hồng Đăng | QA/QC, Developer | `qa`, `devops` | `dang` |
 | 25125030 | Võ Gia Minh | AI-Integration, Security & Data | `ai`, `dbsec` | `minh` |
@@ -43,23 +45,32 @@ DevOps không có trong danh sách vai trò của lớp; phần này giao cho ha
 Yêu cầu: Python 3.10+, Git; Node.js 24 nếu làm UI.
 
 1. Tạo môi trường ảo:
+
    ```bash
    python -m venv .venv
    ```
+
 2. Kích hoạt:
    - **PowerShell (Windows):**
+
      ```powershell
      .\.venv\Scripts\Activate.ps1
      ```
+
    - **Git Bash / Linux / macOS:**
+
      ```bash
      source .venv/bin/activate
      ```
+
 3. Cài thư viện:
+
    ```bash
    pip install -r requirements.txt
    ```
+
 4. Kiểm tra môi trường và cài git hook (bắt buộc, làm 1 lần):
+
    ```bash
    python dev.py devops check
    python dev.py devops install-hooks
@@ -70,7 +81,7 @@ Yêu cầu: Python 3.10+, Git; Node.js 24 nếu làm UI.
 Mọi lệnh chạy từ thư mục gốc repo, không cần cài thêm: `python dev.py <mảng> <lệnh>`. Xem đầy đủ: `python dev.py --help`, `python dev.py <mảng> --help`.
 
 | Mảng | Lệnh | Việc |
-|---|---|---|
+| --- | --- | --- |
 | UI/UX | `python dev.py ui install \| dev \| build \| test` | Chạy các script npm của frontend trong `ui/` |
 | AI | `python dev.py ai benchmark validate \| stats` | Kiểm tra / thống kê `eval/benchmark.jsonl` |
 | AI | `python dev.py ai chat "câu hỏi"` | Chạy trợ lý (bản rule-based hiện tại) |

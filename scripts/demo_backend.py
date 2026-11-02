@@ -6,7 +6,7 @@ No server, account, provider API key or network request is needed:
 
 import json
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -19,7 +19,7 @@ from assistant.backend.main import create_app
 
 
 def main():
-    clock = [datetime.now(timezone.utc).replace(second=0, microsecond=0)]
+    clock = [datetime.now(UTC).replace(second=0, microsecond=0)]
     start = clock[0] + timedelta(minutes=15)
     end = start + timedelta(hours=3)
     stamp = lambda value: value.isoformat()
@@ -96,7 +96,7 @@ def main():
             call("POST", "/api/v1/schedule/plan", {**request, "commit": True}, headers)
             entries = call("GET", "/api/v1/schedule", headers=headers)
             first = entries[0]
-            clock[0] = datetime.fromisoformat(first["ends_at"].replace("Z", "+00:00"))
+            clock[0] = datetime.fromisoformat(first["ends_at"])
             checkin = {"status": "completed", "actual_minutes": 30}
             for _ in range(2):
                 call("POST", f"/api/v1/schedule/{first['id']}/check-in", checkin, headers)

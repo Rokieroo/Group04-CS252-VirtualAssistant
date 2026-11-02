@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from conftest import availability, plan, register, task
@@ -256,7 +256,7 @@ def test_check_in_idempotency_partial_credit_and_preserved_history(
         client.post(url, headers=headers, json={"status": "completed"}).status_code
         == 409
     )
-    clock[0] = datetime(2030, 1, 7, 3, tzinfo=timezone.utc)
+    clock[0] = datetime(2030, 1, 7, 3, tzinfo=UTC)
     assert (
         client.post(
             url, headers=headers, json={"status": "completed", "actual_minutes": 30}
@@ -285,8 +285,8 @@ def test_check_in_idempotency_partial_credit_and_preserved_history(
         sum(
             int(
                 (
-                    datetime.fromisoformat(x["ends_at"].replace("Z", "+00:00"))
-                    - datetime.fromisoformat(x["starts_at"].replace("Z", "+00:00"))
+                    datetime.fromisoformat(x["ends_at"])
+                    - datetime.fromisoformat(x["starts_at"])
                 ).total_seconds()
                 // 60
             )
@@ -307,7 +307,7 @@ def test_missed_sessions_do_not_award_progress_and_can_be_replanned(
     created = task(client, headers, duration_minutes=60)
     plan(client, headers)
     first = client.get("/api/v1/schedule", headers=headers).json()[0]
-    clock[0] = datetime(2030, 1, 7, 3, tzinfo=timezone.utc)
+    clock[0] = datetime(2030, 1, 7, 3, tzinfo=UTC)
     assert (
         client.post(
             "/api/v1/schedule/" + first["id"] + "/check-in",
@@ -334,7 +334,7 @@ def test_complete_task_report_and_reminders(client, headers, clock):
     availability(client, headers)
     created = task(client, headers, duration_minutes=60)
     plan(client, headers)
-    clock[0] = datetime(2030, 1, 7, 1, 50, tzinfo=timezone.utc)
+    clock[0] = datetime(2030, 1, 7, 1, 50, tzinfo=UTC)
     first = client.get("/api/v1/notifications", headers=headers).json()
     second = client.get("/api/v1/notifications", headers=headers).json()
     reminders = [x for x in first if x["entry_id"]]
@@ -345,7 +345,7 @@ def test_complete_task_report_and_reminders(client, headers, clock):
         ).json()["read"]
         is True
     )
-    clock[0] = datetime(2030, 1, 7, 3, tzinfo=timezone.utc)
+    clock[0] = datetime(2030, 1, 7, 3, tzinfo=UTC)
     entry = client.get("/api/v1/schedule", headers=headers).json()[0]
     assert (
         client.post(
@@ -407,11 +407,11 @@ def test_reading_notifications_never_writes(client, app, headers, clock):
         if statement.lstrip().split()[0].upper() in {"INSERT", "UPDATE", "DELETE"}:
             writes.append(statement)
 
-    clock[0] = datetime(2030, 1, 7, 1, 44, tzinfo=timezone.utc)
+    clock[0] = datetime(2030, 1, 7, 1, 44, tzinfo=UTC)
     event.listen(app.state.database.engine, "before_cursor_execute", record)
     try:
         early = client.get("/api/v1/notifications", headers=headers).json()
-        clock[0] = datetime(2030, 1, 7, 1, 45, tzinfo=timezone.utc)
+        clock[0] = datetime(2030, 1, 7, 1, 45, tzinfo=UTC)
         due = client.get("/api/v1/notifications", headers=headers).json()
     finally:
         event.remove(app.state.database.engine, "before_cursor_execute", record)

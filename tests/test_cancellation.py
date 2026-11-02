@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from conftest import availability, plan, task
 from test_teams_ai import team_with_member
@@ -8,7 +8,7 @@ def test_cancelling_an_underway_task_clears_unchecked_sessions(client, headers, 
     availability(client, headers)
     created = task(client, headers)
     plan(client, headers)
-    clock[0] = datetime(2030, 1, 7, 2, 30, tzinfo=timezone.utc)
+    clock[0] = datetime(2030, 1, 7, 2, 30, tzinfo=UTC)
     response = client.patch(
         "/api/v1/tasks/" + created["id"], headers=headers, json={"status": "cancelled"}
     )
@@ -24,7 +24,7 @@ def test_reassigning_after_session_start_removes_old_unchecked_sessions(
     created = task(client, headers)
     plan(client, headers)
     old_entry = client.get("/api/v1/schedule", headers=headers).json()[0]
-    clock[0] = datetime(2030, 1, 7, 3, tzinfo=timezone.utc)
+    clock[0] = datetime(2030, 1, 7, 3, tzinfo=UTC)
     response = client.post(
         "/api/v1/tasks/" + created["id"] + "/share",
         headers=headers,

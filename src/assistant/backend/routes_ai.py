@@ -5,10 +5,12 @@ from datetime import timedelta
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 from sqlalchemy import delete, func, select
 
-from .companion import companion_mode, respond
+from app.companion import companion_mode
+
 from .dependencies import DB, CurrentUser
 from .models import ChatMessage
 from .schemas import ChatOut, ChatRequest, MessageOut
+from .services import companion_reply
 
 router = APIRouter(prefix="/ai", tags=["AI companion"])
 
@@ -40,14 +42,7 @@ def chat(data: ChatRequest, request: Request, db: DB, user: CurrentUser):
         raise HTTPException(
             429, "You are sending messages too fast", headers={"Retry-After": "60"}
         )
-    return respond(
-        db,
-        user,
-        data,
-        request.app.state.settings,
-        now,
-        request.app.state.ai_transport,
-    )
+    return companion_reply(db, user, data, request.app.state.companion, now)
 
 
 @router.get("/messages", response_model=list[MessageOut])

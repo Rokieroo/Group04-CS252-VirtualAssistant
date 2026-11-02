@@ -2,7 +2,7 @@ import { Button } from "../components/Button";
 import { Meter } from "../components/ProgressMeter";
 import { courseFor } from "../demo/selectors";
 import type { Session, State } from "../domain";
-import { pendingCount, progress, verifiedCount } from "../model";
+import { completion, pendingCount, verifiedCount } from "../model";
 
 type Props = {
   state: State;
@@ -16,8 +16,10 @@ export function ProgressPage({
   setCourseId,
   openLesson,
 }: Props) {
-  const activeCourse = courseFor(courseId);
-  const pct = progress(state, courseId);
+  const summary = completion(state, courseId);
+  const courseSessions = state.sessions
+    .filter((session) => session.courseId === courseId)
+    .sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
   return (
     <>
       <div className="toolbar">
@@ -39,9 +41,19 @@ export function ProgressPage({
       <div className="two-columns">
         <section className="card progress-summary">
           <h3>Verified course completion</h3>
-          <strong className="big-number">{pct}%</strong>
-          <Meter value={pct} />
-          <p>{Math.round((pct * 14) / 100)} / 14 lessons verified</p>
+          <strong className="big-number">{summary.percent}%</strong>
+          <Meter value={summary.percent} />
+          <p>
+            {summary.verified} / {summary.total}{" "}
+            {courseId === "english" ? "demo lessons" : "sample sessions"}{" "}
+            verified
+          </p>
+          {summary.baseline > 0 && (
+            <p className="footnote">
+              Includes {summary.baseline} example lessons completed before this
+              demo. Listed sessions begin unverified.
+            </p>
+          )}
         </section>
         <section className="card progress-summary">
           <h3>Assessment summary</h3>
@@ -56,65 +68,44 @@ export function ProgressPage({
             </div>
           </div>
           <hr />
-          <p>Progress increases only after assessment verification.</p>
+          <p>Listed sessions become verified only after a passing check.</p>
         </section>
       </div>
-      <h2 className="section-title">Course milestones</h2>
-      {(courseId === "english"
-        ? [
-            "Unit 1 • Foundations",
-            "Unit 2 • Vocabulary",
-            "Unit 3 • Past tenses",
-            "Unit 4 • Conversation",
-          ]
-        : activeCourse.topics
-      ).map((unit, i) => {
-        const courseSessions = state.sessions.filter(
-          (session) => session.courseId === courseId,
-        );
-        const session =
-          courseId === "english"
-            ? i === 2
-              ? courseSessions.find((item) => item.kind === "quiz")
-              : courseSessions[i]
-            : courseSessions.find((item) => item.title === unit);
+      <h2 className="section-title">Scheduled sessions</h2>
+      {courseSessions.length === 0 && (
+        <p className="card empty">
+          No sessions are scheduled for this course yet.
+        </p>
+      )}
+      {courseSessions.map((session, i) => {
+        const verified = state.verified.includes(session.id);
+        const status = verified
+          ? "Verified"
+          : session.status === "studied"
+            ? "Awaiting check"
+            : "Planned";
         return (
-          <article className="card milestone" key={unit}>
-            <span
-              className={`number ${i < 2 && courseId === "english" ? "green" : ""}`}
-            >
+          <article className="card milestone" key={session.id}>
+            <span className={`number ${verified ? "green" : ""}`}>
               {String(i + 1).padStart(2, "0")}
             </span>
             <div>
-              <h3>{unit}</h3>
+              <h3>{session.title}</h3>
               <p>
-                {courseId === "english" && i < 2
-                  ? "Complete"
-                  : i === 2
-                    ? "Needs quiz"
-                    : "Upcoming"}
+                {status} · {session.date} · {session.time}
               </p>
             </div>
-            <span>
-              {courseId === "english" && i < 2
-                ? "100%"
-                : i === 2 && courseId === "english"
-                  ? "65%"
-                  : "0%"}
-            </span>
-            <Button
-              disabled={!session}
-              onClick={() => session && openLesson(session)}
-            >
-              {session ? "Review" : "Not scheduled"}
+            <Button onClick={() => openLesson(session)}>
+              {session.kind === "quiz"
+                ? verified
+                  ? "Retake check"
+                  : "Take check"
+                : "Open lesson"}
             </Button>
           </article>
         );
       })}
-      <p className="footnote">
-        Sample milestones illustrate the course structure. Demo quiz results
-        update the verified completion above.
-      </p>
+      <p className="footnote">These cards show scheduled demo sessions.</p>
     </>
   );
 }

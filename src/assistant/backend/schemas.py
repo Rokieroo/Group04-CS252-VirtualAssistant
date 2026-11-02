@@ -1,6 +1,6 @@
 """Validated request/response contracts, shared by Swagger and generated OpenAPI."""
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Annotated, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -17,7 +17,7 @@ from pydantic import (
 
 
 def to_utc(value: datetime):
-    return value.astimezone(timezone.utc)
+    return value.astimezone(UTC)
 
 
 Timestamp = Annotated[AwareDatetime, AfterValidator(to_utc)]
@@ -417,6 +417,19 @@ class PrereqOut(Output):
     child_id: str
     kind: Literal["strict", "soft"]
     confidence: float
+
+
+class ItemOut(Output):
+    id: str
+    type: str
+    prompt: str
+    choices: list[str]
+    answer: str
+    rubric: list[str]
+    source_id: str
+    page: int
+    file_name: str
+    status: str
 
 
 class ConceptGraphOut(Output):

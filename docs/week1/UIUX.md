@@ -7,7 +7,7 @@ Thiết kế và dựng phần đầu tiên của luồng chính, **tải slide 
 
 Dưới đây là các hạng mục công việc cần hoàn thiện:
 
-- [ ] **Task 1: Wireframe 5 màn hình chính (#5, Thịnh, 8 giờ)**
+- [x] **Task 1: Wireframe 5 màn hình chính (#5, Thịnh, 8 giờ)** → [Wireframes](#-wireframes-5)
   - **Màn hình**: S3 Upload, S4 Concept editor, S6 Review session, S8 Ask panel, S10 Companion panel (định nghĩa ở spec mục 5).
   - **Kích thước**: desktop 1440×900 và mobile 390×844.
   - **Trạng thái**: empty, loading, error cho từng màn hình.
@@ -78,11 +78,42 @@ Code: `ui/src/features/appearance/` (`AppearanceStore` + `AppearancePicker`, có
 | QA (Đăng) | Checklist test thủ công cho 2 màn hình | Thứ Năm |
 | DevOps (Đăng) | Cấu hình Vercel cho `ui/` | Thứ Năm |
 
+## 🖼️ Wireframes (#5)
+
+Low-fidelity (xám trắng) cho 5 màn hình chính, desktop 1440×900 và mobile 390×844, kèm empty / loading / error và luồng “lần đầu sử dụng” (spec mục 4.1).
+
+- **Bản vẽ**: mở [`docs/wireframes/index.html`](../wireframes/index.html) trong trình duyệt. Bốn phần Wireframes, States, Components, Flows tương ứng bốn page dự kiến trên Figma. Ở phần Flows, bấm vào một khung để sang bước tiếp theo.
+- **Figma**: kết nối Figma lỗi khi làm task này nên bản vẽ nằm trong repo dạng HTML. Khi có file `Group04 - Study Companion` trên Figma, import các ảnh bên dưới (hoặc trang HTML) vào rồi dán link vào bảng kết quả.
+- **Cập nhật ảnh** sau khi sửa `index.html`: `python dev.py ui install` một lần, rồi `node docs/wireframes/capture.mjs`.
+- **Duyệt**: ≥ 2 người khác role (ít nhất 1 AI, 1 QA) approve PR này, đi theo luồng 4.1 trong phần Flows mà không bị kẹt ở màn hình nào.
+
+| Màn hình | Mặc định | Trạng thái (mobile) |
+|---|---|---|
+| S3 Upload | [desktop](../wireframes/img/s3-default-d.png) · [mobile](../wireframes/img/s3-default-m.png) | [empty](../wireframes/img/s3-empty-m.png) · [loading](../wireframes/img/s3-loading-m.png) · [error](../wireframes/img/s3-error-m.png) |
+| S4 Concept editor | [desktop](../wireframes/img/s4-default-d.png) · [mobile](../wireframes/img/s4-default-m.png) | [empty](../wireframes/img/s4-empty-m.png) · [loading](../wireframes/img/s4-loading-m.png) · [error](../wireframes/img/s4-error-m.png) |
+| S6 Review session | [desktop](../wireframes/img/s6-default-d.png) · [mobile](../wireframes/img/s6-default-m.png) · [sau khi nộp (desktop)](../wireframes/img/s6-submitted-d.png) · [sau khi nộp (mobile)](../wireframes/img/s6-submitted-m.png) | [empty](../wireframes/img/s6-empty-m.png) · [loading](../wireframes/img/s6-loading-m.png) · [error](../wireframes/img/s6-error-m.png) |
+| S8 Ask panel | [desktop](../wireframes/img/s8-default-d.png) · [mobile](../wireframes/img/s8-default-m.png) | [empty](../wireframes/img/s8-empty-m.png) · [loading](../wireframes/img/s8-loading-m.png) · [error](../wireframes/img/s8-error-m.png) |
+| S10 Companion panel | [desktop](../wireframes/img/s10-default-d.png) · [mobile](../wireframes/img/s10-default-m.png) | [empty](../wireframes/img/s10-empty-m.png) · [loading](../wireframes/img/s10-loading-m.png) · [error](../wireframes/img/s10-error-m.png) |
+
+**Luồng lần đầu sử dụng (4.1)**: S1 Đăng ký → S2 Tạo môn → S3 Upload → S3 đang trích → S4 đang đề xuất → S4 sửa và xác nhận → S5 duyệt câu hỏi → S6 ôn tập → S6 chấm và đánh giá → S7 kết quả → S10 companion chào. S1, S2, S5, S7 chỉ vẽ ở mức đủ để đi hết luồng.
+
+![Luồng lần đầu sử dụng](../wireframes/img/flows.png)
+
+| Desktop | Mobile |
+|---|---|
+| ![S3 Upload desktop](../wireframes/img/s3-default-d.png) | ![S3 Upload mobile](../wireframes/img/s3-default-m.png) |
+| ![S4 Concept editor desktop](../wireframes/img/s4-default-d.png) | ![S4 Concept editor mobile](../wireframes/img/s4-default-m.png) |
+| ![S6 Review session desktop](../wireframes/img/s6-default-d.png) | ![S6 Review session mobile](../wireframes/img/s6-default-m.png) |
+| ![S8 Ask panel desktop](../wireframes/img/s8-default-d.png) | ![S8 Ask panel mobile](../wireframes/img/s8-default-m.png) |
+| ![S10 Companion panel desktop](../wireframes/img/s10-default-d.png) | ![S10 Companion panel mobile](../wireframes/img/s10-default-m.png) |
+
+Mode girlfriend luôn hiện ổ khóa và câu “Chỉ dành cho người dùng 18+ đã xác minh” khi chưa mở; tài khoản K-12 chỉ có Buddy hoặc Mentor. Thành phần dùng lại (nút, citation chip, nhãn “không có nguồn”, Again/Hard/Good/Easy, ô tự luận, thông báo lỗi): [Components](../wireframes/img/components.png).
+
 ## 📊 Kết quả tuần 1 (điền khi xong)
 
 | Hạng mục | Link / kết quả |
 |---|---|
-| Figma | _chưa có_ |
+| Figma | _chưa có_ (bản vẽ tạm: [`docs/wireframes/index.html`](../wireframes/index.html), xem [Wireframes](#-wireframes-5)) |
 | Ảnh chụp app shell (desktop, mobile) | _chưa có_ |
 | Staging UI | _chưa có_ |
 

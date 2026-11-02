@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from devcli import ROOT, run
 
@@ -47,7 +47,7 @@ def _report(args: argparse.Namespace) -> int:
     if path.exists():
         print(f"{path.relative_to(ROOT)} đã tồn tại, không ghi đè.")
         return 1
-    path.write_text(REPORT_TEMPLATE.format(week=args.week, today=datetime.now(timezone.utc).date().isoformat()), encoding="utf-8")
+    path.write_text(REPORT_TEMPLATE.format(week=args.week, today=datetime.now(UTC).date().isoformat()), encoding="utf-8")
     print(f"[ OK ] Đã tạo {path.relative_to(ROOT)}")
     return 0
 

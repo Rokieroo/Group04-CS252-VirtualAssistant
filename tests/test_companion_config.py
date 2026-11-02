@@ -13,6 +13,14 @@ def test_backend_shares_database_url_but_not_course_llm_settings(monkeypatch):
     assert config.llm_api_key == "" and config.llm_model == ""
 
 
+def test_hosted_postgres_url_uses_psycopg_driver(monkeypatch):
+    for given in ("postgres://u:p@host/db", "postgresql://u:p@host/db"):
+        monkeypatch.setenv("DATABASE_URL", given)
+        assert Settings.from_env().database_url == "postgresql+psycopg://u:p@host/db"
+    monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://u:p@host/db")
+    assert Settings.from_env().database_url == "postgresql+psycopg://u:p@host/db"
+
+
 def test_backend_reads_companion_provider_and_session_lifetime(monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.delenv("SESSION_MINUTES", raising=False)

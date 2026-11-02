@@ -48,3 +48,7 @@ data/local.db
 *.db-shm
 *.db-wal
 .uv-cache/
+.vercel
+
+# Local Claude Code settings, skills and worktrees
+.claude/
