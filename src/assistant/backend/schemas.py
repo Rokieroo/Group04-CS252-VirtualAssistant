@@ -570,3 +570,14 @@ class RoadmapScheduleOut(Output):
     entries: list[EntryOut] = Field(default_factory=list)
     unscheduled: list[Unscheduled] = Field(default_factory=list)
     overloaded_weeks: list[date] = Field(default_factory=list)
+
+
+class JobOut(Output):
+    id: str
+    kind: str
+    status: Literal["queued", "running", "done", "failed"]
+    attempts: int
+    result: Any = None
+    error: str | None = None
+    created_at: datetime
+    updated_at: datetime

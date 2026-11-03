@@ -358,6 +358,12 @@ class Resource(Base):
         Text, default="article", server_default="article"
     )
     lang: Mapped[str] = mapped_column(Text, default="vi", server_default="vi")
+    # Link maintenance (spec 11.7): the daily check updates these three.
+    last_checked_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime(), nullable=True
+    )
+    http_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    failed_checks: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 
 class NodeResource(Base):
@@ -372,6 +378,9 @@ class NodeResource(Base):
     )
     relevance_score: Mapped[float] = mapped_column(
         Float, default=0.0, server_default="0"
+    )
+    status: Mapped[str] = mapped_column(  # shown | replaced | removed (spec 7.1)
+        Text, default="shown", server_default="shown"
     )
 
 
@@ -407,3 +416,40 @@ class SearchRun(Base):
     created_at: Mapped[datetime] = mapped_column(
         UTCDateTime(), default=utcnow, server_default=func.current_timestamp()
     )
+
+
+class Job(Base):
+    """A unit of background work (see jobs.py). ``payload`` and ``result`` are JSON."""
+
+    __tablename__ = "jobs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    kind: Mapped[str] = mapped_column(Text)
+    payload: Mapped[str] = mapped_column(Text, default="{}", server_default="{}")
+    status: Mapped[str] = mapped_column(
+        String(16), default="queued", server_default="queued"
+    )
+    attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    run_after: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    locked_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    dedupe_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    result: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    __table_args__ = (
+        CheckConstraint("status IN ('queued', 'running', 'done', 'failed')"),
+        Index("ix_jobs_status_run_after", "status", "run_after"),
+        Index("ux_jobs_dedupe_key", "dedupe_key", unique=True),
+    )
+
+
+class SearchCacheEntry(Base):
+    """Search results shared by every user studying the same node (spec 11.8)."""
+
+    __tablename__ = "search_cache"
+    signature: Mapped[str] = mapped_column(String(64), primary_key=True)
+    payload: Mapped[str] = mapped_column(Text)
+    expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
