@@ -13,6 +13,7 @@ from app.search.service import (
     record_search_run,
     search,
 )
+from app.search.signature import node_signature
 from app.search.web import WebProvider, WebSearch, WebSearchProvider
 from app.search.youtube import YouTubeProvider, YouTubeSearch
 
@@ -32,6 +33,7 @@ __all__ = [
     "contains_pii",
     "filter_pii",
     "generate_queries",
+    "node_signature",
     "record_search_run",
     "search",
 ]
