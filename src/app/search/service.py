@@ -93,8 +93,16 @@ def generate_queries(
     return queries
 
 
-def _canonical_url(url: str) -> str:
-    """Deduplicate by URL without changing what the user will open."""
+_YOUTUBE = {"youtube.com", "www.youtube.com", "m.youtube.com",
+            "youtube-nocookie.com", "www.youtube-nocookie.com"}
+
+
+def canonical_url(url: str) -> str:
+    """Deduplicate by URL without changing what the user will open.
+
+    Every way of addressing one YouTube video (short link, embed, Shorts,
+    watch page) collapses to its watch URL (spec 11.3 step 6).
+    """
 
     value = (url or "").strip()
     if not value:
@@ -104,8 +112,11 @@ def _canonical_url(url: str) -> str:
     path = parts.path.rstrip("/")
     if netloc in {"youtu.be", "www.youtu.be"} and path:
         return f"https://www.youtube.com/watch?v={path.lstrip('/')}"
-    if netloc in {"youtube.com", "www.youtube.com", "m.youtube.com"}:
+    if netloc in _YOUTUBE:
         video_id = parse_qs(parts.query).get("v", [""])[0]
+        prefix, _, rest = path.lstrip("/").partition("/")
+        if not video_id and prefix in {"embed", "shorts", "v"}:
+            video_id = rest.split("/", 1)[0]
         if video_id:
             return f"https://www.youtube.com/watch?v={video_id}"
     return urlunsplit((parts.scheme.casefold(), netloc, path, parts.query, ""))
@@ -262,7 +273,7 @@ class SearchService:
                 if error:
                     self.last_errors[provider_name] = error
                 for candidate in results:
-                    url = _canonical_url(candidate.url)
+                    url = canonical_url(candidate.url)
                     if not url or url in seen_urls:
                         continue
                     seen_urls.add(url)
@@ -339,6 +350,7 @@ __all__ = [
     "SearchRunRecord",
     "SearchRunRecorder",
     "SearchService",
+    "canonical_url",
     "generate_queries",
     "record_search_run",
     "search",

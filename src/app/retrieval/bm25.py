@@ -9,6 +9,7 @@ composition is normalised so NFC and NFD inputs produce the same tokens.
 
 from __future__ import annotations
 
+import math
 import re
 import unicodedata
 from collections.abc import Mapping, Sequence
@@ -87,13 +88,26 @@ def tokenize_vi(text: str, remove_stopwords: bool = True) -> list[str]:
     return meaningful or tokens
 
 
+class _PositiveIdfBM25(BM25Okapi):
+    """BM25 with Lucene's IDF, ``log(1 + (N - n + 0.5) / (n + 0.5))``, never negative.
+
+    Okapi's IDF turns negative for a term in over half the documents, so in a
+    batch of one or two documents a page that matches the query scores <= 0.
+    """
+
+    def _calc_idf(self, nd):
+        for word, freq in nd.items():
+            self.idf[word] = math.log(1 + (self.corpus_size - freq + 0.5) / (freq + 0.5))
+        self.average_idf = sum(self.idf.values()) / len(self.idf) if self.idf else 0.0
+
+
 class Bm25Index:
     """A BM25 index over plain documents, independent of the ``sources`` table."""
 
-    def __init__(self, docs: list[str]) -> None:
+    def __init__(self, docs: list[str], *, model: type[BM25Okapi] = BM25Okapi) -> None:
         self.docs = list(docs)
         corpus = [tokenize_vi(text) or [_EMPTY_TOKEN] for text in self.docs]
-        self._bm25 = BM25Okapi(corpus) if corpus else None
+        self._bm25 = model(corpus) if corpus else None
 
     def scores(self, query: str) -> list[float]:
         """Raw BM25 score per document; zeros for an empty query, [] for no docs."""
@@ -110,11 +124,12 @@ def score_against(query: str, docs: list[str]) -> list[float]:
 
     The best matching document receives 1.0 and the others are scaled relative to
     it. When no document matches (``max <= 0``) or ``docs`` is empty, the result is
-    all zeros rather than raw negative/zero BM25 values.
+    all zeros. IDF is kept positive, so any document sharing a query term scores
+    above zero however few documents there are.
     """
     if not docs:
         return []
-    scores = Bm25Index(docs).scores(query)
+    scores = Bm25Index(docs, model=_PositiveIdfBM25).scores(query)
     best = max(scores, default=0.0)
     if best <= 0.0:
         return [0.0] * len(docs)
