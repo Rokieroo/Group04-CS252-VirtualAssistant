@@ -12,6 +12,7 @@ This runbook establishes standard operating procedures for the CS252 Group 04 pr
 | --- | --- | --- | --- | --- |
 | **API Backend** | FastAPI (Python 3.11) | `8000` | `http://127.0.0.1:8000/api/v1/health` | OpenAPI docs available at `/docs` |
 | **Database** | PostgreSQL 16 | `5432` | `docker compose ps` (`healthy`) | Persistent volume `pgdata` |
+| **Worker** | Python (same image as the API) | — | `docker compose logs worker` (`worker started`) | Runs background jobs; starts after the API is healthy (migrations applied) |
 | **UI Frontend** | Vite + React + TS | `5173` | `http://127.0.0.1:5173` | Node.js dev server |
 
 ---
@@ -63,6 +64,10 @@ curl -s http://127.0.0.1:8000/api/v1/health
 
 - **Inspect Backend API logs in real-time**:
   - PowerShell / Bash: `docker logs -f study_api`
+- **Inspect background worker logs** (jobs, daily link check):
+  - PowerShell / Bash: `docker compose logs -f worker`
+- **Inspect queued and failed jobs**:
+  - PowerShell / Bash: `docker compose exec db psql -U study_user -d study -c "select kind, status, attempts, error from jobs order by created_at desc limit 20;"`
 - **Inspect PostgreSQL Database logs**:
   - PowerShell / Bash: `docker logs -f study_db`
 - **Run Alembic migrations manually (if needed)**:
@@ -128,8 +133,20 @@ In accordance with **ADR 002**, the staging infrastructure decouples frontend ho
    - `JWT_SECRET`: Random 32+ character secure secret string.
    - `LLM_PROVIDER`: `gemini` (or `fake` for mock responses).
    - `LLM_API_KEY`: Google Gemini API Key.
+   - `YOUTUBE_API_KEY`: YouTube Data API key for the resource finder (optional; empty disables the provider).
+   - `SEARCH_API_KEY`: Web search provider key for the resource finder (optional; empty disables the provider).
 5. Set **Health Check Path**: `/api/v1/health`.
 6. Click **Create Web Service**. Render builds the image, executes database migrations, and exposes an endpoint such as `https://study-companion-api.onrender.com`.
+
+### Step 2b: Deploy the Background Worker on Render
+
+Slow work (syllabus parsing, resource search) and the daily link check run in the worker, never inside an HTTP request. The queue is the `jobs` table in the same database, so there is no broker to provision.
+
+1. On Render Dashboard: **New +** -> **Background Worker**, same repository and branch, **Runtime: Docker**.
+2. **Docker Command**: `python -m assistant.backend.worker`.
+3. **Environment Variables**: the same values as the API (at least `DATABASE_URL`, plus `LLM_*`, `YOUTUBE_API_KEY`, `SEARCH_API_KEY`). An Environment Group shared by both services keeps them in one place.
+4. Deploy the API first: it applies migrations, the worker does not.
+5. Scale by adding instances; workers claim jobs atomically, and the daily link check is enqueued once per day however many run.
 
 ---
 
