@@ -21,7 +21,12 @@ from app.companion import (
     companion_mode,
 )
 from app.planner import WorkItem, build_plan, minutes
-from app.roadmap import task_due_at
+from app.roadmap import (
+    MILESTONE_BUFFER_DAYS,
+    prerequisites,
+    task_due_at,
+    task_release_at,
+)
 
 from .models import (
     Availability,
@@ -37,7 +42,7 @@ from .models import (
     Team,
     User,
 )
-from .schemas import ChatOut, ChatRequest, PlanOut, PlanRequest, ReportOut, Unscheduled
+from .schemas import ChatOut, ChatRequest, PlanOut, PlanRequest, ReportOut
 
 REMINDER_LEAD = timedelta(minutes=15)
 ROADMAP_SESSION_MINUTES = (25, 50)  # spec 10.3.4
@@ -159,6 +164,7 @@ def make_plan(db: Session, user: User, data: PlanRequest, now: datetime):
     tasks = db.scalars(
         select(Task).where(Task.assignee_id == user.id, Task.status == "pending")
     ).all()
+    rules = _roadmap_rules(db, tasks)
     proposal = build_plan(
         [
             WorkItem(
@@ -171,6 +177,7 @@ def make_plan(db: Session, user: User, data: PlanRequest, now: datetime):
                 ),
                 task.priority,
                 task.due_at,
+                **rules.get(task.id, {}),
             )
             for task in tasks
         ],
@@ -187,6 +194,7 @@ def make_plan(db: Session, user: User, data: PlanRequest, now: datetime):
             "expired_sessions": len(expired_ids),
             "entries": proposal.entries,
             "unscheduled": proposal.unscheduled,
+            "overloaded_weeks": proposal.overloaded_weeks,
         },
         from_attributes=True,
     )
@@ -239,6 +247,35 @@ def make_plan(db: Session, user: User, data: PlanRequest, now: datetime):
     return plan
 
 
+def _roadmap_rules(db: Session, tasks: list[Task]) -> dict[str, dict]:
+    """WorkItem constraints for tasks that study a roadmap node (spec 10.3): a node
+    waits for its week, and a milestone waits for the pending topics it covers, which
+    must finish MILESTONE_BUFFER_DAYS before it."""
+    task_of = {task.roadmap_node_id: task.id for task in tasks if task.roadmap_node_id}
+    if not task_of:
+        return {}
+    node_ids = list(task_of)
+    roadmap_ids = select(RoadmapNode.roadmap_id).where(RoadmapNode.id.in_(node_ids))
+    nodes = db.scalars(
+        select(RoadmapNode).where(RoadmapNode.roadmap_id.in_(roadmap_ids))
+    ).all()
+    weeks = {node.id: node.week for node in nodes}
+    needs = prerequisites(nodes)
+    rules = {}
+    for task in tasks:
+        node_id = task.roadmap_node_id
+        if node_id not in weeks:
+            continue
+        # Topics already done have no pending task, so they never block.
+        depends_on = tuple(task_of[t] for t in needs.get(node_id, []) if t in task_of)
+        rules[task.id] = {
+            "release_at": task_release_at(weeks[node_id], task.due_at),
+            "depends_on": depends_on,
+            "buffer_days": MILESTONE_BUFFER_DAYS if depends_on else 0,
+        }
+    return rules
+
+
 def schedule_roadmap(
     db: Session,
     user: User,
@@ -247,7 +284,7 @@ def schedule_roadmap(
     max_daily_minutes: int,
     starts_at: datetime | None,
     now: datetime,
-) -> tuple[list[Task], list[ScheduleEntry], list[Unscheduled]]:
+) -> tuple[list[Task], list[ScheduleEntry], PlanOut]:
     """Give each node one task (reused on later calls), then plan through make_plan so
     sessions fit availability minus busy blocks and existing sessions (spec 10.4)."""
     existing = {
@@ -297,7 +334,9 @@ def schedule_roadmap(
         .where(ScheduleEntry.task_id.in_(task_ids), ScheduleEntry.status == "planned")
         .order_by(ScheduleEntry.starts_at)
     ).all()
-    return tasks, list(sessions), [i for i in plan.unscheduled if i.task_id in task_ids]
+    # Overloaded weeks stay plan-wide: other work shares the same week's hours.
+    plan.unscheduled = [i for i in plan.unscheduled if i.task_id in task_ids]
+    return tasks, list(sessions), plan
 
 
 def progress_report(db: Session, user: User, start_date):

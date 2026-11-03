@@ -279,6 +279,8 @@ class PlanOut(Output):
     expired_sessions: int = 0
     entries: list[ProposedEntry]
     unscheduled: list[Unscheduled]
+    # Local Mondays of weeks that ran out of hours before a deadline (spec 10.4).
+    overloaded_weeks: list[date] = Field(default_factory=list)
 
 
 class CheckIn(Input):
@@ -567,3 +569,4 @@ class RoadmapScheduleOut(Output):
     sessions: list[EntryOut] = Field(default_factory=list)
     entries: list[EntryOut] = Field(default_factory=list)
     unscheduled: list[Unscheduled] = Field(default_factory=list)
+    overloaded_weeks: list[date] = Field(default_factory=list)

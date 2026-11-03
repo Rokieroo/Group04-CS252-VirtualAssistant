@@ -910,7 +910,7 @@
           "Syllabus and roadmap"
         ],
         "summary": "Schedule Roadmap",
-        "description": "One task per node, then sessions from the shared planner; nodes that do not fit\nbefore their deadline come back in ``unscheduled``.",
+        "description": "One task per node, then sessions from the shared planner; nodes that do not fit\nbefore their deadline come back in ``unscheduled`` and their weeks in\n``overloaded_weeks``.",
         "operationId": "schedule_roadmap_api_v1_roadmaps__roadmap_id__schedule_post",
         "security": [
           {
@@ -3678,6 +3678,14 @@
             },
             "type": "array",
             "title": "Unscheduled"
+          },
+          "overloaded_weeks": {
+            "items": {
+              "type": "string",
+              "format": "date"
+            },
+            "type": "array",
+            "title": "Overloaded Weeks"
           }
         },
         "type": "object",
@@ -4339,6 +4347,14 @@
             },
             "type": "array",
             "title": "Unscheduled"
+          },
+          "overloaded_weeks": {
+            "items": {
+              "type": "string",
+              "format": "date"
+            },
+            "type": "array",
+            "title": "Overloaded Weeks"
           }
         },
         "type": "object",
