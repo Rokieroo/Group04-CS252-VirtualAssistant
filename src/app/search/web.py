@@ -48,6 +48,8 @@ class WebSearch(SearchProvider):
     """General web results; failures are recorded and degrade to ``[]``."""
 
     name = "web"
+    # shortcut: Serper list price ($50 per 50k queries, Nov 2026); update with the vendor.
+    cost_per_call = 0.001
 
     def __init__(
         self,

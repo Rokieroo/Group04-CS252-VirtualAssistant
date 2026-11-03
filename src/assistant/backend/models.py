@@ -397,7 +397,36 @@ class ResourceFeedback(Base):
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class ResourceSearch(Base):
+    """One resource search of a node: what it found and spent (issue #69)."""
+
+    __tablename__ = "resource_searches"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    node_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("roadmap_nodes.id", ondelete="SET NULL"), index=True
+    )
+    user_id: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    node_title: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text)  # ready | insufficient
+    cache_hit: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    queries: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    candidates: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    vetted: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    kept: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    llm_calls: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    llm_cost_usd: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    search_cost_usd: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), default=utcnow, server_default=func.current_timestamp(), index=True
+    )
+
+
 class SearchRun(Base):
+    """One provider call; ``search_id`` groups the calls of one resource search."""
+
     __tablename__ = "search_runs"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     user_id: Mapped[str] = mapped_column(
@@ -414,8 +443,17 @@ class SearchRun(Base):
         Integer, default=0, server_default="0"
     )
     created_at: Mapped[datetime] = mapped_column(
-        UTCDateTime(), default=utcnow, server_default=func.current_timestamp()
+        UTCDateTime(), default=utcnow, server_default=func.current_timestamp(), index=True
     )
+    search_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey(
+            "resource_searches.id", name="fk_search_runs_search_id", ondelete="CASCADE"
+        ),
+        index=True,
+    )
+    latency_ms: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    cost_usd: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
 
 
 class Job(Base):

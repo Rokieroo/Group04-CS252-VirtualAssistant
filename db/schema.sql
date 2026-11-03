@@ -234,6 +234,25 @@ CREATE TABLE IF NOT EXISTS resource_feedback (
     comment      TEXT
 );
 
+-- One row per resource search of a node: what it found and spent (migration 0007).
+CREATE TABLE IF NOT EXISTS resource_searches (
+    id               VARCHAR(36) PRIMARY KEY,
+    node_id          VARCHAR(36) REFERENCES roadmap_nodes(id) ON DELETE SET NULL,
+    user_id          TEXT REFERENCES users(id) ON DELETE CASCADE,
+    node_title       TEXT NOT NULL,
+    status           TEXT NOT NULL,                             -- ready | insufficient
+    cache_hit        INTEGER NOT NULL DEFAULT 0,
+    queries          INTEGER NOT NULL DEFAULT 0,
+    candidates       INTEGER NOT NULL DEFAULT 0,
+    vetted           INTEGER NOT NULL DEFAULT 0,
+    kept             INTEGER NOT NULL DEFAULT 0,
+    llm_calls        INTEGER NOT NULL DEFAULT 0,
+    llm_cost_usd     REAL NOT NULL DEFAULT 0,
+    search_cost_usd  REAL NOT NULL DEFAULT 0,
+    duration_ms      INTEGER NOT NULL DEFAULT 0,
+    created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS search_runs (
     id             VARCHAR(36) PRIMARY KEY,
     user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -241,7 +260,11 @@ CREATE TABLE IF NOT EXISTS search_runs (
     provider       TEXT NOT NULL DEFAULT 'web',
     status         TEXT NOT NULL DEFAULT 'pending',
     results_count  INTEGER NOT NULL DEFAULT 0,
-    created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    -- One provider call of a resource search (migration 0007).
+    search_id      VARCHAR(36) REFERENCES resource_searches(id) ON DELETE CASCADE,
+    latency_ms     INTEGER NOT NULL DEFAULT 0,
+    cost_usd       REAL NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS ix_syllabi_course_id ON syllabi (course_id);
@@ -254,6 +277,11 @@ CREATE INDEX IF NOT EXISTS ix_node_resources_resource_id ON node_resources (reso
 CREATE INDEX IF NOT EXISTS ix_resource_feedback_user_id ON resource_feedback (user_id);
 CREATE INDEX IF NOT EXISTS ix_resource_feedback_resource_id ON resource_feedback (resource_id);
 CREATE INDEX IF NOT EXISTS ix_search_runs_user_id ON search_runs (user_id);
+CREATE INDEX IF NOT EXISTS ix_search_runs_search_id ON search_runs (search_id);
+CREATE INDEX IF NOT EXISTS ix_search_runs_created_at ON search_runs (created_at);
+CREATE INDEX IF NOT EXISTS ix_resource_searches_node_id ON resource_searches (node_id);
+CREATE INDEX IF NOT EXISTS ix_resource_searches_user_id ON resource_searches (user_id);
+CREATE INDEX IF NOT EXISTS ix_resource_searches_created_at ON resource_searches (created_at);
 
 -- Background jobs polled by the worker (migration 0006).
 CREATE TABLE IF NOT EXISTS jobs (
@@ -369,5 +397,5 @@ CREATE TABLE IF NOT EXISTS alembic_version (
     version_num VARCHAR(32) NOT NULL PRIMARY KEY
 );
 INSERT INTO alembic_version (version_num)
-SELECT '0006_jobs_and_link_checks'
+SELECT '0007_search_metrics'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);

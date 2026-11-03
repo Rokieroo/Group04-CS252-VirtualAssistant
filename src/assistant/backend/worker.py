@@ -8,7 +8,8 @@ import logging
 import signal
 import threading
 
-from . import maintenance  # importing it also registers the upkeep job handlers
+# Importing these modules registers their job handlers.
+from . import maintenance, resources  # noqa: F401
 from .config import Settings
 from .database import Database
 from .jobs import run_once

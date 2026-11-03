@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -34,6 +35,8 @@ class SearchRunRecord:
     status: str
     results_count: int
     error: str | None = None
+    latency_ms: int = 0
+    cost_usd: float = 0.0
 
 
 SearchRunRecorder = Callable[[SearchRunRecord], None]
@@ -130,6 +133,9 @@ def record_search_run(
     provider: str,
     status: str,
     results_count: int,
+    latency_ms: int = 0,
+    cost_usd: float = 0.0,
+    search_id: str | None = None,
 ) -> None:
     """Append one PII-filtered row to ``search_runs`` using the existing schema.
 
@@ -140,8 +146,9 @@ def record_search_run(
     session.execute(
         text(
             "INSERT INTO search_runs "
-            "(id, user_id, query, provider, status, results_count) "
-            "VALUES (:id, :user_id, :query, :provider, :status, :results_count)"
+            "(id, user_id, query, provider, status, results_count, latency_ms, "
+            "cost_usd, search_id) VALUES (:id, :user_id, :query, :provider, :status, "
+            ":results_count, :latency_ms, :cost_usd, :search_id)"
         ),
         {
             "id": str(uuid4()),
@@ -150,6 +157,9 @@ def record_search_run(
             "provider": provider,
             "status": status,
             "results_count": results_count,
+            "latency_ms": latency_ms,
+            "cost_usd": cost_usd,
+            "search_id": search_id,
         },
     )
 
@@ -238,6 +248,7 @@ class SearchService:
                 results: list[Candidate] = []
                 if hasattr(provider, "last_error"):
                     provider.last_error = None
+                started = time.perf_counter()
                 try:
                     raw_results = provider.search(
                         search_query, lang=lang, kind=kind, safe=safe
@@ -261,6 +272,9 @@ class SearchService:
                     status=status,
                     results_count=len(results),
                     error=error,
+                    latency_ms=round((time.perf_counter() - started) * 1000),
+                    # Vendors bill the requests they answer, not timeouts or quota refusals.
+                    cost_usd=0.0 if error else getattr(provider, "cost_per_call", 0.0),
                 )
                 self.last_runs.append(run)
                 self._persist(
@@ -301,6 +315,8 @@ class SearchService:
                     provider=run.provider,
                     status=run.status,
                     results_count=run.results_count,
+                    latency_ms=run.latency_ms,
+                    cost_usd=run.cost_usd,
                 )
         except Exception as exc:  # noqa: BLE001 - logging must never lose search results
             self.last_record_error = type(exc).__name__

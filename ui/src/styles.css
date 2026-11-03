@@ -1801,3 +1801,22 @@ legend {
     justify-self: start;
   }
 }
+
+/* Admin cost dashboard (#costs): plain data tables. */
+.costs {
+  display: grid;
+  gap: 18px;
+}
+.cost-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.cost-table :is(th, td) {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+}
+.cost-table :is(th, td):first-child {
+  text-align: left;
+}
