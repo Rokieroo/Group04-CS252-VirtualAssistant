@@ -16,6 +16,9 @@ from app.syllabus.parse import integer, text
 
 KINDS = ("topic", "milestone")
 DEFAULT_MINUTES = {"topic": 60, "milestone": 30}
+# Covered topics finish this many days before their milestone (spec 10.3.2).
+MILESTONE_BUFFER_DAYS = 3
+WEEK = timedelta(days=7)
 _WEEK_LINE = re.compile(r"(?:week|tuần)\s*(\d+)\s*[:\-–—]\s*(.+)", re.IGNORECASE)
 
 
@@ -104,4 +107,28 @@ def decode_covers(value: str | None) -> list[str]:
 
 def task_due_at(due_at: datetime | None, week: int | None, now: datetime) -> datetime:
     """A node's own deadline, else the end of its week counted from ``now``."""
-    return due_at or now + timedelta(days=7 * max(1, week or 1))
+    return due_at or now + WEEK * max(1, week or 1)
+
+
+def task_release_at(week: int | None, due_at: datetime) -> datetime | None:
+    """A node with a week opens at the start of that week, one week before its
+    deadline (spec 10.3.1); a node without a week can start at once."""
+    return due_at - WEEK if week else None
+
+
+def prerequisites(nodes: list[Any]) -> dict[str, list[str]]:
+    """Milestone id -> the topic ids it covers, which must be studied first.
+
+    Accepts NodeSpec or stored rows (``covers`` as JSON text). Only topics count, so
+    a milestone never waits on another milestone and the graph cannot have a cycle.
+    """
+    topics = {node.id for node in nodes if node.kind == "topic"}
+    needs = {}
+    for node in nodes:
+        if node.kind != "milestone":
+            continue
+        covers = node.covers
+        if isinstance(covers, str):
+            covers = decode_covers(covers)
+        needs[node.id] = [topic for topic in covers or [] if topic in topics]
+    return needs
