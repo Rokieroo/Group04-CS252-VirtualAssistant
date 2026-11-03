@@ -1,0 +1,15 @@
+# Domains whose pages sit behind a login or paywall (spec 11.3 step 1).
+# Pages here count as paywalled even when the fetch returns 200.
+# One entry per line; an entry also covers its subdomains.
+
+scribd.com
+studocu.com
+jstor.org
+sciencedirect.com
+oreilly.com
+udemy.com
+linkedin.com
+researchgate.net
+wsj.com
+ft.com
+nytimes.com

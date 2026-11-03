@@ -5,7 +5,7 @@ from __future__ import annotations
 from app.search.base import Candidate, SearchProvider
 from app.search.catalog import CatalogProvider, CatalogSearch
 from app.search.fake import FakeSearch
-from app.search.pii_filter import contains_pii, filter_pii
+from app.search.pii_filter import contains_pii, filter_pii, strip_pii
 from app.search.service import (
     SearchRunRecord,
     SearchService,
@@ -36,4 +36,5 @@ __all__ = [
     "node_signature",
     "record_search_run",
     "search",
+    "strip_pii",
 ]

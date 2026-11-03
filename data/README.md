@@ -17,3 +17,16 @@ Curated internal resources used by `app.search.CatalogSearch` (spec 11.2).
 optional `kind`, `lang`, `provider`, `snippet`, and `tags` fields improve
 matching. The catalog is always available, so it remains the fallback when an
 external search provider fails or runs out of quota.
+
+### `policy/*.txt`
+Domain policy used by `app.vetting` (spec 11.3-11.4, safeguard 4). One domain
+per line, `#` starts a comment, and an entry also covers its subdomains
+(`edu.vn` matches `fit.hcmus.edu.vn`). `name.*` matches the name under any
+suffix, for mirrors that keep changing TLD (`libgen.*`).
+- **`blocklist.txt`**: never shown or fetched (pirated material, answer dumps).
+  It wins over both allowlists.
+- **`allowlist_tier1.txt`**: authority 1.0 (universities, OER, official docs).
+- **`allowlist_tier2.txt`**: authority 0.7 (publishers, vetted platforms).
+- **`paywall.txt`**: login/paywall sites; their pages never pass the fetch check.
+
+The lists are read once per process, so restart the API after editing them.

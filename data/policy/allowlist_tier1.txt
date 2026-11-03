@@ -1,0 +1,33 @@
+# Authority 1.0 (spec 11.4): universities, OER, official documentation.
+# One entry per line; an entry also covers its subdomains.
+
+# Universities
+edu
+edu.vn
+ac.uk
+ac.jp
+edu.au
+edu.sg
+
+# Open educational resources
+openstax.org
+khanacademy.org
+libretexts.org
+oercommons.org
+open.edu
+
+# Official documentation
+python.org
+developer.mozilla.org
+cppreference.com
+learn.microsoft.com
+docs.oracle.com
+go.dev
+rust-lang.org
+kotlinlang.org
+numpy.org
+scipy.org
+pandas.pydata.org
+postgresql.org
+w3.org
+git-scm.com
