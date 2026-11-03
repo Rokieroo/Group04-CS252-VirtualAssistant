@@ -1,0 +1,40 @@
+{
+  "id": "SYL-09",
+  "course_code": "SEC204",
+  "course_name": "Principles of Information Security and Cryptography",
+  "learning_outcomes": [
+    {
+      "code": "CLO1",
+      "description": "Explain symmetric and asymmetric encryption principles, key exchange protocols (Diffie-Hellman), and cryptographic hashing.",
+      "bloom_level": "understand"
+    },
+    {
+      "code": "CLO2",
+      "description": "Identify and mitigate common application vulnerabilities including SQL injection, XSS, CSRF, and SSRF.",
+      "bloom_level": "apply"
+    },
+    {
+      "code": "CLO3",
+      "description": "Assess authentication security mechanisms, multi-factor authentication (MFA), and public-key infrastructure (PKI).",
+      "bloom_level": "evaluate"
+    }
+  ],
+  "weeks": [
+    { "week": 1, "topic": "Introduction to Security Concepts: Confidentiality, Integrity, Availability (CIA Triad)." },
+    { "week": 2, "topic": "Classical Ciphers, Block Ciphers, and Data Encryption Standard (DES/AES)." },
+    { "week": 3, "topic": "Asymmetric Cryptography: Number Theory Foundations, RSA, and Elliptic Curves." },
+    { "week": 4, "topic": "Hash Functions (SHA-256), HMAC, and Digital Signature Schemes." },
+    { "week": 5, "topic": "Public Key Infrastructure (PKI), Certificates, and TLS Handshake Architecture." },
+    { "week": 6, "topic": "Midterm Exam (Cryptographic Foundations)." },
+    { "week": 7, "topic": "Web Application Security: OWASP Top 10, Injection Attacks, and Cross-Site Scripting." },
+    { "week": 8, "topic": "Authentication Mechanisms: Passwords, Password Hashing (Argon2), and OAuth 2.0." },
+    { "week": 9, "topic": "Network Security: Firewalls, Intrusion Detection Systems (IDS), and VPN Protocols." },
+    { "week": 10, "topic": "Threat Modeling, Incident Response, and Secure Software Development Lifecycle." }
+  ],
+  "assessments": [
+    { "name": "Hands-on Security Labs", "weight": 20.0, "due_week": 8 },
+    { "name": "Midterm Written Exam", "weight": 30.0, "due_week": 6 },
+    { "name": "Final Security Assessment", "weight": 50.0, "due_week": 10 }
+  ]
+}
+

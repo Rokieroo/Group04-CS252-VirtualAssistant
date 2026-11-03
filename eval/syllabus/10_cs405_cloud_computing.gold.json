@@ -1,0 +1,40 @@
+{
+  "id": "SYL-10",
+  "course_code": "CS405",
+  "course_name": "Cloud Computing and DevOps Architecture",
+  "learning_outcomes": [
+    {
+      "code": "CLO1",
+      "description": "Compare cloud service models (IaaS, PaaS, Serverless) and architect high-availability cloud deployments.",
+      "bloom_level": "evaluate"
+    },
+    {
+      "code": "CLO2",
+      "description": "Containerize multi-tier applications and orchestrate microservices with Docker Compose and Kubernetes.",
+      "bloom_level": "apply"
+    },
+    {
+      "code": "CLO3",
+      "description": "Implement automated CI/CD deployment pipelines with automated linting, testing, and secret scanning.",
+      "bloom_level": "create"
+    }
+  ],
+  "weeks": [
+    { "week": 1, "topic": "Cloud Architecture Fundamentals, Virtualization, and Hyperscaler Concepts." },
+    { "week": 2, "topic": "Cloud Storage and Compute Services (Virtual Machines, Object Storage, Block Storage)." },
+    { "week": 3, "topic": "Containerization Foundations, Dockerfile Optimization, and Multi-stage Builds." },
+    { "week": 4, "topic": "Microservices Architecture and Multi-container Systems with Docker Compose." },
+    { "week": 5, "topic": "Container Orchestration with Kubernetes: Pods, Services, Deployments, and Ingress." },
+    { "week": 6, "topic": "Midterm Milestone Defense (Containerized Staging Architecture)." },
+    { "week": 7, "topic": "Infrastructure as Code (IaC) with Terraform and Declarative Provisioning." },
+    { "week": 8, "topic": "CI/CD Pipelines: GitHub Actions, Automated Testing, and Artifact Packaging." },
+    { "week": 9, "topic": "Cloud Observability: Structured Logging, Distributed Tracing, and Prometheus/Grafana Metrics." },
+    { "week": 10, "topic": "Final Project Defense and Cloud Native Production Audit." }
+  ],
+  "assessments": [
+    { "name": "Practical DevOps Labs", "weight": 25.0, "due_week": 8 },
+    { "name": "Midterm Milestone Defense", "weight": 25.0, "due_week": 6 },
+    { "name": "Final Cloud Architecture Project", "weight": 50.0, "due_week": 10 }
+  ]
+}
+

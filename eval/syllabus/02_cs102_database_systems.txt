@@ -1,0 +1,31 @@
+COURSE SYLLABUS
+Course: Database Systems and Architecture
+Course Code: CS102
+Credits: 3 (Lecture: 2, Lab: 1)
+Department of Computer Science
+
+1. COURSE DESCRIPTION
+This course covers relational database design, relational algebra, SQL fundamentals, normalization (1NF to BCNF), indexing (B-trees, hash indices), transaction processing, and ACID properties.
+
+2. COURSE LEARNING OUTCOMES (CLO)
+- CLO1: Design entity-relationship (ER) models and map them to normalized relational schemas.
+- CLO2: Formulate complex SQL queries including joins, nested subqueries, and window functions.
+- CLO3: Explain transaction management, serializability, two-phase locking (2PL), and crash recovery (ARIES).
+
+3. WEEKLY SCHEDULE
+Week 1: Introduction to Data Models and Relational Databases.
+Week 2: Relational Algebra and Tuple Relational Calculus.
+Week 3: Basic SQL: Data Definition Language (DDL) and Queries (DML).
+Week 4: Advanced SQL: Grouping, Aggregations, and Correlated Subqueries.
+Week 5: Functional Dependencies and Normalization Theory (1NF, 2NF, 3NF, BCNF).
+Week 6: Midterm Exam (Relational Design & SQL Proficiency).
+Week 7: Storage Architecture and B+ Tree Indexing Structures.
+Week 8: Query Execution, Cost Estimation, and Relational Optimization.
+Week 9: Transactions, Concurrency Control, and Isolation Levels.
+Week 10: Database Recovery Mechanisms and Distributed Datastores.
+
+4. ASSESSMENT SCHEME
+- Practical Lab Exercises: 25% (due week 8).
+- Midterm Written Exam: 25% (due week 6).
+- Final Exam: 50% (due week 10).
+

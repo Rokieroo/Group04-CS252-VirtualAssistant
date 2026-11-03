@@ -1,0 +1,31 @@
+COURSE SYLLABUS
+Course: Applied Machine Learning and Data Mining
+Course Code: CS315
+Credits: 4 (Lecture: 3, Project: 1)
+Data Science Program
+
+1. COURSE DESCRIPTION
+Practical principles of machine learning pipelines: feature engineering, linear regression, logistic regression, support vector machines (SVM), decision forests, clustering, gradient boosting, and neural representations.
+
+2. LEARNING OUTCOMES
+- CLO1: Preprocess raw feature matrices, handle class imbalance, and design cross-validation protocols.
+- CLO2: Train and fine-tune classical supervised and unsupervised ML algorithms using Scikit-Learn.
+- CLO3: Evaluate models using ROC-AUC, precision-recall curves, and feature importance interpretations (SHAP).
+
+3. WEEKLY PLAN
+Week 1: Machine Learning Foundations, Data Preprocessing, and Train/Val/Test Splits.
+Week 2: Linear Regression, Cost Functions, Gradient Descent, and Regularization (L1/L2).
+Week 3: Logistic Regression, Binary/Multiclass Classification, and Metric Selection.
+Week 4: Support Vector Machines (SVM) and Kernel Methods.
+Week 5: Decision Trees, Bagging, and Random Forest Ensembles.
+Week 6: Midterm Benchmark Evaluation and Model Checkpoint.
+Week 7: Gradient Boosting Machines (XGBoost, LightGBM) and Hyperparameter Tuning.
+Week 8: Unsupervised Learning: K-Means Clustering, PCA, and Dimensionality Reduction.
+Week 9: Recommender Systems and Matrix Factorization Techniques.
+Week 10: Final Model Deployment, Serving, and Production Monitoring.
+
+4. ASSESSMENT GRADES
+- Homework & Kaggle Mini-competitions: 25% (due week 8).
+- Midterm Benchmark Evaluation: 25% (due week 6).
+- Final Capstone ML Project: 50% (due week 10).
+

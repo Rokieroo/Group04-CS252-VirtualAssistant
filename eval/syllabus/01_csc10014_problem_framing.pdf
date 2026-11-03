@@ -1,0 +1,94 @@
+%PDF-1.3
+%‚„œ”
+1 0 obj
+<<
+/Producer (pypdf)
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Count 1
+/Kids [ 4 0 R ]
+>>
+endobj
+3 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+4 0 obj
+<<
+/Type /Page
+/Resources <<
+/Font <<
+/F1 <<
+/Type /Font
+/Subtype /Type1
+/BaseFont /Helvetica
+>>
+>>
+>>
+/MediaBox [ 0.0 0.0 595 842 ]
+/Parent 2 0 R
+/Contents <<
+/Length 2292
+>>
+stream
+BT
+/F1 11 Tf
+40 800 Td
+14 TL
+(COURSE SYLLABUS) '
+(Course: Problem Framing and Solution Architecture) '
+(Course Code: CSC10014) '
+(Credits: 4 \(Lecture: 3, Lab: 1\)) '
+(Department of Computer Science - Faculty of Information Technology) '
+() '
+(1. COURSE DESCRIPTION) '
+(This course equips students with practical thinking for enterprise problem framing, identifying the appropriate tier on the Solution Ladder, decomposing requirements into use cases, designing system architectures, and engineering human-in-the-loop automated pipelines.) '
+() '
+(2. COURSE LEARNING OUTCOMES \(CLO\)) '
+(- CLO1: Frame business problems, distinguish Functional vs Non-Functional Requirements, and evaluate 4 product risks \(Value, Usability, Feasibility, Viability\).) '
+(- CLO2: Select optimal solution tiers on the Solution Ladder ranging from manual human processes to LLM/Agent tools.) '
+(- CLO3: Decompose tasks into Use Cases, model include vs extend relationships in UML diagrams, and draft rigorous specifications.) '
+(- CLO4: Architect end-to-end success pipelines with 5 key components: Trigger, Steps, Checkpoint, Result, and Saving metrics.) '
+() '
+(3. WEEKLY SCHEDULE) '
+(Week 1: Orientation, Problem Framing, Solution Ladder, Functional vs Non-Functional Requirements.) '
+(Week 2: Task Decomposition, Anatomy of a Task, Use Case Diagram \(include vs extend\), MoSCoW Prioritisation.) '
+(Week 3: Pitfalls & Success Pipelines, Human-in-the-loop, Checkpoints, 4 Pipeline Patterns.) '
+(Week 4: System Architecture, API Design, Data Modeling, and Defensive Safeguards.) '
+(Week 5: Engineering Quality, Red-teaming, Benchmark Dataset Construction, and AI Evaluation.) '
+(Week 6: Midterm Milestone Report and Phase 1 Project Presentation.) '
+(Week 7: Retrieval Integration, LLM Interface, and Cite-or-Refuse Citation Strategies.) '
+(Week 8: Performance Optimization, Caching, Asynchronous Job Queues, and Background Workers.) '
+(Week 9: Staging Deployment, CI/CD, Containerization with Docker Compose, and Runtime Monitoring.) '
+(Week 10: Final Capstone Project Defense and Real-world Evaluation.) '
+() '
+(4. ASSESSMENT SCHEME) '
+(- Weekly Homework & Quizzes: 20% \(due week 8\).) '
+(- Midterm Project Milestone: 30% \(due week 6\).) '
+(- Final Capstone Project Defense: 50% \(due week 10\).) '
+() '
+ET
+endstream
+>>
+endobj
+xref
+0 5
+0000000000 65535 f 
+0000000015 00000 n 
+0000000054 00000 n 
+0000000113 00000 n 
+0000000162 00000 n 
+trailer
+<<
+/Size 5
+/Root 3 0 R
+/Info 1 0 R
+>>
+startxref
+2666
+%%EOF
