@@ -10,6 +10,7 @@ pydantic~=2.14
 email-validator~=2.3      # kiểm tra email khi đăng ký (pydantic EmailStr)
 python-multipart~=0.0.32  # nhận file upload (UploadFile)
 python-dotenv~=1.2        # đọc .env (LLM_API_KEY, JWT_SECRET, DATABASE_URL)
+pyyaml~=6.0               # catalog nội bộ data/catalog/*.yaml (Issue #61)
 
 # --- Database & migration (#12) ---
 sqlalchemy~=2.1
