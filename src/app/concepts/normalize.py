@@ -46,7 +46,7 @@ def _clean_title(value: str) -> str:
     return re.sub(r"\s+", " ", unicodedata.normalize("NFC", str(value or ""))).strip()
 
 
-def _comparison_key(title: str) -> str:
+def comparison_key(title: str) -> str:
     """Lower-case key for duplicate detection, without the 80-character slug limit.
 
     NFC is applied first so composed and decomposed Vietnamese spellings compare
@@ -85,7 +85,7 @@ def normalize_topics(topics: list[TopicIn]) -> list[dict]:
     merged: dict[str, dict] = {}
     for topic in topics:
         title = _clean_title(topic.title)
-        key = _comparison_key(title) or "topic"
+        key = comparison_key(title) or "topic"
         candidate = {
             "title": title,
             "week": int(topic.week),
