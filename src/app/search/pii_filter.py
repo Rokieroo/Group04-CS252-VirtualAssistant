@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-__all__ = ["contains_pii", "filter_pii"]
+__all__ = ["contains_pii", "filter_pii", "strip_pii"]
 
 # Uppercase letters used by Vietnamese (including accented forms).  We avoid
 # the broad ``A-ZÀ-Ỹ`` range because it also contains lowercase characters.
@@ -20,7 +20,9 @@ _VN_UPPER = (
     "ẠẢẤẦẨẪẬẮẰẲẴẶẸẺẼẾỀỂỄỆỈỊỌỎỐỒỔỖỘỚỜỞỠỢỤỦỨỪỬỮỰỲỴỶỸ"
 )
 _NAME_WORD = rf"[{_VN_UPPER}][^\W\d_]*(?:-[{_VN_UPPER}][^\W\d_]*)*"
-_NAME = rf"{_NAME_WORD}(?:\s+{_NAME_WORD}){{0,5}}"
+# Names never span lines: ``\s`` would swallow the start of the next syllabus line.
+_GAP = r"[^\S\n]+"
+_NAME = rf"{_NAME_WORD}(?:{_GAP}{_NAME_WORD}){{0,5}}"
 _TITLE = r"(?i:(?:ThS|TS|PGS|GS|Dr|Prof|Mr|Mrs|Ms|Th\.S|PGS\.TS|GS\.TS)\.?\s+)"
 _HONORIFIC_TITLE = (
     r"(?i:\b(?:Thầy|Cô|ThS|TS|PGS|GS|Dr|Prof|Mr|Mrs|Ms|Th\.S|PGS\.TS|GS\.TS)"
@@ -34,9 +36,10 @@ _EMAIL = re.compile(
 )
 
 # Vietnamese mobile numbers start with 0 or +84; allow spaces, dots, and dashes
-# commonly used in syllabi (090 123 4567, 090.123.4567, +84 90 123 4567).
+# commonly used in syllabi (090 123 4567, 090.123.4567, +84 90 123 4567,
+# (028) 3835 4266).
 _PHONE = re.compile(
-    r"(?<![\w+])(?:\+?84|0)(?:[ .\-()]?\d){9,10}(?!\w)"
+    r"(?<![\w+])(?:\+?84|0)(?:[ .\-()]{0,2}\d){9,10}(?!\w)"
 )
 
 _ID_LABEL = re.compile(
@@ -59,7 +62,7 @@ _NAME_LABEL = re.compile(
     r"giảng\s+viên(?:\s+(?:phụ\s+trách|hướng\s+dẫn|chính|bộ\s+môn))?|"
     r"giáo\s+viên|"
     r"gv(?:\s*(?:hd|pt|chính))?|cbgd|"
-    r"người\s+(?:hướng\s+dẫn|thực\s+hiện)|"
+    r"người\s+(?:hướng\s+dẫn|thực\s+hiện)|trợ\s+giảng|teaching\s+assistant|"
     r"sinh\s+viên(?:\s+(?:thực\s+hiện|thực\s+tập))?|sv|học\s+viên|"
     r"teacher(?:\s+name)?|instructor(?:\s+name)?|lecturer(?:\s+name)?|"
     r"student(?!\s+(?:id|code|number)\b)(?:\s+name)?|"
@@ -67,7 +70,8 @@ _NAME_LABEL = re.compile(
     r")\b))(?!\s+(?i:sv|sinh\s+viên|gv|giảng\s+viên|giáo\s+viên)\b)"
     r"\s*(?:[:：\-–—|*]\s*)?"
     rf"(?P<title>(?:{_TITLE})*)"
-    rf"(?P<name>{_NAME})"
+    # A title is never the name; this also keeps masking idempotent.
+    rf"(?!{_HONORIFIC_TITLE})(?P<name>{_NAME})"
 )
 
 _HONORIFIC = re.compile(
@@ -84,12 +88,13 @@ _SURNAME = (
     r"Mai|Tô|Đoàn|Doan|Vương|Vuong|Lâm|Lam|Thái|Thai)"
 )
 _BARE_NAME = re.compile(
-    rf"\b(?i:{_SURNAME})\s+{_NAME_WORD}(?:\s+{_NAME_WORD}){{0,4}}\b"
+    rf"\b(?i:{_SURNAME}){_GAP}{_NAME_WORD}(?:{_GAP}{_NAME_WORD}){{0,4}}\b"
 )
 
 
 def _mask_labeled_name(match: re.Match[str]) -> str:
-    return f"{match.group('label')}[NAME]"
+    # Keep the label, separator, and title so the syllabus line stays readable.
+    return match.group(0)[: match.start("name") - match.start()] + "[NAME]"
 
 
 def _mask_honorific(match: re.Match[str]) -> str:
@@ -120,3 +125,7 @@ def contains_pii(text: str) -> bool:
     """Whether :func:`filter_pii` would change ``text``."""
 
     return bool(text) and filter_pii(text) != text
+
+
+# The name spec 13 and the vetting pipeline use for the same masking (issue #64).
+strip_pii = filter_pii
