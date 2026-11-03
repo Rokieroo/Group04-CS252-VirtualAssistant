@@ -28,6 +28,7 @@ pyjwt~=2.15               # JWT đăng nhập
 # --- AI: retrieval và ôn tập (#11, tuần 2) ---
 rank-bm25~=0.2
 fsrs~=6.3                 # scheduler spaced repetition cho tuần 2
+trafilatura~=2.3          # trích text đọc được từ trang web để chấm nguồn (#62)
 
 # --- AI: LLM vendor (#8) ---
 # #8 chọn Gemini. Đổi vendor: viết adapter mới trong src/app/llm/ và đổi dòng dưới.

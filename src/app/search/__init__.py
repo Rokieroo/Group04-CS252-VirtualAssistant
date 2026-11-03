@@ -9,6 +9,7 @@ from app.search.pii_filter import contains_pii, filter_pii, strip_pii
 from app.search.service import (
     SearchRunRecord,
     SearchService,
+    canonical_url,
     generate_queries,
     record_search_run,
     search,
@@ -30,6 +31,7 @@ __all__ = [
     "WebSearchProvider",
     "YouTubeProvider",
     "YouTubeSearch",
+    "canonical_url",
     "contains_pii",
     "filter_pii",
     "generate_queries",
