@@ -581,3 +581,51 @@ class JobOut(Output):
     error: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class CostTotals(Output):
+    searches: int
+    cache_hits: int
+    llm_calls: int
+    llm_calls_today: int  # against the LLM vendor's daily quota
+    llm_cost_usd: float
+    search_cost_usd: float
+    cost_usd: float
+    cost_per_search_usd: float
+
+
+class NodeCost(Output):
+    node_id: str | None  # None once the node's roadmap is deleted
+    node_title: str
+    searches: int
+    cache_hits: int
+    llm_calls: int
+    llm_cost_usd: float
+    search_cost_usd: float
+    cost_usd: float
+    last_search_at: datetime
+
+
+class ProviderUsage(Output):
+    provider: str
+    calls: int
+    errors: int
+    calls_today: int  # against the provider's daily quota
+    avg_latency_ms: float
+    max_latency_ms: int
+    cost_usd: float
+
+
+class DailyCost(Output):
+    day: date
+    searches: int
+    cost_usd: float
+
+
+class CostReport(Output):
+    days: int
+    since: datetime
+    totals: CostTotals
+    nodes: list[NodeCost]  # most expensive first
+    providers: list[ProviderUsage]
+    daily: list[DailyCost]

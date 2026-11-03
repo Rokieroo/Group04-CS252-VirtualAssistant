@@ -7,6 +7,7 @@ import { Modal } from "./components/Modal";
 import { Shell } from "./components/Shell";
 import { AppearancePicker } from "./features/appearance/AppearancePicker";
 import { pageLabels, useHashPage, type Page } from "./navigation";
+import { CostsPage } from "./pages/CostsPage";
 import { CoursesPage } from "./pages/CoursesPage";
 import { RoadmapPage } from "./pages/RoadmapPage";
 import { SourcesPage } from "./pages/SourcesPage";
@@ -26,6 +27,8 @@ const headings: Partial<Record<Page, [string, string]>> = {
   Schedule: schedule,
   Sources: [pageLabels.Sources, "Learning sources you saved for your roadmap steps."],
   Workspace: schedule,
+  // Admins only, opened at #costs; the backend refuses everyone else.
+  Costs: [pageLabels.Costs, "What resource searches spend, per roadmap step and provider."],
 };
 const available = Object.keys(headings) as Page[];
 
@@ -74,6 +77,7 @@ export default function CoreApp() {
       {page === "Roadmap" && <RoadmapPage go={go} />}
       {(page === "Schedule" || page === "Workspace") && <Workspace />}
       {page === "Sources" && <SourcesPage go={go} />}
+      {page === "Costs" && <CostsPage />}
     </Shell>
   );
 }

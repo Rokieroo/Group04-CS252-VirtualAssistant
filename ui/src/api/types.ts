@@ -114,3 +114,48 @@ export type NodeResources = {
   resources: Resource[];
   gaps: string[];
 };
+
+/** GET /admin/costs (issue #69): spend of resource searches, for admins. */
+export type CostTotals = {
+  searches: number;
+  cache_hits: number;
+  llm_calls: number;
+  llm_calls_today: number;
+  llm_cost_usd: number;
+  search_cost_usd: number;
+  cost_usd: number;
+  cost_per_search_usd: number;
+};
+
+export type NodeCost = {
+  node_id: string | null;
+  node_title: string;
+  searches: number;
+  cache_hits: number;
+  llm_calls: number;
+  llm_cost_usd: number;
+  search_cost_usd: number;
+  cost_usd: number;
+  last_search_at: string;
+};
+
+export type ProviderUsage = {
+  provider: string;
+  calls: number;
+  errors: number;
+  calls_today: number;
+  avg_latency_ms: number;
+  max_latency_ms: number;
+  cost_usd: number;
+};
+
+export type DailyCost = { day: string; searches: number; cost_usd: number };
+
+export type CostReport = {
+  days: number;
+  since: string;
+  totals: CostTotals;
+  nodes: NodeCost[];
+  providers: ProviderUsage[];
+  daily: DailyCost[];
+};

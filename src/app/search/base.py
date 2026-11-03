@@ -30,6 +30,7 @@ class SearchProvider(ABC):
     """
 
     name = "search"
+    cost_per_call = 0.0  # USD per answered request, for the cost dashboard
 
     @abstractmethod
     def search(

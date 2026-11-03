@@ -170,3 +170,14 @@ Slow work (syllabus parsing, resource search) and the daily link check run in th
 1. Test API health: `curl https://<api-service>.onrender.com/api/v1/health` should return `200 OK`.
 2. Access the frontend URL on browser: Verify registration, login flow, and course creation.
 3. Validate Continuous Deployment: Merging a PR into `main` automatically updates both frontend and backend within 10 minutes.
+
+### Step 5: Cost & Quota Dashboard (admins)
+
+Every resource search the worker runs (job `search_resources`) is logged: one `resource_searches` row per node search (queries, candidates, kept sources, LLM and search cost, duration) and one `search_runs` row per provider call (latency, cost). Admins read it at `GET /api/v1/admin/costs?days=7`, or in the app at `https://<frontend>/#costs`.
+
+1. Promote an operator once (SQL console of the staging database):
+   ```sql
+   UPDATE users SET role = 'admin' WHERE email = '<operator email>';
+   ```
+2. Sign in as that user and open `#costs`. Other users get `403 admin_only`.
+3. Watch `LLM calls today` against the Gemini free tier (about 20 requests per model per day) and each provider's `Today` column against its quota.
