@@ -24,6 +24,9 @@ class Settings:
     llm_api_key: str = field(default="", repr=False)
     llm_model: str = ""
     llm_timeout_seconds: float = 20
+    # Search providers for the resource finder (spec 11.2); empty disables them.
+    youtube_api_key: str = field(default="", repr=False)
+    search_api_key: str = field(default="", repr=False)
 
     def __post_init__(self):
         if not 5 <= self.session_minutes <= 43200:
@@ -57,4 +60,6 @@ class Settings:
             llm_api_key=os.getenv("COMPANION_LLM_API_KEY", ""),
             llm_model=os.getenv("COMPANION_LLM_MODEL", ""),
             llm_timeout_seconds=float(os.getenv("COMPANION_LLM_TIMEOUT_SECONDS", "20")),
+            youtube_api_key=os.getenv("YOUTUBE_API_KEY", ""),
+            search_api_key=os.getenv("SEARCH_API_KEY", ""),
         )

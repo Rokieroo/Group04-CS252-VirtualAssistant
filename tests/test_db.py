@@ -33,6 +33,9 @@ EXPECTED_TABLES = {
     "node_resources",
     "resource_feedback",
     "search_runs",
+    # Background jobs and the shared search cache (migration 0006).
+    "jobs",
+    "search_cache",
     "tasks",
     "availability",
     "busy_blocks",
