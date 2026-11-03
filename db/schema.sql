@@ -211,13 +211,18 @@ CREATE TABLE IF NOT EXISTS resources (
     title     TEXT NOT NULL,
     provider  TEXT NOT NULL DEFAULT 'web',                      -- catalog | youtube | web
     kind      TEXT NOT NULL DEFAULT 'article',                  -- video | article | slide
-    lang      TEXT NOT NULL DEFAULT 'vi'
+    lang      TEXT NOT NULL DEFAULT 'vi',
+    -- Link maintenance (migration 0006, spec 11.7).
+    last_checked_at  TIMESTAMP,
+    http_status      INTEGER,
+    failed_checks    INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS node_resources (
     node_id          VARCHAR(36) NOT NULL REFERENCES roadmap_nodes(id) ON DELETE CASCADE,
     resource_id      VARCHAR(36) NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
     relevance_score  REAL NOT NULL DEFAULT 0,
+    status           TEXT NOT NULL DEFAULT 'shown',            -- shown | replaced | removed
     PRIMARY KEY (node_id, resource_id)
 );
 
@@ -249,6 +254,35 @@ CREATE INDEX IF NOT EXISTS ix_node_resources_resource_id ON node_resources (reso
 CREATE INDEX IF NOT EXISTS ix_resource_feedback_user_id ON resource_feedback (user_id);
 CREATE INDEX IF NOT EXISTS ix_resource_feedback_resource_id ON resource_feedback (resource_id);
 CREATE INDEX IF NOT EXISTS ix_search_runs_user_id ON search_runs (user_id);
+
+-- Background jobs polled by the worker (migration 0006).
+CREATE TABLE IF NOT EXISTS jobs (
+    id          VARCHAR(36) PRIMARY KEY,
+    kind        TEXT NOT NULL,
+    payload     TEXT NOT NULL DEFAULT '{}',                    -- JSON
+    status      VARCHAR(16) NOT NULL DEFAULT 'queued'
+                CHECK (status IN ('queued', 'running', 'done', 'failed')),
+    attempts    INTEGER NOT NULL DEFAULT 0,
+    run_after   TIMESTAMP NOT NULL,
+    locked_at   TIMESTAMP,
+    dedupe_key  TEXT,
+    user_id     TEXT REFERENCES users(id) ON DELETE CASCADE,   -- NULL for system jobs
+    result      TEXT,                                          -- JSON
+    error       TEXT,
+    created_at  TIMESTAMP NOT NULL,
+    updated_at  TIMESTAMP NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_jobs_status_run_after ON jobs (status, run_after);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_jobs_dedupe_key ON jobs (dedupe_key);
+CREATE INDEX IF NOT EXISTS ix_jobs_user_id ON jobs (user_id);
+
+-- Search results shared by every user of the same node, for 7 days (spec 11.8).
+CREATE TABLE IF NOT EXISTS search_cache (
+    signature   VARCHAR(64) PRIMARY KEY,
+    payload     TEXT NOT NULL,                                 -- JSON
+    expires_at  TIMESTAMP NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_search_cache_expires_at ON search_cache (expires_at);
 
 CREATE TABLE IF NOT EXISTS tasks (
     id                 VARCHAR(36) PRIMARY KEY,
@@ -335,5 +369,5 @@ CREATE TABLE IF NOT EXISTS alembic_version (
     version_num VARCHAR(32) NOT NULL PRIMARY KEY
 );
 INSERT INTO alembic_version (version_num)
-SELECT '0005_core_loop'
+SELECT '0006_jobs_and_link_checks'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);

@@ -910,7 +910,7 @@
           "Syllabus and roadmap"
         ],
         "summary": "Schedule Roadmap",
-        "description": "One task per node, then sessions from the shared planner; nodes that do not fit\nbefore their deadline come back in ``unscheduled``.",
+        "description": "One task per node, then sessions from the shared planner; nodes that do not fit\nbefore their deadline come back in ``unscheduled`` and their weeks in\n``overloaded_weeks``.",
         "operationId": "schedule_roadmap_api_v1_roadmaps__roadmap_id__schedule_post",
         "security": [
           {
@@ -2623,6 +2623,54 @@
         }
       }
     },
+    "/api/v1/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Get Job",
+        "description": "Only the user who started a job sees it; system jobs and others' jobs are 404.",
+        "operationId": "get_job_api_v1_jobs__job_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/health": {
       "get": {
         "tags": [
@@ -3456,6 +3504,66 @@
         ],
         "title": "ItemOut"
       },
+      "JobOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "result": {
+            "title": "Result"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "attempts",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "JobOut"
+      },
       "LearningOutcomeIn": {
         "properties": {
           "code": {
@@ -3678,6 +3786,14 @@
             },
             "type": "array",
             "title": "Unscheduled"
+          },
+          "overloaded_weeks": {
+            "items": {
+              "type": "string",
+              "format": "date"
+            },
+            "type": "array",
+            "title": "Overloaded Weeks"
           }
         },
         "type": "object",
@@ -4339,6 +4455,14 @@
             },
             "type": "array",
             "title": "Unscheduled"
+          },
+          "overloaded_weeks": {
+            "items": {
+              "type": "string",
+              "format": "date"
+            },
+            "type": "array",
+            "title": "Overloaded Weeks"
           }
         },
         "type": "object",

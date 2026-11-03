@@ -1,8 +1,24 @@
-"""Small, bounded progress cache; no cross-user keys or persisted credentials."""
+"""Caches.
 
+ReportCache: small, bounded, per-process progress cache; no cross-user keys.
+Search cache: search results in the database, shared by every user and worker that
+studies the same node for 7 days (spec 11.8). Keys are node signatures built from
+course data only (app.search.node_signature), so no user data is shared.
+"""
+
+import json
 from collections import OrderedDict
+from datetime import datetime, timedelta
 from threading import Lock
 from time import monotonic
+from typing import Any
+
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from .models import SearchCacheEntry
+
+SEARCH_TTL = timedelta(days=7)
 
 
 class ReportCache:
@@ -46,3 +62,29 @@ class ReportCache:
         with self._lock:
             self._generation += 1
             self._items.clear()
+
+
+def cached_search(db: Session, signature: str, now: datetime) -> Any | None:
+    """The stored results for ``signature``, or None when missing or expired."""
+    entry = db.get(SearchCacheEntry, signature)
+    if entry is None or entry.expires_at <= now:
+        return None
+    return json.loads(entry.payload)
+
+
+def store_search(db: Session, signature: str, results: Any, now: datetime) -> None:
+    """Keep ``results`` for SEARCH_TTL. Expired rows are pruned by the daily job."""
+    payload, expires_at = json.dumps(results), now + SEARCH_TTL
+    entry = db.get(SearchCacheEntry, signature)
+    if entry is not None:
+        entry.payload, entry.expires_at = payload, expires_at
+        return
+    try:
+        with db.begin_nested():
+            db.add(
+                SearchCacheEntry(
+                    signature=signature, payload=payload, expires_at=expires_at
+                )
+            )
+    except IntegrityError:
+        pass  # Another worker stored the same node at the same time; keep theirs.

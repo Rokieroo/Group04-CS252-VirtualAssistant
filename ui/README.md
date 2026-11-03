@@ -85,11 +85,13 @@ Put `VITE_BACKEND_MODE=api` in `ui/.env.local`, start the backend (`python -m uv
 
 ## Try the workflows
 
+The main navigation is the core loop only (spec 1.2): **Courses · Roadmap · Schedule · Library · Settings**. Supplementary pages keep their `#hash` routes (`#progress`, `#ai-reporter`, `#companion`) but open from a course or a step, not from the menu. Roadmap and Library (saved sources) are empty states until their screens land (#57, S8).
+
 - Home: start a lesson, mark it studied, and pass its knowledge check. Reading does not award progress; passing the same session twice awards credit only once.
-- Review (Schedule): navigate weeks/months, return to Today, and select any session.
+- Schedule: navigate weeks/months, return to Today, and select any session.
 - Courses: try the local PDF upload and concept editor, then search/filter the sample library below it. Concept edits survive navigation between pages until reload. The proposed concepts are fixed Week 1 examples, not extracted from your uploaded PDF.
-- Ask (AI Reporter): try `learn Math 7`, `learn Physics`, `learn History 9`, `learn Biology 9`, `adjust workload`, or `weekly report`.
-- Mastery opens course progress; Companion is a placeholder. Select the Pathly logo in the sidebar to return Home.
+- Ask (from Home's "Plan in Ask"): try `learn Math 7`, `learn Physics`, `learn History 9`, `learn Biology 9`, `adjust workload`, or `weekly report`.
+- Mastery opens from a goal under "Current goals" in the sidebar; Companion is a placeholder at `#companion`. Select the Pathly logo to return Home.
 - Confirm the prerequisite, review the proposed plan, and approve enrollment. New sessions appear in the calendar. History starts at level 7; later levels remain conditional.
 - Save a module to the future plan without adding sessions. Find it under Courses → Saved for later.
 - Settings: change the display name and available weekly hours. Use Adjust workload to explicitly approve schedule changes.
@@ -102,18 +104,19 @@ State is stored under `pathly.demo.v1` in browser localStorage, not an account. 
 
 ## Code map
 
-- `src/App.tsx`: workspace state, navigation and scripted coaching orchestration.
-- `src/pages/`: Home, Schedule, Progress, Library, Reporter and the merged Courses upload/editor view.
-- `src/auth.ts`, `src/components/AuthScreen.tsx`, `src/api/mock.ts`: mock login/register and course context.
-- `src/concepts.ts`, `src/api/courses.ts`: concept graph operations and mock PDF/concept processing.
-- `src/components/`: shared navigation, buttons, accessible modal and progress meter.
-- `src/domain.ts`, `src/model.ts`: workspace types, demo persistence and state transitions.
-- `src/demo/`: sample courses/sessions and the local quiz adapter (not secure grading).
-- `src/api/`: proposed learning-check types, response validation, configuration and HTTP adapter.
-- `src/features/learning-check/`: lesson dialog and asynchronous check UI.
+Two apps share one shell. `VITE_BACKEND_MODE=api` runs the real app; anything else runs the offline demo, which is a separate lazy chunk the real app never loads (`src/boundary.test.ts` fails if it starts to).
+
+- `src/App.tsx`: picks the app by mode.
+- `src/CoreApp.tsx`: the real app — Courses, Roadmap, Schedule (the scheduling workspace) and Library, all from the backend.
+- `src/navigation.ts`: routes, labels, the main navigation and `useHashPage`; `#hash` ids never change, so bookmarks keep working.
+- `src/components/`: `Shell` (sidebar, topbar, page heading, phone bottom bar), `Navigation`, buttons, accessible modal, progress meter.
+- `src/pages/`: pages both apps use — Courses upload/concept editor (given a `CourseService`), Roadmap and Library empty states.
+- `src/api/`: backend calls (`account.ts` sign-in, `courses.ts` course materials behind the `CourseService` interface), core-loop types (`types.ts`, checked against `docs/openapi.json` by `contract.test.ts`), and the learning-check adapter.
+- `src/demo/`: everything demo-only — `DemoApp.tsx` (state and scripted coaching), its pages (Home, Schedule, Mastery, Ask, catalog), `model.ts`/`domain.ts` state and transitions, sample fixtures, fake sign-in, mock course service, lesson dialog and the local quiz adapter (not secure grading).
+- `src/concepts.ts`: concept graph operations shared by both course services.
+- `src/features/`: appearance settings and the asynchronous learning-check UI.
 - `src/styles.css`: shared Figma colors, typography, cards, sidebar, responsive layouts.
-- `src/model.test.ts`: progress, future-plan, enrollment, and workload invariants.
-- `src/**/*.test.*`, `e2e/`: service/component and desktop/mobile browser regression tests.
+- `src/**/*.test.*`, `e2e/`: unit/component tests (demo model invariants in `src/demo/model.test.ts`) and desktop/mobile browser regression tests.
 
 ## Learning-check integration and frontend checks
 

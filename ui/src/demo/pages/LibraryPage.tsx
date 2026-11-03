@@ -1,7 +1,7 @@
-import { Button } from "../components/Button";
-import { courses } from "../demo/fixtures";
+import { Button } from "../../components/Button";
+import { courses } from "../fixtures";
 import type { State } from "../domain";
-import { pageLabels } from "../navigation";
+import { pageLabels } from "../../navigation";
 
 type Props = {
   state: State;

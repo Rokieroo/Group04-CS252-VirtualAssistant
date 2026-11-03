@@ -196,3 +196,45 @@ def test_core_loop_cross_user_requests_are_404(client, headers_a, headers_b):
     ]
     assert [response.status_code for response in forbidden_requests] == [404] * 6
     assert client.get("/api/v1/courses", headers=headers_b).json() == []
+
+
+def test_roadmap_schedule_respects_weeks_and_milestone_order(client, headers_a):
+    """#52: a node waits for its week; a milestone comes after the topics it covers,
+    which finish 3 days before it (spec 10.3)."""
+    course = create_course(client, headers_a)
+    roadmap = client.post(
+        f"/api/v1/courses/{course['id']}/roadmap:generate",
+        headers=headers_a,
+        json={"nodes": [
+            {"title": "Framing", "est_minutes": 50, "week": 1},
+            {"title": "Complexity", "est_minutes": 50, "week": 2},
+            {"type": "milestone", "title": "Quiz", "est_minutes": 30, "week": 3},
+        ]},
+    ).json()
+    windows = [
+        {
+            "starts_at": f"2030-01-{day:02d}T09:00:00Z",
+            "ends_at": f"2030-01-{day:02d}T11:00:00Z",
+        }
+        for day in range(7, 29)
+    ]
+    response = client.put(
+        "/api/v1/availability", headers=headers_a, json={"windows": windows}
+    )
+    assert response.status_code == 200, response.text
+
+    plan = client.post(
+        f"/api/v1/roadmaps/{roadmap['id']}:schedule", headers=headers_a, json={}
+    ).json()
+
+    assert plan["unscheduled"] == [] and plan["overloaded_weeks"] == []
+    node_of = {task["id"]: task["roadmap_node_id"] for task in plan["tasks"]}
+    title_of = {node["id"]: node["title"] for node in roadmap["nodes"]}
+    starts: dict[str, list[str]] = {}
+    for session in plan["sessions"]:
+        title = title_of[node_of[session["task_id"]]]
+        starts.setdefault(title, []).append(session["starts_at"])
+    # The clock starts on 2030-01-07, so week 2 opens on the 14th and week 3 on the 21st.
+    assert min(starts["Framing"]) == "2030-01-07T09:00:00Z"
+    assert min(starts["Complexity"]) >= "2030-01-14T00:00:00Z"
+    assert min(starts["Quiz"]) >= "2030-01-21T00:00:00Z"

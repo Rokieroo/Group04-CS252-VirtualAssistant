@@ -276,13 +276,14 @@ def schedule_roadmap(
     data: RoadmapScheduleIn | None = None,
 ):
     """One task per node, then sessions from the shared planner; nodes that do not fit
-    before their deadline come back in ``unscheduled``."""
+    before their deadline come back in ``unscheduled`` and their weeks in
+    ``overloaded_weeks``."""
     roadmap = _owned_roadmap(db, roadmap_id, user.id)
     nodes = _roadmap_nodes(db, roadmap.id)
     if not nodes:
         return {"roadmap_id": roadmap.id}
     data = data or RoadmapScheduleIn()
-    tasks, sessions, unscheduled = plan_roadmap(
+    tasks, sessions, plan = plan_roadmap(
         db, user, roadmap, nodes, data.max_daily_minutes, data.starts_at,
         request.app.state.now(),
     )
@@ -291,5 +292,6 @@ def schedule_roadmap(
         "tasks": tasks,
         "sessions": sessions,
         "entries": sessions,
-        "unscheduled": unscheduled,
+        "unscheduled": plan.unscheduled,
+        "overloaded_weeks": plan.overloaded_weeks,
     }

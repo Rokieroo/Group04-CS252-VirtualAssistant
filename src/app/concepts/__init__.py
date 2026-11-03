@@ -26,7 +26,7 @@ from .extract import (
     save_concepts,
     windows,
 )
-from .normalize import TopicIn, normalize_topics, slugify
+from .normalize import TopicIn, comparison_key, normalize_topics, slugify
 
 __all__ = [
     "BLOOM_LEVELS",
@@ -42,6 +42,7 @@ __all__ = [
     "STEP",
     "WINDOW",
     "TopicIn",
+    "comparison_key",
     "consolidate",
     "extract_concepts",
     "log",

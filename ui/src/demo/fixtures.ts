@@ -1,4 +1,4 @@
-import type { Course, State } from "../domain";
+import type { Course, State } from "./domain";
 import { addDays, dateKey, today } from "../time";
 
 export const courses: Course[] = [

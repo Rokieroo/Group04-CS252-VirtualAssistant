@@ -1,10 +1,10 @@
-import { Button } from "../components/Button";
-import { Meter } from "../components/ProgressMeter";
-import { courseFor } from "../demo/selectors";
+import { Button } from "../../components/Button";
+import { Meter } from "../../components/ProgressMeter";
+import { courseFor } from "../selectors";
 import type { Session, State } from "../domain";
 import { completion, pendingCount, verifiedCount } from "../model";
-import { pageLabels, type Page } from "../navigation";
-import { dateKey, today } from "../time";
+import { pageLabels, type Page } from "../../navigation";
+import { dateKey, today } from "../../time";
 
 type Props = {
   state: State;

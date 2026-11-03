@@ -1,24 +1,20 @@
 import { validateAuth, type AuthForm } from "../auth";
-import { backendEnabled, call, session } from "./backend";
+import { call, session } from "./backend";
 
-export const currentCourse = {
-  id: "csc10014",
-  name: "CS252 - Computational Thinking",
-};
-
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-/** Real sign-in when VITE_BACKEND_MODE=api; otherwise a fake token (demo, e2e). */
-export async function authenticate(
+/** Signs in or registers; the demo passes its own fake one to AuthScreen. */
+export type Authenticate = (
   form: AuthForm,
   mode: "login" | "register",
-): Promise<{ token: string }> {
+) => Promise<{ token: string }>;
+
+export function assertValid(form: AuthForm, mode: "login" | "register") {
   if (Object.keys(validateAuth(form, mode)).length)
     throw new Error("Please fix the highlighted fields.");
-  if (!backendEnabled) {
-    await delay(400);
-    return { token: `mock-${mode}-${Date.now()}` };
-  }
+}
+
+/** Signs in or registers against the backend and keeps the session for this tab. */
+export const authenticate: Authenticate = async (form, mode) => {
+  assertValid(form, mode);
   const email = form.email.trim();
   const body =
     mode === "login"
@@ -37,4 +33,4 @@ export async function authenticate(
   );
   session.set(auth.access_token);
   return { token: auth.access_token };
-}
+};
