@@ -31,6 +31,10 @@ class NodeSpec:
     due_at: datetime | None = None
     covers: list[str] | None = None  # None: a milestone covers every topic before it
     id: str = ""
+    # Roadmap-builder metadata (issues #50 and #60). Defaults keep old callers valid.
+    slug: str = ""
+    difficulty: int = 1
+    bloom_level: str = "understand"
 
 
 def node_spec(raw: dict[str, Any]) -> NodeSpec:
@@ -40,6 +44,7 @@ def node_spec(raw: dict[str, Any]) -> NodeSpec:
     due_at = raw.get("due_at")
     if isinstance(due_at, datetime) and due_at.tzinfo is None:
         due_at = due_at.replace(tzinfo=UTC)
+    difficulty = integer(raw.get("difficulty")) or 1
     return NodeSpec(
         kind=kind if kind in KINDS else "topic",
         title=text(raw.get("title") or raw.get("description")) or "Untitled",
@@ -48,6 +53,9 @@ def node_spec(raw: dict[str, Any]) -> NodeSpec:
             raw.get("duration_minutes") or raw.get("est_minutes") or raw.get("duration")),
         due_at=due_at,
         covers=decode_covers(covers) if isinstance(covers, str) else covers,
+        slug=text(raw.get("slug")) or "",
+        difficulty=min(3, max(1, difficulty)),
+        bloom_level=text(raw.get("bloom_level")) or "understand",
     )
 
 

@@ -45,7 +45,7 @@ devcli = "devcli.__main__:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-app = ["concepts/prompts/*.txt", "items/prompts/*.txt"]
+app = ["concepts/prompts/*.txt", "items/prompts/*.txt", "roadmap/prompts/*.txt"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
