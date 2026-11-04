@@ -484,6 +484,15 @@ class SyllabusIn(FlexibleInput):
     status: str | None = None
 
 
+class SyllabusParseIn(BaseModel):
+    """Preview one uploaded syllabus or pasted text before saving/confirmation."""
+
+    model_config = ConfigDict(extra="forbid")
+    text: str | None = Field(default=None, min_length=1, max_length=120000)
+    file_name: str | None = Field(default=None, min_length=1, max_length=255)
+    use_llm: bool = False
+
+
 class RoadmapNodeIn(FlexibleInput):
     type: str | None = None
     kind: str | None = None

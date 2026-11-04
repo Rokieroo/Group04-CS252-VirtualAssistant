@@ -12,11 +12,28 @@ from dataclasses import asdict
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import delete, select
 
+from app.ingest import InvalidDocument, TextFormat
+from app.llm import RetryableError, get_client
 from app.roadmap import decode_covers, derive_nodes, link, node_spec
-from app.syllabus import parse_syllabus
+from app.syllabus import (
+    InvalidSyllabusResponse,
+    NotASyllabus,
+    parse_syllabus,
+)
+from app.syllabus import (
+    preview_syllabus as parse_preview,
+)
 
 from .dependencies import DB, CurrentUser
-from .models import Assessment, Course, LearningOutcome, Roadmap, RoadmapNode, Syllabus
+from .models import (
+    Assessment,
+    Course,
+    LearningOutcome,
+    Roadmap,
+    RoadmapNode,
+    Source,
+    Syllabus,
+)
 from .routes_courses import owned_course
 from .schemas import (
     RoadmapGenerateIn,
@@ -25,6 +42,7 @@ from .schemas import (
     RoadmapScheduleOut,
     SyllabusIn,
     SyllabusOut,
+    SyllabusParseIn,
 )
 from .services import schedule_roadmap as plan_roadmap
 from .services import serialize_schedule_changes
@@ -33,6 +51,44 @@ router = APIRouter(tags=["Syllabus and roadmap"])
 
 
 # --- Syllabus ----------------------------------------------------------------
+
+
+@router.post("/courses/{course_id}/syllabus:parse")
+def preview_syllabus(course_id: str, data: SyllabusParseIn, db: DB, user: CurrentUser):
+    """#59 parsing preview: no persistence or confirmation of model output.
+
+    Upload PDF/DOCX/text through /sources with kind=syllabus, then pass file_name;
+    pasted text can be parsed directly. Page numbers are local to that one file.
+    """
+    owned_course(db, course_id, user.id)
+    if (data.text is None) == (data.file_name is None):
+        raise HTTPException(422, "provide_text_or_file_name")
+    if data.text is not None:
+        try:
+            pages = TextFormat().read(data.text.encode("utf-8"))
+        except InvalidDocument:
+            raise HTTPException(422, "not_a_syllabus") from None
+    else:
+        sources = db.scalars(select(Source).where(
+            Source.course_id == course_id, Source.file_name == data.file_name,
+            Source.kind == "syllabus",
+        ).order_by(Source.page)).all()
+        if not sources:
+            raise HTTPException(404, "no_syllabus_sources")
+        if [s.page for s in sources] != list(range(1, len(sources) + 1)):
+            raise HTTPException(409, "invalid_source_pages")
+        pages = [s.text for s in sources]
+    try:
+        draft = parse_preview(pages, get_client() if data.use_llm else None)
+    except NotASyllabus:
+        raise HTTPException(422, "not_a_syllabus") from None
+    except InvalidSyllabusResponse:
+        raise HTTPException(502, "invalid_llm_response") from None
+    except (RetryableError, RuntimeError):
+        raise HTTPException(503, "llm_unavailable") from None
+    except ValueError:
+        raise HTTPException(422, "invalid_syllabus") from None
+    return {**draft.to_dict(), "file_name": data.file_name}
 
 
 def _latest_syllabus(db, course_id: str) -> Syllabus | None:

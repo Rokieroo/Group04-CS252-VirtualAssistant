@@ -1,0 +1,353 @@
+{
+  "mode": "deterministic",
+  "samples": 10,
+  "metrics": {
+    "weeks": {
+      "tp": 100,
+      "fp": 0,
+      "fn": 0,
+      "f1": 1.0
+    },
+    "topics": {
+      "tp": 100,
+      "fp": 0,
+      "fn": 0,
+      "f1": 1.0
+    },
+    "milestones": {
+      "tp": 30,
+      "fp": 0,
+      "fn": 0,
+      "f1": 1.0
+    },
+    "weights": {
+      "tp": 30,
+      "fp": 0,
+      "fn": 0,
+      "f1": 1.0
+    }
+  },
+  "results": [
+    {
+      "file": "01_csc10014_problem_framing.txt",
+      "pages": 1,
+      "metrics": {
+        "weeks": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "topics": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "milestones": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "weights": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        }
+      },
+      "missing_citations": 0,
+      "warnings": []
+    },
+    {
+      "file": "02_cs102_database_systems.txt",
+      "pages": 1,
+      "metrics": {
+        "weeks": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "topics": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "milestones": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "weights": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        }
+      },
+      "missing_citations": 0,
+      "warnings": []
+    },
+    {
+      "file": "03_cs201_data_structures.txt",
+      "pages": 1,
+      "metrics": {
+        "weeks": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "topics": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "milestones": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "weights": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        }
+      },
+      "missing_citations": 0,
+      "warnings": []
+    },
+    {
+      "file": "04_cs202_operating_systems.txt",
+      "pages": 1,
+      "metrics": {
+        "weeks": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "topics": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "milestones": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "weights": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        }
+      },
+      "missing_citations": 0,
+      "warnings": []
+    },
+    {
+      "file": "05_cs203_computer_networks.txt",
+      "pages": 1,
+      "metrics": {
+        "weeks": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "topics": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "milestones": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "weights": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        }
+      },
+      "missing_citations": 0,
+      "warnings": []
+    },
+    {
+      "file": "06_se301_software_engineering.txt",
+      "pages": 1,
+      "metrics": {
+        "weeks": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "topics": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "milestones": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "weights": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        }
+      },
+      "missing_citations": 0,
+      "warnings": []
+    },
+    {
+      "file": "07_ai101_artificial_intelligence.txt",
+      "pages": 1,
+      "metrics": {
+        "weeks": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "topics": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "milestones": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "weights": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        }
+      },
+      "missing_citations": 0,
+      "warnings": []
+    },
+    {
+      "file": "08_cs315_machine_learning.txt",
+      "pages": 1,
+      "metrics": {
+        "weeks": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "topics": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "milestones": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "weights": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        }
+      },
+      "missing_citations": 0,
+      "warnings": []
+    },
+    {
+      "file": "09_sec204_information_security.txt",
+      "pages": 1,
+      "metrics": {
+        "weeks": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "topics": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "milestones": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "weights": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        }
+      },
+      "missing_citations": 0,
+      "warnings": []
+    },
+    {
+      "file": "10_cs405_cloud_computing.txt",
+      "pages": 1,
+      "metrics": {
+        "weeks": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "topics": {
+          "tp": 10,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "milestones": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        },
+        "weights": {
+          "tp": 3,
+          "fp": 0,
+          "fn": 0,
+          "f1": 1.0
+        }
+      },
+      "missing_citations": 0,
+      "warnings": []
+    }
+  ],
+  "passed": true
+}
