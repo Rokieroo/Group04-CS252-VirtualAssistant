@@ -46,7 +46,7 @@ export default defineConfig({
       // Explicit modes: a developer's ui/.env.local must not switch the suites.
       env: {
         VITE_CHECK_MODE: "demo",
-        VITE_BACKEND_MODE: "demo",
+        VITE_BACKEND_MODE: "legacy-demo",
         VITE_CACHE_DIR: "node_modules/.vite-e2e-demo",
       },
     },
@@ -57,7 +57,7 @@ export default defineConfig({
       env: {
         VITE_CHECK_MODE: "api",
         VITE_API_BASE_URL: "http://127.0.0.1:5179/api/v1",
-        VITE_BACKEND_MODE: "demo",
+        VITE_BACKEND_MODE: "legacy-demo",
         VITE_CACHE_DIR: "node_modules/.vite-e2e-api",
       },
     },

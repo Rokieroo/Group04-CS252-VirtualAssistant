@@ -1,3 +1,4 @@
+// Old — retained for legacy demo/reference; not used by the redesigned course journey.
 import { ApiError, type CourseService } from "../api/courses";
 import { checkFile, type Concept, type Prereq } from "../concepts";
 

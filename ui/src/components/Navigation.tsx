@@ -58,7 +58,7 @@ export function Navigation({
         className="brand"
         onClick={() => items.go(home)}
       >
-        <span>✦</span> pathly
+        <span>✦</span> {home === "Library" ? "StudyCompanion" : "pathly"}
       </a>
       <div className="workspace-label">YOUR WORKSPACE</div>
       <nav aria-label="Main navigation">

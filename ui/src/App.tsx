@@ -2,13 +2,13 @@ import { lazy, Suspense } from "react";
 import { backendEnabled } from "./api/backend";
 import CoreApp from "./CoreApp";
 
-// Its own chunk, fetched only without a backend: the real app never loads demo code or data.
+// Old demo is preserved as an explicit opt-in, never the default screen.
 const DemoApp = lazy(() => import("./demo/DemoApp"));
 
-/** VITE_BACKEND_MODE=api runs the real app; anything else, the offline demo. */
+/** The redesigned course journey is the default; API mode requires authentication. */
 export default function App() {
-  return backendEnabled ? (
-    <CoreApp />
+  return import.meta.env.VITE_BACKEND_MODE !== "legacy-demo" ? (
+    <CoreApp mock={!backendEnabled} />
   ) : (
     <Suspense fallback={null}>
       <DemoApp />

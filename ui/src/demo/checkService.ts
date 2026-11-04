@@ -1,3 +1,4 @@
+// Old — retained for legacy demo/reference; not used by the redesigned course journey.
 import type { LearningCheck, LearningCheckService } from "../api/types";
 
 // Public demo only. These answer keys are bundled locally and are NOT secure grading.

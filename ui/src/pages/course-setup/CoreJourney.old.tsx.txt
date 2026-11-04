@@ -1,0 +1,114 @@
+// Old — pre-refactor S3–S5 implementation; retained reference, not imported.
+import { useState, type DragEvent } from "react";
+import type { Page } from "../navigation";
+import type { RoadmapNode } from "../api/types";
+import { BackendError } from "../api/backend";
+import { createsRoadmapCycle, liveCoreService, mockCoreService, previewRoadmap, uploadError, warningsFor, type CoreService, type Edge, type SyllabusDraft, type RoadmapDraft, type NodeStatus } from "../api/core";
+import "./core-journey.css";
+
+type ReviewTab = "outcomes" | "weeks" | "assessments" | "textbooks";
+const tabs: { id: ReviewTab; label: string }[] = [
+  { id: "outcomes", label: "Chuẩn đầu ra" }, { id: "weeks", label: "Tuần & chủ đề" },
+  { id: "assessments", label: "Đánh giá" }, { id: "textbooks", label: "Giáo trình" },
+];
+const title = (node: RoadmapNode | undefined) => node?.title || "Chặng chưa xác định";
+const statusLabel = { locked: "Chưa mở", available: "Có thể học", in_progress: "Đang học", done: "Đã xong", needs_review: "Cần ôn lại" };
+const uiError = (error: unknown) => {
+  if (error instanceof BackendError) return ({
+    invalid_file: "Tệp không hợp lệ hoặc bị hỏng.", file_too_large: "Tệp lớn hơn 20 MB.",
+    unsupported_type: "Chỉ hỗ trợ PDF hoặc DOCX.", not_a_syllabus: "Tệp này không giống đề cương môn học.",
+    has_blocking_warnings: "Hãy sửa các cảnh báo trước khi xác nhận.",
+  } as Record<string, string>)[error.code] || error.message;
+  return error instanceof Error ? error.message : "Có lỗi xảy ra. Hãy thử lại.";
+};
+export function CoreJourney({ page, go, mock = false }: { page: Page; go: (p: Page) => void; mock?: boolean }) {
+  const service: CoreService = mock ? mockCoreService : liveCoreService;
+  const [draft, setDraft] = useState<SyllabusDraft | null>(null);
+  const [roadmap, setRoadmap] = useState<RoadmapDraft | null>(null);
+  const [stage, setStage] = useState<"upload" | "review" | "plan" | "complete">("upload");
+  const [roadmapApproved, setRoadmapApproved] = useState(false);
+  const [reviewTab, setReviewTab] = useState<ReviewTab>("outcomes");
+  const [roadmapTab, setRoadmapTab] = useState<"timeline" | "graph">("timeline");
+  const [pasted, setPasted] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState("");
+  const [selectedNode, setSelectedNode] = useState<RoadmapNode | null>(null);
+  const [parent, setParent] = useState("");
+  const [child, setChild] = useState("");
+  const [graphError, setGraphError] = useState("");
+  const [weekly, setWeekly] = useState(300);
+  const [daily, setDaily] = useState(120);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [plan, setPlan] = useState<{ sessions: { id: string; title: string; starts_at: string }[] } | null>(null);
+  const [sourcePage, setSourcePage] = useState<number | null>(null);
+  const warnings = draft ? [...draft.warnings, ...warningsFor(draft)] : [];
+  const blocked = warnings.some(w => w.blocking);
+  const run = async (work: () => Promise<void>) => { setBusy(true); setError(""); try { await work(); } catch (e) { setError(uiError(e)); } finally { setBusy(false); } };
+  const load = (file: File | string) => {
+    if (file instanceof File) { const issue = uploadError(file); if (issue) { setError(issue); return; } setFileName(file.name); }
+    setProgress(10);
+    void run(async () => { const result = await service.upload(file); setProgress(100); setDraft(result); setStage("review"); });
+  };
+  const drop = (event: DragEvent<HTMLDivElement>) => { event.preventDefault(); if (event.dataTransfer.files[0]) load(event.dataTransfer.files[0]); };
+  const update = (change: Partial<SyllabusDraft>) => setDraft(current => current && ({ ...current, ...change, status: "draft" }));
+  const confirm = () => { if (!draft || blocked) return; void run(async () => { const saved = await service.confirm(draft); setDraft(saved); }); };
+  const generate = () => { if (!draft || draft.status !== "confirmed") return; void run(async () => { setRoadmap(mock ? await service.generate(draft.id) : previewRoadmap(draft)); setStage("plan"); }); };
+  const approveRoadmap = () => { if (!draft) return; void run(async () => { if (!mock) setRoadmap(await service.generate(draft.id)); setRoadmapApproved(true); setStage("complete"); }); };
+  const addEdge = () => {
+    if (!roadmap || !parent || !child) return;
+    if (createsRoadmapCycle(roadmap.edges, parent, child)) { setGraphError("Tạo vòng lặp, hãy bỏ một cạnh."); return; }
+    setGraphError("");
+    if (!roadmap.edges.some(e => e.parent_id === parent && e.child_id === child)) setRoadmap({ ...roadmap, edges: [...roadmap.edges, { parent_id: parent, child_id: child, kind: "strict", origin: "user", confidence: 1 }] });
+  };
+  const removeEdge = (edge: Edge) => roadmap && setRoadmap({ ...roadmap, edges: roadmap.edges.filter(e => e !== edge) });
+  const schedule = () => { if (!roadmap) return; void run(async () => { setPlan(await service.schedule(roadmap.id, weekly, daily)); setScheduleOpen(false); go("Schedule"); }); };
+  const topicNodes = roadmap?.nodes.filter(n => n.type === "topic") || [];
+  const grouped = (roadmap?.nodes || []).reduce<Record<string, (RoadmapNode & { status?: NodeStatus })[]>>((result, node) => { (result[String(node.week ?? "Chưa có tuần")] ??= []).push(node); return result; }, {});
+  const sourceChip = (page?: number) => page ? <button type="button" className="core-citation" onClick={() => setSourcePage(page)}>tr. {page}</button> : <span className="core-no-source">Không có trang nguồn</span>;
+  const showingRoadmap = (page === "Library" && stage === "plan") || (page === "Roadmap" && roadmapApproved);
+  return <div className="core-journey">
+    {error && <div role="alert" className="card core-error">{error}</div>}
+    {busy && <div role="status" className="card">Đang xử lý…</div>}
+    {busy && page === "Library" && <progress aria-label="Tiến trình xử lý đề cương" max="100" value={progress} />}
+    {sourcePage !== null && <div className="core-dialog-backdrop"><section className="card core-panel core-dialog" role="dialog" aria-modal="true" aria-labelledby="source-title"><h3 id="source-title">{draft?.file_name} · tr. {sourcePage}</h3><p>{draft?.source_pages?.[sourcePage] || "Máy chủ chưa cung cấp nội dung trang nguồn cho đề cương này."}</p><button onClick={()=>setSourcePage(null)}>Đóng</button></section></div>}
+    {page === "Library" && stage !== "complete" && <div className="core-setup-progress" aria-label="Tiến trình thiết lập môn học"><strong>THIẾT LẬP MÔN HỌC · BƯỚC {stage === "upload" ? 1 : stage === "review" ? 2 : 3} / 3</strong><div><span className={stage === "upload" ? "active" : "finished"} /><span className={stage === "review" ? "active" : stage === "plan" ? "finished" : ""} /><span className={stage === "plan" ? "active" : ""} /></div></div>}
+    {page === "Library" && (stage === "upload" ? <div className="core-setup-columns"><section className="card core-panel" aria-labelledby="s3-title">
+      <div><span className="core-kicker">S3 · Đầu vào</span><h2 id="s3-title">Tải đề cương môn học</h2><p>Ứng dụng đọc đề cương trước khi lập lộ trình.</p></div>
+      <label>Tên môn học<input value="CSC10014 · Introduction to Virtual Assistants" readOnly /></label>
+      <div className="core-drop" onDrop={drop} onDragOver={e => e.preventDefault()}>
+        <strong>Kéo PDF hoặc DOCX vào đây</strong><label>Hoặc chọn tệp (tối đa 20 MB)<input type="file" accept=".pdf,.docx" onChange={e => { const file=e.target.files?.[0]; if (file) load(file); e.target.value=""; }} /></label>
+      </div>
+      {fileName && <p role="status">Đã chọn: {fileName}</p>}
+      <label>Dán nội dung đề cương<textarea rows={8} value={pasted} onChange={e => setPasted(e.target.value)} placeholder="Dán chuẩn đầu ra, tuần học và các bài đánh giá…" /></label>
+      <button className="primary-action" disabled={!pasted.trim() || busy} onClick={() => load(pasted)}>Phân tích nội dung đã dán</button>
+      {!mock && <p className="hint">Kết nối hiện tại chỉ nhận văn bản dán. Tệp PDF/DOCX sẽ được hỗ trợ khi API syllabus nhận file.</p>}
+    </section><aside className="card core-panel core-setup-aside"><h3>Điều gì sẽ xảy ra tiếp?</h3><p><b>01 · Tải lên</b><br />Chọn PDF, DOCX hoặc dán nội dung.</p><p><b>02 · Kiểm tra</b><br />Sửa chủ đề, chuẩn đầu ra và đánh giá.</p><p><b>03 · Tạo lộ trình</b><br />Duyệt kế hoạch học theo tuần.</p><p className="core-control-note">Bạn luôn được xem và sửa bản đề xuất trước khi xác nhận roadmap.</p></aside></div> : stage === "review" ? <section className="card core-panel" aria-labelledby="s4-title">
+      <div><span className="core-kicker">S4 · Kiểm tra</span><h2 id="s4-title">Duyệt đề cương</h2><p>Sửa từng phần trước khi xác nhận.</p></div>
+      {warnings.length > 0 && <div className="core-warning" role="alert">{warnings.map((w,i) => <p key={`${w.code}-${i}`}>{w.message}</p>)}</div>}
+      <div className="core-tabs" role="tablist" aria-label="Các phần đề cương">{tabs.map(t => <button key={t.id} role="tab" aria-selected={reviewTab===t.id} onClick={() => setReviewTab(t.id)}>{t.label}</button>)}</div>
+      <div role="tabpanel" className="core-fields">
+        {reviewTab === "outcomes" && <>{draft?.outcomes.map((o,i) => <div className="core-row" key={i}><label>Mã CLO<input value={o.code} onChange={e => update({ outcomes: draft.outcomes.map((x,j) => i===j ? {...x,code:e.target.value}:x) })} /></label><label>Mục tiêu<input value={o.description} onChange={e => update({ outcomes: draft.outcomes.map((x,j) => i===j ? {...x,description:e.target.value}:x) })} /></label>{sourceChip(o.source_page)}<button onClick={() => update({outcomes:draft.outcomes.filter((_,j)=>j!==i)})}>Xóa</button></div>)}<button onClick={() => draft && update({outcomes:[...draft.outcomes,{code:`CLO${draft.outcomes.length+1}`,description:""}]})}>+ Thêm chuẩn đầu ra</button></>}
+        {reviewTab === "weeks" && <>{draft?.weeks.map((w,i) => <div className="core-row" key={i}><label>Tuần<input type="number" min="1" value={w.week} onChange={e => update({weeks:draft.weeks.map((x,j)=>j===i?{...x,week:Number(e.target.value)}:x)})} /></label><label>Chủ đề (cách nhau bằng dấu phẩy)<input value={w.topics.join(", ")} onChange={e => update({weeks:draft.weeks.map((x,j)=>j===i?{...x,topics:e.target.value.split(",").map(s=>s.trim())}:x)})} /></label>{sourceChip(w.source_page)}<button onClick={()=>update({weeks:draft.weeks.filter((_,j)=>j!==i)})}>Xóa</button></div>)}<button onClick={() => draft && update({weeks:[...draft.weeks,{week:draft.weeks.length+1,topics:[""]}]})}>+ Thêm tuần</button></>}
+        {reviewTab === "assessments" && <>{draft?.assessments.map((a,i) => <div className="core-row" key={i}><label>Tên đánh giá<input value={a.name} onChange={e=>update({assessments:draft.assessments.map((x,j)=>j===i?{...x,name:e.target.value}:x)})} /></label><label>Trọng số %<input type="number" min="0" max="100" value={a.weight} onChange={e=>update({assessments:draft.assessments.map((x,j)=>j===i?{...x,weight:Number(e.target.value)}:x)})} /></label><label>Tuần<input type="number" min="1" value={a.due_week ?? ""} onChange={e=>update({assessments:draft.assessments.map((x,j)=>j===i?{...x,due_week:Number(e.target.value)||null}:x)})} /></label>{sourceChip(a.source_page)}<button onClick={()=>update({assessments:draft.assessments.filter((_,j)=>j!==i)})}>Xóa</button></div>)}<button onClick={() => draft && update({assessments:[...draft.assessments,{name:"",weight:0,due_week:null}]})}>+ Thêm đánh giá</button></>}
+        {reviewTab === "textbooks" && <>{draft?.textbooks.map((b,i) => <div className="core-row" key={i}><label>Tên giáo trình<input value={b.title} onChange={e=>update({textbooks:draft.textbooks.map((x,j)=>j===i?{...x,title:e.target.value}:x)})} /></label><label>Tác giả<input value={b.author} onChange={e=>update({textbooks:draft.textbooks.map((x,j)=>j===i?{...x,author:e.target.value}:x)})} /></label>{sourceChip(b.source_page)}<button onClick={()=>update({textbooks:draft.textbooks.filter((_,j)=>j!==i)})}>Xóa</button></div>)}<button onClick={() => draft && update({textbooks:[...draft.textbooks,{title:"",author:""}]})}>+ Thêm giáo trình</button></>}
+      </div>
+      {!mock && <p className="hint">Máy chủ hiện chỉ lưu chuẩn đầu ra, đánh giá và văn bản gốc. Tuần, giáo trình và trang nguồn chỉ hiện trong phiên này.</p>}
+      <div className="core-actions"><button onClick={()=>setStage("upload")}>Tải lại</button><button className="primary-action" disabled={blocked || busy || draft?.status==="confirmed"} onClick={confirm}>{draft?.status==="confirmed" ? "Đã xác nhận" : "Xác nhận đề cương"}</button><button disabled={draft?.status!=="confirmed" || busy} onClick={generate}>Tạo roadmap →</button></div>
+    </section> : stage === "complete" ? <section className="card core-panel core-complete" role="status"><span className="core-kicker">ĐÃ HOÀN TẤT</span><h2>Roadmap của bạn đã sẵn sàng</h2><p>Bạn có thể trở về trang môn học hoặc mở lộ trình để bắt đầu học.</p><div className="core-actions"><button onClick={() => setStage("upload")}>Trở về môn học</button><button className="primary-action" onClick={() => go("Roadmap")}>Xem roadmap →</button></div></section> : null)}
+    {page === "Roadmap" && !roadmapApproved && <section className="card core-panel"><h2>Chưa có roadmap được duyệt</h2><p>Hoàn thành ba bước thiết lập trong tab Môn học.</p><button onClick={() => go("Library")}>Mở thiết lập môn học</button></section>}
+    {showingRoadmap && <><section className="card core-panel"><span className="core-kicker">S5 · Lộ trình</span><h2>{stage === "plan" && page === "Library" ? "Duyệt roadmap được đề xuất" : "Roadmap theo tuần"}</h2>{page === "Library" && <p className="core-warning">Kiểm tra thứ tự kiến thức nền, mốc kiểm tra và thời lượng trước khi xác nhận.</p>}<div className="core-goal"><strong>Mục tiêu học tập</strong><p>{draft?.outcomes.map(o=>o.description).filter(Boolean).join(" · ") || "Duyệt đề cương để hiển thị mục tiêu."}</p><strong>Mốc kiểm tra</strong><p>{roadmap?.nodes.filter(n=>n.type==="milestone").map(n=>`Tuần ${n.week}: ${n.title}`).join(" · ") || "Chưa có mốc kiểm tra."}</p></div></section>
+      {!roadmap ? <section className="card core-panel"><h3>No roadmap yet</h3><p>Xác nhận đề cương để tạo lộ trình.</p><button onClick={()=>go("Library")}>Mở đề cương</button></section> : <>
+        {roadmap.overloaded_weeks.length>0 && <p className="card core-warning" role="alert">Tuần {roadmap.overloaded_weeks.join(", ")} quá tải. Hãy xem lại thời lượng trước khi xếp lịch.</p>}
+        <div className="core-tabs" role="tablist" aria-label="Cách xem roadmap"><button role="tab" aria-selected={roadmapTab==="timeline"} onClick={()=>setRoadmapTab("timeline")}>Theo tuần</button><button role="tab" aria-selected={roadmapTab==="graph"} onClick={()=>setRoadmapTab("graph")}>Graph tiên quyết</button></div>
+        {roadmapTab==="timeline" ? Object.entries(grouped).sort(([a],[b])=>Number(a)-Number(b)).map(([week,nodes])=><section className="card core-panel" key={week}><h3>Tuần {week}</h3><div className="core-grid">{nodes.map(n=><button className={`core-node ${n.type} ${n.status || "available"}`} key={n.id} onClick={()=>setSelectedNode(n)}><strong>{n.title}</strong><span>{n.est_minutes ?? n.duration_minutes ?? 0} phút · {n.type==="milestone" ? "Mốc kiểm tra · " : ""}{statusLabel[n.status || "available"]}</span></button>)}</div></section>) : <section className="card core-panel"><h3>Quan hệ tiên quyết</h3><div className="core-edges">{roadmap.edges.map((e,i)=><div className="core-edge" key={`${e.parent_id}-${e.child_id}-${i}`}><span>{title(roadmap.nodes.find(n=>n.id===e.parent_id))} → {title(roadmap.nodes.find(n=>n.id===e.child_id))}</span><small>{e.kind} · {e.origin} · {Math.round(e.confidence*100)}%</small><button onClick={()=>removeEdge(e)}>Bỏ cạnh</button></div>)}</div><div className="core-row"><label>Học trước<select value={parent} onChange={e=>setParent(e.target.value)}><option value="">Chọn chặng</option>{topicNodes.map(n=><option value={n.id} key={n.id}>{n.title}</option>)}</select></label><label>Học sau<select value={child} onChange={e=>setChild(e.target.value)}><option value="">Chọn chặng</option>{topicNodes.map(n=><option value={n.id} key={n.id}>{n.title}</option>)}</select></label><button onClick={addEdge}>Thêm cạnh</button></div>{graphError && <p role="alert" className="core-error">{graphError}</p>}{!mock && <p className="hint">Máy chủ chưa lưu cạnh prerequisite; thay đổi graph chỉ có hiệu lực trong phiên này.</p>}</section>}
+        {page === "Library" ? <section className="card core-panel core-confirm-plan"><p>Đây là bản đề xuất. Bạn quyết định khi nào áp dụng lộ trình.</p><div className="core-actions"><button onClick={() => setStage("review")}>← Quay lại sửa đề cương</button><button className="primary-action" disabled={busy} onClick={approveRoadmap}>Xác nhận roadmap</button></div></section> : <section className="card core-panel"><h3>Xếp vào lịch</h3><p>Chọn thời gian học phù hợp trước khi tạo các buổi học.</p><button className="primary-action" onClick={()=>setScheduleOpen(true)}>Xếp vào lịch</button></section>}
+        {selectedNode && <section className="card core-panel"><h3>{selectedNode.title}</h3><p>Tuần {selectedNode.week} · {selectedNode.est_minutes ?? 0} phút</p><button onClick={()=>setSelectedNode(null)}>Đóng</button></section>}
+      </>}
+      {scheduleOpen && <div className="core-dialog-backdrop"><section className="card core-panel core-dialog" role="dialog" aria-modal="true" aria-labelledby="schedule-title"><h3 id="schedule-title">Chọn thời gian học</h3><div className="core-row"><label>Phút rảnh mỗi tuần<input type="number" min="25" value={weekly} onChange={e=>setWeekly(Number(e.target.value))} /></label><label>Tối đa phút mỗi ngày<input type="number" min="25" max="1440" value={daily} onChange={e=>setDaily(Number(e.target.value))} /></label></div><div className="core-actions"><button onClick={()=>setScheduleOpen(false)}>Hủy</button><button className="primary-action" disabled={busy || weekly<25 || daily<25 || daily>1440} onClick={schedule}>Tạo lịch học</button></div></section></div>}
+    </>}
+    {page === "Schedule" && <section className="card core-panel"><h2>S7 · Lịch học</h2>{plan?.sessions.length ? <ul className="core-sessions">{plan.sessions.map(s=><li key={s.id}><strong>{s.title}</strong><span>{new Date(s.starts_at).toLocaleString("vi-VN")}</span></li>)}</ul> : <p>Xếp roadmap vào lịch để xem buổi học.</p>}</section>}
+    {page === "Sources" && <section className="card core-panel"><h2>S8 · Thư viện nguồn</h2><p>Chưa có nguồn học đã lưu.</p></section>}
+  </div>;
+}

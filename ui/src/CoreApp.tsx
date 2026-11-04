@@ -1,17 +1,14 @@
+import "./pages/course-setup/study-companion.css";
 import { useState } from "react";
 import { authenticate } from "./api/account";
 import { session } from "./api/backend";
-import { backendCourses, currentCourse } from "./api/courses";
 import { AuthScreen } from "./components/AuthScreen";
 import { Modal } from "./components/Modal";
 import { Shell } from "./components/Shell";
 import { AppearancePicker } from "./features/appearance/AppearancePicker";
 import { pageLabels, useHashPage, type Page } from "./navigation";
 import { CostsPage } from "./pages/CostsPage";
-import { CoursesPage } from "./pages/CoursesPage";
-import { RoadmapPage } from "./pages/RoadmapPage";
-import { SourcesPage } from "./pages/SourcesPage";
-import Workspace from "./Workspace";
+import { CoreJourney } from "./pages/CoreJourney";
 
 const schedule: [string, string] = [
   pageLabels.Schedule,
@@ -19,25 +16,32 @@ const schedule: [string, string] = [
 ];
 // Pages the backend serves; Home, Mastery, Ask and Companion open Courses until they exist.
 const headings: Partial<Record<Page, [string, string]>> = {
-  Library: [
-    `${pageLabels.Library} · ${currentCourse.name}`,
-    "Upload your slides, then confirm the concepts the AI proposes.",
+  Library: ["", ""],
+  Roadmap: [
+    pageLabels.Roadmap,
+    "Weekly steps from your syllabus, with exam milestones.",
   ],
-  Roadmap: [pageLabels.Roadmap, "Weekly steps from your syllabus, with exam milestones."],
   Schedule: schedule,
-  Sources: [pageLabels.Sources, "Learning sources you saved for your roadmap steps."],
+  Sources: [
+    pageLabels.Sources,
+    "Learning sources you saved for your roadmap steps.",
+  ],
   Workspace: schedule,
   // Admins only, opened at #costs; the backend refuses everyone else.
-  Costs: [pageLabels.Costs, "What resource searches spend, per roadmap step and provider."],
+  Costs: [
+    pageLabels.Costs,
+    "What resource searches spend, per roadmap step and provider.",
+  ],
 };
 const available = Object.keys(headings) as Page[];
 
 /** The app on the real backend (VITE_BACKEND_MODE=api). It never imports src/demo. */
-export default function CoreApp() {
+export default function CoreApp({ mock = false }: { mock?: boolean }) {
   const [token, setToken] = useState(() => session.get() || null);
   const [page, go] = useHashPage("Library", available);
   const [settings, setSettings] = useState(false);
-  if (!token) return <AuthScreen onAuth={setToken} authenticate={authenticate} />;
+  if (!token && !mock)
+    return <AuthScreen onAuth={setToken} authenticate={authenticate} />;
 
   const [title, subtitle] = headings[page]!;
   return (
@@ -47,8 +51,8 @@ export default function CoreApp() {
       go={go}
       title={title}
       subtitle={subtitle}
-      course={currentCourse.name}
-      status="Live data"
+      course={`StudyCompanion / ${pageLabels[page]}`}
+      status={mock ? "UI preview" : "Live data"}
       onSettings={() => setSettings(true)}
       overlays={
         settings && (
@@ -70,13 +74,7 @@ export default function CoreApp() {
         )
       }
     >
-      {/* Kept mounted so uploads and concept edits survive switching pages. */}
-      <div hidden={page !== "Library"}>
-        <CoursesPage course={currentCourse.name} service={backendCourses} />
-      </div>
-      {page === "Roadmap" && <RoadmapPage go={go} />}
-      {(page === "Schedule" || page === "Workspace") && <Workspace />}
-      {page === "Sources" && <SourcesPage go={go} />}
+      <CoreJourney page={page} go={go} mock={mock} />
       {page === "Costs" && <CostsPage />}
     </Shell>
   );

@@ -6,7 +6,7 @@ React + TypeScript frontend for the CS252 study assistant. The Python CLI stays 
 
 Pathly is a responsive browser application built with React, TypeScript, and Vite. Development is supported on Windows, macOS, and Linux. The finished static build runs in current versions of Chrome, Edge, Firefox, and Safari, including mobile browsers. It is not currently a native Windows, Android, or iOS application.
 
-The UI defaults to a local demo: login and PDF/concept processing are mocked, with no real account, cloud synchronization or AI generation. Study progress stays in browser localStorage. Login and uploaded-file/concept state stay in memory; reloading signs you out and clears that temporary state. The repository's Python LLM/database modules are not connected to these screens yet.
+The UI defaults to the redesigned Courses → syllabus review → roadmap approval preview. It uses sample syllabus data and does not parse uploaded PDF/DOCX files. The previous Pathly demo is preserved under `VITE_BACKEND_MODE=legacy-demo`; use `VITE_BACKEND_MODE=api` for the connected backend.
 
 ## Requirements
 
@@ -33,9 +33,16 @@ Open the GitHub repository, choose **Code → Download ZIP**, extract it, and op
 
 ## Install and run
 
-From the repo root you can also use the project CLI: `python dev.py ui install`, then `python dev.py ui dev` (and `ui build`, `ui test`).
+From the repo root, use the project CLI:
 
-The app opens on a mock login/register screen (`src/api/mock.ts`): any valid email, a password of at least 8 characters, and (to register) a birth year from 1900 to this year will sign in. The token lives in memory only, so reloading the page signs you out.
+```bash
+python dev.py ui install
+python dev.py ui dev
+```
+
+Open `http://127.0.0.1:5173`. This now opens the redesigned Courses screen. To run the project's checks, use `python dev.py ui test` and `python dev.py ui build` from the repo root.
+
+The default preview opens directly on Courses with sample data. In API mode, sign in to use the connected service.
 
 For example, use `student@example.test` and `demo-password`. Use sample credentials, not a real password.
 

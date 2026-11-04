@@ -1,3 +1,4 @@
+// Old — retained for legacy demo/reference; not used by the redesigned course journey.
 import { courses, initialState } from "./fixtures";
 import type { Session, State } from "./domain";
 import { addDays, dateKey, today } from "../time";

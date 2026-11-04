@@ -13,7 +13,8 @@ export const THEMES = [
   { id: "dark", label: "Dark" },
 ] as const;
 
-export type Accent = (typeof ACCENTS)[number]["id"];
+import { GRADIENTS } from "./gradients";
+export type Accent = (typeof ACCENTS)[number]["id"] | (typeof GRADIENTS)[number]["id"];
 export type Theme = (typeof THEMES)[number]["id"];
 export type Appearance = { accent: Accent; theme: Theme };
 
@@ -33,7 +34,7 @@ export function parseAppearance(raw: string | null): Appearance {
     // keep defaults
   }
   return {
-    accent: ACCENTS.some((a) => a.id === x.accent)
+    accent: [...ACCENTS, ...GRADIENTS].some((a) => a.id === x.accent)
       ? (x.accent as Accent)
       : DEFAULT_APPEARANCE.accent,
     theme: THEMES.some((t) => t.id === x.theme)
@@ -81,6 +82,15 @@ export function applyAppearance(
   root: HTMLElement = document.documentElement,
 ) {
   root.dataset.accent = appearance.accent;
+  const gradient = GRADIENTS.find((g) => g.id === appearance.accent);
+  if (gradient) {
+    const colors = gradient.colors as readonly string[];
+    root.style.setProperty("--gradient-brand", `linear-gradient(90deg, ${colors.join(", ")})`);
+    root.style.setProperty("--accent-a", `color-mix(in oklab, ${colors[0]} 40%, #101828)`);
+    root.style.setProperty("--accent-b", `color-mix(in oklab, ${colors[colors.length - 1]} 40%, #101828)`);
+  } else {
+    for (const token of ["--gradient-brand", "--accent-a", "--accent-b"]) root.style.removeProperty(token);
+  }
   if (appearance.theme === "system") delete root.dataset.theme;
   else root.dataset.theme = appearance.theme;
 }
