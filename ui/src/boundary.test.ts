@@ -36,7 +36,7 @@ function reachable(entry: string): string[] {
 describe("real backend mode never loads demo code or data (#53)", () => {
   it("the real app reaches no module under src/demo", () => {
     const loaded = reachable("./CoreApp.tsx");
-    expect(loaded).toContain("./api/courses.ts");
+    expect(loaded).toContain("./api/core.ts");
     expect(loaded.filter((path) => path.startsWith("./demo/"))).toEqual([]);
   });
 

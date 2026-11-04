@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { GRADIENTS } from "./gradients";
 import {
   ACCENTS,
   applyAppearance,
@@ -36,6 +37,20 @@ export function AppearancePicker({ store = localAppearanceStore }: Props) {
               />
               <span className="swatch-dot" aria-hidden="true" />
               {a.label}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Gradient colors</legend>
+        <div className="swatches">
+          {GRADIENTS.map((g) => (
+            <label key={g.id} className="swatch">
+              <input type="radio" name="accent" value={g.id} checked={value.accent === g.id}
+                onChange={() => choose({ ...value, accent: g.id })} />
+              <span className="swatch-dot" aria-hidden="true"
+                style={{ background: `linear-gradient(90deg, ${g.colors.join(", ")})` }} />
+              {g.label}
             </label>
           ))}
         </div>

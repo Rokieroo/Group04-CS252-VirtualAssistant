@@ -1,3 +1,4 @@
+// Old — retained for legacy demo/reference; not used by the redesigned course journey.
 import type { Dispatch, SetStateAction } from "react";
 import { Button } from "../../components/Button";
 import { courseFor } from "../selectors";

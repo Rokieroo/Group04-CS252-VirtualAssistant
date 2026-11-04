@@ -1,3 +1,4 @@
+// Old — retained for legacy demo/reference; not used by the redesigned course journey.
 import { Button } from "../../components/Button";
 import { Meter } from "../../components/ProgressMeter";
 import { courseFor } from "../selectors";

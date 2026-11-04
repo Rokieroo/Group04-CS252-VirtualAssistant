@@ -1,3 +1,4 @@
+// Old — retained for legacy demo/reference; not used by the redesigned course journey.
 import { useEffect, useRef, useState } from "react";
 import { currentCourse } from "../api/courses";
 import { checkSetup } from "../api/service";

@@ -48,7 +48,7 @@ export function Shell({
     onSettings();
   };
   return (
-    <div className="app">
+    <div className={`app ${home === "Library" ? "study-companion" : ""}`}>
       <a className="skip" href="#main">
         Skip to content
       </a>
@@ -93,10 +93,12 @@ export function Shell({
             </button>
           </div>
         </header>
-        <div className="page-heading" key={page}>
-          <h1>{title}</h1>
-          <p>{subtitle}</p>
-        </div>
+        {title && (
+          <div className="page-heading" key={page}>
+            <h1>{title}</h1>
+            <p>{subtitle}</p>
+          </div>
+        )}
         {children}
       </main>
       <nav className="bottom-nav" aria-label="Main navigation (mobile)">

@@ -1,3 +1,4 @@
+// Old — retained for legacy demo/reference; not used by the redesigned course journey.
 import { describe, expect, it } from "vitest";
 import { createDemoCheckService } from "./checkService";
 

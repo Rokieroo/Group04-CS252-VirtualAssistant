@@ -6,7 +6,7 @@ React + TypeScript frontend for the CS252 study assistant. The Python CLI stays 
 
 Pathly is a responsive browser application built with React, TypeScript, and Vite. Development is supported on Windows, macOS, and Linux. The finished static build runs in current versions of Chrome, Edge, Firefox, and Safari, including mobile browsers. It is not currently a native Windows, Android, or iOS application.
 
-The UI defaults to a local demo: login and PDF/concept processing are mocked, with no real account, cloud synchronization or AI generation. Study progress stays in browser localStorage. Login and uploaded-file/concept state stay in memory; reloading signs you out and clears that temporary state. The repository's Python LLM/database modules are not connected to these screens yet.
+The UI defaults to the redesigned Courses → syllabus review → roadmap approval preview. It uses sample syllabus data and does not parse uploaded PDF/DOCX files. The previous Pathly demo is preserved under `VITE_BACKEND_MODE=legacy-demo`; use `VITE_BACKEND_MODE=api` for the connected backend.
 
 ## Requirements
 
@@ -33,9 +33,16 @@ Open the GitHub repository, choose **Code → Download ZIP**, extract it, and op
 
 ## Install and run
 
-From the repo root you can also use the project CLI: `python dev.py ui install`, then `python dev.py ui dev` (and `ui build`, `ui test`).
+From the repo root, use the project CLI:
 
-The app opens on a mock login/register screen (`src/api/mock.ts`): any valid email, a password of at least 8 characters, and (to register) a birth year from 1900 to this year will sign in. The token lives in memory only, so reloading the page signs you out.
+```bash
+python dev.py ui install
+python dev.py ui dev
+```
+
+Open `http://127.0.0.1:5173`. This now opens the redesigned Courses screen. To run the project's checks, use `python dev.py ui test` and `python dev.py ui build` from the repo root.
+
+The default preview opens directly on Courses with sample data. In API mode, sign in to use the connected service.
 
 For example, use `student@example.test` and `demo-password`. Use sample credentials, not a real password.
 
@@ -69,9 +76,28 @@ npm run preview
 
 Every push to `main` that touches `ui/` runs `.github/workflows/pages.yml`, which publishes the offline demo (no backend, no AI calls) to `https://<owner>.github.io/<repo>/`. `npm run build:pages` builds the same thing with relative asset paths, so `dist/` works from any sub-folder of any static host; the app's `#hash` routes need no server rewrites. Build it without `VITE_BACKEND_MODE=api` (remove it from `.env.local`, or run `VITE_BACKEND_MODE=demo npm run build:pages`) so the page never calls a server.
 
-### Real concept extraction
+### Real syllabus upload and review (#56)
 
-Put `VITE_BACKEND_MODE=api` in `ui/.env.local`, start the backend (`python -m uvicorn assistant.backend.main:app --app-dir src --port 8000` from the repo root), then `npm run dev`. Sign-in, PDF upload and concept extraction then use the backend at `VITE_API_URL`; extraction can take a minute or two per file. `e2e/concepts.spec.ts` covers this mode against a mocked backend.
+For real PDF/DOCX parsing and saving, run two terminals from the repository root.
+Install backend dependencies first using your project virtual environment:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn assistant.backend.main:app --app-dir src --port 8000
+```
+
+In the second terminal:
+
+```powershell
+$env:VITE_BACKEND_MODE="api"
+.\.venv\Scripts\python.exe dev.py ui dev
+```
+
+Open the URL Vite prints, register/sign in, and open Courses. Upload a PDF/DOCX or paste text, review the four sections, correct blocking warnings, then confirm. The backend defaults to http://127.0.0.1:8000 (override with VITE_API_URL). Restart Vite after changing mode. Default preview uses sample data; it does not parse your file.
+
+The parser returns synchronously, so processing shows an indeterminate indicator rather than invented percentages. Source citations open extracted text for that page. Confirmation saves all reviewed sections; automatic restoration of the setup screen after reload is not implemented.
+
+See [issue #56 verification](../docs/ISSUE_56.md) for acceptance checks and the isolated real-backend smoke test. The concept-extraction browser test (`e2e/concepts.spec.ts`) still runs in the `backend-ui` project.
 
 ## Troubleshooting
 

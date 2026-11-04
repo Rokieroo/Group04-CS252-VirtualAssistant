@@ -19,13 +19,18 @@ class PdfFormat(DocumentFormat):
     magic = b"%PDF"
 
     def read(self, data: bytes) -> list[str]:
-        """Return one whitespace-normalized string per page; empty pages stay empty."""
+        """Normalize whitespace within lines, preserving syllabus section boundaries."""
         try:
             reader = PdfReader(BytesIO(data))
             if reader.is_encrypted:
                 raise InvalidPdf("encrypted")
             pages = [
-                " ".join((page.extract_text() or "").split()) for page in reader.pages
+                "\n".join(
+                    " ".join(line.split())
+                    for line in (page.extract_text() or "").splitlines()
+                    if line.strip()
+                )
+                for page in reader.pages
             ]
         except InvalidPdf:
             raise

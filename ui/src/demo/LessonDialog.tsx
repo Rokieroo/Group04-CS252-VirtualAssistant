@@ -1,3 +1,4 @@
+// Old — retained for legacy demo/reference; not used by the redesigned course journey.
 import { useState } from "react";
 import { checkSetup } from "../api/service";
 import type { CheckResult } from "../api/types";
