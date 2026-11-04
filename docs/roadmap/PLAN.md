@@ -1,9 +1,9 @@
 # 🚀 Kế hoạch Phát triển 6 Tuần (6-Week Roadmap)
 
-Tài liệu này là kế hoạch triển khai chính thức của Group 04: trong 6 tuần, team xây **ứng dụng học tốt nhất có thể** trên web, xoay quanh một luồng duy nhất: **tải syllabus lên → knowledge graph của cả môn → roadmap có lịch → nguồn học đã xác minh cho từng concept**. Việc chia theo 5 mảng: **UI/UX · AI implementation · Database & Security · QA/QC · DevOps**. Mô tả chi tiết sản phẩm nằm ở [APP_SPECIFICATION.md](APP_SPECIFICATION.md); tiêu chuẩn chất lượng ở mục 1.5 của spec.
+Tài liệu này là kế hoạch triển khai chính thức của Group 04: trong 6 tuần, team xây **ứng dụng học tốt nhất có thể cho người học** trên web, xoay quanh một luồng duy nhất: **tải syllabus lên → knowledge graph của cả môn → roadmap có lịch → nguồn học đã xác minh cho từng concept**. Việc chia theo 5 mảng: **UI/UX · AI implementation · Database & Security · QA/QC · DevOps**. Mô tả chi tiết sản phẩm nằm ở [APP_SPECIFICATION.md](APP_SPECIFICATION.md); tiêu chuẩn chất lượng ở mục 1.5 của spec.
 
 > [!IMPORTANT]
-> **Knowledge graph là trung tâm.** Từ syllabus, app dựng một graph cho thấy mọi concept môn học cần và concept nào phải học trước concept nào; roadmap, lịch và nguồn học đều đọc từ graph đó (spec mục 1.1, 10.1). Kế hoạch **không** bao gồm thương mại hóa (gói trả phí, thanh toán, landing page, gọi vốn) và **không** làm nền tảng mobile (app native, PWA). Toàn bộ thời gian dành cho độ đúng, độ tin cậy của nguồn, an toàn, trải nghiệm và hiệu năng. Mục có nhãn **(stretch)** là thứ bỏ đầu tiên khi tuần bị trễ.
+> **Knowledge graph là trung tâm.** Từ syllabus, app dựng một graph cho thấy mọi concept môn học cần và concept nào phải học trước concept nào; roadmap, lịch và nguồn học đều đọc từ graph đó (spec mục 1.1, 10.1). Kế hoạch **chỉ phục vụ người học** (sinh viên, học sinh lớp 10–12, người tự học): không có tài khoản giáo viên hay phụ huynh. Kế hoạch **không** bao gồm thương mại hóa (gói trả phí, thanh toán, landing page, gọi vốn) và **không** làm nền tảng mobile (app native, PWA). Toàn bộ thời gian dành cho độ đúng, độ tin cậy của nguồn, an toàn, trải nghiệm và hiệu năng. Mục có nhãn **(stretch)** là thứ bỏ đầu tiên khi tuần bị trễ.
 
 ---
 
@@ -15,7 +15,7 @@ Tài liệu này là kế hoạch triển khai chính thức của Group 04: tro
 | 2 ✅ | Core loop đầu tiên: syllabus → roadmap → nguồn | Đáng tin: verify or drop, evidence quote | Upload syllabus, roadmap theo tuần có mốc kiểm tra, mỗi chặng có nguồn đã chấm điểm | `v0.2` |
 | 3 | **Knowledge graph của cả môn từ syllabus** | Đúng: graph đủ concept, đúng prerequisite, luôn là DAG | Upload syllabus CSC10014 → graph kiểu Obsidian của cả môn (≥ 30 concept), bấm node thấy CLO, trang syllabus, mốc kiểm tra | `v0.3` |
 | 4 | Nguồn đã xác minh trên graph + học tại node | Đáng tin + hiệu quả học | Bấm node thấy nguồn catalog đã xác minh; luyện tập, ôn FSRS và hỏi đáp mở từ node | `v0.4` |
-| 5 | K-12, giáo viên, người tự học | An toàn, phân quyền | Giáo viên xuất bản graph và nguồn cho lớp; tài khoản K-12 an toàn; placement test tô "đã biết" trên graph | `v0.5` |
+| 5 | Trải nghiệm học sinh tốt nhất + an toàn K-12 | Dễ dùng, an toàn cho học sinh | Người mới tự đi hết core loop; thư viện cá nhân và tổng kết tuần; tài khoản K-12 không mở được girlfriend mode; placement test tô "đã biết" trên graph | `v0.5` |
 | 6 | Hoàn thiện chất lượng, bảo mật, phát hành | Nhanh, bền, dễ dùng | Full benchmark ≥ 90%, load test pass, usability test với 50 sinh viên | `v1.0` |
 
 **Định nghĩa Done chung (mọi tuần):** tính năng có test, chạy trên staging, qua safeguard test liên quan, có trạng thái empty/loading/error, dùng được bằng bàn phím và trên màn hình nhỏ (trình duyệt), và không làm giảm điểm benchmark của tuần trước.
@@ -83,24 +83,24 @@ Tài liệu này là kế hoạch triển khai chính thức của Group 04: tro
 
 | Mảng | Việc cần làm | Done when |
 |---|---|---|
-| UI/UX | Panel node + nguồn đã xác minh (#109) · tìm, lọc, local graph, chế độ danh sách (#110) · màn admin duyệt nguồn + nhãn "Đã xác minh" (#104) · lối vào luyện tập / ôn tập / hỏi đáp từ node · review session | Một sinh viên đi từ graph → node → nguồn → 5 câu luyện tập không cần hướng dẫn |
+| UI/UX | Panel node + nguồn đã xác minh (#109) · tìm, lọc, local graph, chế độ danh sách (#110) · nhãn "Đã xác minh" cho người học + màn duyệt nguồn nội bộ cho team (#104) · lối vào luyện tập / ôn tập / hỏi đáp từ node · review session | Một sinh viên đi từ graph → node → nguồn → 5 câu luyện tập không cần hướng dẫn |
 | AI | Taxonomy môn học và gắn nhãn (#99) · pipeline xác minh + hàng chờ duyệt (#101) · gắn nguồn catalog vào node và resource finder (#102) · sinh câu hỏi có trích dẫn cho node (UC-10) · chấm short answer theo rubric · hỏi đáp có trích dẫn (UC-12) · hint ladder (UC-13) | Mỗi concept trong 5 graph tham chiếu có ≥ 3 nguồn catalog đã xác minh (hoặc báo `insufficient`); chấm điểm khớp người chấm ≥ 85% |
 | Database & Security | ADR 004: phạm vi, nguồn được phép, giấy phép (#93) · migration `0008_verified_catalog` (#95) · danh sách ~500 trường (ROR + OpenAlex) và tier uy tín (#96) · khung connector + MIT OCW, OpenStax, Open Yale (#98), tôn trọng `robots.txt` · scheduler `fsrs` + review log (UC-11) · mastery của node tính từ review log | Nguồn chưa xác minh không bao giờ hiện cho người học (có test); 100% dòng catalog có giấy phép |
 | QA/QC | Benchmark chất lượng catalog (#106) · benchmark câu hỏi lên 60 case · red-team: 30 lộ đáp án, 15 trang web chèn lệnh · báo cáo QA tuần 4 | Link chết trong catalog đang hiện < 2%; mọi safeguard test pass trong CI |
 | DevOps | Job làm mới catalog định kỳ, snapshot, seed dev (#105) · tag `v0.4` | Job làm mới chạy hằng đêm trên staging |
 
-## 📍 Tuần 5: K-12, giáo viên, người tự học
+## 📍 Tuần 5: Trải nghiệm học sinh tốt nhất + an toàn K-12
 
-* **Mục tiêu**: Cùng luồng syllabus → graph → roadmap dùng được an toàn cho học sinh lớp 10–12, hữu ích cho giáo viên, và cho người tự học không có syllabus.
+* **Mục tiêu**: Mọi người học (sinh viên, học sinh lớp 10–12, người tự học) đi từ syllabus → graph → roadmap → nguồn một cách trơn tru, dễ chịu và an toàn. Sản phẩm **chỉ phục vụ người học**: không có tài khoản giáo viên hay phụ huynh, không giao bài, không quản lý lớp.
 * **Sự kế thừa từ Tuần 4**: Graph, catalog, câu hỏi và scheduler; companion khóa ở buddy/mentor cho K-12.
 
 | Mảng | Việc cần làm | Done when |
 |---|---|---|
-| UI/UX | UI K-12 (câu đơn giản, tiếng Việt trước) · dashboard giáo viên: graph của lớp tô theo concept lớp đang yếu, ghim/loại nguồn, xuất bản (UC-15) · email tuần cho phụ huynh (UC-16) · companion panel 3 mode (UC-14) · placement test tô concept "đã biết" trên graph (UC-17) | Giáo viên xuất bản graph và nguồn cho lớp trong < 5 phút |
-| AI | Graph K-12 từ khung chương trình của Bộ (toán lớp 10–12) · "syllabus nháp" cho người tự học từ mục lục khóa học · prompt companion buddy, mentor, girlfriend · gộp concept liên môn (#111) **(stretch)** | 30 câu K-12 được giáo viên duyệt, ≥ 90% đúng; placement cắt ≥ 30% lộ trình với người thử có kinh nghiệm |
-| Database & Security | Role student, teacher, parent, admin · đồng ý của phụ huynh · tối thiểu hóa dữ liệu trẻ vị thành niên · age gate 18+ và feature flag cho girlfriend mode · luồng xử lý khi có dấu hiệu tự hại · xuất và xóa dữ liệu tài khoản | 0 tài khoản K-12 vào được girlfriend mode trong 50 test |
-| QA/QC | Ma trận test phân quyền · bộ test an toàn trẻ em · 20 hội thoại companion · regression · báo cáo QA tuần 5 | Ma trận phân quyền pass 100% |
-| DevOps | Staging có dữ liệu lớp học giả lập · audit log hành động của giáo viên/admin · dịch vụ feature flag · tag `v0.5` · CLI companion cho học viên **(stretch)** | Lớp demo (giáo viên, học sinh, phụ huynh) hoạt động end-to-end |
+| UI/UX | Onboarding lần đầu: từ đăng ký đến graph đầu tiên trong ≤ 10 phút · thư viện cá nhân: ghim, ẩn, ghi chú nguồn (UC-15) · tổng kết tuần S12 và chỉnh mục tiêu tuần sau (UC-16) · nhắc nhở nhẹ nhàng, tắt được · UI K-12 (câu đơn giản, tiếng Việt trước) · companion panel 3 mode (UC-14) · placement test tô concept "đã biết" trên graph (UC-17) · usability test với 10 sinh viên, sửa 5 vấn đề lớn nhất | ≥ 4/5 người dùng mới tự đi hết syllabus → graph → nguồn không cần trợ giúp |
+| AI | Graph K-12 từ khung chương trình của Bộ (toán lớp 10–12) · "syllabus nháp" cho người tự học từ mục lục khóa học · placement test · prompt companion buddy, mentor, girlfriend · tổng kết tuần chỉ dùng số liệu thật từ review log · gộp concept liên môn (#111) **(stretch)** | 30 câu K-12 ≥ 90% đúng theo người chấm; placement cắt ≥ 30% lộ trình với người thử có kinh nghiệm |
+| Database & Security | **An toàn cho học sinh vị thành niên**: age gate 18+ và feature flag cho girlfriend mode, `account_level = k12` không bao giờ bật được · xác nhận đồng ý của phụ huynh một lần khi đăng ký (không có tài khoản phụ huynh) · tối thiểu hóa dữ liệu trẻ vị thành niên · lọc nguồn theo độ tuổi (SafeSearch) · luồng xử lý khi có dấu hiệu tự hại · xuất và xóa dữ liệu tài khoản | 0 tài khoản K-12 vào được girlfriend mode trong 50 test |
+| QA/QC | Bộ test an toàn trẻ em · 20 hội thoại companion · ma trận phân quyền (student/admin) · tổng hợp usability test · regression · báo cáo QA tuần 5 | Mọi test an toàn K-12 pass 100% |
+| DevOps | Staging có dữ liệu người học giả lập (sinh viên, K-12, người tự học) · dịch vụ feature flag · tag `v0.5` · CLI companion cho học viên **(stretch)** | 3 tài khoản demo đi hết core loop trên staging |
 
 ## 📍 Tuần 6: Hoàn thiện chất lượng, bảo mật, phát hành
 
@@ -136,11 +136,11 @@ Tài liệu này là kế hoạch triển khai chính thức của Group 04: tro
 | 1 | Graph thiếu concept hoặc sai prerequisite | Mọi concept có trang syllabus, người dùng sửa và xác nhận graph, 5 graph tham chiếu đo mỗi tuần |
 | 2 | LLM sinh câu hỏi sai hoặc không trích dẫn | Bước duyệt của người dùng, bắt buộc citation, mục tiêu 90% trên benchmark |
 | 3 | Syllabus trích xuất kém (bảng, ảnh, định dạng lạ) | Bước duyệt S4 bắt buộc, benchmark 20 syllabus, cho phép dán text thay thế |
-| 4 | Phạm vi phình to | Non-goals trong spec (gồm thương mại hóa và mobile); PM từ chối issue ngoài kế hoạch |
-| 5 | Girlfriend mode lộ cho người dưới 18 tuổi | Age gate + feature flag + 50 test K-12; mode tắt mặc định |
+| 4 | Phạm vi phình to | Non-goals trong spec (gồm thương mại hóa, mobile, giáo viên và phụ huynh); PM từ chối issue ngoài kế hoạch |
+| 5 | Girlfriend mode lộ cho người dưới 18 tuổi | Age gate + feature flag + 50 test K-12; mode tắt mặc định; giữ nguyên dù không có tài khoản phụ huynh |
 | 6 | Quá tải người làm | Cắt (stretch) trước; không cắt safeguard và benchmark |
 | 7 | Catalog thu thập nguồn sai giấy phép hoặc vi phạm `robots.txt` | ADR 004 (#93) chốt danh sách nguồn được phép; chỉ lưu metadata + link; nguồn không cho thu thập chỉ thêm tay |
 | 8 | Graph lớn bị chậm hoặc khó đọc | Local graph mặc định, transitive reduction, chế độ danh sách; test hiệu năng (#112) |
 
 ---
-**Tóm lược:** Tuần 1–2 **xây lõi** (syllabus → roadmap → nguồn) $\rightarrow$ Tuần 3 **knowledge graph của cả môn** từ syllabus $\rightarrow$ Tuần 4 **đáng tin** (nguồn đã xác minh trên mỗi node, học tại node) $\rightarrow$ Tuần 5 **an toàn và mở rộng người dùng** (K-12, giáo viên, người tự học) $\rightarrow$ Tuần 6 **hoàn thiện** (benchmark, bảo mật, hiệu năng, usability test).
+**Tóm lược:** Tuần 1–2 **xây lõi** (syllabus → roadmap → nguồn) $\rightarrow$ Tuần 3 **knowledge graph của cả môn** từ syllabus $\rightarrow$ Tuần 4 **đáng tin** (nguồn đã xác minh trên mỗi node, học tại node) $\rightarrow$ Tuần 5 **trải nghiệm học sinh tốt nhất** (onboarding, thư viện cá nhân, tổng kết tuần, an toàn K-12) $\rightarrow$ Tuần 6 **hoàn thiện** (benchmark, bảo mật, hiệu năng, usability test).
