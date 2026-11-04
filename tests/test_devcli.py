@@ -1,7 +1,7 @@
 import json
 
 from devcli.__main__ import build_parser
-from devcli.ai import BENCHMARK, load_cases
+from devcli.ai import BENCHMARK, RESOURCES, load_cases, load_resources
 from devcli.conventions import check_branch, check_commit
 from devcli.db import init_db, scan_text
 from devcli.qa import REPORT_TEMPLATE
@@ -50,6 +50,24 @@ def test_benchmark_catches_errors(tmp_path):
     assert len(errors) == 4
 
 
+def test_resources_file_is_valid():
+    nodes, errors = load_resources(RESOURCES)
+    assert errors == []
+    assert len(nodes) >= 30
+
+
+def test_resources_catches_errors(tmp_path):
+    bad = tmp_path / "resources.jsonl"
+    good = {"url": "https://a.example", "label": "good", "reason": "r"}
+    rows = [
+        {"id": "R01", "node": {"title": "t"}, "resources": [good, {**good, "label": "ok"}]},
+        {"id": "R01", "node": {}, "resources": []},
+    ]
+    bad.write_text("\n".join(json.dumps(r) for r in rows) + "\n{not json", encoding="utf-8")
+    _, errors = load_resources(bad)
+    assert len(errors) == 5
+
+
 def test_init_db_creates_tables(tmp_path):
     tables = init_db(tmp_path / "t.db")
     for name in ("users", "sources", "items", "reviews", "companion_events"):
@@ -60,6 +78,7 @@ def test_scan_text_finds_fake_key():
     fake = "sk-" + "a" * 32
     assert scan_text(f"OPENAI_API_KEY={fake}") == ["OpenAI key"]
     assert scan_text("no secrets here") == []
+    assert scan_text("https://www.nist.gov/itl/ai-risk-management-framework") == []
 
 
 def test_report_template_formats():
