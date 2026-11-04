@@ -189,6 +189,59 @@ def _concepts(args: argparse.Namespace) -> int:
     return 0
 
 
+def _syllabus(args: argparse.Namespace) -> int:
+    from dataclasses import asdict
+
+    from dotenv import load_dotenv
+
+    from app.ingest import (
+        InvalidDocument,
+        UnsupportedType,
+        detect_media_type,
+        extract_pages,
+    )
+    from app.llm import RetryableError, get_client
+    from app.syllabus import NotASyllabus, extract_syllabus
+
+    load_dotenv(ROOT / ".env")  # LLM_PROVIDER / LLM_API_KEY; real env vars win
+    path = Path(args.file)
+    try:
+        data = path.read_bytes()
+        pages = extract_pages(data, detect_media_type(path.name, data))
+    except (OSError, InvalidDocument, UnsupportedType) as exc:
+        print(f"Không đọc được {path}: {exc}")
+        return 1
+    try:
+        draft = extract_syllabus(get_client(), pages)
+    except NotASyllabus as exc:
+        print(f"{path.name}: not_a_syllabus ({exc})")
+        return 1
+    except (ValueError, RetryableError) as exc:
+        print(f"{path.name}: LLM không trả được kết quả dùng được ({exc})")
+        return 1
+    if args.json:
+        result = {"parsed": draft.parsed, "warnings": [asdict(w) for w in draft.warnings]}
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    parsed = draft.parsed
+    course = parsed["course"]
+    print(f"# {course['code']} {course['title']} ({course['credits']} tín chỉ, "
+          f"{course['term_start']} – {course['term_end']})")
+    for outcome in parsed["outcomes"]:
+        print(f"- {outcome['code']} [{outcome['bloom_level']}, trang {outcome['source_page']}] "
+              f"{outcome['text']}")
+    for week in parsed["weeks"]:
+        print(f"- Tuần {week['week']} [trang {week['source_page']}]: {'; '.join(week['topics'])}")
+    for item in parsed["assessments"]:
+        due = item["due_date"] or (item["due_week"] and f"tuần {item['due_week']}") or "?"
+        print(f"- {item['title']} ({item['kind']}): {item['weight']}%, hạn {due} "
+              f"[trang {item['source_page']}]")
+    for warning in draft.warnings:
+        print(f"[{'CHẶN' if warning.blocking else 'WARN'}] {warning.code}: {warning.message}")
+    print(f"{path.name}: {len(pages)} trang, {len(draft.warnings)} cảnh báo")
+    return 0
+
+
 def _items(args: argparse.Namespace) -> int:
     from dotenv import load_dotenv
 
@@ -240,6 +293,11 @@ def register(sub: argparse._SubParsersAction) -> None:
     concepts.add_argument("file")
     concepts.add_argument("--json", action="store_true", help="in kết quả dạng JSON")
     concepts.set_defaults(func=_concepts)
+
+    syllabus = ai_sub.add_parser("syllabus", help="phân tích syllabus PDF/DOCX/TXT (dùng LLM_PROVIDER)")
+    syllabus.add_argument("file")
+    syllabus.add_argument("--json", action="store_true", help="in kết quả dạng JSON")
+    syllabus.set_defaults(func=_syllabus)
 
     items = ai_sub.add_parser("items", help="sinh câu hỏi có trích dẫn trang cho concept của một PDF")
     items.add_argument("file")
