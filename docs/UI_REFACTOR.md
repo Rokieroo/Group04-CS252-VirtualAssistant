@@ -1,6 +1,6 @@
 # S3–S5 redesign and refactor
 
-The default entry is now CoreApp. Previously a normal `pnpm dev` opened the Old demo unless `VITE_BACKEND_MODE=core-mock` was set. This D: checkout now has the redesign on `codex/core-ui`, based on the latest `main`. The previous gradient-picker state remains on `old/gradient-picker`.
+The default entry is now CoreApp. Previously a normal `pnpm dev` opened the old demo; it is still available with `VITE_BACKEND_MODE=legacy-demo`.
 
 Run `ui/start-preview.ps1` to serve this checkout at http://127.0.0.1:5173. Stop an existing Vite process first if that port is occupied. The strict port option prevents silently opening a different port.
 
@@ -8,6 +8,8 @@ Run `ui/start-preview.ps1` to serve this checkout at http://127.0.0.1:5173. Stop
 
 - `ui/src/App.tsx`: new interface by default, backend authentication in `VITE_BACKEND_MODE=api`, preserved Old app only in `VITE_BACKEND_MODE=legacy-demo`.
 - `ui/src/pages/CoreJourney.tsx`: setup state and service orchestration. Upload, review and roadmap approval remain in Courses. Completion offers return or view roadmap.
+- `ui/src/CoreApp.tsx`: in API mode, Courses also mounts the slide concept editor (`CoursesPage`) and Schedule/Workspace render the real `Workspace`; the sample preview has no backend for them.
+- `ui/src/api/core.ts` holds the shared types and the live service; `ui/src/api/mockCore.ts` holds the labelled sample-data service; `ui/src/api/syllabus.ts` owns input checks, validation and the syllabus API adapter.
 - `ui/src/pages/course-setup/SyllabusUpload.tsx`: file selection, drop area, optional pasted text, explicit Continue action.
 - `ui/src/pages/course-setup/SyllabusReview.tsx`: four editable sections, source evidence, validation and confirmation.
 - `ui/src/pages/course-setup/RoadmapTimeline.tsx`: weekly cards, selected-week details, plan settings, learning goals and milestones.
@@ -17,7 +19,7 @@ Run `ui/start-preview.ps1` to serve this checkout at http://127.0.0.1:5173. Stop
 
 ## Old files retained
 
-Every source/test file in `ui/src/demo` and the replaced CoursesPage, RoadmapPage and SourcesPage has an `Old` comment. The pre-refactor CoreJourney is retained as `course-setup/CoreJourney.old.tsx.txt` with an `Old` comment; the text extension keeps archived relative imports out of compilation. Shared modules still used by the active interface are not labelled obsolete.
+Files in `ui/src/demo` (and `RoadmapPage`, which only the demo uses) carry an `Old` comment: they serve the legacy demo, not the redesigned journey. Git history keeps the pre-refactor CoreJourney.
 
 The original gradient-picker work is preserved in the pushed `old/gradient-picker` branch. The five selected gradient definitions for this redesign are in `ui/src/features/appearance/gradients.ts`.
 
@@ -25,4 +27,4 @@ The original gradient-picker work is preserved in the pushed `old/gradient-picke
 
 Issue #56 now connects PDF/DOCX/text upload, four-section editing, source citations, validation and confirmation to the backend. All reviewed fields are persisted in the existing syllabus raw_text JSON snapshot, with outcomes and assessments also stored in their normalized fields. See [issue #56 verification](ISSUE_56.md) and [run instructions](../ui/README.md#real-syllabus-upload-and-review-56).
 
-Default mode remains a labelled sample preview. Setup state does not automatically restore after reload. Roadmap prerequisite edits remain session-only and the live backend regenerates its roadmap on approval; these #57 limitations are not resolved by #56. S8 remains an empty future library destination.
+Default mode remains a labelled sample preview. Setup state does not automatically restore after reload. Roadmap prerequisite edits remain session-only and the live backend regenerates its roadmap on approval; these #57 limitations are not resolved by #56. S8 remains the existing empty Library page.

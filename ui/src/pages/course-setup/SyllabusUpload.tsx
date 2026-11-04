@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { currentCourse } from "../../api/courses";
 
 type Props = {
   busy: boolean;
@@ -22,7 +23,7 @@ export function SyllabusUpload({ busy, mock, onUpload }: Props) {
           <h2 id="s3-title">Course details</h2>
           <label>
             Course name
-            <input value="Introduction to Virtual Assistants" readOnly />
+            <input value={currentCourse.name} readOnly />
           </label>
           <div>
             <span className="core-field-label">Syllabus file</span>

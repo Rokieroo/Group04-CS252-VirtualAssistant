@@ -1,7 +1,11 @@
-import { warningKey } from "../../api/syllabus";
+import { manuallyReviewable, warningKey } from "../../api/syllabus";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { SyllabusDraft, Warning } from "../../api/core";
-type ReviewTab = "outcomes" | "weeks" | "assessments" | "textbooks";
+type Sections = Pick<
+  SyllabusDraft,
+  "outcomes" | "weeks" | "assessments" | "textbooks"
+>;
+type ReviewTab = keyof Sections;
 const tabs: { id: ReviewTab; label: string }[] = [
   { id: "outcomes", label: "Chuẩn đầu ra" },
   { id: "weeks", label: "Tuần & chủ đề" },
@@ -38,6 +42,23 @@ export function SyllabusReview({
     if (draft.status === "confirmed" && !busy) nextStep.current?.focus();
   }, [draft.status, busy]);
   const [reviewTab, setReviewTab] = useState<ReviewTab>("outcomes");
+  // Rows have no ids, so a row is addressed by its index in its section.
+  const editRow = <K extends ReviewTab>(
+    key: K,
+    index: number,
+    change: Partial<Sections[K][number]>,
+  ) =>
+    update({
+      [key]: (draft[key] as Sections[K][number][]).map((row, j) =>
+        j === index ? { ...row, ...change } : row,
+      ),
+    });
+  const removeRow = (key: ReviewTab, index: number) =>
+    update({
+      [key]: (draft[key] as Sections[ReviewTab][number][]).filter(
+        (_, j) => j !== index,
+      ),
+    });
   return (
     <section className="card core-panel" aria-labelledby="s4-title">
       <fieldset aria-busy={busy} disabled={busy} className="core-review-form">
@@ -54,7 +75,7 @@ export function SyllabusReview({
                   {w.path && <strong>{w.path}: </strong>}
                   {w.message}
                 </p>
-                {["missing_source", "ungrounded_field"].includes(w.code) && (
+                {manuallyReviewable.has(w.code) && (
                   <label>
                     <input
                       type="checkbox"
@@ -169,11 +190,7 @@ export function SyllabusReview({
                       <input
                         value={o.code}
                         onChange={(e) =>
-                          update({
-                            outcomes: draft.outcomes.map((x, j) =>
-                              i === j ? { ...x, code: e.target.value } : x,
-                            ),
-                          })
+                          editRow("outcomes", i, { code: e.target.value })
                         }
                       />
                     </label>
@@ -182,12 +199,8 @@ export function SyllabusReview({
                       <input
                         value={o.description}
                         onChange={(e) =>
-                          update({
-                            outcomes: draft.outcomes.map((x, j) =>
-                              i === j
-                                ? { ...x, description: e.target.value }
-                                : x,
-                            ),
+                          editRow("outcomes", i, {
+                            description: e.target.value,
                           })
                         }
                       />
@@ -197,12 +210,8 @@ export function SyllabusReview({
                       <select
                         value={o.bloom_level ?? "understand"}
                         onChange={(e) =>
-                          update({
-                            outcomes: draft.outcomes.map((x, j) =>
-                              j === i
-                                ? { ...x, bloom_level: e.target.value }
-                                : x,
-                            ),
+                          editRow("outcomes", i, {
+                            bloom_level: e.target.value,
                           })
                         }
                       >
@@ -219,13 +228,7 @@ export function SyllabusReview({
                       </select>
                     </label>
                     {sourceChip(o.source_page)}
-                    <button
-                      onClick={() =>
-                        update({
-                          outcomes: draft.outcomes.filter((_, j) => j !== i),
-                        })
-                      }
-                    >
+                    <button onClick={() => removeRow("outcomes", i)}>
                       Xóa
                     </button>
                   </div>
@@ -259,13 +262,7 @@ export function SyllabusReview({
                         min="1"
                         value={w.week}
                         onChange={(e) =>
-                          update({
-                            weeks: draft.weeks.map((x, j) =>
-                              j === i
-                                ? { ...x, week: Number(e.target.value) }
-                                : x,
-                            ),
-                          })
+                          editRow("weeks", i, { week: Number(e.target.value) })
                         }
                       />
                     </label>
@@ -274,17 +271,10 @@ export function SyllabusReview({
                       <input
                         value={w.topics.join(", ")}
                         onChange={(e) =>
-                          update({
-                            weeks: draft.weeks.map((x, j) =>
-                              j === i
-                                ? {
-                                    ...x,
-                                    topics: e.target.value
-                                      .split(",")
-                                      .map((s) => s.trim()),
-                                  }
-                                : x,
-                            ),
+                          editRow("weeks", i, {
+                            topics: e.target.value
+                              .split(",")
+                              .map((s) => s.trim()),
                           })
                         }
                       />
@@ -294,12 +284,8 @@ export function SyllabusReview({
                       <textarea
                         value={(w.readings ?? []).join("\n")}
                         onChange={(e) =>
-                          update({
-                            weeks: draft.weeks.map((x, j) =>
-                              j === i
-                                ? { ...x, readings: e.target.value.split("\n") }
-                                : x,
-                            ),
+                          editRow("weeks", i, {
+                            readings: e.target.value.split("\n"),
                           })
                         }
                       />
@@ -309,25 +295,13 @@ export function SyllabusReview({
                         type="checkbox"
                         checked={w.estimated ?? false}
                         onChange={(e) =>
-                          update({
-                            weeks: draft.weeks.map((x, j) =>
-                              j === i
-                                ? { ...x, estimated: e.target.checked }
-                                : x,
-                            ),
-                          })
+                          editRow("weeks", i, { estimated: e.target.checked })
                         }
                       />
                       Tuần ước lượng
                     </label>
                     {sourceChip(w.source_page)}
-                    <button
-                      onClick={() =>
-                        update({ weeks: draft.weeks.filter((_, j) => j !== i) })
-                      }
-                    >
-                      Xóa
-                    </button>
+                    <button onClick={() => removeRow("weeks", i)}>Xóa</button>
                   </div>
                 ))}
                 <button
@@ -354,11 +328,7 @@ export function SyllabusReview({
                       <input
                         value={a.name}
                         onChange={(e) =>
-                          update({
-                            assessments: draft.assessments.map((x, j) =>
-                              j === i ? { ...x, name: e.target.value } : x,
-                            ),
-                          })
+                          editRow("assessments", i, { name: e.target.value })
                         }
                       />
                     </label>
@@ -370,12 +340,8 @@ export function SyllabusReview({
                         max="100"
                         value={a.weight}
                         onChange={(e) =>
-                          update({
-                            assessments: draft.assessments.map((x, j) =>
-                              j === i
-                                ? { ...x, weight: Number(e.target.value) }
-                                : x,
-                            ),
+                          editRow("assessments", i, {
+                            weight: Number(e.target.value),
                           })
                         }
                       />
@@ -387,16 +353,9 @@ export function SyllabusReview({
                         min="1"
                         value={a.due_week ?? ""}
                         onChange={(e) =>
-                          update({
-                            assessments: draft.assessments.map((x, j) =>
-                              j === i
-                                ? {
-                                    ...x,
-                                    due_week: Number(e.target.value) || null,
-                                    due_date: "",
-                                  }
-                                : x,
-                            ),
+                          editRow("assessments", i, {
+                            due_week: Number(e.target.value) || null,
+                            due_date: "",
                           })
                         }
                       />
@@ -407,18 +366,9 @@ export function SyllabusReview({
                         type="date"
                         value={a.due_date ?? ""}
                         onChange={(e) =>
-                          update({
-                            assessments: draft.assessments.map((x, j) =>
-                              j === i
-                                ? {
-                                    ...x,
-                                    due_date: e.target.value,
-                                    due_week: e.target.value
-                                      ? null
-                                      : x.due_week,
-                                  }
-                                : x,
-                            ),
+                          editRow("assessments", i, {
+                            due_date: e.target.value,
+                            due_week: e.target.value ? null : a.due_week,
                           })
                         }
                       />
@@ -428,11 +378,7 @@ export function SyllabusReview({
                       <select
                         value={a.kind ?? "other"}
                         onChange={(e) =>
-                          update({
-                            assessments: draft.assessments.map((x, j) =>
-                              j === i ? { ...x, kind: e.target.value } : x,
-                            ),
-                          })
+                          editRow("assessments", i, { kind: e.target.value })
                         }
                       >
                         {[
@@ -448,15 +394,7 @@ export function SyllabusReview({
                       </select>
                     </label>
                     {sourceChip(a.source_page)}
-                    <button
-                      onClick={() =>
-                        update({
-                          assessments: draft.assessments.filter(
-                            (_, j) => j !== i,
-                          ),
-                        })
-                      }
-                    >
+                    <button onClick={() => removeRow("assessments", i)}>
                       Xóa
                     </button>
                   </div>
@@ -485,11 +423,7 @@ export function SyllabusReview({
                       <input
                         value={b.title}
                         onChange={(e) =>
-                          update({
-                            textbooks: draft.textbooks.map((x, j) =>
-                              j === i ? { ...x, title: e.target.value } : x,
-                            ),
-                          })
+                          editRow("textbooks", i, { title: e.target.value })
                         }
                       />
                     </label>
@@ -498,11 +432,7 @@ export function SyllabusReview({
                       <input
                         value={b.author}
                         onChange={(e) =>
-                          update({
-                            textbooks: draft.textbooks.map((x, j) =>
-                              j === i ? { ...x, author: e.target.value } : x,
-                            ),
-                          })
+                          editRow("textbooks", i, { author: e.target.value })
                         }
                       />
                     </label>
@@ -515,18 +445,11 @@ export function SyllabusReview({
                             : String(b.required)
                         }
                         onChange={(e) =>
-                          update({
-                            textbooks: draft.textbooks.map((x, j) =>
-                              j === i
-                                ? {
-                                    ...x,
-                                    required:
-                                      e.target.value === "unknown"
-                                        ? undefined
-                                        : e.target.value === "true",
-                                  }
-                                : x,
-                            ),
+                          editRow("textbooks", i, {
+                            required:
+                              e.target.value === "unknown"
+                                ? undefined
+                                : e.target.value === "true",
                           })
                         }
                       >
@@ -536,13 +459,7 @@ export function SyllabusReview({
                       </select>
                     </label>
                     {sourceChip(b.source_page)}
-                    <button
-                      onClick={() =>
-                        update({
-                          textbooks: draft.textbooks.filter((_, j) => j !== i),
-                        })
-                      }
-                    >
+                    <button onClick={() => removeRow("textbooks", i)}>
                       Xóa
                     </button>
                   </div>

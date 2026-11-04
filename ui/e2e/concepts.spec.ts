@@ -1,4 +1,3 @@
-// Old — Phase 1 concept-editor browser checks retained for reference. Replaced by syllabus.spec.ts for S3/S4.
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { navigate } from "./helpers";
 

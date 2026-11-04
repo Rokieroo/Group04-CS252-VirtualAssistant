@@ -10,7 +10,10 @@ import {
   type Preview,
 } from "./syllabus";
 import type { SyllabusDraft } from "./core";
-vi.mock("./courses", () => ({ courseId: vi.fn(async () => "owned-course") }));
+vi.mock("./courses", () => ({
+  courseId: vi.fn(async () => "owned-course"),
+  currentCourse: { name: "Course" },
+}));
 const draft: SyllabusDraft = {
   id: "",
   course_id: "owned-course",
@@ -48,6 +51,7 @@ const valid = () => ({
 const preview: Preview = {
   pages: 2,
   status: "draft",
+  source_pages: { 1: "page one", 2: "page two" },
   warnings: draft.warnings,
   parsed: {
     course: draft.course!,
@@ -68,25 +72,17 @@ const reply = (body: unknown, status = 200) => ({
 });
 afterEach(() => vi.unstubAllGlobals());
 describe("#56 real syllabus adapter", () => {
-  it("uploads a syllabus, reads only that file's evidence and parses it before saving", async () => {
+  it("uploads a syllabus and keeps the page evidence the parse returns", async () => {
     const fetch = vi
       .fn()
       .mockResolvedValueOnce(
         reply({ file_name: "CSC10014.pdf", status: "processed" }, 201),
-      )
-      .mockResolvedValueOnce(
-        reply([
-          { file_name: "other.pdf", page: 1, text: "wrong" },
-          { file_name: "CSC10014.pdf", page: 1, text: "page one" },
-          { file_name: "CSC10014.pdf", page: 2, text: "page two" },
-        ]),
       )
       .mockResolvedValueOnce(reply(preview));
     vi.stubGlobal("fetch", fetch);
     const actual = await uploadSyllabus(new File(["pdf"], "CSC10014.pdf"));
     expect(fetch.mock.calls.map((c) => c[0])).toEqual([
       expect.stringContaining("/courses/owned-course/sources"),
-      expect.stringContaining("/sources"),
       expect.stringContaining("/syllabus:parse"),
     ]);
     expect((fetch.mock.calls[0][1].body as FormData).get("kind")).toBe(
@@ -106,7 +102,7 @@ describe("#56 real syllabus adapter", () => {
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
       text: "CSC10014 syllabus",
     });
-    expect(actual.source_pages).toEqual({ 1: "CSC10014 syllabus" });
+    expect(actual.source_pages).toEqual(preview.source_pages);
   });
   it("saves the corrected complete draft, including fields without database columns", async () => {
     const fetch = vi.fn().mockResolvedValue(reply({ id: "saved" }));

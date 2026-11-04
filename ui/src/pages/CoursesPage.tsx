@@ -1,4 +1,3 @@
-// Old — retained for legacy demo/reference; not used by the redesigned course journey.
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import {
   ApiError,

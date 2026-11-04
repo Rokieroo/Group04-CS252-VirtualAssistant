@@ -97,7 +97,7 @@ Open the URL Vite prints, register/sign in, and open Courses. Upload a PDF/DOCX 
 
 The parser returns synchronously, so processing shows an indeterminate indicator rather than invented percentages. Source citations open extracted text for that page. Confirmation saves all reviewed sections; automatic restoration of the setup screen after reload is not implemented.
 
-See [issue #56 verification](../docs/ISSUE_56.md) for acceptance checks and the isolated real-backend smoke test. The previous concept-extraction browser test is retained as `e2e/concepts.old.ts` with an Old comment.
+See [issue #56 verification](../docs/ISSUE_56.md) for acceptance checks and the isolated real-backend smoke test. The concept-extraction browser test (`e2e/concepts.spec.ts`) still runs in the `backend-ui` project.
 
 ## Troubleshooting
 

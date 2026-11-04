@@ -39,6 +39,10 @@ const parsed = {
     },
   ],
 };
+const pageText = {
+  1: "CLO1: Frame the problem. Week 1: Problem framing",
+  2: "Week 2: Retrieval. Final: 90%. Course notes by Lecturer",
+};
 async function backend(
   page: Page,
   options: { status?: number; code?: string; delay?: Promise<void> } = {},
@@ -60,7 +64,7 @@ async function backend(
         json: [
           {
             id: "owned-csc10014",
-            title: "CSC10014 · Introduction to Virtual Assistants",
+            title: "CS252 - Computational Thinking",
           },
         ],
       });
@@ -74,20 +78,12 @@ async function backend(
                 status: "processed",
                 kind: "syllabus",
               }
-            : [
-                {
-                  file_name: "CSC10014.pdf",
-                  page: 1,
-                  text: "CLO1: Frame the problem. Week 1: Problem framing",
-                  kind: "syllabus",
-                },
-                {
-                  file_name: "CSC10014.pdf",
-                  page: 2,
-                  text: "Week 2: Retrieval. Final: 90%. Course notes by Lecturer",
-                  kind: "syllabus",
-                },
-              ],
+            : Object.entries(pageText).map(([page, text]) => ({
+                file_name: "CSC10014.pdf",
+                page: Number(page),
+                text,
+                kind: "syllabus",
+              })),
       });
     if (path.endsWith("syllabus:parse")) {
       if (options.delay) await options.delay;
@@ -103,6 +99,7 @@ async function backend(
         json: {
           parsed,
           pages: 2,
+          source_pages: pageText,
           status: "draft",
           warnings: [
             {
@@ -152,13 +149,11 @@ test("PDF → four review tabs → citation → corrected confirmation payload",
 }) => {
   const requests = await backend(page);
   await page.goto("/");
-  await page
-    .getByLabel("Syllabus file", { exact: true })
-    .setInputFiles({
-      name: "CSC10014.pdf",
-      mimeType: "application/pdf",
-      buffer: Buffer.from("%PDF-1.7"),
-    });
+  await page.getByLabel("Syllabus file", { exact: true }).setInputFiles({
+    name: "CSC10014.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.7"),
+  });
   await page.getByRole("button", { name: "Continue to review" }).click();
   await expect(
     page.getByRole("heading", { name: "Review your syllabus", exact: true }),

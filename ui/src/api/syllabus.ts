@@ -1,9 +1,10 @@
 import { BackendError, call } from "./backend";
-import { courseId } from "./courses";
+import { courseId, currentCourse } from "./courses";
 import type { SyllabusDraft, Warning } from "./core";
 import type { Syllabus } from "./types";
 
-const COURSE = "CSC10014 · Introduction to Virtual Assistants";
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
+const MAX_TEXT_CHARS = 120000;
 type Parsed = {
   course: NonNullable<SyllabusDraft["course"]>;
   outcomes: {
@@ -33,10 +34,14 @@ export type Preview = {
   pages: number;
   file_name?: string;
   status: string;
-  source_pages?: Record<number, string>;
+  source_pages: Record<number, string>;
 };
 export const warningKey = (w: Warning) => `${w.code}:${w.path || ""}`;
-const manuallyReviewable = new Set(["missing_source", "ungrounded_field"]);
+/** Warnings the learner clears by ticking that they checked the source page. */
+export const manuallyReviewable = new Set([
+  "missing_source",
+  "ungrounded_field",
+]);
 const recalculated = new Set([
   "weights_sum",
   "week_order",
@@ -196,56 +201,41 @@ export function normalizeDate(value: string): string {
     ? iso
     : "";
 }
-export async function uploadSyllabus(
-  input: File | string,
-): Promise<SyllabusDraft> {
+/** Rejects input the backend would refuse, so mock and live uploads fail alike. */
+export function checkSyllabusInput(input: File | string): void {
   if (
     typeof input === "string"
-      ? !input.trim() || input.length > 120000
+      ? !input.trim() || input.length > MAX_TEXT_CHARS
       : input.size === 0
   )
     throw new BackendError(422, "invalid_text");
-  if (typeof input !== "string" && input.size > 20 * 1024 * 1024)
+  if (typeof input === "string") return;
+  if (input.size > MAX_FILE_BYTES)
     throw new BackendError(413, "file_too_large");
-  if (typeof input !== "string" && !/\.(pdf|docx)$/i.test(input.name))
+  if (!/\.(pdf|docx)$/i.test(input.name))
     throw new BackendError(415, "unsupported_type");
-  const id = await courseId(COURSE);
+}
+export async function uploadSyllabus(
+  input: File | string,
+): Promise<SyllabusDraft> {
+  checkSyllabusInput(input);
+  const id = await courseId(currentCourse.name);
   let file_name = "Nội dung đã dán";
-  let source_pages: Record<number, string> = {};
-  let request: { text: string } | { file_name: string };
-  if (typeof input === "string") {
-    if (!input.trim() || input.length > 120000)
-      throw new BackendError(422, "invalid_text");
-    source_pages = { 1: input };
-    request = { text: input };
-  } else {
-    if (input.size > 20 * 1024 * 1024)
-      throw new BackendError(413, "file_too_large");
-    if (!/\.(pdf|docx)$/i.test(input.name))
-      throw new BackendError(415, "unsupported_type");
+  if (typeof input !== "string") {
     const body = new FormData();
     body.append("file", input);
     body.append("kind", "syllabus");
-    const uploaded = await call<{ file_name: string; status: string }>(
+    ({ file_name } = await call<{ file_name: string }>(
       `/courses/${id}/sources`,
       { method: "POST", body },
-    );
-    file_name = uploaded.file_name;
-    request = { file_name };
-    const pages = await call<
-      { file_name: string; page: number; text: string }[]
-    >(`/courses/${id}/sources`);
-    source_pages = Object.fromEntries(
-      pages
-        .filter((p) => p.file_name === file_name)
-        .map((p) => [p.page, p.text]),
-    );
+    ));
   }
+  const request = typeof input === "string" ? { text: input } : { file_name };
   const result = await call<Preview>(`/courses/${id}/syllabus:parse`, {
     method: "POST",
     body: JSON.stringify(request),
   });
-  source_pages = result.source_pages ?? source_pages;
+  const { source_pages } = result;
   const p = result.parsed;
   return {
     id: "",
@@ -308,7 +298,7 @@ export async function confirmSyllabus(
 ): Promise<SyllabusDraft> {
   if (validateDraft(d).some((w) => w.blocking))
     throw new BackendError(422, "has_blocking_warnings");
-  const id = d.course_id ?? (await courseId(COURSE));
+  const id = d.course_id ?? (await courseId(currentCourse.name));
   const saved = await call<Syllabus>(
     `/courses/${id}/syllabus${d.id ? `/${encodeURIComponent(d.id)}` : ""}`,
     {

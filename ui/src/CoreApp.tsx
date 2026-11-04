@@ -2,6 +2,7 @@ import "./pages/course-setup/study-companion.css";
 import { useState } from "react";
 import { authenticate } from "./api/account";
 import { session } from "./api/backend";
+import { backendCourses, currentCourse } from "./api/courses";
 import { AuthScreen } from "./components/AuthScreen";
 import { Modal } from "./components/Modal";
 import { Shell } from "./components/Shell";
@@ -9,6 +10,9 @@ import { AppearancePicker } from "./features/appearance/AppearancePicker";
 import { pageLabels, useHashPage, type Page } from "./navigation";
 import { CostsPage } from "./pages/CostsPage";
 import { CoreJourney } from "./pages/CoreJourney";
+import { CoursesPage } from "./pages/CoursesPage";
+import { SourcesPage } from "./pages/SourcesPage";
+import Workspace from "./Workspace";
 
 const schedule: [string, string] = [
   pageLabels.Schedule,
@@ -75,6 +79,17 @@ export default function CoreApp({ mock = false }: { mock?: boolean }) {
       }
     >
       <CoreJourney page={page} go={go} mock={mock} />
+      {/* The sample preview has no backend for slides or the calendar. */}
+      {!mock && (
+        <>
+          {/* Kept mounted so uploads and concept edits survive switching pages. */}
+          <div hidden={page !== "Library"}>
+            <CoursesPage course={currentCourse.name} service={backendCourses} />
+          </div>
+          {(page === "Schedule" || page === "Workspace") && <Workspace />}
+        </>
+      )}
+      {page === "Sources" && <SourcesPage go={go} />}
       {page === "Costs" && <CostsPage />}
     </Shell>
   );

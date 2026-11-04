@@ -38,7 +38,7 @@ export default defineConfig({
     },
     {
       name: "backend-ui",
-      testMatch: /syllabus\.spec\.ts/,
+      testMatch: /(concepts|syllabus)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: "http://127.0.0.1:5180" },
     },
     {

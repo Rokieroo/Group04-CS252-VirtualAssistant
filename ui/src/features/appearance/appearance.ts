@@ -1,5 +1,6 @@
 // Per-device look (accent + light/dark). Kept apart from the demo state so resetting the demo keeps it.
 // Preset colours live in styles.css ([data-accent="…"]); this module only names them.
+import { GRADIENTS } from "./gradients";
 export const ACCENTS = [
   { id: "violet", label: "Violet" },
   { id: "ocean", label: "Ocean" },
@@ -13,7 +14,6 @@ export const THEMES = [
   { id: "dark", label: "Dark" },
 ] as const;
 
-import { GRADIENTS } from "./gradients";
 export type Accent = (typeof ACCENTS)[number]["id"] | (typeof GRADIENTS)[number]["id"];
 export type Theme = (typeof THEMES)[number]["id"];
 export type Appearance = { accent: Accent; theme: Theme };

@@ -9,7 +9,7 @@
 - Blocking warnings disable confirmation and recalculate after edits. Unknown blocking API warnings remain blocking; source-grounding warnings require explicit manual review acknowledgement.
 - Confirmation persists the complete reviewed snapshot in the existing raw_text JSON field, plus normalized outcomes/assessments, using the authenticated user's course.
 - Keyboard navigation includes arrow-key tabs, visible focus, dialog Escape/focus restoration, stage/error focus and save announcements.
-- Navigation stays left in landscape and top in portrait. The old concept browser test remains in concepts.old.ts, marked Old.
+- Navigation stays left in landscape and top in portrait. In API mode Courses also keeps the slide concept editor below the syllabus setup, and Schedule/Workspace stay on the real Workspace.
 
 ## Verification
 

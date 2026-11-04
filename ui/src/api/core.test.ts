@@ -3,10 +3,9 @@ import {
   createsRoadmapCycle,
   liveCoreService,
   previewRoadmap,
-  uploadError,
-  warningsFor,
   type SyllabusDraft,
 } from "./core";
+import { checkSyllabusInput, syllabusError, validateDraft } from "./syllabus";
 
 const draft: SyllabusDraft = {
   id: "sy_1",
@@ -27,10 +26,10 @@ const draft: SyllabusDraft = {
 describe("core syllabus and roadmap", () => {
   it("clears the blocking weight warning after correction", () => {
     expect(
-      warningsFor(draft).find((w) => w.code === "weights_sum")?.blocking,
+      validateDraft(draft).find((w) => w.code === "weights_sum")?.blocking,
     ).toBe(true);
     expect(
-      warningsFor({
+      validateDraft({
         ...draft,
         assessments: [
           { ...draft.assessments[0] },
@@ -40,10 +39,20 @@ describe("core syllabus and roadmap", () => {
     ).toEqual([]);
   });
   it("validates files before any request", () => {
-    expect(uploadError({ name: "syllabus.png", size: 10 })).toMatch(/PDF/);
-    expect(
-      uploadError({ name: "syllabus.pdf", size: 21 * 1024 * 1024 }),
-    ).toMatch(/20 MB/);
+    const message = (input: File | string) => {
+      try {
+        checkSyllabusInput(input);
+        return null;
+      } catch (error) {
+        return syllabusError(error);
+      }
+    };
+    expect(message(new File(["x"], "syllabus.png"))).toMatch(/PDF/);
+    const big = new File(["x"], "syllabus.pdf");
+    Object.defineProperty(big, "size", { value: 21 * 1024 * 1024 });
+    expect(message(big)).toMatch(/20 MB/);
+    expect(message(" ")).toMatch(/120\.000/);
+    expect(message(new File(["x"], "syllabus.docx"))).toBeNull();
   });
   it("rejects a prerequisite cycle", () => {
     const edges = [

@@ -1,4 +1,5 @@
-import { syllabusError } from "../api/syllabus";
+import { syllabusError, validateDraft } from "../api/syllabus";
+import { mockCoreService } from "../api/mockCore";
 import { RoadmapTimeline } from "./course-setup/RoadmapTimeline";
 import { SyllabusUpload } from "./course-setup/SyllabusUpload";
 import { SyllabusReview } from "./course-setup/SyllabusReview";
@@ -10,10 +11,7 @@ import type { RoadmapNode } from "../api/types";
 import {
   createsRoadmapCycle,
   liveCoreService,
-  mockCoreService,
   previewRoadmap,
-  uploadError,
-  warningsFor,
   type CoreService,
   type Edge,
   type SyllabusDraft,
@@ -23,7 +21,6 @@ import "./core-journey.css";
 
 const title = (node: RoadmapNode | undefined) =>
   node?.title || "Chặng chưa xác định";
-const uiError = syllabusError;
 export function CoreJourney({
   page,
   go,
@@ -63,7 +60,7 @@ export function CoreJourney({
   useEffect(() => {
     if (error) errorRef.current?.focus();
   }, [error]);
-  const warnings = draft ? warningsFor(draft) : [];
+  const warnings = draft ? validateDraft(draft) : [];
   const blocked = warnings.some((w) => w.blocking);
   const run = async (work: () => Promise<void>) => {
     setBusy(true);
@@ -71,20 +68,13 @@ export function CoreJourney({
     try {
       await work();
     } catch (e) {
-      setError(uiError(e));
+      setError(syllabusError(e));
     } finally {
       setBusy(false);
     }
   };
   const load = (file: File | string) => {
     if (busy) return;
-    if (file instanceof File) {
-      const issue = uploadError(file);
-      if (issue) {
-        setError(issue);
-        return;
-      }
-    }
     void run(async () => {
       const result = await service.upload(file);
       setDraft(result);
@@ -484,7 +474,8 @@ export function CoreJourney({
           )}
         </>
       )}
-      {page === "Schedule" && (
+      {/* Live mode shows the real calendar (Workspace) instead. */}
+      {mock && page === "Schedule" && (
         <section className="card core-panel">
           <h2>S7 · Lịch học</h2>
           {plan?.sessions.length ? (
@@ -499,12 +490,6 @@ export function CoreJourney({
           ) : (
             <p>Xếp roadmap vào lịch để xem buổi học.</p>
           )}
-        </section>
-      )}
-      {page === "Sources" && (
-        <section className="card core-panel">
-          <h2>S8 · Thư viện nguồn</h2>
-          <p>Chưa có nguồn học đã lưu.</p>
         </section>
       )}
     </div>
