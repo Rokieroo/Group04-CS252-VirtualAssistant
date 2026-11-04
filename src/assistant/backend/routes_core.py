@@ -18,8 +18,10 @@ from app.roadmap import decode_covers, derive_nodes, link, node_spec
 from app.syllabus import (
     InvalidSyllabusResponse,
     NotASyllabus,
-    extract_syllabus,
     parse_syllabus,
+)
+from app.syllabus import (
+    preview_syllabus as parse_preview,
 )
 
 from .dependencies import DB, CurrentUser
@@ -77,7 +79,7 @@ def preview_syllabus(course_id: str, data: SyllabusParseIn, db: DB, user: Curren
             raise HTTPException(409, "invalid_source_pages")
         pages = [s.text for s in sources]
     try:
-        draft = extract_syllabus(pages, get_client() if data.use_llm else None)
+        draft = parse_preview(pages, get_client() if data.use_llm else None)
     except NotASyllabus:
         raise HTTPException(422, "not_a_syllabus") from None
     except InvalidSyllabusResponse:

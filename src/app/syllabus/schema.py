@@ -1,4 +1,4 @@
-"""The five cited sections returned by the syllabus extractor (spec 9.1)."""
+"""Strict five-section view contract for the syllabus preview, after the shared extractor."""
 
 from __future__ import annotations
 
@@ -59,6 +59,3 @@ class ParsedSyllabus(Record):
     weeks: list[CitedWeek] = Field(default_factory=list)
     assessments: list[CitedAssessment] = Field(default_factory=list)
     textbooks: list[CitedTextbook] = Field(default_factory=list)
-
-
-SYLLABUS_SCHEMA = ParsedSyllabus.model_json_schema()

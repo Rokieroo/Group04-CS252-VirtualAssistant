@@ -87,7 +87,7 @@ Mọi lệnh chạy từ thư mục gốc repo, không cần cài thêm: `python
 | AI | `python dev.py ai benchmark validate \| stats` | Kiểm tra / thống kê `eval/benchmark.jsonl` |
 | AI | `python dev.py ai concepts <file.pdf>` | Đề xuất concept/chủ đề từ một file PDF |
 | AI | `python dev.py ai items --concepts <file.json> <file.pdf>` | Sinh câu hỏi luyện tập có trích dẫn trang |
-| AI | `python dev.py ai syllabus <file.pdf/docx/txt> [--llm]` | Đọc syllabus thành bản nháp có trang nguồn; mặc định offline ([bàn giao #59](docs/phase2/AI.md)) |
+| AI | `python dev.py ai syllabus-preview <file.pdf/docx/txt> [--llm]` | Xem trước syllabus, kiểm tra trang nguồn; mặc định offline ([bàn giao](docs/phase2/minh-syllabus-preview.md)) |
 | Database & Security | `python dev.py db init [--reset]` | Tạo database SQLite cục bộ từ `db/schema.sql` |
 | Database & Security | `python dev.py db scan-secrets` | Tìm API key, token, private key trong repo |
 | QA/QC | `python dev.py qa test [-k từ_khóa]` | Chạy pytest |

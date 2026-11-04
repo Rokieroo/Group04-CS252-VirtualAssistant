@@ -50,8 +50,8 @@ app = [
     "concepts/prompts/*.txt",
     "items/prompts/*.txt",
     "roadmap/prompts/*.txt",
-    "vetting/prompts/*.txt",
     "syllabus/prompts/*.txt",
+    "vetting/prompts/*.txt",
 ]
 
 [tool.pytest.ini_options]
