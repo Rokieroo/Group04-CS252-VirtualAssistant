@@ -546,6 +546,62 @@
         }
       }
     },
+    "/api/v1/courses/{course_id}/syllabus:parse": {
+      "post": {
+        "tags": [
+          "Syllabus and roadmap"
+        ],
+        "summary": "Preview Syllabus",
+        "description": "#59 parsing preview: no persistence or confirmation of model output.\n\nUpload PDF/DOCX/text through /sources with kind=syllabus, then pass file_name;\npasted text can be parsed directly. Page numbers are local to that one file.",
+        "operationId": "preview_syllabus_api_v1_courses__course_id__syllabus_parse_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Course Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SyllabusParseIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/courses/{course_id}/syllabus": {
       "get": {
         "tags": [
@@ -4991,6 +5047,45 @@
           "created_at"
         ],
         "title": "SyllabusOut"
+      },
+      "SyllabusParseIn": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "file_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Name"
+          },
+          "use_llm": {
+            "type": "boolean",
+            "title": "Use Llm",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SyllabusParseIn",
+        "description": "Preview one uploaded syllabus or pasted text before saving/confirmation."
       },
       "TaskCreate": {
         "properties": {

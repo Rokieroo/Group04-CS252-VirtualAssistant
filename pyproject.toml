@@ -51,6 +51,7 @@ app = [
     "items/prompts/*.txt",
     "roadmap/prompts/*.txt",
     "vetting/prompts/*.txt",
+    "syllabus/prompts/*.txt",
 ]
 
 [tool.pytest.ini_options]

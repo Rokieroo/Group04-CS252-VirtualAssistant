@@ -223,6 +223,29 @@ def _items(args: argparse.Namespace) -> int:
     return 0
 
 
+def _syllabus(args: argparse.Namespace) -> int:
+    from dotenv import load_dotenv
+
+    from app.ingest import MAX_UPLOAD_BYTES, detect_media_type, extract_pages
+    from app.llm import get_client
+    from app.syllabus import extract_syllabus
+
+    try:
+        path = Path(args.file)
+        if path.stat().st_size > MAX_UPLOAD_BYTES:
+            raise ValueError("file_too_large")
+        data = path.read_bytes()
+        pages = extract_pages(data, detect_media_type(path.name, data))
+        if args.llm:
+            load_dotenv(ROOT / ".env")
+        draft = extract_syllabus(pages, get_client() if args.llm else None)
+    except (OSError, ValueError, RuntimeError) as exc:
+        print(f"Không phân tích được syllabus: {exc}")
+        return 1
+    print(json.dumps(draft.to_dict(), ensure_ascii=False, indent=2))
+    return 0
+
+
 def register(sub: argparse._SubParsersAction) -> None:
     p = sub.add_parser("ai", help="AI implementation: benchmark và trợ lý")
     ai_sub = p.add_subparsers(dest="ai_command", required=True)
@@ -247,3 +270,8 @@ def register(sub: argparse._SubParsersAction) -> None:
     items.add_argument("--limit", type=int, default=5, help="số concept tối đa (mặc định 5)")
     items.add_argument("--json", action="store_true", help="in kết quả dạng JSON")
     items.set_defaults(func=_items)
+
+    syllabus = ai_sub.add_parser("syllabus", help="đọc syllabus PDF/DOCX/text thành bản nháp có trang nguồn")
+    syllabus.add_argument("file")
+    syllabus.add_argument("--llm", action="store_true", help="dùng LLM_PROVIDER; mặc định đọc offline")
+    syllabus.set_defaults(func=_syllabus)
