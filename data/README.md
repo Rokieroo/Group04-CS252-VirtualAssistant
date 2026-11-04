@@ -30,3 +30,10 @@ suffix, for mirrors that keep changing TLD (`libgen.*`).
 - **`paywall.txt`**: login/paywall sites; their pages never pass the fetch check.
 
 The lists are read once per process, so restart the API after editing them.
+
+### `policy/catalog_sources.yaml`
+Providers the verified catalog may use, with their license, collection method
+(`api`, `sitemap`, `manual`), rate limit and the official page the license was
+checked on (ADR 004, `docs/adr/004-verified-catalog.md`). Connectors and the
+license check read it; `tests/test_catalog_sources.py` keeps it consistent with
+the ADR and the domain lists above. Edit it only in a PR reviewed by 2 members.

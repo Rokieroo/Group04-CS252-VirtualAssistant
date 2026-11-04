@@ -1,0 +1,224 @@
+# Sources the verified catalog may use (ADR 004, docs/adr/004-verified-catalog.md).
+#
+# Connectors (#98) read `method`, `endpoint` and `rate_limit_per_sec`; the
+# license check (#101) accepts only the ids under `licenses`. Change this file
+# only in a PR reviewed by 2 members, after re-reading the `evidence` page, and
+# update `checked_on`. tests/test_catalog_sources.py keeps it consistent with
+# the ADR table and the domain policy.
+#
+# licenses.<id>.verbatim: exercises may be stored word for word (spec 12.2).
+# Otherwise the catalog keeps only a link + location (page, problem number).
+#
+# providers[].use:       source = shown on roadmap nodes; authority = only feeds
+#                        the `authority` signal (institutions, #96), never shown.
+# providers[].method:    api | sitemap | manual (added by hand, admin-verified).
+# providers[].automated: false = no connector or verifier request may touch
+#                        these domains (terms forbid it or a bot challenge
+#                        blocks it); an admin checks the link by hand.
+# providers[].license:   a license id, or `per_item` with the ids the provider
+#                        uses in `item_licenses` (read per book/video).
+
+licenses:
+  CC0-1.0:
+    name: CC0 1.0 Universal (public domain dedication)
+    url: https://creativecommons.org/publicdomain/zero/1.0/
+    verbatim: true
+  CC-BY-3.0:
+    name: Creative Commons Attribution 3.0
+    url: https://creativecommons.org/licenses/by/3.0/
+    verbatim: true
+  CC-BY-4.0:
+    name: Creative Commons Attribution 4.0
+    url: https://creativecommons.org/licenses/by/4.0/
+    verbatim: true
+  CC-BY-SA-4.0:
+    name: Creative Commons Attribution-ShareAlike 4.0
+    url: https://creativecommons.org/licenses/by-sa/4.0/
+    verbatim: true
+  CC-BY-NC-SA-3.0:
+    name: Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
+    url: https://creativecommons.org/licenses/by-nc-sa/3.0/
+    verbatim: false
+  CC-BY-NC-SA-4.0:
+    name: Creative Commons Attribution-NonCommercial-ShareAlike 4.0
+    url: https://creativecommons.org/licenses/by-nc-sa/4.0/
+    verbatim: false
+  VN-LEGAL-TEXT:
+    name: Văn bản quy phạm pháp luật, không thuộc phạm vi bảo hộ quyền tác giả (Điều 15 Luật SHTT)
+    url: null
+    verbatim: true
+  ALL-RIGHTS-RESERVED:
+    name: All rights reserved; link and ≤ 300-character quotation only
+    url: null
+    verbatim: false
+
+providers:
+  - id: mit_ocw
+    name: MIT OpenCourseWare
+    use: source
+    levels: [undergrad, grad]
+    domains: [ocw.mit.edu]
+    license: CC-BY-NC-SA-4.0
+    method: sitemap
+    endpoint: https://ocw.mit.edu/sitemap.xml
+    automated: true
+    rate_limit_per_sec: 1
+    attribution: "{title}, MIT OpenCourseWare, {url}. CC BY-NC-SA 4.0."
+    evidence: https://ocw.mit.edu/pages/privacy-and-terms-of-use/
+    checked_on: 2026-11-05
+
+  - id: openstax
+    name: OpenStax
+    use: source
+    levels: [k12, undergrad]
+    domains: [openstax.org]
+    license: per_item
+    item_licenses: [CC-BY-4.0, CC-BY-NC-SA-4.0]
+    method: api
+    endpoint: https://openstax.org/apps/cms/api/v2/pages/?type=books.Book&fields=title,license_name,license_version,book_state
+    automated: true
+    rate_limit_per_sec: 1
+    attribution: "{title}, OpenStax, {url}. {license}."
+    evidence: https://help.openstax.org/s/article/Licensing-information-of-OpenStax-textbooks
+    checked_on: 2026-11-05
+
+  - id: open_yale
+    name: Open Yale Courses
+    use: source
+    levels: [undergrad]
+    domains: [oyc.yale.edu]
+    license: CC-BY-NC-SA-3.0
+    method: manual
+    endpoint: null
+    automated: true
+    rate_limit_per_sec: 1
+    attribution: "{title}, {author}, Yale University, Open Yale Courses (https://oyc.yale.edu). CC BY-NC-SA 3.0."
+    evidence: https://oyc.yale.edu/terms
+    checked_on: 2026-11-05
+
+  - id: openlearn
+    name: OpenLearn (The Open University)
+    use: source
+    levels: [undergrad]
+    domains: [open.edu]
+    license: CC-BY-NC-SA-4.0
+    method: manual
+    endpoint: null
+    automated: false
+    rate_limit_per_sec: null
+    attribution: "{title}, OpenLearn, The Open University, {url}. CC BY-NC-SA 4.0."
+    evidence: https://www.open.edu/openlearn/about-openlearn/frequently-asked-questions-on-openlearn
+    checked_on: 2026-11-05
+
+  - id: khan_academy
+    name: Khan Academy
+    use: source
+    levels: [k12, undergrad]
+    domains: [khanacademy.org]
+    license: CC-BY-NC-SA-4.0
+    method: manual
+    endpoint: null
+    automated: false
+    rate_limit_per_sec: null
+    attribution: "{title}, Khan Academy, {url}. CC BY-NC-SA."
+    evidence: https://support.khanacademy.org/hc/en-us/articles/202262954-Can-I-use-Khan-Academy-s-videos-name-materials-links-in-my-project
+    checked_on: 2026-11-05
+
+  - id: youtube_university
+    name: YouTube, official university channels
+    use: source
+    levels: [k12, undergrad, grad]
+    domains: [youtube.com, youtu.be]
+    license: per_item
+    item_licenses: [ALL-RIGHTS-RESERVED, CC-BY-3.0]
+    method: api
+    endpoint: https://www.googleapis.com/youtube/v3/videos
+    automated: true
+    rate_limit_per_sec: 1
+    attribution: "{title}, {channel} on YouTube, {url}."
+    evidence: https://developers.google.com/youtube/terms/developer-policies
+    checked_on: 2026-11-05
+
+  - id: nxbgd_sgk
+    name: Sách giáo khoa điện tử, NXB Giáo dục Việt Nam
+    use: source
+    levels: [k12]
+    domains: [taphuan.nxbgd.vn]
+    license: ALL-RIGHTS-RESERVED
+    method: manual
+    endpoint: null
+    automated: true
+    rate_limit_per_sec: 1
+    attribution: "{title}, NXB Giáo dục Việt Nam, {url}."
+    evidence: https://taphuan.nxbgd.vn/robots.txt
+    checked_on: 2026-11-05
+
+  - id: moet
+    name: Bộ Giáo dục và Đào tạo (chương trình, văn bản)
+    use: source
+    levels: [k12]
+    domains: [moet.gov.vn]
+    license: VN-LEGAL-TEXT
+    method: manual
+    endpoint: null
+    automated: true
+    rate_limit_per_sec: 1
+    attribution: "{title}, Bộ Giáo dục và Đào tạo, {url}."
+    evidence: https://moet.gov.vn/robots.txt
+    checked_on: 2026-11-05
+
+  - id: coursera
+    name: Coursera (link only)
+    use: source
+    levels: [undergrad, grad]
+    domains: [coursera.org]
+    license: ALL-RIGHTS-RESERVED
+    method: manual
+    endpoint: null
+    automated: false
+    rate_limit_per_sec: null
+    attribution: "{title}, {author}, Coursera, {url}."
+    evidence: https://www.coursera.org/about/terms
+    checked_on: 2026-11-05
+
+  - id: edx
+    name: edX (link only)
+    use: source
+    levels: [undergrad, grad]
+    domains: [edx.org]
+    license: ALL-RIGHTS-RESERVED
+    method: manual
+    endpoint: null
+    automated: false
+    rate_limit_per_sec: null
+    attribution: "{title}, {author}, edX, {url}."
+    evidence: https://www.edx.org/edx-terms-service
+    checked_on: 2026-11-05
+
+  - id: ror
+    name: Research Organization Registry
+    use: authority
+    levels: [undergrad, grad]
+    domains: [ror.org, zenodo.org]
+    license: CC0-1.0
+    method: api
+    endpoint: https://zenodo.org/api/records/?communities=ror-data&sort=mostrecent
+    automated: true
+    rate_limit_per_sec: 0.1
+    attribution: "Research Organization Registry (ROR), data dump {version}."
+    evidence: https://zenodo.org/records/15925254
+    checked_on: 2026-11-05
+
+  - id: openalex
+    name: OpenAlex
+    use: authority
+    levels: [undergrad, grad]
+    domains: [openalex.org]
+    license: CC0-1.0
+    method: api
+    endpoint: https://api.openalex.org/institutions?filter=type:education
+    automated: true
+    rate_limit_per_sec: 1
+    attribution: "OpenAlex institutions, retrieved {date}."
+    evidence: https://openalex.org/about
+    checked_on: 2026-11-05
