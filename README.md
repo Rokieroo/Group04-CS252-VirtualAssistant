@@ -34,7 +34,7 @@
 | --- | --- |
 | [docs/roadmap/APP_SPECIFICATION.md](docs/roadmap/APP_SPECIFICATION.md) | Đặc tả 3.1: tiêu chuẩn chất lượng, use case, màn hình, kiến trúc, dữ liệu, API, parser syllabus, knowledge graph, planner, bộ tìm nguồn, bảo mật, metric |
 | [docs/roadmap/PLAN.md](docs/roadmap/PLAN.md) | Kế hoạch 6 tuần theo từng mảng |
-| [docs/adr/](docs/adr/) | Quyết định kiến trúc (database, hosting, bố cục code) |
+| [docs/adr/](docs/adr/) | Quyết định kiến trúc (database, hosting, bố cục code, catalog nguồn và giấy phép) |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Chạy bằng Docker Compose, staging, worker |
 | [docs/guidelines/](docs/guidelines/README.md) | Quy tắc nhánh, PR, commit |
 
