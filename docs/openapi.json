@@ -1025,6 +1025,228 @@
         }
       }
     },
+    "/api/v1/roadmaps/{roadmap_id}:replan": {
+      "post": {
+        "tags": [
+          "Syllabus and roadmap"
+        ],
+        "summary": "Replan Roadmap",
+        "description": "Propose or commit schedule changes for this roadmap (spec 8.4, 10.5).\n\nOnly pending sessions in the future are replanned; completed sessions and completed\ntasks are never touched. Rate-limited to 1 proposal per day.",
+        "operationId": "replan_roadmap_api_v1_roadmaps__roadmap_id__replan_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roadmap_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Roadmap Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RoadmapReplanIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Data"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoadmapReplanOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmap-nodes/{node_id}/resources:search": {
+      "post": {
+        "tags": [
+          "Learning resources"
+        ],
+        "summary": "Search Node Resources",
+        "description": "Enqueue background resource search for this roadmap node (spec 8.5).\n\nReturns 202 with run_id. Rate limited to 20 searches per hour per user.",
+        "operationId": "search_node_resources_api_v1_roadmap_nodes__node_id__resources_search_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Node Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Resource search enqueued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceSearchOut"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Resource search rate limit reached"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmap-nodes/{node_id}/resources": {
+      "get": {
+        "tags": [
+          "Learning resources"
+        ],
+        "summary": "Get Node Resources",
+        "description": "Retrieve curated resources and coverage gaps for a roadmap node (spec 8.6).\n\nStatus is 'searching' if a search is in progress, 'ready' if at least 2 vetted\nresources meet quality threshold (>= 0.65), or 'insufficient' otherwise.",
+        "operationId": "get_node_resources_api_v1_roadmap_nodes__node_id__resources_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Node Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeResourcesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/{resource_id}/feedback": {
+      "post": {
+        "tags": [
+          "Learning resources"
+        ],
+        "summary": "Resource Feedback",
+        "description": "Store feedback for a resource; if not helpful, replaces it from reserve (spec 8.7).",
+        "operationId": "resource_feedback_api_v1_resources__resource_id__feedback_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Resource Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceFeedbackIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResourceFeedbackOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/goals": {
       "get": {
         "tags": [
@@ -4008,6 +4230,38 @@
         ],
         "title": "NodeCost"
       },
+      "NodeResourcesOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "searching",
+              "ready",
+              "insufficient"
+            ],
+            "title": "Status"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/ResourceItemOut"
+            },
+            "type": "array",
+            "title": "Resources"
+          },
+          "gaps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Gaps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "NodeResourcesOut"
+      },
       "NotificationOut": {
         "properties": {
           "id": {
@@ -4048,6 +4302,33 @@
           "created_at"
         ],
         "title": "NotificationOut"
+      },
+      "PlanDiffOut": {
+        "properties": {
+          "moved": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Moved"
+          },
+          "added": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Added"
+          },
+          "dropped": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dropped"
+          }
+        },
+        "type": "object",
+        "title": "PlanDiffOut"
       },
       "PlanOut": {
         "properties": {
@@ -4401,6 +4682,157 @@
         ],
         "title": "ReportOut"
       },
+      "ResourceFeedbackIn": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "helpful": {
+            "type": "boolean",
+            "title": "Helpful"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "node_id",
+          "helpful"
+        ],
+        "title": "ResourceFeedbackIn"
+      },
+      "ResourceFeedbackOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status",
+            "default": "ok"
+          },
+          "replacement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResourceItemOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ResourceFeedbackOut"
+      },
+      "ResourceItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "format": {
+            "type": "string",
+            "title": "Format"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language",
+            "default": "en"
+          },
+          "duration_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Min"
+          },
+          "is_free": {
+            "type": "boolean",
+            "title": "Is Free",
+            "default": true
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "breakdown": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Breakdown"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          },
+          "evidence_quote": {
+            "type": "string",
+            "title": "Evidence Quote",
+            "default": ""
+          },
+          "pinned": {
+            "type": "boolean",
+            "title": "Pinned",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "rank",
+          "title",
+          "url",
+          "domain",
+          "format",
+          "score"
+        ],
+        "title": "ResourceItemOut"
+      },
+      "ResourceSearchOut": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id"
+        ],
+        "title": "ResourceSearchOut"
+      },
       "RoadmapGenerateIn": {
         "properties": {
           "syllabus_id": {
@@ -4725,6 +5157,75 @@
           "created_at"
         ],
         "title": "RoadmapOut"
+      },
+      "RoadmapReplanIn": {
+        "properties": {
+          "approve": {
+            "type": "boolean",
+            "title": "Approve",
+            "default": false
+          },
+          "commit": {
+            "type": "boolean",
+            "title": "Commit",
+            "default": false
+          },
+          "max_daily_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Daily Minutes"
+          },
+          "starts_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Starts At"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "RoadmapReplanIn"
+      },
+      "RoadmapReplanOut": {
+        "properties": {
+          "roadmap_id": {
+            "type": "string",
+            "title": "Roadmap Id"
+          },
+          "diff": {
+            "$ref": "#/components/schemas/PlanDiffOut"
+          },
+          "committed": {
+            "type": "boolean",
+            "title": "Committed"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedEntry"
+            },
+            "type": "array",
+            "title": "Sessions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "roadmap_id",
+          "diff",
+          "committed"
+        ],
+        "title": "RoadmapReplanOut"
       },
       "RoadmapScheduleIn": {
         "properties": {
