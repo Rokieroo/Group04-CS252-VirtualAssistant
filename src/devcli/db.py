@@ -12,7 +12,8 @@ from devcli import ROOT
 LOCAL_DB = ROOT / "data" / "local.db"
 
 SECRET_PATTERNS = {
-    "OpenAI key": re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
+    # \b keeps words like "risk-management-framework" in URLs from matching
+    "OpenAI key": re.compile(r"\bsk-[A-Za-z0-9_-]{20,}"),
     "Google API key": re.compile(r"AIza[0-9A-Za-z_-]{35}"),
     "AWS access key": re.compile(r"AKIA[0-9A-Z]{16}"),
     "GitHub token": re.compile(r"gh[pousr]_[A-Za-z0-9]{36,}"),

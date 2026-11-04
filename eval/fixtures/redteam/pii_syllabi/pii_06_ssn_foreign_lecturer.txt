@@ -1,0 +1,6 @@
+Artificial Intelligence
+Guest Lecturer: Prof. Alice Smith
+US SSN: 123-45-6789
+Passport: USA-987654321
+Contact: 555-0199
+Week 1: Search Agents

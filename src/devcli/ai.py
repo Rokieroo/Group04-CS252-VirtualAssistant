@@ -10,24 +10,95 @@ from pathlib import Path
 from devcli import ROOT
 
 BENCHMARK = ROOT / "eval" / "benchmark.jsonl"
+RESOURCES = ROOT / "eval" / "resources.jsonl"
+SYLLABUS_DIR = ROOT / "eval" / "syllabus"
+FIXTURES_DIR = ROOT / "eval" / "fixtures" / "redteam"
+
 REQUIRED = ("id", "use_case", "kind", "question", "expected")
 KINDS = {"normal", "missing_knowledge", "privacy", "safety"}
 USE_CASE_RE = re.compile(r"^UC-\d{2}$")
+LABELS = {"good", "bad"}
 
 
-def load_cases(path: Path) -> tuple[list[dict], list[str]]:
-    """Parse a benchmark file and return (cases, errors)."""
-    cases: list[dict] = []
+def _read_jsonl(path: Path) -> tuple[list[tuple[int, dict]], list[str]]:
+    """Return the (line number, row) pairs of a JSONL file and its parse errors."""
+    rows: list[tuple[int, dict]] = []
     errors: list[str] = []
-    seen: set[str] = set()
     for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         if not line.strip():
             continue
         try:
-            case = json.loads(line)
+            rows.append((n, json.loads(line)))
         except json.JSONDecodeError as exc:
             errors.append(f"dòng {n}: JSON lỗi ({exc.msg})")
-            continue
+    return rows, errors
+
+
+def load_resources(path: Path) -> tuple[list[dict], list[str]]:
+    """Parse the labelled resource set, one roadmap node per line, as eval/run_resources.py reads it."""
+    if not path.exists():
+        return [], [f"Không tìm thấy {path}"]
+    rows, errors = _read_jsonl(path)
+    seen: set[str] = set()
+    for n, case in rows:
+        if not case.get("id") or not case.get("node", {}).get("title"):
+            errors.append(f"dòng {n}: thiếu id hoặc node.title")
+        if case.get("id") in seen:
+            errors.append(f"dòng {n}: id '{case['id']}' bị trùng")
+        seen.add(case.get("id"))
+        if not case.get("resources"):
+            errors.append(f"dòng {n}: thiếu danh sách resources")
+        for i, res in enumerate(case.get("resources") or [], start=1):
+            if not res.get("url") or not res.get("reason") or res.get("label") not in LABELS:
+                errors.append(f"dòng {n}, nguồn {i}: cần url, reason và label thuộc {sorted(LABELS)}")
+    return [case for _, case in rows], [f"{path.name} {err}" for err in errors]
+
+
+def validate_syllabus_benchmark(syl_dir: Path) -> list[str]:
+    """Validate that syllabus samples have corresponding valid gold files."""
+    errors: list[str] = []
+    if not syl_dir.exists():
+        return [f"Không tìm thấy thư mục {syl_dir}"]
+    gold_files = list(syl_dir.glob("*.gold.json"))
+    if not gold_files:
+        errors.append(f"{syl_dir}: không tìm thấy file .gold.json nào")
+    for gf in gold_files:
+        try:
+            data = json.loads(gf.read_text(encoding="utf-8"))
+            for req in ("id", "course_code", "course_name", "learning_outcomes", "weeks", "assessments"):
+                if req not in data:
+                    errors.append(f"{gf.name}: thiếu trường '{req}'")
+        except json.JSONDecodeError as exc:
+            errors.append(f"{gf.name}: JSON lỗi ({exc.msg})")
+    return errors
+
+
+def validate_redteam_fixtures(fix_dir: Path) -> list[str]:
+    """Validate redteam prompt injection, pirated URLs, and PII samples."""
+    if not fix_dir.exists():
+        return [f"Không tìm thấy thư mục {fix_dir}"]
+    errors: list[str] = []
+    pirated_file = fix_dir / "pirated_urls.jsonl"
+    if not pirated_file.exists():
+        errors.append(f"Không tìm thấy {pirated_file}")
+    else:
+        rows, parse_errors = _read_jsonl(pirated_file)
+        errors += [f"pirated_urls {err}" for err in parse_errors]
+        errors += [f"pirated_urls dòng {n}: thiếu url" for n, row in rows if not row.get("url")]
+    inj_files = list((fix_dir / "injections").glob("*.html"))
+    if len(inj_files) < 15:
+        errors.append(f"Cần tối thiểu 15 file injection HTML (tìm thấy {len(inj_files)})")
+    pii_files = list((fix_dir / "pii_syllabi").glob("*.txt"))
+    if len(pii_files) < 10:
+        errors.append(f"Cần tối thiểu 10 file PII syllabus sample (tìm thấy {len(pii_files)})")
+    return errors
+
+
+def load_cases(path: Path) -> tuple[list[dict], list[str]]:
+    """Parse a benchmark file and return (cases, errors)."""
+    rows, errors = _read_jsonl(path)
+    seen: set[str] = set()
+    for n, case in rows:
         missing = [k for k in REQUIRED if not case.get(k)]
         if missing:
             errors.append(f"dòng {n}: thiếu trường {', '.join(missing)}")
@@ -38,8 +109,16 @@ def load_cases(path: Path) -> tuple[list[dict], list[str]]:
         if case.get("id") in seen:
             errors.append(f"dòng {n}: id '{case['id']}' bị trùng")
         seen.add(case.get("id"))
-        cases.append(case)
-    return cases, errors
+    return [case for _, case in rows], errors
+
+
+def _report(errors: list[str], ok_message: str) -> bool:
+    """Print each error, or the OK line when there are none; return whether it passed."""
+    for err in errors:
+        print(f"[FAIL] {err}")
+    if not errors:
+        print(f"[ OK ] {ok_message}")
+    return not errors
 
 
 def _benchmark(args: argparse.Namespace) -> int:
@@ -47,17 +126,33 @@ def _benchmark(args: argparse.Namespace) -> int:
     if not path.exists():
         print(f"Không tìm thấy {path}.")
         return 1
+
     cases, errors = load_cases(path)
-    for err in errors:
-        print(f"[FAIL] {err}")
     if args.action == "stats":
         print(f"Tổng số case: {len(cases)}")
         for key in ("kind", "use_case"):
             counts = Counter(c.get(key, "?") for c in cases)
             print(f"Theo {key}: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
-    if not errors:
-        print(f"[ OK ] {len(cases)} case hợp lệ trong {path.name}")
-    return 1 if errors else 0
+        nodes, _ = load_resources(RESOURCES)
+        labels = Counter(res.get("label") for node in nodes for res in node.get("resources") or [])
+        if labels:
+            print(f"Nguồn gắn nhãn: {labels.total()} trên {len(nodes)} chặng, "
+                  f"good={labels['good']}, bad={labels['bad']}")
+
+    ok = _report(errors, f"{len(cases)} case hợp lệ trong {path.name}")
+    if args.action == "validate" and path == BENCHMARK:
+        # The default run also checks the other #66 suites, so CI covers them too.
+        nodes, resource_errors = load_resources(RESOURCES)
+        gold_count = len(list(SYLLABUS_DIR.glob("*.gold.json")))
+        ok = all([
+            ok,
+            _report(resource_errors, f"{len(nodes)} chặng có nguồn gắn nhãn trong {RESOURCES.name}"),
+            _report(validate_syllabus_benchmark(SYLLABUS_DIR),
+                    f"{gold_count} syllabus benchmark + gold hợp lệ trong {SYLLABUS_DIR.name}/"),
+            _report(validate_redteam_fixtures(FIXTURES_DIR),
+                    "Red-team fixtures (injections, pirated URLs, PII) hợp lệ"),
+        ])
+    return 0 if ok else 1
 
 
 def _chat(args: argparse.Namespace) -> int:

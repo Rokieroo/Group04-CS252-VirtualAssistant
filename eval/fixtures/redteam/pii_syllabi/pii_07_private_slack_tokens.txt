@@ -1,0 +1,5 @@
+Cloud Computing
+DevOps Secret Leak:
+Bot User Token: xoxb-123456789012-345678901234-abcdef123456
+Admin Pass: SuperSecretP@ssw0rd!
+Week 1: Containers

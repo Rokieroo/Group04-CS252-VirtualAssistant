@@ -1,0 +1,40 @@
+{
+  "id": "SYL-05",
+  "course_code": "CS203",
+  "course_name": "Computer Networks and Distributed Systems",
+  "learning_outcomes": [
+    {
+      "code": "CLO1",
+      "description": "Describe protocol encapsulation across the 5-layer TCP/IP stack.",
+      "bloom_level": "understand"
+    },
+    {
+      "code": "CLO2",
+      "description": "Implement client-server network applications using standard socket APIs in Python or C.",
+      "bloom_level": "apply"
+    },
+    {
+      "code": "CLO3",
+      "description": "Analyze congestion control, flow control, subnetting, and inter-domain routing mechanisms.",
+      "bloom_level": "analyze"
+    }
+  ],
+  "weeks": [
+    { "week": 1, "topic": "Computer Networks Overview, Physical Media, and Packet Switching." },
+    { "week": 2, "topic": "Application Layer Architecture, HTTP/1.1 vs HTTP/2, and DNS Resolution." },
+    { "week": 3, "topic": "Transport Layer Fundamentals, Multiplexing, and UDP Datagrams." },
+    { "week": 4, "topic": "Reliable Data Transfer, TCP Segment Structure, and Flow Control." },
+    { "week": 5, "topic": "TCP Congestion Control and Congestion Avoidance Algorithms." },
+    { "week": 6, "topic": "Midterm Milestone Exam (Application & Transport Layers)." },
+    { "week": 7, "topic": "Network Layer Data Plane: IPv4, IPv6, Subnetting, and NAT." },
+    { "week": 8, "topic": "Network Layer Control Plane: Routing Algorithms (Link-State, Distance-Vector)." },
+    { "week": 9, "topic": "Link Layer, Error Detection (CRC), Ethernet, and Wireless Networks." },
+    { "week": 10, "topic": "Network Security: TLS/SSL Handshake, Firewalls, and Cryptographic Protocols." }
+  ],
+  "assessments": [
+    { "name": "Homework & Wireshark Labs", "weight": 20.0, "due_week": 7 },
+    { "name": "Midterm Milestone Exam", "weight": 30.0, "due_week": 6 },
+    { "name": "Final Written Exam", "weight": 50.0, "due_week": 10 }
+  ]
+}
+

@@ -1,0 +1,40 @@
+{
+  "id": "SYL-04",
+  "course_code": "CS202",
+  "course_name": "Operating Systems Concepts",
+  "learning_outcomes": [
+    {
+      "code": "CLO1",
+      "description": "Explain process life cycles, context switching, and multithreading models.",
+      "bloom_level": "understand"
+    },
+    {
+      "code": "CLO2",
+      "description": "Solve concurrency and synchronization challenges using semaphores, mutexes, and condition variables.",
+      "bloom_level": "apply"
+    },
+    {
+      "code": "CLO3",
+      "description": "Evaluate virtual memory architectures, page replacement policies (LRU, FIFO, Clock), and disk scheduling.",
+      "bloom_level": "evaluate"
+    }
+  ],
+  "weeks": [
+    { "week": 1, "topic": "Introduction to Operating System Architectures and System Calls." },
+    { "week": 2, "topic": "Process Management, Process Control Blocks (PCB), and IPC." },
+    { "week": 3, "topic": "Threads, Concurrency, and Multithreaded Programming Models." },
+    { "week": 4, "topic": "CPU Scheduling Algorithms (FCFS, SJF, Round Robin, Multi-level Queues)." },
+    { "week": 5, "topic": "Synchronization Primitives, Critical Section Problem, and Deadlocks." },
+    { "week": 6, "topic": "Midterm Exam (Process Scheduling & Concurrency)." },
+    { "week": 7, "topic": "Main Memory Organization, Address Translation, and Segmentation." },
+    { "week": 8, "topic": "Virtual Memory, Demand Paging, and Page Replacement Algorithms." },
+    { "week": 9, "topic": "Mass Storage Systems, RAID Levels, and Disk Scheduling." },
+    { "week": 10, "topic": "File System Interface, Directory Implementation, and File Allocation." }
+  ],
+  "assessments": [
+    { "name": "Lab Assignments", "weight": 20.0, "due_week": 8 },
+    { "name": "Midterm Assessment", "weight": 30.0, "due_week": 6 },
+    { "name": "Final Exam", "weight": 50.0, "due_week": 10 }
+  ]
+}
+

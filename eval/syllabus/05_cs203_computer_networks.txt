@@ -1,0 +1,31 @@
+ACADEMIC SYLLABUS
+Course: Computer Networks and Distributed Systems
+Course Code: CS203
+Credits: 3 (Lecture: 2, Lab: 1)
+Department of Computer Science
+
+1. COURSE OVERVIEW
+A comprehensive study of layered network architectures (OSI and TCP/IP), socket programming, transport layer protocols (TCP/UDP), routing algorithms (OSPF, BGP), and application layer protocols (HTTP, DNS).
+
+2. LEARNING OBJECTIVES
+- CLO1: Describe protocol encapsulation across the 5-layer TCP/IP stack.
+- CLO2: Implement client-server network applications using standard socket APIs in Python or C.
+- CLO3: Analyze congestion control, flow control, subnetting, and inter-domain routing mechanisms.
+
+3. SCHEDULE BY WEEK
+Week 1: Computer Networks Overview, Physical Media, and Packet Switching.
+Week 2: Application Layer Architecture, HTTP/1.1 vs HTTP/2, and DNS Resolution.
+Week 3: Transport Layer Fundamentals, Multiplexing, and UDP Datagrams.
+Week 4: Reliable Data Transfer, TCP Segment Structure, and Flow Control.
+Week 5: TCP Congestion Control and Congestion Avoidance Algorithms.
+Week 6: Midterm Milestone Exam (Application & Transport Layers).
+Week 7: Network Layer Data Plane: IPv4, IPv6, Subnetting, and NAT.
+Week 8: Network Layer Control Plane: Routing Algorithms (Link-State, Distance-Vector).
+Week 9: Link Layer, Error Detection (CRC), Ethernet, and Wireless Networks.
+Week 10: Network Security: TLS/SSL Handshake, Firewalls, and Cryptographic Protocols.
+
+4. ASSESSMENT DETAILS
+- Homework & Wireshark Labs: 20% (due week 7).
+- Midterm Milestone Exam: 30% (due week 6).
+- Final Written Exam: 50% (due week 10).
+

@@ -1,0 +1,31 @@
+COURSE SYLLABUS
+Course: Operating Systems Concepts
+Course Code: CS202
+Credits: 3 (Lecture: 2, Lab: 1)
+School of Computing
+
+1. COURSE DESCRIPTION
+This course introduces process control, threads, CPU scheduling algorithms, synchronization primitives, deadlocks, virtual memory management, paging, and file system implementation.
+
+2. LEARNING OUTCOMES
+- CLO1: Explain process life cycles, context switching, and multithreading models.
+- CLO2: Solve concurrency and synchronization challenges using semaphores, mutexes, and condition variables.
+- CLO3: Evaluate virtual memory architectures, page replacement policies (LRU, FIFO, Clock), and disk scheduling.
+
+3. WEEKLY PLAN
+Week 1: Introduction to Operating System Architectures and System Calls.
+Week 2: Process Management, Process Control Blocks (PCB), and IPC.
+Week 3: Threads, Concurrency, and Multithreaded Programming Models.
+Week 4: CPU Scheduling Algorithms (FCFS, SJF, Round Robin, Multi-level Queues).
+Week 5: Synchronization Primitives, Critical Section Problem, and Deadlocks.
+Week 6: Midterm Exam (Process Scheduling & Concurrency).
+Week 7: Main Memory Organization, Address Translation, and Segmentation.
+Week 8: Virtual Memory, Demand Paging, and Page Replacement Algorithms.
+Week 9: Mass Storage Systems, RAID Levels, and Disk Scheduling.
+Week 10: File System Interface, Directory Implementation, and File Allocation.
+
+4. GRADING POLICY
+- Lab Assignments: 20% (due week 8).
+- Midterm Assessment: 30% (due week 6).
+- Final Exam: 50% (due week 10).
+
