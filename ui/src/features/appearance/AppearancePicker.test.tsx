@@ -9,11 +9,12 @@ afterEach(() => {
   cleanup();
   delete document.documentElement.dataset.accent;
   delete document.documentElement.dataset.theme;
+  delete document.documentElement.dataset.cardStyle;
 });
 
 function setup() {
   const store: AppearanceStore = {
-    load: () => ({ accent: "violet", theme: "system" }),
+    load: () => ({ accent: "violet", theme: "system", cardStyle: "standard" }),
     save: vi.fn(),
   };
   render(<AppearancePicker store={store} />);
@@ -31,6 +32,24 @@ describe("appearance picker", () => {
       (screen.getByRole("radio", { name: "Match device" }) as HTMLInputElement)
         .checked,
     ).toBe(true);
+    expect((screen.getByRole("radio", { name: "Standard" }) as HTMLInputElement).checked).toBe(true);
+  });
+  it("offers a Canva gradient and applies it immediately", async () => {
+    const user = userEvent.setup();
+    const store = setup();
+    await user.click(screen.getByRole("radio", { name: "Neon Aura" }));
+    expect(document.documentElement.dataset.accent).toBe("neon-aura");
+    expect(document.documentElement.style.getPropertyValue("--gradient-display")).toContain("#6500ff");
+    expect(store.save).toHaveBeenCalledWith({ accent: "neon-aura", theme: "system", cardStyle: "standard" });
+  });
+  it("switches card style immediately and saves the choice", async () => {
+    const user = userEvent.setup();
+    const store = setup();
+    await user.click(screen.getByRole("radio", { name: "Cloudy" }));
+    expect(document.documentElement.dataset.cardStyle).toBe("cloudy");
+    expect(store.save).toHaveBeenLastCalledWith({ accent: "violet", theme: "system", cardStyle: "cloudy" });
+    await user.click(screen.getByRole("radio", { name: "Standard" }));
+    expect(document.documentElement.dataset.cardStyle).toBeUndefined();
   });
   it("applies and saves an accent and a theme as soon as they are picked", async () => {
     const user = userEvent.setup();
@@ -44,6 +63,7 @@ describe("appearance picker", () => {
     expect(store.save).toHaveBeenLastCalledWith({
       accent: "ocean",
       theme: "dark",
+      cardStyle: "standard",
     });
   });
 });

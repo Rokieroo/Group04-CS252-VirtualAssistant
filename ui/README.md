@@ -98,6 +98,8 @@ Put `VITE_BACKEND_MODE=api` in `ui/.env.local`, start the backend (`python -m uv
 
 No API keys, backend, database, or real LLM are needed. AI replies are deterministic examples, prerequisite confirmation is self-reported, schedule topics are sample data, and workload uses an illustrative 3 hours per active course estimate. Weekly budget adjustment resizes existing planned sessions (10–60 minutes), not a scheduling optimizer. English has four sample grammar questions; other modules use a clearly labeled workflow check. Mastery lists the scheduled demo sessions and updates each status after a passing check. The initial English goal begins with six example lessons already completed, plus seven scheduled sessions (6/13 verified).
 
+Appearance includes thirteen multi-color Canva gradient presets. The selected palette is saved on this device, while text-bearing fills keep every color under a dark contrast layer for readability. The palette also colors the sidebar, active navigation, vertical session markers, and soft page backgrounds. Appearance also offers Standard and Cloudy card styles for content panels across Home, Courses, Review, and the other tabs.
+
 State is stored under `pathly.demo.v1` in browser localStorage, not an account. Lesson scratch notes last only while the dialog is open. Removing that storage key resets the demo. Saved demo schedules are rebased when the date changes so the relative calendar remains usable.
 
 ## Code map

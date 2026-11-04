@@ -43,13 +43,17 @@
   --color-nav-line: #ffffff1f;
   --shadow-md: 0 8px 30px light-dark(#18243930, #00000066);
   --shadow-lg: 0 30px 100px light-dark(#18243930, #00000080);
-  --shadow-glow: 0 10px 28px -8px color-mix(in oklab, var(--accent-a) 60%, transparent);
+  --shadow-glow: 0 10px 28px -8px
+    color-mix(in oklab, var(--accent-a) 60%, transparent);
   --gradient-brand: linear-gradient(
     135deg,
     var(--accent-a) 0%,
     color-mix(in oklab, var(--accent-a), var(--accent-b)) 55%,
     var(--accent-b) 100%
   );
+  --gradient-display: var(--gradient-brand);
+  --gradient-display-vertical: var(--gradient-brand);
+  --gradient-veil: transparent;
   --gradient-glow: linear-gradient(
     135deg,
     color-mix(in oklab, var(--accent-a) 50%, white) 0%,
@@ -58,22 +62,48 @@
   /* Text gradient: brand on light surfaces, the lighter glow on dark ones. */
   --gradient-text: linear-gradient(
     135deg,
-    light-dark(var(--accent-a), color-mix(in oklab, var(--accent-a) 50%, white)) 0%,
-    light-dark(var(--accent-b), color-mix(in oklab, var(--accent-b) 50%, white)) 100%
+    light-dark(var(--accent-a), color-mix(in oklab, var(--accent-a) 50%, white))
+      0%,
+    light-dark(var(--accent-b), color-mix(in oklab, var(--accent-b) 50%, white))
+      100%
   );
   --gradient-nav:
-    radial-gradient(130% 55% at 0% 0%, color-mix(in oklab, var(--accent-a) 40%, transparent) 0%, transparent 70%),
-    radial-gradient(120% 45% at 100% 100%, color-mix(in oklab, var(--accent-b) 20%, transparent) 0%, transparent 70%),
-    linear-gradient(180deg, #1b2440 0%, color-mix(in oklab, var(--accent-a) 14%, #1b2440) 100%);
+    radial-gradient(
+      130% 55% at 0% 0%,
+      color-mix(in oklab, var(--accent-a) 40%, transparent) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      120% 45% at 100% 100%,
+      color-mix(in oklab, var(--accent-b) 20%, transparent) 0%,
+      transparent 70%
+    ),
+    linear-gradient(
+      180deg,
+      #1b2440 0%,
+      color-mix(in oklab, var(--accent-a) 14%, #1b2440) 100%
+    );
   --gradient-nav-active: linear-gradient(
     90deg,
     color-mix(in oklab, var(--accent-a) 45%, transparent) 0%,
     color-mix(in oklab, var(--accent-a) 10%, transparent) 100%
   );
-  --gradient-wash: linear-gradient(115deg, var(--color-tint) 0%, var(--color-surface) 60%);
+  --gradient-wash: linear-gradient(
+    115deg,
+    var(--color-tint) 0%,
+    var(--color-surface) 60%
+  );
   --gradient-aurora:
-    radial-gradient(55% 45% at 12% 8%, color-mix(in oklab, var(--accent-a) 25%, transparent) 0%, transparent 70%),
-    radial-gradient(50% 45% at 92% 95%, color-mix(in oklab, var(--accent-b) 20%, transparent) 0%, transparent 70%);
+    radial-gradient(
+      55% 45% at 12% 8%,
+      color-mix(in oklab, var(--accent-a) 25%, transparent) 0%,
+      transparent 70%
+    ),
+    radial-gradient(
+      50% 45% at 92% 95%,
+      color-mix(in oklab, var(--accent-b) 20%, transparent) 0%,
+      transparent 70%
+    );
   /* Motion (Material 3 curves): decelerate for entering, standard for state changes. */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
@@ -111,6 +141,27 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
+}
+/* The same full palette fills surfaces; only text-bearing surfaces get a dark veil.
+   Text uses every stop darkened on light surfaces or lightened on dark surfaces. */
+:root[data-gradient="true"] {
+  --gradient-text: var(--gradient-text-light);
+}
+:root[data-gradient="true"][data-theme="dark"] {
+  --gradient-text: var(--gradient-text-dark);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-gradient="true"]:not([data-theme="light"]) {
+    --gradient-text: var(--gradient-text-dark);
+  }
+}
+:root[data-gradient="true"] {
+  --gradient-page-overlay: light-dark(#f6f8fce6, #0f1626e8);
+  --gradient-surface-overlay: light-dark(#ffffffdf, #182238e0);
+  background:
+    linear-gradient(var(--gradient-page-overlay), var(--gradient-page-overlay)),
+    var(--gradient-display);
+  background-attachment: fixed;
 }
 /* Accent presets: white text contrast checked >= 4.8:1 at both ends and the midpoint.
    Not scoped to :root so each picker swatch can preview its own preset. */
@@ -182,7 +233,8 @@ button,
 input,
 select,
 textarea {
-  transition-property: background-color, border-color, color, box-shadow, filter, transform;
+  transition-property:
+    background-color, border-color, color, box-shadow, filter, transform;
   transition-duration: var(--duration-fast);
   transition-timing-function: var(--ease-standard);
 }
@@ -287,6 +339,17 @@ main {
   flex-direction: column;
   z-index: 10;
   overflow-y: auto;
+}
+:root[data-gradient="true"] .sidebar {
+  /* The palette remains visible beneath a dark layer that protects navigation contrast. */
+  background: linear-gradient(#1018289c, #1018289c), var(--gradient-display);
+}
+:root[data-gradient="true"] .sidebar nav button.active {
+  background: linear-gradient(#0009, #0009), var(--gradient-display);
+  box-shadow: inset 4px 0 0 #ffffffd9;
+}
+:root[data-gradient="true"] .avatar {
+  background: var(--gradient-display);
 }
 .brand {
   font-size: 25px;
@@ -450,10 +513,21 @@ main {
   border-color: transparent;
   background:
     var(--gradient-wash) padding-box,
-    var(--gradient-brand) border-box;
+    var(--gradient-display) border-box;
+}
+:root[data-gradient="true"] .hero {
+  background:
+    linear-gradient(
+        var(--gradient-surface-overlay),
+        var(--gradient-surface-overlay)
+      )
+      padding-box,
+    var(--gradient-display) border-box;
 }
 .hero .ai-symbol {
-  background: var(--gradient-brand);
+  background:
+    linear-gradient(var(--gradient-veil), var(--gradient-veil)),
+    var(--gradient-brand);
   color: var(--color-on-primary);
   box-shadow: var(--shadow-glow);
 }
@@ -506,7 +580,9 @@ main {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: var(--gradient-brand);
+  background:
+    linear-gradient(var(--gradient-veil), var(--gradient-veil)),
+    var(--gradient-brand);
   pointer-events: none;
 }
 :is(.button.primary, .primary-action, .auth-submit)::after {
@@ -518,8 +594,16 @@ main {
   z-index: -2;
   inset: -10px -18px -18px;
   background:
-    radial-gradient(closest-side at 35% 55%, color-mix(in oklab, var(--accent-a) 65%, transparent), transparent),
-    radial-gradient(closest-side at 65% 55%, color-mix(in oklab, var(--accent-b) 60%, transparent), transparent);
+    radial-gradient(
+      closest-side at 35% 55%,
+      color-mix(in oklab, var(--accent-a) 65%, transparent),
+      transparent
+    ),
+    radial-gradient(
+      closest-side at 65% 55%,
+      color-mix(in oklab, var(--accent-b) 60%, transparent),
+      transparent
+    );
   opacity: 0.6;
   animation: ambient 4.5s ease-in-out infinite alternate;
   transition: opacity var(--duration-base) var(--ease-standard);
@@ -535,7 +619,10 @@ main {
 :is(.button.primary, .primary-action, .auth-submit):hover:not(:disabled) {
   filter: brightness(1.08);
 }
-:is(.button.primary, .primary-action, .auth-submit):is(:hover, :focus-visible):not(:disabled)::before {
+:is(.button.primary, .primary-action, .auth-submit):is(
+    :hover,
+    :focus-visible
+  ):not(:disabled)::before {
   opacity: 0.9;
 }
 :is(.button.primary, .primary-action, .auth-submit):disabled::before {
@@ -573,8 +660,8 @@ main {
   left: 19px;
   top: 21px;
   bottom: 21px;
-  width: 5px;
-  background: var(--gradient-brand);
+  width: 6px;
+  background: var(--gradient-display-vertical);
   border-radius: 3px;
 }
 .session.amber:before {
@@ -616,6 +703,28 @@ main {
   background: var(--color-surface);
   color: inherit;
 }
+/* Cloudy is a shared content-surface style across Home, Courses, Review, and Workspace.
+   Layered soft ellipses add cloud shapes while the solid base keeps text readable. */
+:root[data-card-style="cloudy"] {
+  --cloud-surface:
+    radial-gradient(ellipse 34% 68% at 8% 0%, light-dark(#ffffff, #ffffff19) 12%, transparent 88%),
+    radial-gradient(ellipse 38% 72% at 44% -12%, light-dark(#ffffffeb, #ffffff14) 15%, transparent 89%),
+    radial-gradient(ellipse 42% 75% at 94% 3%, light-dark(#ffffffeb, #ffffff16) 10%, transparent 90%),
+    radial-gradient(ellipse 70% 105% at 0% 100%, light-dark(color-mix(in oklab, var(--accent-a) 14%, #eaf1ff), color-mix(in oklab, var(--accent-a) 17%, #17233b)) 0%, transparent 82%),
+    radial-gradient(ellipse 65% 100% at 100% 100%, light-dark(color-mix(in oklab, var(--accent-b) 13%, #f5ecff), color-mix(in oklab, var(--accent-b) 15%, #17233b)) 0%, transparent 85%),
+    light-dark(#f0f5fc, #1b2942);
+  --cloud-border: light-dark(#ffffff, #ffffff42);
+  --cloud-shadow: 0 12px 34px light-dark(#344c7730, #00000045), inset 0 1px 0 #ffffff55;
+}
+:root[data-card-style="cloudy"] :is(.card:not(.hero), .day, .proposal) {
+  background: var(--cloud-surface);
+  border-color: var(--cloud-border);
+  border-radius: 26px;
+  box-shadow: var(--cloud-shadow);
+}
+:root[data-card-style="cloudy"] .day.today {
+  border-color: var(--color-today-line);
+}
 .neutral {
   background: var(--color-bg);
   color: var(--color-text);
@@ -648,7 +757,7 @@ main {
 }
 .meter span {
   height: 100%;
-  background: var(--gradient-brand);
+  background: var(--gradient-display);
   display: block;
   border-radius: 9px;
   transition: width var(--duration-slow) var(--ease-standard);
@@ -1141,13 +1250,15 @@ legend {
   margin: var(--space-4) 0;
 }
 .swatches,
-.segmented {
+.segmented,
+.card-style-choices {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
 }
 .swatch,
-.segmented label {
+.segmented label,
+.card-style-choice {
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -1163,11 +1274,57 @@ legend {
     background-color var(--duration-fast) var(--ease-standard);
 }
 .swatch input,
-.segmented input {
+.segmented input,
+.card-style-choice input {
   position: absolute;
   width: 1px;
   height: 1px;
   opacity: 0;
+}
+.appearance-group-label {
+  margin: var(--space-3) 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-muted);
+}
+.gradient-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: var(--space-2);
+}
+.swatch.gradient-choice {
+  align-items: stretch;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-2) var(--space-3);
+  gap: var(--space-1);
+}
+.gradient-preview {
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid #0000001a;
+}
+.card-style-choice {
+  flex: 1 1 135px;
+}
+.card-style-preview {
+  width: 38px;
+  height: 24px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  background: var(--color-surface);
+}
+.card-style-preview.cloudy {
+  background: var(--cloud-preview);
+  border-color: light-dark(#ffffff, #ffffff42);
+  border-radius: 10px;
+  box-shadow: 0 4px 9px #344c7729;
+}
+:root {
+  --cloud-preview:
+    radial-gradient(ellipse at 15% 10%, #fff 10%, transparent 80%),
+    radial-gradient(ellipse at 88% 95%, color-mix(in oklab, var(--accent-b) 25%, #e9edff), transparent 85%),
+    #e8eafa;
 }
 .swatch-dot {
   width: 20px;
@@ -1176,12 +1333,12 @@ legend {
   /* Resolves against this swatch's own [data-accent], so each previews its preset. */
   background: linear-gradient(135deg, var(--accent-a), var(--accent-b));
 }
-:is(.swatch, .segmented label):has(input:checked) {
+:is(.swatch, .segmented label, .card-style-choice):has(input:checked) {
   border-color: var(--color-primary-ink);
   background: var(--color-tint);
   font-weight: 600;
 }
-:is(.swatch, .segmented label):has(input:focus-visible) {
+:is(.swatch, .segmented label, .card-style-choice):has(input:focus-visible) {
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;
 }
@@ -1483,6 +1640,11 @@ legend {
   place-items: center;
   padding: var(--space-4);
   background: var(--gradient-aurora), var(--color-bg);
+}
+:root[data-gradient="true"] .auth {
+  background:
+    linear-gradient(var(--gradient-page-overlay), var(--gradient-page-overlay)),
+    var(--gradient-display);
 }
 .auth-card {
   width: min(400px, 100%);
