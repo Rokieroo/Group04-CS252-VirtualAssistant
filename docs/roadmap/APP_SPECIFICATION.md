@@ -16,7 +16,9 @@ Tài liệu này đặc tả toàn bộ ứng dụng của Group 04 đến từn
 
 ### 1.1. Sản phẩm là gì
 
-Study Companion biến **syllabus** của một môn học thành **lộ trình học có lịch** và **bộ nguồn học đã được chọn lọc**. Người học tải syllabus (PDF, DOCX hoặc dán text) lên; ứng dụng đọc ra chuẩn đầu ra, chủ đề từng tuần và các mốc kiểm tra, dựng roadmap theo thứ tự kiến thức nền, xếp vào thời gian rảnh của người học, rồi với mỗi chặng tìm 3–5 nguồn học tốt nhất (bài đọc, video bài giảng, bài tập) kèm lý do vì sao chọn.
+Study Companion biến **syllabus** của một môn học thành **knowledge graph của cả môn**, **lộ trình học có lịch** và **bộ nguồn học đã được xác minh**. Người học tải syllabus (PDF, DOCX hoặc dán text) lên; ứng dụng đọc ra chuẩn đầu ra, chủ đề từng tuần và các mốc kiểm tra, dựng một knowledge graph cho thấy **mọi concept môn học cần** và concept nào phải học trước concept nào, sắp graph đó thành roadmap, xếp vào thời gian rảnh của người học, rồi với mỗi concept tìm 3–5 nguồn học tốt nhất (bài đọc, video bài giảng, bài tập) kèm lý do vì sao chọn.
+
+Knowledge graph là trung tâm của sản phẩm: roadmap, lịch học và nguồn học đều là cách nhìn khác nhau của cùng một graph. Người học nhìn vào graph là thấy toàn bộ môn học trên một màn hình: đã học đến đâu, còn thiếu gì, mốc kiểm tra nào cần concept nào.
 
 Khác Coursera: Coursera đi theo lộ trình của các khóa học có sẵn trên nền tảng. Study Companion đi theo **syllabus giáo viên đã giao cho bạn**, rồi tìm nguồn miễn phí, uy tín trên cả web cho đúng chủ đề, đúng trình độ, đúng tuần. Khoảng trống thật của học sinh K-12 và sinh viên không nằm ở chỗ thiếu tài liệu mà ở chỗ **có quá nhiều tài liệu kém** và không biết học gì vào tuần nào.
 
@@ -24,11 +26,10 @@ Khác Coursera: Coursera đi theo lộ trình của các khóa học có sẵn t
 
 | Lớp | Chức năng | Vai trò |
 | --- | --- | --- |
-| **Chính (core loop)** | ① Đọc syllabus → ② Dựng roadmap có lịch → ③ Tìm nguồn học chất lượng cho từng chặng | Lý do người dùng mở app; mọi thứ khác phục vụ vòng này |
-| Cách nhìn của core loop | Knowledge graph tương tác (UC-18, epic #94): cùng dữ liệu roadmap, xem dạng graph kiểu Obsidian, mỗi node có nguồn đã xác minh từ catalog (epic #92) | Giúp hiểu **vì sao** học theo thứ tự này và học tiếp gì; không phải dữ liệu riêng |
+| **Chính (core loop)** | ① Đọc syllabus → ② Dựng knowledge graph của cả môn (mọi concept cần học + cạnh prerequisite, luôn là DAG; xem tương tác kiểu Obsidian, epic #94) → ③ Sắp graph thành roadmap có lịch → ④ Gắn nguồn học đã xác minh cho từng concept (catalog, epic #92, và resource finder) | Lý do người dùng mở app; mọi thứ khác phục vụ vòng này |
 | Bổ trợ | Tài liệu riêng của chặng (slide giáo viên), câu hỏi luyện tập có trích dẫn, ôn tập FSRS, hỏi đáp có trích dẫn, gợi ý theo bậc, companion, dashboard giáo viên, báo cáo phụ huynh, nhóm học | Giúp học **xong** một chặng và giữ được kiến thức; luôn mở từ một chặng của roadmap |
 
-Quy tắc sản phẩm: một tính năng bổ trợ không được có điểm vào riêng ở màn hình chính. Người dùng đến với nó qua roadmap (ví dụ "Luyện tập chặng Tuần 3") hoặc qua lịch học.
+Quy tắc sản phẩm: một tính năng bổ trợ không được có điểm vào riêng ở màn hình chính. Người dùng đến với nó qua một node của graph, một chặng của roadmap (ví dụ "Luyện tập chặng Tuần 3") hoặc qua lịch học.
 
 ### 1.3. Sản phẩm KHÔNG phải là
 
@@ -40,7 +41,7 @@ Quy tắc sản phẩm: một tính năng bổ trợ không được có điểm
 
 ### 1.4. Ba nguyên lý thiết kế
 
-1. **Theo syllabus, theo kiến thức nền**: thứ tự học tôn trọng cả tuần trong syllabus lẫn quan hệ prerequisite; không chặng nào bị xếp sau mốc kiểm tra cần nó.
+1. **Theo syllabus, theo kiến thức nền**: mọi concept trong graph đến từ syllabus (có trang nguồn); thứ tự học tôn trọng cả tuần trong syllabus lẫn quan hệ prerequisite; không chặng nào bị xếp sau mốc kiểm tra cần nó.
 2. **Ít mà tốt (curate, don't dump)**: mỗi chặng tối đa 5 nguồn, mỗi nguồn có điểm chất lượng và lý do có bằng chứng; không đủ nguồn tốt thì nói thẳng, không lấp bằng nguồn kém.
 3. **Học chủ động**: nguồn học đi kèm luyện tập truy xuất (active recall) và ôn ngắt quãng (spaced repetition, FSRS) ở lớp bổ trợ, vì đọc/xem xong chưa phải là đã học.
 
@@ -71,10 +72,10 @@ Sinh viên năm 1–2 của FIT nhận syllabus mỗi môn vào đầu kỳ như
 | --- | --- | --- |
 | Sinh viên đại học trong 1 môn (CSC10014) | 1 | Có syllabus thật, phỏng vấn được ngay, đa số ≥ 18 tuổi, team chính là người dùng |
 | Sinh viên đại học, môn bất kỳ có syllabus | 2 | Cùng luồng; syllabus đa dạng định dạng hơn |
-| Người tự học (không có syllabus) | 4 | Dán mục lục khóa học hoặc mô tả mục tiêu → hệ thống dựng "syllabus nháp" để xác nhận |
-| Học sinh lớp 10–12 (ôn thi THPT) | 4 | Dùng khung chương trình của Bộ làm syllabus; cần đồng ý phụ huynh, lọc nguồn theo độ tuổi, không có girlfriend mode |
-| Giáo viên | 4 | Tải syllabus một lần, duyệt nguồn, xuất bản roadmap cho cả lớp |
-| Phụ huynh | 4 | Nhận báo cáo tiến độ roadmap hằng tuần, bật/tắt companion |
+| Người tự học (không có syllabus) | 5 | Dán mục lục khóa học hoặc mô tả mục tiêu → hệ thống dựng "syllabus nháp" để xác nhận |
+| Học sinh lớp 10–12 (ôn thi THPT) | 5 | Dùng khung chương trình của Bộ làm syllabus; cần đồng ý phụ huynh, lọc nguồn theo độ tuổi, không có girlfriend mode |
+| Giáo viên | 5 | Tải syllabus một lần, duyệt nguồn, xuất bản roadmap cho cả lớp |
+| Phụ huynh | 5 | Nhận báo cáo tiến độ roadmap hằng tuần, bật/tắt companion |
 
 ### 2.3. Personas
 
@@ -89,7 +90,7 @@ Sinh viên năm 1–2 của FIT nhận syllabus mỗi môn vào đầu kỳ như
 
 ## 3. Use cases
 
-Mỗi use case có ID cố định; code, test và issue phải trỏ về ID này. UC-01 đến UC-08 là **core loop**; UC-09 trở đi là bổ trợ.
+Mỗi use case có ID cố định; code, test và issue phải trỏ về ID này. UC-01 đến UC-08 và UC-18 là **core loop**; UC-09 đến UC-17 là bổ trợ.
 
 | ID | Use case | Actor | Kỹ thuật (Capability) | MoSCoW | Tuần |
 | --- | --- | --- | --- | --- | ---: |
@@ -102,15 +103,15 @@ Mỗi use case có ID cố định; code, test và issue phải trỏ về ID n�
 | UC-07 | Lập lại kế hoạch khi trễ hoặc syllabus đổi | Hệ thống | Deterministic (diff + xếp lại phần chưa học) | Should | 3 |
 | UC-08 | Xem tiến độ roadmap và đếm ngược mốc kiểm tra | Học sinh | Deterministic | Should | 3 |
 | UC-09 | Gắn slide/tài liệu riêng vào chặng | Học sinh | Deterministic (ingest) | Should | 1 |
-| UC-10 | Sinh câu hỏi luyện tập cho chặng | Hệ thống | LLM soạn, bắt buộc trích dẫn | Should | 1–2 |
-| UC-11 | Làm buổi ôn tập hôm nay | Học sinh | Deterministic (FSRS) | Should | 3 |
-| UC-12 | Hỏi về chặng, có trích dẫn | Học sinh | Retrieval (BM25 + vector) + LLM | Should | 3 |
+| UC-10 | Sinh câu hỏi luyện tập cho chặng | Hệ thống | LLM soạn, bắt buộc trích dẫn | Should | 4 |
+| UC-11 | Làm buổi ôn tập hôm nay | Học sinh | Deterministic (FSRS) | Should | 4 |
+| UC-12 | Hỏi về chặng, có trích dẫn | Học sinh | Retrieval (BM25 + vector) + LLM | Should | 4 |
 | UC-13 | Xin gợi ý, không xin đáp án | Học sinh | LLM, hint ladder | Could | 4 |
-| UC-14 | Trò chuyện, nhận unlock từ companion | Học sinh | LLM persona + rule | Could | 4 |
-| UC-15 | Xuất bản roadmap và nguồn đã duyệt cho lớp | Giáo viên | Deterministic | Should | 4 |
+| UC-14 | Trò chuyện, nhận unlock từ companion | Học sinh | LLM persona + rule | Could | 5 |
+| UC-15 | Xuất bản roadmap và nguồn đã duyệt cho lớp | Giáo viên | Deterministic | Should | 5 |
 | UC-16 | Nhận báo cáo tuần và kiểm soát companion | Phụ huynh | Deterministic | Could | 5 |
 | UC-17 | Làm placement test để bỏ qua chặng đã biết | Người tự học | Deterministic + LLM | Could | 5 |
-| UC-18 | Khám phá knowledge graph, xem nguồn đã xác minh của từng concept | Học sinh | Deterministic (DAG, local graph) + catalog đã xác minh | Should | 5 |
+| UC-18 | Khám phá knowledge graph của cả môn, xem nguồn đã xác minh của từng concept | Học sinh | Deterministic (DAG, local graph) + catalog đã xác minh | Must | 3–4 |
 
 ### 3.1. Đặc tả mẫu: UC-05 Tìm nguồn học chất lượng cho một chặng
 
@@ -152,7 +153,7 @@ Mỗi use case có ID cố định; code, test và issue phải trỏ về ID n�
 1. Đăng ký (email, mật khẩu, năm sinh) → chọn cấp học (đại học / K-12).
 2. Tạo môn học → kéo thả syllabus (PDF/DOCX) hoặc dán text.
 3. Hệ thống trích text theo trang và phân tích (≈ 30 giây cho syllabus 8 trang) → hiện bảng: chuẩn đầu ra, 10–15 tuần với chủ đề, các mốc kiểm tra và trọng số, giáo trình. Mỗi ô có chip trang nguồn.
-4. Sinh viên sửa ô sai, xác nhận → hệ thống dựng roadmap (timeline theo tuần + graph prerequisite).
+4. Sinh viên sửa ô sai, xác nhận → hệ thống dựng **knowledge graph của cả môn** (mọi concept, cạnh prerequisite, mốc kiểm tra) và roadmap từ graph đó (timeline theo tuần). Sinh viên xem graph, sửa cạnh sai, xác nhận.
 5. Sinh viên nhập số giờ rảnh mỗi tuần (hoặc chọn khung giờ trên lịch) → hệ thống xếp các buổi học vào lịch, có cảnh báo nếu quá tải trước kỳ thi.
 6. Trong lúc đó, bộ tìm nguồn chạy nền cho các chặng của 2 tuần đầu (các tuần sau tìm dần, mục 11.8). Trang chặng hiện 3–5 nguồn với điểm, định dạng, thời lượng và lý do.
 7. Companion (mode buddy mặc định) chào, giải thích mốc unlock theo tiến độ roadmap.
@@ -175,7 +176,7 @@ Mỗi use case có ID cố định; code, test và issue phải trỏ về ID n�
 | S2 | Danh sách môn học | thẻ môn, tiến độ roadmap (%), chặng tuần này, đếm ngược mốc kiểm tra | empty ("Tải syllabus đầu tiên") |
 | S3 | Tải syllabus | kéo thả PDF/DOCX, ô dán text, tiến trình phân tích | đang xử lý, file hỏng, quá 20 MB, PDF chỉ có ảnh, "không giống syllabus" |
 | S4 | Duyệt syllabus | 4 tab: Chuẩn đầu ra · Tuần & chủ đề · Đánh giá · Giáo trình; mỗi ô sửa được, có chip trang | cảnh báo trọng số ≠ 100%, ngày ngoài học kỳ, tuần trống |
-| S5 | Roadmap | timeline theo tuần + graph 2D, mốc kiểm tra, màu theo trạng thái (locked, available, in progress, done, needs review) | cycle → tô đỏ cạnh; quá tải → banner đề xuất |
+| S5 | Roadmap | timeline theo tuần + graph của môn (component `GraphCanvas` dùng chung với S14), mốc kiểm tra, màu theo trạng thái (locked, available, in progress, done, needs review) | cycle → tô đỏ cạnh; quá tải → banner đề xuất |
 | S6 | Trang chặng | mục tiêu (CLO), danh sách nguồn (điểm, định dạng, thời lượng, ngôn ngữ, lý do + đoạn trích), lọc theo định dạng, hữu ích / không, báo cáo, "Tìm lại"; lối vào luyện tập và hỏi đáp | đang tìm, "Chưa tìm được nguồn đủ tốt", nguồn bị gỡ |
 | S7 | Lịch học | tuần/tháng, buổi học gắn chặng, kéo thả đổi giờ, đề xuất lập lại kế hoạch (duyệt / từ chối) | trễ kế hoạch, xung đột lịch |
 | S8 | Thư viện nguồn | nguồn đã lưu theo môn/chặng, ghi chú, trạng thái đã học | trống |
@@ -408,6 +409,8 @@ Một syllabus được quy về JSON gồm 5 phần: `course` (mã, tên, tín 
 - Mỗi mốc kiểm tra → 1 chặng `milestone`, `covers` = các chặng từ mốc trước đến tuần của nó (hoặc phạm vi ghi trong syllabus).
 - Cạnh `soft` theo thứ tự tuần (tuần w → tuần w+1 cùng mạch chủ đề); cạnh `strict` do LLM đề xuất với `confidence`, chỉ giữ khi ≥ 0,6 và người dùng không bỏ.
 - Kahn's topological sort cho thứ tự; Tarjan SCC chỉ ra cycle cần bỏ cạnh.
+- Graph của môn là **nguồn chuẩn**: roadmap (S5), knowledge graph (S14) và lịch (S7) chỉ đọc từ nó. Mỗi concept giữ `source_page` của syllabus, CLO liên kết và mốc kiểm tra bao phủ nó; sửa cạnh ở bất kỳ màn hình nào đều qua cùng một service `graph` chặn cycle (#97, #100).
+- Graph phải trả lời được 3 câu hỏi trên một màn hình: môn này cần những concept nào; concept này cần học gì trước; mốc kiểm tra sắp tới cần những concept nào và mình đã học đến đâu.
 
 ### 10.2. Ước lượng thời lượng
 
@@ -527,7 +530,7 @@ Slide giáo viên hoặc ghi chú được gắn vào chặng qua `ingest` (mộ
 - Input: chặng + top-3 trang từ tài liệu riêng (BM25), hoặc đoạn trích của nguồn web đã chọn khi chưa có tài liệu riêng. Output: 3–5 item JSON có `source_id`.
 - Loại: MCQ (4 lựa chọn, 1 đúng), numeric (có sai số cho phép), short answer (kèm rubric 2–4 tiêu chí), spot-the-bug (sinh từ item đã duyệt).
 - Cite or refuse: `source_id` phải thuộc các trang đã đưa vào; MCQ đúng 1 đáp án; không chứa thông tin cá nhân. Item mới `status = draft`, người dùng duyệt nhanh.
-- Chấm: MCQ/numeric so trực tiếp; short answer LLM chấm theo rubric, khớp người chấm ≥ 85% (tuần 3), ≥ 90% (tuần 6).
+- Chấm: MCQ/numeric so trực tiếp; short answer LLM chấm theo rubric, khớp người chấm ≥ 85% (tuần 4), ≥ 90% (tuần 6).
 
 ### 12.3. Ôn tập ngắt quãng FSRS (UC-11)
 
