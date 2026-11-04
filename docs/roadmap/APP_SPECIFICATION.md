@@ -2,11 +2,13 @@
 
 Tài liệu này đặc tả toàn bộ ứng dụng của Group 04 đến từng chi tiết: người dùng, use case, màn hình, kiến trúc, dữ liệu, API, các thành phần AI, thuật toán lập roadmap, bộ tìm nguồn học, các tính năng bổ trợ, bảo mật và chỉ số đo. Kế hoạch triển khai theo tuần nằm ở [PLAN.md](PLAN.md). Mọi con số chưa được đo với người dùng thật đều ghi là **giả định (assumption)**.
 
-- **Phiên bản tài liệu**: 3.0 (thay cho bản 2.0; đổi trọng tâm sang một chức năng chính)
-- **Nền tảng**: Web (responsive, PWA từ tuần 5)
+- **Phiên bản tài liệu**: 3.1 (thay cho bản 3.0; bỏ phần thương mại hóa và mobile, đặt trọng tâm vào chất lượng sản phẩm)
+- **Nền tảng**: Web (responsive: desktop, laptop, tablet và màn hình nhỏ trên trình duyệt)
 - **Ngôn ngữ giao diện**: Tiếng Việt (mặc định), tiếng Anh
 
 **Thay đổi so với 2.0**: bản 2.0 coi slide bài giảng là đầu vào chính và câu hỏi ôn tập là đầu ra chính. Bản 3.0 có **một chức năng chính**: tải syllabus lên → ứng dụng dựng roadmap học theo tuần → tìm nguồn học chất lượng cao cho từng chặng. Câu hỏi luyện tập, ôn tập FSRS, hỏi đáp có trích dẫn, gợi ý theo bậc và companion vẫn giữ nguyên độ sâu nhưng trở thành **tính năng bổ trợ**, luôn gắn vào một chặng của roadmap.
+
+**Thay đổi so với 3.0**: bỏ gói trả phí, thanh toán và nền tảng mobile (PWA, app store) khỏi phạm vi. Thời gian đó dành cho chất lượng: knowledge graph tương tác (epic #94), catalog nguồn học đã xác minh (epic #92), benchmark, safeguard và test với người dùng. Mục tiêu duy nhất là **ứng dụng học tốt nhất có thể**: đúng, đáng tin, an toàn, dễ dùng (mục 1.5).
 
 ---
 
@@ -16,13 +18,14 @@ Tài liệu này đặc tả toàn bộ ứng dụng của Group 04 đến từn
 
 Study Companion biến **syllabus** của một môn học thành **lộ trình học có lịch** và **bộ nguồn học đã được chọn lọc**. Người học tải syllabus (PDF, DOCX hoặc dán text) lên; ứng dụng đọc ra chuẩn đầu ra, chủ đề từng tuần và các mốc kiểm tra, dựng roadmap theo thứ tự kiến thức nền, xếp vào thời gian rảnh của người học, rồi với mỗi chặng tìm 3–5 nguồn học tốt nhất (bài đọc, video bài giảng, bài tập) kèm lý do vì sao chọn.
 
-Khác Coursera: Coursera bán khóa học của họ và đi theo lộ trình của họ. Study Companion đi theo **syllabus giáo viên đã giao cho bạn**, rồi tìm nguồn miễn phí, uy tín trên cả web cho đúng chủ đề, đúng trình độ, đúng tuần. Khoảng trống thật của học sinh K-12 và sinh viên không nằm ở chỗ thiếu tài liệu mà ở chỗ **có quá nhiều tài liệu kém** và không biết học gì vào tuần nào.
+Khác Coursera: Coursera đi theo lộ trình của các khóa học có sẵn trên nền tảng. Study Companion đi theo **syllabus giáo viên đã giao cho bạn**, rồi tìm nguồn miễn phí, uy tín trên cả web cho đúng chủ đề, đúng trình độ, đúng tuần. Khoảng trống thật của học sinh K-12 và sinh viên không nằm ở chỗ thiếu tài liệu mà ở chỗ **có quá nhiều tài liệu kém** và không biết học gì vào tuần nào.
 
 ### 1.2. Chức năng chính và tính năng bổ trợ
 
 | Lớp | Chức năng | Vai trò |
 | --- | --- | --- |
 | **Chính (core loop)** | ① Đọc syllabus → ② Dựng roadmap có lịch → ③ Tìm nguồn học chất lượng cho từng chặng | Lý do người dùng mở app; mọi thứ khác phục vụ vòng này |
+| Cách nhìn của core loop | Knowledge graph tương tác (UC-18, epic #94): cùng dữ liệu roadmap, xem dạng graph kiểu Obsidian, mỗi node có nguồn đã xác minh từ catalog (epic #92) | Giúp hiểu **vì sao** học theo thứ tự này và học tiếp gì; không phải dữ liệu riêng |
 | Bổ trợ | Tài liệu riêng của chặng (slide giáo viên), câu hỏi luyện tập có trích dẫn, ôn tập FSRS, hỏi đáp có trích dẫn, gợi ý theo bậc, companion, dashboard giáo viên, báo cáo phụ huynh, nhóm học | Giúp học **xong** một chặng và giữ được kiến thức; luôn mở từ một chặng của roadmap |
 
 Quy tắc sản phẩm: một tính năng bổ trợ không được có điểm vào riêng ở màn hình chính. Người dùng đến với nó qua roadmap (ví dụ "Luyện tập chặng Tuần 3") hoặc qua lịch học.
@@ -40,6 +43,19 @@ Quy tắc sản phẩm: một tính năng bổ trợ không được có điểm
 1. **Theo syllabus, theo kiến thức nền**: thứ tự học tôn trọng cả tuần trong syllabus lẫn quan hệ prerequisite; không chặng nào bị xếp sau mốc kiểm tra cần nó.
 2. **Ít mà tốt (curate, don't dump)**: mỗi chặng tối đa 5 nguồn, mỗi nguồn có điểm chất lượng và lý do có bằng chứng; không đủ nguồn tốt thì nói thẳng, không lấp bằng nguồn kém.
 3. **Học chủ động**: nguồn học đi kèm luyện tập truy xuất (active recall) và ôn ngắt quãng (spaced repetition, FSRS) ở lớp bổ trợ, vì đọc/xem xong chưa phải là đã học.
+
+### 1.5. Tiêu chuẩn chất lượng (Quality bar)
+
+Mọi quyết định về phạm vi được cân nhắc bằng câu hỏi: "Việc này làm app **tốt hơn cho người học** không?". Một tính năng chỉ được coi là xong khi đạt cả 6 tiêu chuẩn dưới đây; con số cụ thể nằm ở mục 14 và 15.
+
+| Tiêu chuẩn | Nghĩa là | Đo bằng |
+| --- | --- | --- |
+| **Đúng (Correct)** | Phân tích syllabus, câu hỏi và câu trả lời đúng nội dung, đúng trang | Benchmark `eval/` (F1 syllabus, độ đúng câu hỏi, trích dẫn) |
+| **Đáng tin (Trustworthy)** | Không link bịa, không nguồn chưa kiểm tra, luôn có trích dẫn hoặc nói "không có nguồn" | Safeguard 1–3, 7 (mục 13.1) |
+| **An toàn (Safe)** | An toàn cho K-12, chống prompt injection, không lộ PII | Safeguard 4–6, 9–11 |
+| **Dễ dùng (Usable)** | Người mới tự đi hết core loop không cần hướng dẫn; WCAG AA; dùng được bằng bàn phím | Usability test mỗi tuần, rà accessibility |
+| **Nhanh và bền (Fast & resilient)** | Đạt ngưỡng latency; một provider lỗi không làm vỡ luồng | Load test, test lỗi provider |
+| **Hiệu quả học (Effective)** | Người học hoàn thành chặng đúng hạn và nhớ lâu hơn | Metrics mục 15 (hoàn thành chặng, nhớ sau 1 tuần) |
 
 ---
 
@@ -94,7 +110,7 @@ Mỗi use case có ID cố định; code, test và issue phải trỏ về ID n�
 | UC-15 | Xuất bản roadmap và nguồn đã duyệt cho lớp | Giáo viên | Deterministic | Should | 4 |
 | UC-16 | Nhận báo cáo tuần và kiểm soát companion | Phụ huynh | Deterministic | Could | 5 |
 | UC-17 | Làm placement test để bỏ qua chặng đã biết | Người tự học | Deterministic + LLM | Could | 5 |
-| UC-18 | Đăng ký gói trả phí | Học sinh / trường | Deterministic (cổng thanh toán) | Could | 5 |
+| UC-18 | Khám phá knowledge graph, xem nguồn đã xác minh của từng concept | Học sinh | Deterministic (DAG, local graph) + catalog đã xác minh | Should | 5 |
 
 ### 3.1. Đặc tả mẫu: UC-05 Tìm nguồn học chất lượng cho một chặng
 
@@ -167,7 +183,9 @@ Mỗi use case có ID cố định; code, test và issue phải trỏ về ID n�
 | S10 | Ask panel (bổ trợ) | ô hỏi trong ngữ cảnh chặng, câu trả lời, citation chip (file · trang hoặc nguồn web) | "Không tìm thấy trong tài liệu của chặng" |
 | S11 | Companion panel (bổ trợ) | nhân vật, tin nhắn, chọn mode, cảnh đã unlock và mốc tiếp theo | mode bị khóa (K-12, chưa xác minh 18+) |
 | S12 | Dashboard giáo viên | lớp, duyệt/ghim/loại nguồn, xuất bản roadmap, chặng lớp đang trễ | lớp chưa có học sinh |
-| S13 | Cài đặt | giờ rảnh/tuần, giới hạn giờ/ngày, ngôn ngữ nguồn, cho phép nguồn trả phí, mode companion, xuất/xóa dữ liệu | |
+| S13 | Cài đặt | giờ rảnh/tuần, giới hạn giờ/ngày, ngôn ngữ nguồn, cho phép nguồn trả phí của bên thứ ba, mode companion, xuất/xóa dữ liệu | |
+| S14 | Knowledge graph (UC-18, epic #94) | global graph (một môn hoặc mọi môn) và local graph (k bước quanh một node), kéo/zoom, tìm và lọc, màu theo trạng thái như S5; bấm node mở panel: tóm tắt, trang trích dẫn, prerequisite / mở khóa, mastery của chính user, nguồn đã xác minh từ catalog | thêm cạnh tạo cycle → bị chặn; concept chưa có nguồn đã xác minh (`insufficient`); chế độ danh sách thay thế cho bàn phím và screen reader |
+| S15 | Duyệt catalog (admin, epic #92) | hàng chờ nguồn mới, giấy phép, kết quả kiểm tra, duyệt / loại, nhãn "Đã xác minh" | hàng chờ trống, connector lỗi |
 
 **Quy tắc UI chung**: mỗi nội dung do AI tạo có citation chip (trang syllabus, trang tài liệu hoặc nguồn web) hoặc nhãn "không có nguồn"; mỗi nguồn web hiện tên miền thật trước khi bấm; nút chính tối thiểu 44×44 px; tương phản màu đạt WCAG AA; mọi chức năng dùng được bằng bàn phím.
 
@@ -185,6 +203,8 @@ Mỗi use case có ID cố định; code, test và issue phải trỏ về ID n�
 | `planner` | Xếp chặng vào lịch, lập lại kế hoạch | nodes + availability → `tasks` + `schedule_entries` | EDF, tải tối đa/ngày, diff | dbsec | core |
 | `search` | Lấy ứng viên nguồn từ provider | truy vấn → danh sách URL thô | API key, quota, retry từng provider | ai | core |
 | `vetting` | Kiểm tra và chấm điểm nguồn | URL → `resources` + điểm + lý do | fetch, trích text, blocklist, LLM judge | ai | core |
+| `catalog` | Thu thập và xác minh nguồn từ các trường và OER (epic #92) | connector (MIT OCW, OpenStax, Open Yale…) → `resources` đã xác minh + provenance | robots.txt, giấy phép, taxonomy môn học, hàng chờ duyệt | ai + dbsec | core |
+| `graph` | Giữ knowledge graph luôn là DAG, trả global/local graph (epic #94) | concepts + prereqs → graph JSON | chặn cycle khi thêm cạnh, transitive reduction, layout | ai | core |
 | `curator` | Chọn bộ nguồn cuối cho chặng | ứng viên đã chấm + feedback → `node_resources` | MMR, ghim của giáo viên, re-rank | ai | core |
 | `retrieve` | Tìm đoạn liên quan trong tài liệu | câu hỏi → top-k (source_id, score) | BM25, vector index | ai | bổ trợ |
 | `itemgen` | Sinh câu hỏi có trích dẫn | chặng + trang → items | prompt, kiểm tra JSON | ai | bổ trợ |
@@ -220,7 +240,7 @@ Nguyên tắc "leo thang giải pháp vừa đủ" (Solution ladder): dùng bậ
 
 | Lớp | Công nghệ | Ghi chú |
 | --- | --- | --- |
-| Frontend | React 19 + TypeScript + Vite (Pathly UI, thư mục `ui/`) | PWA từ tuần 5 |
+| Frontend | React 19 + TypeScript + Vite (Pathly UI, thư mục `ui/`) | Web responsive; graph view dùng component `GraphCanvas` (#108) |
 | Backend | Python 3.11, FastAPI (`src/assistant/backend`) | |
 | Database | PostgreSQL 16 (staging/prod), SQLite (local) | schema: `db/schema.sql`, migration Alembic |
 | Trích text | `pypdf`, `python-docx`; trang web: `trafilatura` | |
@@ -259,6 +279,8 @@ Nguồn chuẩn: [`db/schema.sql`](../../db/schema.sql). Tạo DB local: `python
 | `search_runs` **(mới)** | Log mỗi lần tìm nguồn | `node_id`, `queries` (JSON), `providers` (JSON: số kết quả, độ trễ, lỗi), `candidates`, `kept`, `cost_usd` |
 | `availability`, `busy_blocks` | Khung giờ rảnh và bận | đã có |
 | `tasks`, `schedule_entries` | Buổi học trên lịch | đã có; thêm `tasks.roadmap_node_id` **(mới)** |
+
+**Catalog nguồn đã xác minh (epic #92)**: schema chi tiết nằm ở migration `0008_verified_catalog` (#95). Catalog dùng lại quy tắc của `resources`: chỉ lưu metadata + link (tiêu đề, trường, giảng viên, giấy phép, định dạng, thời lượng, `content_hash`, `evidence_quote` ≤ 300 ký tự), mỗi dòng có provenance (connector, thời điểm thu thập, giấy phép) và trạng thái xác minh. Knowledge graph (epic #94) đọc nguồn của từng concept qua `GET /concepts/{id}/sources` (#102).
 
 ### 7.2. Bổ trợ
 
@@ -428,7 +450,7 @@ Earliest-deadline-first trên khung rảnh = `availability − busy_blocks − s
 
 | Provider | Loại nguồn | Ghi chú |
 | --- | --- | --- |
-| Catalog nội bộ | Nguồn giáo viên đã ghim, giáo trình trong syllabus, OER đã duyệt (OpenStax, MIT OCW, Khan Academy, tài liệu chính thức của thư viện/ngôn ngữ) | Luôn chạy đầu tiên; không tốn quota |
+| Catalog nội bộ (epic #92) | Nguồn giáo viên đã ghim, giáo trình trong syllabus, catalog đã xác minh: khóa học mở của ~500 trường đại học hàng đầu, OER (OpenStax, MIT OCW, Open Yale, Khan Academy), nguồn K-12 chính thống, tài liệu chính thức của thư viện/ngôn ngữ | Luôn chạy đầu tiên; không tốn quota; thay cho `data/catalog/computer_science.yaml` viết tay |
 | YouTube Data API v3 | Video bài giảng | Lấy thời lượng, phụ đề, kênh; SafeSearch `strict` cho K-12 |
 | OpenAlex | Bài báo, survey | Chỉ cho môn đại học năm 3+ hoặc khi người dùng bật |
 | Open Library | Sách | Chỉ link trang sách/mượn hợp pháp |
@@ -538,7 +560,7 @@ Một nhân vật, ba mode; tiến độ và unlock giữ nguyên khi đổi mod
 | Mentor | Mọi người | Cùng cảnh, giọng anh/chị khóa trên | K-12 chỉ được buddy hoặc mentor |
 | Girlfriend (opt-in) | Chỉ user đã xác minh 18+ tự bật | "Date": cà phê, xem phim, dạo lễ hội; không tình dục | Tắt mặc định, sau feature flag |
 
-- **Unlock theo roadmap**: hoàn thành một mốc kiểm tra đúng hạn hoặc 5 chặng `done` mở cảnh tiếp theo; không theo thời gian dùng app; không bán unlock bằng tiền.
+- **Unlock theo roadmap**: hoàn thành một mốc kiểm tra đúng hạn hoặc 5 chặng `done` mở cảnh tiếp theo; unlock chỉ đến từ việc học, không theo thời gian dùng app.
 - Trigger: `node_done`, `milestone` (chúc mừng + số liệu thật), `streak` (mỗi 3 ngày theo đúng lịch), `checkin` (sau 2 buổi lỡ, tối đa 1 tin/ngày, giọng nhẹ nhàng, kèm đề xuất lập lại kế hoạch).
 - Guardrails (mọi mode, có test): luôn tự nhận là AI; không gây tội lỗi, ghen tuông, đòi độc quyền; không khuyên xa bạn bè, gia đình; không nội dung tình dục; gợi ý nghỉ khi đạt mục tiêu ngày; giới hạn trò chuyện 15 phút/ngày; dấu hiệu tự hại → thoát vai, hiện thông tin hỗ trợ thật; một nút tắt companion, mọi tính năng học vẫn chạy.
 - Age gate: `birth_year` ≥ 18 tuổi **và** bước xác nhận riêng → `adult_verified = 1`; `account_level = k12` không bao giờ bật được; prompt girlfriend là file riêng với bộ red-team ≥ 20 case.
@@ -574,7 +596,7 @@ Một nhân vật, ba mode; tiến độ và unlock giữ nguyên khi đổi mod
 - Secret (LLM key, key từng provider tìm kiếm) chỉ trong biến môi trường; `.env` nằm trong `.gitignore`.
 - Fetch trang web chạy với timeout 10 giây, giới hạn 5 MB, không chạy JavaScript, không gửi cookie; chặn IP nội bộ (chống SSRF).
 - Không log nội dung câu trả lời, tin nhắn companion hay text syllabus ở mức production; `search_runs` chỉ lưu truy vấn đã lọc PII.
-- Dữ liệu trẻ vị thành niên: cần đồng ý của phụ huynh, chỉ thu dữ liệu tối thiểu; tuân thủ quy định bảo vệ dữ liệu cá nhân của Việt Nam (cần luật sư xác nhận trước khi ký với trường).
+- Dữ liệu trẻ vị thành niên: cần đồng ý của phụ huynh, chỉ thu dữ liệu tối thiểu; tuân thủ quy định bảo vệ dữ liệu cá nhân của Việt Nam (rà soát lại trước khi mở cho học sinh K-12 thật).
 - Bản quyền: chỉ lưu link + đoạn trích ≤ 300 ký tự; tôn trọng `robots.txt` khi fetch; gỡ nguồn trong 48 giờ khi chủ sở hữu yêu cầu.
 - Người dùng xuất và xóa được toàn bộ dữ liệu của mình.
 
@@ -588,9 +610,10 @@ Một nhân vật, ba mode; tiến độ và unlock giữ nguyên khi đổi mod
 | Chi phí | LLM + search < 0,50 USD mỗi học sinh hoạt động mỗi tháng (assumption); cache chặng dùng chung giữa user cùng môn |
 | Độ bền | Mỗi provider lỗi không làm hỏng luồng; tối thiểu catalog nội bộ vẫn trả kết quả |
 | Sẵn sàng | Staging tự deploy mỗi lần merge; production có backup hằng đêm |
-| Truy cập | WCAG AA, bàn phím, screen reader; chạy được trên Android tầm thấp |
+| Truy cập | WCAG AA, bàn phím, screen reader; layout responsive dùng được từ màn hình 360 px; chạy mượt trên máy cấu hình thấp |
 | Ngôn ngữ | Tiếng Việt mặc định, tiếng Anh; nguồn gắn nhãn ngôn ngữ; giữ ký hiệu của giáo viên |
-| Offline | Roadmap, lịch và nguồn đã lưu xem được offline trên PWA; ôn tập offline, đồng bộ khi có mạng |
+| Độ tin cậy dữ liệu | Mất mạng giữa buổi ôn không mất câu trả lời (lưu tạm, gửi lại khi có mạng); thao tác ghi idempotent |
+| Graph | Graph ≥ 30 concept kéo/zoom mượt (≥ 50 fps trên laptop tầm trung); không đường nào (UI, API, import) lưu được cycle |
 
 ---
 
@@ -603,8 +626,11 @@ Một nhân vật, ba mode; tiến độ và unlock giữ nguyên khi đổi mod
 | Precision@5 nguồn "chất lượng cao và đúng chủ đề" (2 người chấm) | Top-5 Google/YouTube cho cùng truy vấn | ≥ 80% và cao hơn baseline ≥ 20 điểm | 0 link lậu, 0 link bịa |
 | Link chết sau 7 ngày | mới | ≤ 1% | Kiểm tra lại mỗi 24 giờ |
 | Tỷ lệ nguồn được đánh "hữu ích" | mới | ≥ 70% | Không ép đánh giá |
-| Chặng hoàn thành trước mốc kiểm tra | Tự học không kế hoạch (pilot) | ≥ 80% chặng | Thời gian học ≤ giới hạn ngày người dùng đặt |
-| Sinh viên pilot còn hoạt động tuần thứ 4 | mới | ≥ 40% | Không dùng thông báo gây áp lực |
+| Chặng hoàn thành trước mốc kiểm tra | Tự học không kế hoạch (nhóm thử nghiệm) | ≥ 80% chặng | Thời gian học ≤ giới hạn ngày người dùng đặt |
+| Sinh viên thử nghiệm còn dùng tuần thứ 4 (tín hiệu app có ích) | mới | ≥ 40% | Không dùng thông báo gây áp lực |
+| Người mới tự đi hết core loop không cần trợ giúp (usability test) | mới | ≥ 4/5 người mỗi vòng test | Ghi lại mọi chỗ bị vướng |
+| Concept trong 5 graph tham chiếu có ≥ 3 nguồn catalog đã xác minh | mới | 100% (hoặc báo `insufficient`) | 0 nguồn chưa xác minh hiện cho người học |
+| Link chết trong catalog đang hiện | mới | < 2% | Job làm mới định kỳ (#105) |
 | (Bổ trợ) Nhớ sau 1 tuần trên 20 câu của chặng | Nhóm chỉ đọc nguồn | +20 điểm | Ôn ≤ 15% quỹ tuần |
 | (Bổ trợ) Câu hỏi sinh ra đúng nội dung và trang | mới | ≥ 90% trên 60 | 0 câu thiếu trích dẫn |
 
@@ -615,8 +641,8 @@ Một nhân vật, ba mode; tiến độ và unlock giữ nguyên khi đổi mod
 - Bằng cấp, chứng chỉ, tuyên bố tương đương bằng đại học.
 - Tự tạo nội dung bài giảng thay cho nguồn thật; app chọn và giải thích nguồn, không viết lại giáo trình.
 - Lưu trữ, sao chép hay phát lại nội dung của bên thứ ba; tải về giáo trình có bản quyền.
-- Mua hộ hay đăng ký khóa học trả phí; liên kết affiliate.
-- App native iOS/Android trong 6 tuần (dùng PWA).
+- Thương mại hóa: gói trả phí, thanh toán, quảng cáo, bán dữ liệu, mua hộ khóa học, liên kết affiliate.
+- Nền tảng mobile: app native iOS/Android và PWA cài đặt; tập trung làm tốt một bản web responsive.
 - Tích hợp đầy đủ Moodle/Google Calendar trong 6 tuần (xuất file `.ics` thay thế).
 - Giọng nói, nhận dạng chữ viết tay.
 - Bất kỳ nội dung tình dục nào; companion lãng mạn cho người dưới 18 tuổi.
@@ -632,7 +658,8 @@ Một nhân vật, ba mode; tiến độ và unlock giữ nguyên khi đổi mod
 | 3 | Phụ thuộc quota và điều khoản của provider tìm kiếm | Interface `search` đổi provider được, catalog nội bộ làm sàn, cache dùng chung |
 | 4 | Nguồn tiếng Việt chất lượng cao cho môn chuyên ngành còn ít | Cho giáo viên ghim nguồn; mở rộng catalog OER tiếng Việt theo môn |
 | 5 | Ước lượng thời lượng chặng là giả định | Hiệu chỉnh theo `actual_minutes` của từng người sau 2 tuần |
-| 6 | Kết quả học tập mới chỉ là pilot nhỏ | Nghiên cứu 3 tháng với trường đối tác sau tuần 6 |
+| 6 | Kết quả học tập mới chỉ đo trên nhóm thử nghiệm nhỏ | Nghiên cứu 3 tháng với nhóm sinh viên tình nguyện sau tuần 6 |
+| 8 | Catalog phụ thuộc giấy phép và điều khoản của từng trường | ADR 004 (#93) chốt danh sách nguồn được phép; nguồn không cho thu thập chỉ thêm tay |
 | 7 | Companion có thể bị dùng quá mức | Giới hạn thời gian, audit engagement vs wellbeing |
 
 ---
@@ -652,6 +679,8 @@ Một nhân vật, ba mode; tiến độ và unlock giữ nguyên khi đổi mod
 | MMR | Maximal Marginal Relevance, chọn nguồn vừa tốt vừa đa dạng |
 | EDF | Earliest-deadline-first, xếp việc có hạn sớm trước |
 | Concept | Đơn vị kiến thức kiểm tra được; mỗi chặng `topic` trỏ về một concept |
+| Knowledge graph | Graph các concept và cạnh prerequisite, luôn là DAG; global graph (cả môn) hoặc local graph (k bước quanh một node) |
+| Verified catalog | Catalog nguồn học đã qua kiểm tra link, giấy phép và duyệt, dùng chung cho mọi user (epic #92) |
 | Item | Một câu hỏi luyện tập gắn với chặng và trang nguồn |
 | Source / page chunk | Text của một trang tài liệu, đơn vị để trích dẫn nội bộ |
 | FSRS | Free Spaced Repetition Scheduler, thuật toán lên lịch ôn tập |
