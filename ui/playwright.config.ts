@@ -7,7 +7,11 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   workers: 2,
   reporter: [["list"], ["html", { open: "never" }]],
-  use: { trace: "retain-on-failure", screenshot: "only-on-failure" },
+  use: {
+    channel: process.env.PLAYWRIGHT_CHANNEL,
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
+  },
   projects: [
     {
       name: "desktop-demo",
@@ -34,13 +38,23 @@ export default defineConfig({
     },
     {
       name: "backend-ui",
-      testMatch: /concepts\.spec\.ts/,
+      testMatch: /syllabus\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: "http://127.0.0.1:5180" },
+    },
+    {
+      name: "backend-ui-mobile",
+      testMatch: /syllabus\.spec\.ts/,
+      use: {
+        ...devices["Pixel 7"],
+        viewport: { width: 390, height: 844 },
+        baseURL: "http://127.0.0.1:5180",
+      },
     },
   ],
   webServer: [
     {
-      command: "npx --no-install vite --host 127.0.0.1 --port 5178 --strictPort",
+      command:
+        "npx --no-install vite --host 127.0.0.1 --port 5178 --strictPort",
       url: "http://127.0.0.1:5178",
       reuseExistingServer: false,
       // Explicit modes: a developer's ui/.env.local must not switch the suites.
@@ -51,7 +65,8 @@ export default defineConfig({
       },
     },
     {
-      command: "npx --no-install vite --host 127.0.0.1 --port 5179 --strictPort",
+      command:
+        "npx --no-install vite --host 127.0.0.1 --port 5179 --strictPort",
       url: "http://127.0.0.1:5179",
       reuseExistingServer: false,
       env: {
@@ -62,7 +77,8 @@ export default defineConfig({
       },
     },
     {
-      command: "npx --no-install vite --host 127.0.0.1 --port 5180 --strictPort",
+      command:
+        "npx --no-install vite --host 127.0.0.1 --port 5180 --strictPort",
       url: "http://127.0.0.1:5180",
       reuseExistingServer: false,
       env: {

@@ -31,7 +31,7 @@ export function SyllabusUpload({ busy, mock, onUpload }: Props) {
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
-                if (e.dataTransfer.files[0]) {
+                if (!busy && e.dataTransfer.files[0]) {
                   setFile(e.dataTransfer.files[0]);
                   setPaste(false);
                 }
@@ -66,6 +66,7 @@ export function SyllabusUpload({ busy, mock, onUpload }: Props) {
           </div>
           <button
             className="core-text-button"
+            disabled={busy}
             aria-expanded={paste}
             onClick={() => setPaste(!paste)}
           >
@@ -75,6 +76,8 @@ export function SyllabusUpload({ busy, mock, onUpload }: Props) {
             <label>
               Syllabus text
               <textarea
+                disabled={busy}
+                maxLength={120000}
                 rows={6}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -92,8 +95,7 @@ export function SyllabusUpload({ busy, mock, onUpload }: Props) {
             </p>
           ) : (
             <p className="hint">
-              This API currently accepts pasted text. File parsing is awaiting
-              backend support.
+              PDF/DOCX and pasted text are parsed for your review before saving.
             </p>
           )}
         </section>

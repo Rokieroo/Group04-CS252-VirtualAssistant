@@ -23,6 +23,6 @@ The original gradient-picker work is preserved in the pushed `old/gradient-picke
 
 ## Verification and limits
 
-84 unit tests pass, production build passes, and `node ui/scripts/check-course-setup.mjs` (run from ui instead as `node scripts/check-course-setup.mjs`) checks the actual default server at 1440×900 and 390×844. Chrome must be installed. It checks review sections, source dialog dismissal, explicit approval, navigation and horizontal overflow. Screenshots are in `docs/screenshots/56-57/refactor-*`.
+Issue #56 now connects PDF/DOCX/text upload, four-section editing, source citations, validation and confirmation to the backend. All reviewed fields are persisted in the existing syllabus raw_text JSON snapshot, with outcomes and assessments also stored in their normalized fields. See [issue #56 verification](ISSUE_56.md) and [run instructions](../ui/README.md#real-syllabus-upload-and-review-56).
 
-Default mode uses a labelled sample syllabus; it does not parse uploaded files. Live API currently accepts pasted text and persists outcomes/assessments; weeks, textbooks and prerequisite edits remain session-only. The backend regenerates its own roadmap on approval. Setup state does not survive reload. S8 remains an empty future library destination. This refactor does not implement those missing backend capabilities.
+Default mode remains a labelled sample preview. Setup state does not automatically restore after reload. Roadmap prerequisite edits remain session-only and the live backend regenerates its roadmap on approval; these #57 limitations are not resolved by #56. S8 remains an empty future library destination.

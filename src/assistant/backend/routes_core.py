@@ -88,7 +88,11 @@ def preview_syllabus(course_id: str, data: SyllabusParseIn, db: DB, user: Curren
         raise HTTPException(503, "llm_unavailable") from None
     except ValueError:
         raise HTTPException(422, "invalid_syllabus") from None
-    return {**draft.to_dict(), "file_name": data.file_name}
+    return {
+        **draft.to_dict(),
+        "file_name": data.file_name,
+        "source_pages": {number: text for number, text in enumerate(pages, 1)},
+    }
 
 
 def _latest_syllabus(db, course_id: str) -> Syllabus | None:

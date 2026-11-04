@@ -402,3 +402,7 @@
 /* Outrank the shared legacy button pseudo-elements loaded by styles.css. */
 .study-companion button.primary-action::before { content:none; }
 .study-companion button.primary-action::after { background:var(--color-primary); }
+
+.core-review-form { border:0; padding:0; margin:0; min-width:0; display:grid; gap:20px; }
+.study-companion input[type="checkbox"] { width:20px; min-height:20px; }
+.core-review-form summary { cursor:pointer; min-height:44px; }

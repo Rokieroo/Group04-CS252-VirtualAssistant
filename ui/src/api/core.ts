@@ -1,22 +1,46 @@
+import { uploadSyllabus, confirmSyllabus, validateDraft } from "./syllabus";
+import { courseId } from "./courses";
 import { call } from "./backend";
-import type { Roadmap, RoadmapNode, Syllabus } from "./types";
+import type { Roadmap, RoadmapNode } from "./types";
 
-export type Week = { week: number; topics: string[]; source_page?: number };
-export type Book = { title: string; author: string; source_page?: number };
+export type Week = {
+  week: number;
+  topics: string[];
+  readings?: string[];
+  estimated?: boolean;
+  source_page?: number;
+};
+export type Book = {
+  title: string;
+  author: string;
+  required?: boolean;
+  source_page?: number;
+};
 export type Outcome = {
   code: string;
   description: string;
+  bloom_level?: string;
   source_page?: number;
 };
 export type AssessmentRow = {
   name: string;
   weight: number;
   due_week: number | null;
+  due_date?: string;
+  kind?: string;
   source_page?: number;
 };
-export type Warning = { code: string; message: string; blocking: boolean };
+export type Warning = {
+  code: string;
+  message: string;
+  blocking: boolean;
+  path?: string;
+};
 export type SyllabusDraft = {
   id: string;
+  course_id?: string;
+  course?: Record<string, { value: string | number; source_page?: number }>;
+  reviewed_warnings?: string[];
   raw_text: string;
   file_name: string;
   pages: number;
@@ -61,24 +85,9 @@ export function uploadError(file: Pick<File, "name" | "size">): string | null {
   return null;
 }
 export function warningsFor(draft: SyllabusDraft): Warning[] {
-  const warnings: Warning[] = [];
-  if (draft.assessments.length) {
-    const sum = draft.assessments.reduce((n, a) => n + a.weight, 0);
-    if (Math.abs(sum - 100) > 1)
-      warnings.push({
-        code: "weights_sum",
-        message: `Tổng trọng số là ${sum}%; cần bằng 100%.`,
-        blocking: true,
-      });
-  }
-  if (!draft.weeks.length)
-    warnings.push({
-      code: "weeks_empty",
-      message: "Chưa có tuần hoặc chủ đề. Hãy thêm ít nhất một tuần.",
-      blocking: true,
-    });
-  return warnings;
+  return validateDraft(draft);
 }
+
 export function createsRoadmapCycle(
   edges: Edge[],
   parent: string,
@@ -154,6 +163,8 @@ const fixture: SyllabusDraft = {
   weeks: [
     { week: 1, topics: ["Problem framing", "Solution ladder"], source_page: 3 },
     { week: 2, topics: ["Retrieval"], source_page: 4 },
+    { week: 8, topics: ["Midterm review"], source_page: 5 },
+    { week: 15, topics: ["Final review"], source_page: 5 },
   ],
   assessments: [
     { name: "Giữa kỳ", weight: 30, due_week: 8, source_page: 5 },
@@ -264,60 +275,17 @@ export const mockCoreService: CoreService = {
     };
   },
 };
-function fromBackend(s: Syllabus): SyllabusDraft {
-  return {
-    id: s.id,
-    raw_text: s.raw_text,
-    file_name: "Nội dung đã dán",
-    pages: 0,
-    status: "draft",
-    warnings: [],
-    outcomes: s.learning_outcomes.map((o) => ({
-      code: o.code,
-      description: o.description,
-    })),
-    weeks: [],
-    assessments: s.assessments.map((a) => ({
-      name: a.name,
-      weight: a.weight,
-      due_week: a.due_week,
-    })),
-    textbooks: [],
-  };
-}
 export const liveCoreService: CoreService = {
-  async upload(file) {
-    if (file instanceof File)
-      throw new Error(
-        "Máy chủ chưa hỗ trợ PDF/DOCX cho đề cương. Hãy dán nội dung văn bản.",
-      );
-    const s = await call<Syllabus>(`/courses/csc10014/syllabus`, {
-      method: "POST",
-      body: JSON.stringify({ raw_text: file }),
-    });
-    return fromBackend(s);
-  },
-  async confirm(draft) {
-    const s = await call<Syllabus>(`/courses/csc10014/syllabus/${draft.id}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        raw_text: draft.raw_text,
-        learning_outcomes: draft.outcomes,
-        assessments: draft.assessments,
-      }),
-    });
-    return {
-      ...fromBackend(s),
-      weeks: draft.weeks,
-      textbooks: draft.textbooks,
-      status: "confirmed",
-    };
-  },
+  upload: uploadSyllabus,
+  confirm: confirmSyllabus,
   async generate(id) {
-    const r = await call<Roadmap>(`/courses/csc10014/roadmap:generate`, {
-      method: "POST",
-      body: JSON.stringify({ syllabus_id: id }),
-    });
+    const r = await call<Roadmap>(
+      `/courses/${await courseId("CSC10014 · Introduction to Virtual Assistants")}/roadmap:generate`,
+      {
+        method: "POST",
+        body: JSON.stringify({ syllabus_id: id }),
+      },
+    );
     return { id: r.id, nodes: r.nodes, edges: [], overloaded_weeks: [] };
   },
   async schedule(id, weekly, daily) {

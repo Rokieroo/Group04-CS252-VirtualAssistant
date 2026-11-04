@@ -190,3 +190,34 @@ def test_unknown_source_kind_is_rejected(client, app, headers, course, sample_pd
     response = upload(client, headers, course, sample_pdf, kind="homework")
     assert response.status_code == 422
     assert rows(app, course) == []
+
+def test_pdf_syllabus_preserves_lines_for_offline_preview(client, headers, course):
+    """#56: upload normalization must not collapse the lines the #59 parser reads."""
+    from pathlib import Path
+
+    fixture = Path(__file__).resolve().parents[1] / "eval/syllabus/01_csc10014_problem_framing.pdf"
+    response = upload(client, headers, course, fixture.read_bytes(), "CSC10014.pdf", kind="syllabus")
+    assert response.status_code == 201
+    parsed = client.post(
+        f"/api/v1/courses/{course['id']}/syllabus:parse",
+        headers=headers,
+        json={"file_name": "CSC10014.pdf"},
+    )
+    assert parsed.status_code == 200, parsed.text
+    draft = parsed.json()
+    assert len(draft["parsed"]["outcomes"]) == 4
+    assert len(draft["parsed"]["weeks"]) == 10
+    assert len(draft["parsed"]["assessments"]) == 3
+    assert draft["can_confirm"] is True
+
+def test_pasted_syllabus_preview_returns_exact_page_evidence(client, headers, course):
+    text = "CLO1: Frame a problem.\n" + "Notes about the course.\n" * 150 + "Week 1: Framing\nFinal: 100% (week 1)"
+    response = client.post(
+        f"/api/v1/courses/{course['id']}/syllabus:parse", headers=headers, json={"text": text}
+    )
+    assert response.status_code == 200, response.text
+    draft = response.json()
+    assert draft["pages"] > 1
+    assert len(draft["source_pages"]) == draft["pages"]
+    for row in draft["parsed"]["weeks"]:
+        assert row["topics"][0] in draft["source_pages"][str(row["source_page"])]

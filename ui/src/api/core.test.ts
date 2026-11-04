@@ -10,12 +10,13 @@ import {
 
 const draft: SyllabusDraft = {
   id: "sy_1",
+  course_id: "csc10014",
   file_name: "CSC10014.pdf",
   pages: 6,
   raw_text: "CSC10014",
   status: "draft",
   outcomes: [{ code: "CLO1", description: "Learn" }],
-  weeks: [{ week: 1, topics: ["Problem framing"] }],
+  weeks: [{ week: 15, topics: ["Problem framing"] }],
   assessments: [
     { name: "Midterm", weight: 30, due_week: 8 },
     { name: "Final", weight: 60, due_week: 15 },
@@ -35,7 +36,7 @@ describe("core syllabus and roadmap", () => {
           { ...draft.assessments[0] },
           { ...draft.assessments[1], weight: 70 },
         ],
-      }),
+      }).filter((w) => w.blocking),
     ).toEqual([]);
   });
   it("validates files before any request", () => {
@@ -67,19 +68,17 @@ describe("core syllabus and roadmap", () => {
     ]);
   });
   it("submits the corrected syllabus fields in the confirmation payload", async () => {
-    const fetch = vi
-      .fn()
-      .mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          id: "sy_1",
-          course_id: "csc10014",
-          raw_text: "CSC10014",
-          learning_outcomes: [],
-          assessments: [],
-        }),
-      });
+    const fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: "sy_1",
+        course_id: "csc10014",
+        raw_text: "CSC10014",
+        learning_outcomes: [],
+        assessments: [],
+      }),
+    });
     vi.stubGlobal("fetch", fetch);
     try {
       await liveCoreService.confirm({

@@ -1,11 +1,12 @@
+import { syllabusError } from "../api/syllabus";
 import { RoadmapTimeline } from "./course-setup/RoadmapTimeline";
 import { SyllabusUpload } from "./course-setup/SyllabusUpload";
 import { SyllabusReview } from "./course-setup/SyllabusReview";
 import { Modal } from "../components/Modal";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Page } from "../navigation";
 import type { RoadmapNode } from "../api/types";
-import { BackendError } from "../api/backend";
+
 import {
   createsRoadmapCycle,
   liveCoreService,
@@ -22,21 +23,7 @@ import "./core-journey.css";
 
 const title = (node: RoadmapNode | undefined) =>
   node?.title || "Chặng chưa xác định";
-const uiError = (error: unknown) => {
-  if (error instanceof BackendError)
-    return (
-      (
-        {
-          invalid_file: "Tệp không hợp lệ hoặc bị hỏng.",
-          file_too_large: "Tệp lớn hơn 20 MB.",
-          unsupported_type: "Chỉ hỗ trợ PDF hoặc DOCX.",
-          not_a_syllabus: "Tệp này không giống đề cương môn học.",
-          has_blocking_warnings: "Hãy sửa các cảnh báo trước khi xác nhận.",
-        } as Record<string, string>
-      )[error.code] || error.message
-    );
-  return error instanceof Error ? error.message : "Có lỗi xảy ra. Hãy thử lại.";
-};
+const uiError = syllabusError;
 export function CoreJourney({
   page,
   go,
@@ -46,6 +33,8 @@ export function CoreJourney({
   go: (p: Page) => void;
   mock?: boolean;
 }) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
   const service: CoreService = mock ? mockCoreService : liveCoreService;
   const [draft, setDraft] = useState<SyllabusDraft | null>(null);
   const [roadmap, setRoadmap] = useState<RoadmapDraft | null>(null);
@@ -57,7 +46,6 @@ export function CoreJourney({
     "timeline",
   );
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [error, setError] = useState("");
   const [parent, setParent] = useState("");
   const [child, setChild] = useState("");
@@ -69,7 +57,13 @@ export function CoreJourney({
     sessions: { id: string; title: string; starts_at: string }[];
   } | null>(null);
   const [sourcePage, setSourcePage] = useState<number | null>(null);
-  const warnings = draft ? [...draft.warnings, ...warningsFor(draft)] : [];
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [stage]);
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
+  const warnings = draft ? warningsFor(draft) : [];
   const blocked = warnings.some((w) => w.blocking);
   const run = async (work: () => Promise<void>) => {
     setBusy(true);
@@ -83,6 +77,7 @@ export function CoreJourney({
     }
   };
   const load = (file: File | string) => {
+    if (busy) return;
     if (file instanceof File) {
       const issue = uploadError(file);
       if (issue) {
@@ -90,10 +85,8 @@ export function CoreJourney({
         return;
       }
     }
-    setProgress(10);
     void run(async () => {
       const result = await service.upload(file);
-      setProgress(100);
       setDraft(result);
       setRoadmap(null);
       setRoadmapApproved(false);
@@ -184,7 +177,7 @@ export function CoreJourney({
     <div className="core-journey">
       {page === "Library" && (
         <div className="page-heading">
-          <h1>
+          <h1 ref={headingRef} tabIndex={-1}>
             {
               {
                 upload: "Add a syllabus to your course",
@@ -197,7 +190,12 @@ export function CoreJourney({
         </div>
       )}
       {error && (
-        <div role="alert" className="card core-error">
+        <div
+          role="alert"
+          tabIndex={-1}
+          ref={errorRef}
+          className="card core-error"
+        >
           {error}
         </div>
       )}
@@ -207,18 +205,14 @@ export function CoreJourney({
         </div>
       )}
       {busy && page === "Library" && (
-        <progress
-          aria-label="Tiến trình xử lý đề cương"
-          max="100"
-          value={progress}
-        />
+        <progress aria-label="Tiến trình xử lý đề cương" max="100" />
       )}
       {sourcePage !== null && (
         <Modal
           title={`${draft?.file_name} · tr. ${sourcePage}`}
           onClose={() => setSourcePage(null)}
         >
-          <p>
+          <p style={{ whiteSpace: "pre-wrap" }}>
             {draft?.source_pages?.[sourcePage] ||
               "Máy chủ chưa cung cấp nội dung trang nguồn cho đề cương này."}
           </p>

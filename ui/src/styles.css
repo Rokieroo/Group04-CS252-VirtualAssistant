@@ -1822,20 +1822,20 @@ legend {
 }
 /* Navigation follows the shorter screen side: left in landscape, top in portrait. */
 @media (orientation: portrait) {
-  main { margin-left:0; padding:90px 20px 30px; }
-  .sidebar { width:100%; height:auto; min-height:64px; inset:0 0 auto 0; border-radius:0; padding:8px 16px; overflow:visible; transform:none; visibility:visible; pointer-events:auto; }
-  .sidebar .brand { display:none; }
-  .sidebar .workspace-label,.sidebar .sidebar-bottom,.sidebar > .goals { display:none; }
-  .sidebar nav { display:flex; gap:4px; justify-content:space-around; }
-  .sidebar nav button { width:auto; height:48px; min-width:44px; padding:4px 8px; font-size:12px; gap:4px; }
-  .sidebar nav button span { width:auto; font-size:16px; }
-  .bottom-nav,.mobile-menu { display:none; }
+  .study-companion main { margin-left:0; padding:90px 20px 30px; }
+  .study-companion .sidebar { width:100%; height:auto; min-height:64px; inset:0 0 auto 0; border-radius:0; padding:8px 16px; overflow:visible; transform:none; visibility:visible; pointer-events:auto; }
+  .study-companion .sidebar .brand { display:none; }
+  .study-companion .sidebar .workspace-label,.study-companion .sidebar .sidebar-bottom,.study-companion .sidebar > .goals { display:none; }
+  .study-companion .sidebar nav { display:flex; gap:4px; justify-content:space-around; }
+  .study-companion .sidebar nav button { width:auto; height:48px; min-width:44px; padding:4px 8px; font-size:12px; gap:4px; }
+  .study-companion .sidebar nav button span { width:auto; font-size:16px; }
+  .study-companion .bottom-nav,.study-companion .mobile-menu { display:none; }
 }
 @media (orientation: landscape) {
-  .sidebar { width:246px; height:100vh; inset:0 auto 0 0; transform:none; visibility:visible; pointer-events:auto; }
-  main { margin-left:246px; padding:26px 42px 46px; }
-  .bottom-nav,.mobile-menu { display:none; }
+  .study-companion .sidebar { width:246px; height:100vh; inset:0 auto 0 0; transform:none; visibility:visible; pointer-events:auto; }
+  .study-companion main { margin-left:246px; padding:26px 42px 46px; }
+  .study-companion .bottom-nav,.study-companion .mobile-menu { display:none; }
 }
 @media (orientation: portrait) and (max-width:430px) {
-  .sidebar nav button { font-size:10px; flex-direction:column; }
+  .study-companion .sidebar nav button { font-size:10px; flex-direction:column; }
 }

@@ -78,7 +78,7 @@ async function backend<T>(path: string, init?: RequestInit): Promise<T> {
 
 const courseIds = new Map<string, Promise<string>>();
 /** The signed-in user's course with this title, created on first use. */
-function courseId(title: string): Promise<string> {
+export function courseId(title: string): Promise<string> {
   const key = `${session.get()}|${title}`;
   let id = courseIds.get(key);
   if (!id) {

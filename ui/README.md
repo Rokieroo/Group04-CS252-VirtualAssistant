@@ -76,9 +76,28 @@ npm run preview
 
 Every push to `main` that touches `ui/` runs `.github/workflows/pages.yml`, which publishes the offline demo (no backend, no AI calls) to `https://<owner>.github.io/<repo>/`. `npm run build:pages` builds the same thing with relative asset paths, so `dist/` works from any sub-folder of any static host; the app's `#hash` routes need no server rewrites. Build it without `VITE_BACKEND_MODE=api` (remove it from `.env.local`, or run `VITE_BACKEND_MODE=demo npm run build:pages`) so the page never calls a server.
 
-### Real concept extraction
+### Real syllabus upload and review (#56)
 
-Put `VITE_BACKEND_MODE=api` in `ui/.env.local`, start the backend (`python -m uvicorn assistant.backend.main:app --app-dir src --port 8000` from the repo root), then `npm run dev`. Sign-in, PDF upload and concept extraction then use the backend at `VITE_API_URL`; extraction can take a minute or two per file. `e2e/concepts.spec.ts` covers this mode against a mocked backend.
+For real PDF/DOCX parsing and saving, run two terminals from the repository root.
+Install backend dependencies first using your project virtual environment:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m uvicorn assistant.backend.main:app --app-dir src --port 8000
+```
+
+In the second terminal:
+
+```powershell
+$env:VITE_BACKEND_MODE="api"
+.\.venv\Scripts\python.exe dev.py ui dev
+```
+
+Open the URL Vite prints, register/sign in, and open Courses. Upload a PDF/DOCX or paste text, review the four sections, correct blocking warnings, then confirm. The backend defaults to http://127.0.0.1:8000 (override with VITE_API_URL). Restart Vite after changing mode. Default preview uses sample data; it does not parse your file.
+
+The parser returns synchronously, so processing shows an indeterminate indicator rather than invented percentages. Source citations open extracted text for that page. Confirmation saves all reviewed sections; automatic restoration of the setup screen after reload is not implemented.
+
+See [issue #56 verification](../docs/ISSUE_56.md) for acceptance checks and the isolated real-backend smoke test. The previous concept-extraction browser test is retained as `e2e/concepts.old.ts` with an Old comment.
 
 ## Troubleshooting
 
