@@ -36,6 +36,8 @@ EXPECTED_TABLES = {
     # Background jobs and the shared search cache (migration 0006).
     "jobs",
     "search_cache",
+    # Cost and latency of resource searches (migration 0007).
+    "resource_searches",
     "tasks",
     "availability",
     "busy_blocks",

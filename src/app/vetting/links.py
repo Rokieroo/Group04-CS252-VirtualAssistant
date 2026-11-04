@@ -4,11 +4,9 @@ Only public http(s) addresses are contacted, redirects are not followed and no
 body is downloaded: the daily check needs a status code, not the page.
 """
 
-import ipaddress
-import socket
-from urllib.parse import urlsplit
-
 import httpx
+
+from app.vetting.fetch import FetchError, pinned_client, public_address, send_pinned
 
 USER_AGENT = (
     "PathlyLinkCheck/1.0 "
@@ -20,38 +18,27 @@ _INCONCLUSIVE = {401, 403, 429}
 
 def is_public_url(url: str) -> bool:
     """True when ``url`` is http(s) and every address its host resolves to is public."""
-    parts = urlsplit(url)
-    if parts.scheme not in ("http", "https") or not parts.hostname:
-        return False
     try:
-        port = parts.port or (443 if parts.scheme == "https" else 80)
-        infos = socket.getaddrinfo(parts.hostname, port, type=socket.SOCK_STREAM)
-    except (OSError, UnicodeError):
+        public_address(httpx.URL(url))
+    except (FetchError, httpx.InvalidURL):
         return False
-    return all(ipaddress.ip_address(info[4][0]).is_global for info in infos)
+    return True
 
 
 def check_url(url: str, *, timeout: float = 5.0, transport=None) -> int | None:
-    """The link's HTTP status, or None when it is unsafe or does not answer.
-
-    shortcut: the host is resolved here and again by httpx, so DNS rebinding can
-    slip a private address through; switch to the pinned safe fetcher from #64.
-    """
-    if not is_public_url(url):
-        return None
+    """The link's HTTP status, or None when it is unsafe or does not answer."""
     try:
-        with httpx.Client(
-            timeout=timeout,
-            follow_redirects=False,
-            headers={"User-Agent": USER_AGENT},
-            transport=transport,
-        ) as client:
-            response = client.head(url)
-            if response.status_code in (405, 501):  # HEAD not supported: ask for GET
-                with client.stream("GET", url) as streamed:
-                    return streamed.status_code
+        target = httpx.URL(url)
+        with pinned_client(transport) as client:
+            for method in ("HEAD", "GET"):
+                response = send_pinned(
+                    client, method, target, timeout=timeout, user_agent=USER_AGENT
+                )
+                response.close()  # status only; a GET body is never read
+                if response.status_code not in (405, 501):  # HEAD not supported: ask for GET
+                    break
             return response.status_code
-    except httpx.HTTPError:
+    except (FetchError, httpx.HTTPError, httpx.InvalidURL):
         return None
 
 

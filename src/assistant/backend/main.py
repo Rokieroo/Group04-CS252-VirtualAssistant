@@ -11,6 +11,7 @@ from app.companion import ChatProvider, Companion
 from app.ingest import MAX_UPLOAD_BYTES
 
 from . import (
+    routes_admin,
     routes_ai,
     routes_auth,
     routes_core,
@@ -93,6 +94,7 @@ def create_app(settings: Settings | None = None, *, now=utcnow, ai_transport=Non
         routes_teams.router,
         routes_ai.router,
         routes_jobs.router,
+        routes_admin.router,
     ):
         application.include_router(router, prefix=API)
 

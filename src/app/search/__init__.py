@@ -1,5 +1,42 @@
-"""Search: fetches raw resource candidates from search providers (spec 6.1). Phase 2."""
+"""Resource search: provider abstraction, PII filtering, and orchestration (spec 11)."""
 
+from __future__ import annotations
+
+from app.search.base import Candidate, SearchProvider
+from app.search.catalog import CatalogProvider, CatalogSearch
+from app.search.fake import FakeSearch
+from app.search.pii_filter import contains_pii, filter_pii, strip_pii
+from app.search.service import (
+    SearchRunRecord,
+    SearchService,
+    canonical_url,
+    generate_queries,
+    record_search_run,
+    search,
+)
 from app.search.signature import node_signature
+from app.search.web import WebProvider, WebSearch, WebSearchProvider
+from app.search.youtube import YouTubeProvider, YouTubeSearch
 
-__all__ = ["node_signature"]
+__all__ = [
+    "Candidate",
+    "CatalogProvider",
+    "CatalogSearch",
+    "FakeSearch",
+    "SearchProvider",
+    "SearchRunRecord",
+    "SearchService",
+    "WebProvider",
+    "WebSearch",
+    "WebSearchProvider",
+    "YouTubeProvider",
+    "YouTubeSearch",
+    "canonical_url",
+    "contains_pii",
+    "filter_pii",
+    "generate_queries",
+    "node_signature",
+    "record_search_run",
+    "search",
+    "strip_pii",
+]

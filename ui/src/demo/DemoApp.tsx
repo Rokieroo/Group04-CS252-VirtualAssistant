@@ -6,7 +6,7 @@ import { Button } from "../components/Button";
 import { Modal } from "../components/Modal";
 import { Shell } from "../components/Shell";
 import { AppearancePicker } from "../features/appearance/AppearancePicker";
-import { pageLabels, useHashPage } from "../navigation";
+import { pageLabels, pages, useHashPage, type Page } from "../navigation";
 import { CoursesPage } from "../pages/CoursesPage";
 import { RoadmapPage } from "../pages/RoadmapPage";
 import { SourcesPage } from "../pages/SourcesPage";
@@ -33,11 +33,16 @@ import { SchedulePage } from "./pages/SchedulePage";
 import { courseFor } from "./selectors";
 
 /** The offline demo (no VITE_BACKEND_MODE=api): scripted assistant, local state only. */
+type DemoPage = Exclude<Page, "Costs">;
+// The cost dashboard reads the live backend's admin API, which the demo does not have.
+const demoPages = pages.filter((page): page is DemoPage => page !== "Costs");
+
 export default function DemoApp() {
   // Demo tokens live in memory only, so a reload signs out.
   const [token, setToken] = useState<string | null>(null);
   const [state, setState] = useState(readState);
-  const [page, go] = useHashPage("Home");
+  const [hashPage, go] = useHashPage("Home", demoPages);
+  const page = hashPage as DemoPage; // useHashPage only returns pages from demoPages
   const [notice, setNotice] = useState("");
   const [storageError, setStorageError] = useState(false);
   const [modal, setModal] = useState<

@@ -5,13 +5,14 @@ import os
 
 from app.llm.base import LLMClient, LLMResult, RetryableError
 from app.llm.fake import FakeLLM
+from app.llm.metered import MeteredLLM
 
 # Tried in order: the next model is used when one is over quota or unavailable.
 DEFAULT_GEMINI_MODELS = ("gemini-3.5-flash-lite", "gemini-3.1-flash-lite")  # organise concepts
 DEFAULT_VISION_MODELS = ("gemini-3.1-flash-lite",)  # read PDF pages as images
 
-__all__ = ["FakeLLM", "LLMClient", "LLMResult", "RetryableError", "get_client",
-           "get_vision_client"]
+__all__ = ["FakeLLM", "LLMClient", "LLMResult", "MeteredLLM", "RetryableError",
+           "get_client", "get_vision_client"]
 
 
 def get_client() -> LLMClient:

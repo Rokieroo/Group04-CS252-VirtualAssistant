@@ -1,0 +1,14 @@
+# Authority 0.7 (spec 11.4): publishers, encyclopedias, vetted course platforms.
+# One entry per line; an entry also covers its subdomains.
+
+wikipedia.org
+arxiv.org
+acm.org
+ieee.org
+springer.com
+cambridge.org
+nature.com
+coursera.org
+edx.org
+freecodecamp.org
+realpython.com

@@ -61,6 +61,7 @@ _TABLES = (
     "resources",
     "node_resources",
     "resource_feedback",
+    "resource_searches",
     "search_runs",
     "tasks",
     "availability",

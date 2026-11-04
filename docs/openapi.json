@@ -2671,6 +2671,57 @@
         }
       }
     },
+    "/api/v1/admin/costs": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Get Costs",
+        "description": "LLM and search spend per node, provider latency and daily quota use.",
+        "operationId": "get_costs_api_v1_admin_costs_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 90,
+              "minimum": 1,
+              "default": 7,
+              "title": "Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/health": {
       "get": {
         "tags": [
@@ -3121,6 +3172,101 @@
         ],
         "title": "CoordinateRequest"
       },
+      "CostReport": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Since"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/CostTotals"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/NodeCost"
+            },
+            "type": "array",
+            "title": "Nodes"
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderUsage"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/DailyCost"
+            },
+            "type": "array",
+            "title": "Daily"
+          }
+        },
+        "type": "object",
+        "required": [
+          "days",
+          "since",
+          "totals",
+          "nodes",
+          "providers",
+          "daily"
+        ],
+        "title": "CostReport"
+      },
+      "CostTotals": {
+        "properties": {
+          "searches": {
+            "type": "integer",
+            "title": "Searches"
+          },
+          "cache_hits": {
+            "type": "integer",
+            "title": "Cache Hits"
+          },
+          "llm_calls": {
+            "type": "integer",
+            "title": "Llm Calls"
+          },
+          "llm_calls_today": {
+            "type": "integer",
+            "title": "Llm Calls Today"
+          },
+          "llm_cost_usd": {
+            "type": "number",
+            "title": "Llm Cost Usd"
+          },
+          "search_cost_usd": {
+            "type": "number",
+            "title": "Search Cost Usd"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "cost_per_search_usd": {
+            "type": "number",
+            "title": "Cost Per Search Usd"
+          }
+        },
+        "type": "object",
+        "required": [
+          "searches",
+          "cache_hits",
+          "llm_calls",
+          "llm_calls_today",
+          "llm_cost_usd",
+          "search_cost_usd",
+          "cost_usd",
+          "cost_per_search_usd"
+        ],
+        "title": "CostTotals"
+      },
       "CourseCreate": {
         "properties": {
           "title": {
@@ -3168,6 +3314,30 @@
           "level"
         ],
         "title": "CourseOut"
+      },
+      "DailyCost": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "searches": {
+            "type": "integer",
+            "title": "Searches"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "searches",
+          "cost_usd"
+        ],
+        "title": "DailyCost"
       },
       "EntryOut": {
         "properties": {
@@ -3721,6 +3891,67 @@
         ],
         "title": "MessageOut"
       },
+      "NodeCost": {
+        "properties": {
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          },
+          "node_title": {
+            "type": "string",
+            "title": "Node Title"
+          },
+          "searches": {
+            "type": "integer",
+            "title": "Searches"
+          },
+          "cache_hits": {
+            "type": "integer",
+            "title": "Cache Hits"
+          },
+          "llm_calls": {
+            "type": "integer",
+            "title": "Llm Calls"
+          },
+          "llm_cost_usd": {
+            "type": "number",
+            "title": "Llm Cost Usd"
+          },
+          "search_cost_usd": {
+            "type": "number",
+            "title": "Search Cost Usd"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          },
+          "last_search_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Search At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node_id",
+          "node_title",
+          "searches",
+          "cache_hits",
+          "llm_calls",
+          "llm_cost_usd",
+          "search_cost_usd",
+          "cost_usd",
+          "last_search_at"
+        ],
+        "title": "NodeCost"
+      },
       "NotificationOut": {
         "properties": {
           "id": {
@@ -3971,6 +4202,49 @@
           "ends_at"
         ],
         "title": "ProposedEntry"
+      },
+      "ProviderUsage": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "errors": {
+            "type": "integer",
+            "title": "Errors"
+          },
+          "calls_today": {
+            "type": "integer",
+            "title": "Calls Today"
+          },
+          "avg_latency_ms": {
+            "type": "number",
+            "title": "Avg Latency Ms"
+          },
+          "max_latency_ms": {
+            "type": "integer",
+            "title": "Max Latency Ms"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "calls",
+          "errors",
+          "calls_today",
+          "avg_latency_ms",
+          "max_latency_ms",
+          "cost_usd"
+        ],
+        "title": "ProviderUsage"
       },
       "Register": {
         "properties": {
