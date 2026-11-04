@@ -1,29 +1,39 @@
 # Study Companion — Group 04 (CS252 Virtual Assistant)
 
-**Tải syllabus lên, nhận một lộ trình học có lịch và bộ nguồn học chất lượng cao cho từng chặng.** Study Companion dành cho học sinh THPT (K-12) và sinh viên đại học: ứng dụng đọc đề cương môn học, dựng roadmap theo tuần và kiến thức nền, xếp vào thời gian rảnh của bạn, rồi tìm 3–5 nguồn học đã được kiểm tra và chấm điểm cho mỗi chặng.
+**Bạn mang syllabus, mục tiêu và tài liệu của mình; app dựng lộ trình học: học gì, học lúc nào, học từ nguồn nào.** Study Companion dành cho người học (học sinh THPT, sinh viên đại học, người tự học). Đây **không** phải nền tảng khóa học như Coursera hay Duolingo: app không có khóa học dựng sẵn. App đọc đề cương môn học của bạn, dựng knowledge graph của cả môn, sắp thành roadmap theo tuần trong giờ rảnh của bạn, rồi đề xuất nguồn học và bài tập có sẵn, đã được kiểm tra, cho từng concept.
 
 ## 📌 Ý tưởng sản phẩm
 
 **Vấn đề.** Đầu kỳ, sinh viên nhận syllabus của mỗi môn nhưng hiếm khi biến nó thành kế hoạch học theo tuần. Khi cần tài liệu ngoài slide, họ mất hàng giờ tìm trên Google và YouTube, rồi thường dừng ở kết quả đầu tiên, dù nó sai trình độ, lỗi thời hoặc là bản lậu. Vấn đề không phải thiếu tài liệu, mà là **có quá nhiều tài liệu kém** và không biết học gì vào tuần nào.
 
+**Người học đưa vào (Input).**
+
+| Đầu vào | Ví dụ | Bắt buộc |
+| --- | --- | --- |
+| Syllabus | Đề cương PDF/DOCX hoặc dán text; người tự học dán mục lục hoặc mô tả điều muốn học | Có (hoặc mô tả mục tiêu) |
+| Mục tiêu học | "Ôn chương 3–5 trước giữa kỳ", "nắm chắc đệ quy", số giờ rảnh mỗi tuần | Không |
+| Tài liệu học | Slide, giáo trình, ghi chú, đề bài tập của chính bạn | Không, thêm sau được |
+
 **Chức năng chính (core loop).**
 
-1. **Đọc syllabus**: tải PDF/DOCX hoặc dán text; ứng dụng trích chuẩn đầu ra (CLO), chủ đề từng tuần, mốc kiểm tra và trọng số. Mỗi trường có chip trang nguồn để bạn kiểm tra và sửa trước khi xác nhận.
-2. **Dựng roadmap có lịch**: chủ đề thành các chặng, sắp theo tuần và quan hệ kiến thức nền (prerequisite), ước lượng thời lượng, rồi xếp vào giờ rảnh. Không chặng nào bị xếp sau bài kiểm tra cần nó; trễ kế hoạch thì app đề xuất lịch mới để bạn duyệt.
-3. **Tìm nguồn học chất lượng cao**: với mỗi chặng, tìm trên catalog OER, YouTube và web; mở thật từng link, lọc trang lậu và paywall, chấm điểm theo 7 tiêu chí (độ liên quan, uy tín, đúng trình độ, sư phạm, độ mới, dễ tiếp cận, đánh giá cộng đồng) và chỉ giữ nguồn đạt ngưỡng, kèm lý do có trích dẫn nguyên văn từ trang.
+1. **Đọc syllabus, mục tiêu và tài liệu**: trích chuẩn đầu ra (CLO), chủ đề từng tuần, mốc kiểm tra và trọng số. Mỗi trường có chip trang nguồn để bạn kiểm tra và sửa trước khi xác nhận.
+2. **Dựng knowledge graph của cả môn**: mọi concept môn học cần và concept nào phải học trước concept nào (luôn là DAG), xem tương tác kiểu Obsidian. Graph là trung tâm: roadmap, lịch và nguồn học đều đọc từ nó.
+3. **Sắp graph thành roadmap có lịch**: theo tuần, kiến thức nền và mục tiêu của bạn, ước lượng thời lượng, xếp vào giờ rảnh. Không chặng nào bị xếp sau bài kiểm tra cần nó; trễ kế hoạch thì app đề xuất lịch mới để bạn duyệt.
+4. **Đề xuất nguồn học đã xác minh cho từng concept**: từ tài liệu của bạn, catalog nguồn đã xác minh (khóa học mở của các trường, OER) và web; mở thật từng link, lọc trang lậu và paywall, chấm điểm theo 7 tiêu chí và chỉ giữ nguồn đạt ngưỡng, kèm lý do có trích dẫn nguyên văn từ trang.
 
-**Tính năng bổ trợ** (luôn mở từ một chặng của roadmap): gắn slide riêng của giáo viên vào chặng · câu hỏi luyện tập có trích dẫn trang · ôn tập ngắt quãng FSRS · hỏi đáp có trích dẫn · gợi ý theo bậc thay vì đưa đáp án · companion động viên (study buddy, mentor; girlfriend mode chỉ cho người dùng 18+ đã xác minh, không nội dung tình dục) · dashboard giáo viên và báo cáo phụ huynh.
+**Tính năng bổ trợ** (luôn mở từ một node của graph hoặc một chặng của roadmap): bài tập để kiểm tra tiến độ lấy từ **tài liệu của bạn và nguồn đã xác minh**, có trích dẫn vị trí, không do AI soạn (AI chỉ soạn khi thiếu, có nhãn, không tính vào tiến độ) · ôn tập ngắt quãng FSRS và xen kẽ (interleaving) · hỏi đáp có trích dẫn · gợi ý theo bậc thay vì đưa đáp án · thư viện nguồn cá nhân và tổng kết tuần · companion động viên (study buddy, mentor; girlfriend mode chỉ cho người dùng 18+ đã xác minh, không nội dung tình dục, không bao giờ mở cho tài khoản K-12).
 
 **Nguyên tắc.**
 
+- **Chỉ phục vụ người học**: không có tài khoản giáo viên hay phụ huynh, không thương mại hóa, không app mobile; toàn bộ công sức dành cho chất lượng trải nghiệm trên web.
 - **Ít mà tốt**: tối đa 5 nguồn mỗi chặng; không đủ nguồn tốt thì nói thẳng thay vì lấp bằng nguồn kém (*curate or abstain*).
-- **Không bịa link**: chỉ hiện link hệ thống đã tự mở và kiểm tra (*verify or drop*); không sao chép nội dung của bên thứ ba, chỉ lưu link và đoạn trích ngắn.
-- **Giải pháp vừa đủ** (*solution ladder*): ngày tháng, xếp lịch, thứ tự chặng, lọc link là thuật toán thường; LLM chỉ dùng để đọc syllabus, đề xuất prerequisite và đánh giá nguồn, luôn có fallback.
+- **Không bịa link, không bịa bài**: chỉ hiện link hệ thống đã tự mở và kiểm tra (*verify or drop*); bài tập đo tiến độ luôn có nguồn; không sao chép nội dung của bên thứ ba ngoài phạm vi giấy phép.
+- **Giải pháp vừa đủ** (*solution ladder*): ngày tháng, xếp lịch, thứ tự chặng, chặn cycle, lọc link là thuật toán thường; LLM chỉ dùng để đọc syllabus, đề xuất prerequisite, gắn bài tập vào concept và đánh giá nguồn, luôn có fallback.
 
 | Tài liệu | Nội dung |
 | --- | --- |
-| [docs/roadmap/APP_SPECIFICATION.md](docs/roadmap/APP_SPECIFICATION.md) | Đặc tả 3.0: use case, màn hình, kiến trúc, dữ liệu, API, parser syllabus, planner, bộ tìm nguồn, bảo mật, metric |
-| [docs/roadmap/PLAN.md](docs/roadmap/PLAN.md) | Kế hoạch triển khai theo từng mảng |
+| [docs/roadmap/APP_SPECIFICATION.md](docs/roadmap/APP_SPECIFICATION.md) | Đặc tả 3.1: tiêu chuẩn chất lượng, use case, màn hình, kiến trúc, dữ liệu, API, parser syllabus, knowledge graph, planner, bộ tìm nguồn, bảo mật, metric |
+| [docs/roadmap/PLAN.md](docs/roadmap/PLAN.md) | Kế hoạch 6 tuần theo từng mảng |
 | [docs/adr/](docs/adr/) | Quyết định kiến trúc (database, hosting, bố cục code) |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Chạy bằng Docker Compose, staging, worker |
 | [docs/guidelines/](docs/guidelines/README.md) | Quy tắc nhánh, PR, commit |

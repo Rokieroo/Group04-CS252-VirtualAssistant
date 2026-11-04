@@ -17,23 +17,24 @@ Tài liệu này đặc tả toàn bộ ứng dụng của Group 04 đến từn
 
 ### 1.1. Sản phẩm là gì
 
-Study Companion biến **syllabus** của một môn học thành **knowledge graph của cả môn**, **lộ trình học có lịch** và **bộ nguồn học đã được xác minh**. Người học tải syllabus (PDF, DOCX hoặc dán text) lên; ứng dụng đọc ra chuẩn đầu ra, chủ đề từng tuần và các mốc kiểm tra, dựng một knowledge graph cho thấy **mọi concept môn học cần** và concept nào phải học trước concept nào, sắp graph đó thành roadmap, xếp vào thời gian rảnh của người học, rồi với mỗi concept tìm 3–5 nguồn học tốt nhất (bài đọc, video bài giảng, bài tập) kèm lý do vì sao chọn.
+Study Companion biến **syllabus** của một môn học thành **knowledge graph của cả môn**, **lộ trình học có lịch** và **bộ nguồn học đã được xác minh**. Người học đưa vào ba thứ của chính mình: **syllabus** (PDF, DOCX hoặc dán text), **mục tiêu học** (ví dụ "ôn chương 3–5 trước giữa kỳ", "nắm chắc đệ quy", hoặc điều muốn học khi không có syllabus) và **tài liệu học** (slide, giáo trình, ghi chú, bài tập). Ứng dụng đọc ra chuẩn đầu ra, chủ đề từng tuần và các mốc kiểm tra, dựng một knowledge graph cho thấy **mọi concept môn học cần** và concept nào phải học trước concept nào, sắp graph đó thành roadmap, xếp vào thời gian rảnh của người học, rồi với mỗi concept tìm 3–5 nguồn học tốt nhất (bài đọc, video bài giảng, bài tập) kèm lý do vì sao chọn.
 
 Knowledge graph là trung tâm của sản phẩm: roadmap, lịch học và nguồn học đều là cách nhìn khác nhau của cùng một graph. Người học nhìn vào graph là thấy toàn bộ môn học trên một màn hình: đã học đến đâu, còn thiếu gì, mốc kiểm tra nào cần concept nào.
 
-Khác Coursera: Coursera đi theo lộ trình của các khóa học có sẵn trên nền tảng. Study Companion đi theo **syllabus của chính môn bạn đang học**, rồi tìm nguồn miễn phí, uy tín trên cả web cho đúng chủ đề, đúng trình độ, đúng tuần. Khoảng trống thật của học sinh K-12 và sinh viên không nằm ở chỗ thiếu tài liệu mà ở chỗ **có quá nhiều tài liệu kém** và không biết học gì vào tuần nào.
+Study Companion **không phải nền tảng khóa học** như Coursera hay Duolingo: app không có khóa học dựng sẵn, không soạn bài giảng. Mọi lộ trình bắt đầu từ **syllabus, mục tiêu và tài liệu của chính người học**; app chỉ dựng roadmap, đề xuất thời điểm học và gợi ý nguồn học có sẵn. App đi theo **syllabus của chính môn bạn đang học**, rồi tìm nguồn miễn phí, uy tín trên cả web cho đúng chủ đề, đúng trình độ, đúng tuần. Khoảng trống thật của học sinh K-12 và sinh viên không nằm ở chỗ thiếu tài liệu mà ở chỗ **có quá nhiều tài liệu kém** và không biết học gì vào tuần nào.
 
 ### 1.2. Chức năng chính và tính năng bổ trợ
 
 | Lớp | Chức năng | Vai trò |
 | --- | --- | --- |
-| **Chính (core loop)** | ① Đọc syllabus → ② Dựng knowledge graph của cả môn (mọi concept cần học + cạnh prerequisite, luôn là DAG; xem tương tác kiểu Obsidian, epic #94) → ③ Sắp graph thành roadmap có lịch → ④ Gắn nguồn học đã xác minh cho từng concept (catalog, epic #92, và resource finder) | Lý do người dùng mở app; mọi thứ khác phục vụ vòng này |
-| Bổ trợ | Tài liệu riêng của chặng (slide bài giảng, ghi chú), câu hỏi luyện tập có trích dẫn, ôn tập FSRS, hỏi đáp có trích dẫn, gợi ý theo bậc, companion, thư viện nguồn cá nhân, tổng kết tuần | Giúp học **xong** một chặng và giữ được kiến thức; luôn mở từ một chặng của roadmap |
+| **Chính (core loop)** | ① Đọc syllabus, mục tiêu và tài liệu của người học → ② Dựng knowledge graph của cả môn (mọi concept cần học + cạnh prerequisite, luôn là DAG; xem tương tác kiểu Obsidian, epic #94) → ③ Sắp graph thành roadmap có lịch, đề xuất học gì vào lúc nào → ④ Gắn nguồn học đã xác minh cho từng concept (catalog, epic #92, và resource finder) | Lý do người dùng mở app; mọi thứ khác phục vụ vòng này |
+| Bổ trợ | Tài liệu riêng của chặng (slide bài giảng, ghi chú), bài tập có sẵn từ tài liệu và nguồn đã xác minh (có trích dẫn), ôn tập FSRS, hỏi đáp có trích dẫn, gợi ý theo bậc, companion, thư viện nguồn cá nhân, tổng kết tuần | Giúp học **xong** một chặng và giữ được kiến thức; luôn mở từ một chặng của roadmap |
 
 Quy tắc sản phẩm: một tính năng bổ trợ không được có điểm vào riêng ở màn hình chính. Người dùng đến với nó qua một node của graph, một chặng của roadmap (ví dụ "Luyện tập chặng Tuần 3") hoặc qua lịch học.
 
 ### 1.3. Sản phẩm KHÔNG phải là
 
+- Không phải nền tảng khóa học: không có khóa học, bài giảng hay lộ trình dựng sẵn để chọn; không có gì bắt đầu nếu người học chưa đưa syllabus, mục tiêu hoặc tài liệu.
 - Không cấp bằng, chứng chỉ hay tuyên bố "tương đương bằng đại học". Chỉ có **hồ sơ luyện tập (practice record)** và tiến độ roadmap.
 - Không phải công cụ tìm kiếm chung: chỉ tìm nguồn cho chặng có trong roadmap đã xác nhận, và không bao giờ đưa ra đường link mà hệ thống chưa tự mở kiểm tra.
 - Không sao chép, lưu lại hay phát tán nội dung của bên thứ ba: chỉ lưu đường link, tiêu đề, đoạn trích ngắn làm bằng chứng; không bao giờ gợi ý bản lậu của giáo trình.
@@ -104,7 +105,7 @@ Mỗi use case có ID cố định; code, test và issue phải trỏ về ID n�
 | UC-07 | Lập lại kế hoạch khi trễ hoặc syllabus đổi | Hệ thống | Deterministic (diff + xếp lại phần chưa học) | Should | 3 |
 | UC-08 | Xem tiến độ roadmap và đếm ngược mốc kiểm tra | Học sinh | Deterministic | Should | 3 |
 | UC-09 | Gắn slide/tài liệu riêng vào chặng | Học sinh | Deterministic (ingest) | Should | 1 |
-| UC-10 | Sinh câu hỏi luyện tập cho chặng | Hệ thống | LLM soạn, bắt buộc trích dẫn | Should | 4 |
+| UC-10 | Lấy bài tập có sẵn cho chặng để kiểm tra tiến độ | Hệ thống | Retrieval trong tài liệu người học + catalog đã xác minh; LLM chỉ gắn bài vào concept | Should | 4 |
 | UC-11 | Làm buổi ôn tập hôm nay | Học sinh | Deterministic (FSRS) | Should | 4 |
 | UC-12 | Hỏi về chặng, có trích dẫn | Học sinh | Retrieval (BM25 + vector) + LLM | Should | 4 |
 | UC-13 | Xin gợi ý, không xin đáp án | Học sinh | LLM, hint ladder | Could | 4 |
@@ -152,7 +153,7 @@ Mỗi use case có ID cố định; code, test và issue phải trỏ về ID n�
 ### 4.1. Lần đầu sử dụng (sinh viên) — core loop
 
 1. Đăng ký (email, mật khẩu, năm sinh) → chọn cấp học (đại học / K-12).
-2. Tạo môn học → kéo thả syllabus (PDF/DOCX) hoặc dán text.
+2. Tạo môn học → kéo thả syllabus (PDF/DOCX) hoặc dán text → ghi mục tiêu học (tùy chọn) → kéo thả tài liệu học của mình (slide, giáo trình, đề bài tập; tùy chọn, thêm sau được).
 3. Hệ thống trích text theo trang và phân tích (≈ 30 giây cho syllabus 8 trang) → hiện bảng: chuẩn đầu ra, 10–15 tuần với chủ đề, các mốc kiểm tra và trọng số, giáo trình. Mỗi ô có chip trang nguồn.
 4. Sinh viên sửa ô sai, xác nhận → hệ thống dựng **knowledge graph của cả môn** (mọi concept, cạnh prerequisite, mốc kiểm tra) và roadmap từ graph đó (timeline theo tuần). Sinh viên xem graph, sửa cạnh sai, xác nhận.
 5. Sinh viên nhập số giờ rảnh mỗi tuần (hoặc chọn khung giờ trên lịch) → hệ thống xếp các buổi học vào lịch, có cảnh báo nếu quá tải trước kỳ thi.
@@ -209,7 +210,7 @@ Mỗi use case có ID cố định; code, test và issue phải trỏ về ID n�
 | `graph` | Giữ knowledge graph luôn là DAG, trả global/local graph (epic #94) | concepts + prereqs → graph JSON | chặn cycle khi thêm cạnh, transitive reduction, layout | ai | core |
 | `curator` | Chọn bộ nguồn cuối cho chặng | ứng viên đã chấm + feedback → `node_resources` | MMR, nguồn người học ghim, re-rank | ai | core |
 | `retrieve` | Tìm đoạn liên quan trong tài liệu | câu hỏi → top-k (source_id, score) | BM25, vector index | ai | bổ trợ |
-| `itemgen` | Sinh câu hỏi có trích dẫn | chặng + trang → items | prompt, kiểm tra JSON | ai | bổ trợ |
+| `exercises` | Tìm bài tập có sẵn và gắn vào concept | chặng + tài liệu người học + catalog → items có vị trí nguồn | trích bài tập theo trang, giấy phép, gắn concept | ai | bổ trợ |
 | `grader` | Chấm câu trả lời | item + answer → score + feedback | so đáp án, rubric LLM | ai | bổ trợ |
 | `scheduler` | Chọn câu ôn đến hạn | review log → danh sách item | FSRS | dbsec | bổ trợ |
 | `tutor` | Gợi ý theo bậc | item + lần thử → hint | prompt hint | ai | bổ trợ |
@@ -234,7 +235,7 @@ Nguyên tắc "leo thang giải pháp vừa đủ" (Solution ladder): dùng bậ
 | Lọc nguồn | Rule: link sống, blocklist, paywall, ngôn ngữ, độ tuổi | Không cần |
 | Chấm độ liên quan và chất lượng sư phạm | LLM judge theo rubric + BM25 với CLO | Chỉ dùng điểm rule + BM25 |
 | Chọn bộ nguồn đa dạng | MMR (deterministic) | Top-k theo điểm |
-| Viết câu hỏi luyện tập (bổ trợ) | LLM + trang nguồn, bắt buộc trích dẫn | Bỏ qua, gắn cờ soạn tay |
+| Lấy bài tập luyện tập (bổ trợ) | Trích bài tập có sẵn (deterministic + retrieval) từ tài liệu người học và catalog; LLM chỉ phân loại và gắn concept | LLM soạn câu hỏi từ trang nguồn, gắn nhãn "Do AI soạn", không tính vào tiến độ |
 | Lên lịch ôn (bổ trợ) | Thư viện `fsrs` + review log | Không cần |
 | Tin nhắn companion (bổ trợ) | Rule cho trigger, LLM cho câu chữ | Template cố định |
 
@@ -288,7 +289,7 @@ Nguồn chuẩn: [`db/schema.sql`](../../db/schema.sql). Tạo DB local: `python
 
 | Bảng | Mục đích | Trường quan trọng |
 | --- | --- | --- |
-| `items` | Câu hỏi luyện tập | `type` (mcq/numeric/short/spot_bug), `answer`, `rubric`, `source_id` (bắt buộc), `graded`, `status` |
+| `items` | Bài tập luyện tập | `type` (mcq/numeric/short/code/spot_bug), `origin` (user_material/catalog/ai), `source_id` hoặc `resource_id` + `location` (trang, số bài), `license`, `answer` (nếu nguồn có), `rubric`, `graded`, `status` |
 | `cards` | Trạng thái ôn tập của 1 user với 1 item | `fsrs_state` (JSON), `due_at` |
 | `reviews` | Log mỗi lần trả lời, chỉ thêm, không sửa | `rating` (1–4), `answer_text`, `score`, `reviewed_at` |
 | `companion_events` | Sự kiện cho companion | `kind` (node_done/milestone/streak/unlock/checkin), `payload` |
@@ -524,14 +525,22 @@ Mọi tính năng ở mục này mở từ một chặng của roadmap và đọ
 
 ### 12.1. Tài liệu riêng của chặng (UC-09)
 
-Slide bài giảng hoặc ghi chú của người học được gắn vào chặng qua `ingest` (một dòng `sources` mỗi trang). Tài liệu riêng được ưu tiên hơn nguồn web khi sinh câu hỏi và trả lời.
+Slide bài giảng hoặc ghi chú của người học được gắn vào chặng qua `ingest` (một dòng `sources` mỗi trang). Tài liệu riêng được ưu tiên hơn nguồn web khi lấy bài tập và trả lời.
 
-### 12.2. Câu hỏi luyện tập có trích dẫn (UC-10)
+### 12.2. Bài tập có sẵn để kiểm tra tiến độ (UC-10)
 
-- Input: chặng + top-3 trang từ tài liệu riêng (BM25), hoặc đoạn trích của nguồn web đã chọn khi chưa có tài liệu riêng. Output: 3–5 item JSON có `source_id`.
-- Loại: MCQ (4 lựa chọn, 1 đúng), numeric (có sai số cho phép), short answer (kèm rubric 2–4 tiêu chí), spot-the-bug (sinh từ item đã duyệt).
-- Cite or refuse: `source_id` phải thuộc các trang đã đưa vào; MCQ đúng 1 đáp án; không chứa thông tin cá nhân. Item mới `status = draft`, người dùng duyệt nhanh.
-- Chấm: MCQ/numeric so trực tiếp; short answer LLM chấm theo rubric, khớp người chấm ≥ 85% (tuần 4), ≥ 90% (tuần 6).
+Bài tập dùng để đo tiến độ **không do AI soạn**. Chúng lấy từ bài tập đã có, theo thứ tự ưu tiên:
+
+| Ưu tiên | Nguồn bài tập | Lưu gì |
+| ---: | --- | --- |
+| 1 | Tài liệu người học tải lên (bài tập cuối slide, đề cũ, giáo trình) | Nguyên văn + `source_id` (trang) |
+| 2 | Nguồn đã xác minh trong catalog (problem set MIT OCW, bài cuối chương OpenStax, bài tập K-12 chính thống) | Nguyên văn chỉ khi giấy phép cho phép (CC BY, CC BY-SA); nếu không, chỉ link + vị trí (trang, số bài) |
+| 3 | Fallback: LLM soạn từ trang nguồn đã trích dẫn | Gắn nhãn "Do AI soạn", chỉ để luyện thêm, **không** tính vào mastery hay tiến độ |
+
+- Input: concept của chặng + tài liệu người học + nguồn catalog đã gắn với concept (#102). Output: 3–5 item có vị trí nguồn.
+- Loại: MCQ, numeric, short answer, code, spot-the-bug: giữ đúng dạng của bài gốc. Interleaving và gap repair (12.3) chọn trong cùng kho bài này.
+- Cite or refuse: mọi item có `source_id` hoặc `resource_id` + `location`; không tìm được bài tập có sẵn cho concept → nói rõ "Chưa có bài tập cho concept này" thay vì tự soạn để đo tiến độ.
+- Chấm: dùng đáp án hoặc lời giải của chính nguồn khi có; MCQ/numeric so trực tiếp; short answer LLM chấm theo rubric dựng từ lời giải của nguồn; nguồn không có đáp án → học sinh tự đánh giá so với lời giải được link. Short answer khớp người chấm ≥ 85% (tuần 4), ≥ 90% (tuần 6).
 
 ### 12.3. Ôn tập ngắt quãng FSRS (UC-11)
 
@@ -550,7 +559,7 @@ Slide bài giảng hoặc ghi chú của người học được gắn vào ch�
 | ---: | --- | --- |
 | 1 | Gợi ý khái niệm, kèm link nguồn liên quan nhất của chặng | Được |
 | 2 | Chỉ ra tiền đề sai gần nhất trong câu trả lời | Được |
-| 3 | Lời giải mẫu từng bước (sau 3 lần thử) | **Không bao giờ** |
+| 3 | Lời giải của nguồn (nếu nguồn có), sau 3 lần thử | **Không bao giờ** |
 
 Mọi gợi ý (trừ bậc 3) kết thúc bằng một câu hỏi ngắn trả lượt suy nghĩ cho học sinh. Tỷ lệ lộ đáp án ≤ 2% trên 30 prompt red-team; 0% với item graded.
 
@@ -636,7 +645,7 @@ Một nhân vật, ba mode; tiến độ và unlock giữ nguyên khi đổi mod
 | Concept trong 5 graph tham chiếu có ≥ 3 nguồn catalog đã xác minh | mới | 100% (hoặc báo `insufficient`) | 0 nguồn chưa xác minh hiện cho người học |
 | Link chết trong catalog đang hiện | mới | < 2% | Job làm mới định kỳ (#105) |
 | (Bổ trợ) Nhớ sau 1 tuần trên 20 câu của chặng | Nhóm chỉ đọc nguồn | +20 điểm | Ôn ≤ 15% quỹ tuần |
-| (Bổ trợ) Câu hỏi sinh ra đúng nội dung và trang | mới | ≥ 90% trên 60 | 0 câu thiếu trích dẫn |
+| (Bổ trợ) Bài tập gắn đúng concept và đúng vị trí nguồn | mới | ≥ 90% trên 60 | 0 bài thiếu nguồn; 0 bài do AI soạn được tính vào tiến độ |
 
 ---
 
@@ -645,6 +654,8 @@ Một nhân vật, ba mode; tiến độ và unlock giữ nguyên khi đổi mod
 - Bằng cấp, chứng chỉ, tuyên bố tương đương bằng đại học.
 - Tự tạo nội dung bài giảng thay cho nguồn thật; app chọn và giải thích nguồn, không viết lại giáo trình.
 - Lưu trữ, sao chép hay phát lại nội dung của bên thứ ba; tải về giáo trình có bản quyền.
+- Nền tảng khóa học: khóa học, bài giảng hay lộ trình dựng sẵn để người dùng chọn (kiểu Coursera, Duolingo).
+- Bài tập do AI soạn để đo tiến độ.
 - Thương mại hóa: gói trả phí, thanh toán, quảng cáo, bán dữ liệu, mua hộ khóa học, liên kết affiliate.
 - Nền tảng mobile: app native iOS/Android và PWA cài đặt; tập trung làm tốt một bản web responsive.
 - Tài khoản giáo viên, phụ huynh, quản lý lớp, giao bài; sản phẩm chỉ phục vụ người học.
@@ -686,7 +697,7 @@ Một nhân vật, ba mode; tiến độ và unlock giữ nguyên khi đổi mod
 | Concept | Đơn vị kiến thức kiểm tra được; mỗi chặng `topic` trỏ về một concept |
 | Knowledge graph | Graph các concept và cạnh prerequisite, luôn là DAG; global graph (cả môn) hoặc local graph (k bước quanh một node) |
 | Verified catalog | Catalog nguồn học đã qua kiểm tra link, giấy phép và duyệt, dùng chung cho mọi user (epic #92) |
-| Item | Một câu hỏi luyện tập gắn với chặng và trang nguồn |
+| Item | Một bài tập có sẵn (từ tài liệu người học hoặc nguồn đã xác minh) gắn với concept và vị trí nguồn |
 | Source / page chunk | Text của một trang tài liệu, đơn vị để trích dẫn nội bộ |
 | FSRS | Free Spaced Repetition Scheduler, thuật toán lên lịch ôn tập |
 | Retrievability (R) | Xác suất còn nhớ ở thời điểm hiện tại |
