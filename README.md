@@ -21,7 +21,7 @@
 3. **Sắp graph thành roadmap có lịch**: theo tuần, kiến thức nền và mục tiêu của bạn, ước lượng thời lượng, xếp vào giờ rảnh. Không chặng nào bị xếp sau bài kiểm tra cần nó; trễ kế hoạch thì app đề xuất lịch mới để bạn duyệt.
 4. **Đề xuất nguồn học đã xác minh cho từng concept**: từ tài liệu của bạn, catalog nguồn đã xác minh (khóa học mở của các trường, OER) và web; mở thật từng link, lọc trang lậu và paywall, chấm điểm theo 7 tiêu chí và chỉ giữ nguồn đạt ngưỡng, kèm lý do có trích dẫn nguyên văn từ trang.
 
-**Tính năng bổ trợ** (luôn mở từ một node của graph hoặc một chặng của roadmap): bài tập để kiểm tra tiến độ lấy từ **tài liệu của bạn và nguồn đã xác minh**, có trích dẫn vị trí, không do AI soạn (AI chỉ soạn khi thiếu, có nhãn, không tính vào tiến độ) · ôn tập ngắt quãng FSRS và xen kẽ (interleaving) · hỏi đáp có trích dẫn · gợi ý theo bậc thay vì đưa đáp án · thư viện nguồn cá nhân và tổng kết tuần · companion động viên (study buddy, mentor; girlfriend mode chỉ cho người dùng 18+ đã xác minh, không nội dung tình dục, không bao giờ mở cho tài khoản K-12).
+**Tính năng bổ trợ** (luôn mở từ một node của graph hoặc một chặng của roadmap): bài tập để kiểm tra tiến độ lấy từ **tài liệu của bạn và nguồn đã xác minh**, mọi bài đều có trích dẫn vị trí, **không có câu hỏi nào do AI soạn**; concept chưa có bài tập thì app nói rõ và đưa nguồn đọc thay vì quiz · ôn tập ngắt quãng FSRS và xen kẽ (interleaving) · hỏi đáp có trích dẫn · gợi ý theo bậc thay vì đưa đáp án · thư viện nguồn cá nhân và tổng kết tuần · companion động viên (study buddy, mentor; girlfriend mode chỉ cho người dùng 18+ đã xác minh, không nội dung tình dục, không bao giờ mở cho tài khoản K-12).
 
 **Nguyên tắc.**
 

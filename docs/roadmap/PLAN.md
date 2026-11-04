@@ -83,10 +83,10 @@ Tài liệu này là kế hoạch triển khai chính thức của Group 04: tro
 
 | Mảng | Việc cần làm | Done when |
 |---|---|---|
-| UI/UX | Panel node + nguồn đã xác minh (#109) · tìm, lọc, local graph, chế độ danh sách (#110) · nhãn "Đã xác minh" cho người học + màn duyệt nguồn nội bộ cho team (#104) · lối vào luyện tập / ôn tập / hỏi đáp từ node · review session · nhãn nguồn của mỗi bài tập (tài liệu của bạn / nguồn đã xác minh / do AI soạn) | Một sinh viên đi từ graph → node → nguồn → 5 bài tập có sẵn không cần hướng dẫn |
-| AI | Taxonomy môn học và gắn nhãn (#99) · pipeline xác minh + hàng chờ duyệt (#101) · gắn nguồn catalog vào node và resource finder (#102) · lấy bài tập có sẵn từ tài liệu người học và nguồn đã xác minh, gắn vào concept (UC-10; AI chỉ soạn khi thiếu, có nhãn, không tính tiến độ) · chấm theo đáp án/lời giải của nguồn · hỏi đáp có trích dẫn (UC-12) · hint ladder (UC-13) | Mỗi concept trong 5 graph tham chiếu có ≥ 3 nguồn catalog đã xác minh (hoặc báo `insufficient`); chấm điểm khớp người chấm ≥ 85% |
+| UI/UX | Panel node + nguồn đã xác minh (#109) · tìm, lọc, local graph, chế độ danh sách (#110) · nhãn "Đã xác minh" cho người học + màn duyệt nguồn nội bộ cho team (#104) · lối vào luyện tập / ôn tập / hỏi đáp từ node · review session · chip nguồn của mỗi bài tập (tài liệu của bạn / nguồn đã xác minh, kèm vị trí) · trạng thái "Chưa có bài tập" kèm nguồn đọc | Một sinh viên đi từ graph → node → nguồn → 5 bài tập có sẵn không cần hướng dẫn |
+| AI | Taxonomy môn học và gắn nhãn (#99) · pipeline xác minh + hàng chờ duyệt (#101) · gắn nguồn catalog vào node và resource finder (#102) · lấy bài tập có sẵn từ tài liệu người học và nguồn đã xác minh, gắn vào concept (UC-10; không có câu hỏi do AI soạn) · chấm theo đáp án/lời giải của nguồn · hỏi đáp có trích dẫn (UC-12) · hint ladder (UC-13) | Mỗi concept trong 5 graph tham chiếu có ≥ 3 nguồn catalog đã xác minh (hoặc báo `insufficient`); chấm điểm khớp người chấm ≥ 85% |
 | Database & Security | ADR 004: phạm vi, nguồn được phép, giấy phép (#93) · migration `0008_verified_catalog` (#95) · danh sách ~500 trường (ROR + OpenAlex) và tier uy tín (#96) · khung connector + MIT OCW, OpenStax, Open Yale (#98), tôn trọng `robots.txt` · scheduler `fsrs` + review log (UC-11) · mastery của node tính từ review log | Nguồn chưa xác minh không bao giờ hiện cho người học (có test); 100% dòng catalog có giấy phép |
-| QA/QC | Benchmark chất lượng catalog (#106) · benchmark bài tập (gắn đúng concept, đúng vị trí nguồn) lên 60 case · red-team: 30 lộ đáp án, 15 trang web chèn lệnh · báo cáo QA tuần 4 | Link chết trong catalog đang hiện < 2%; mọi safeguard test pass trong CI |
+| QA/QC | Benchmark chất lượng catalog (#106) · test "không câu hỏi do AI soạn": mọi item có nguồn và vị trí kiểm tra được · benchmark bài tập (gắn đúng concept, đúng vị trí nguồn) lên 60 case · red-team: 30 lộ đáp án, 15 trang web chèn lệnh · báo cáo QA tuần 4 | Link chết trong catalog đang hiện < 2%; mọi safeguard test pass trong CI |
 | DevOps | Job làm mới catalog định kỳ, snapshot, seed dev (#105) · tag `v0.4` | Job làm mới chạy hằng đêm trên staging |
 
 ## 📍 Tuần 5: Trải nghiệm học sinh tốt nhất + an toàn K-12
@@ -134,7 +134,7 @@ Tài liệu này là kế hoạch triển khai chính thức của Group 04: tro
 | # | Rủi ro | Giảm thiểu |
 |---|---|---|
 | 1 | Graph thiếu concept hoặc sai prerequisite | Mọi concept có trang syllabus, người dùng sửa và xác nhận graph, 5 graph tham chiếu đo mỗi tuần |
-| 2 | Thiếu bài tập có sẵn cho một số concept | Ưu tiên tài liệu người học, mở rộng catalog bài tập; nói rõ "chưa có bài tập" thay vì để AI soạn bài đo tiến độ |
+| 2 | Thiếu bài tập có sẵn cho một số concept | Ưu tiên tài liệu người học, mở rộng catalog bài tập; nói rõ "chưa có bài tập" và đưa nguồn đọc; tuyệt đối không để AI soạn câu hỏi |
 | 3 | Syllabus trích xuất kém (bảng, ảnh, định dạng lạ) | Bước duyệt S4 bắt buộc, benchmark 20 syllabus, cho phép dán text thay thế |
 | 4 | Phạm vi phình to | Non-goals trong spec (gồm thương mại hóa, mobile, giáo viên và phụ huynh); PM từ chối issue ngoài kế hoạch |
 | 5 | Girlfriend mode lộ cho người dưới 18 tuổi | Age gate + feature flag + 50 test K-12; mode tắt mặc định; giữ nguyên dù không có tài khoản phụ huynh |

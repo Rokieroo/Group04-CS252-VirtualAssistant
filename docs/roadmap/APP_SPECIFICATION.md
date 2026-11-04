@@ -54,8 +54,8 @@ Mọi quyết định về phạm vi được cân nhắc bằng câu hỏi: "Vi
 | Tiêu chuẩn | Nghĩa là | Đo bằng |
 | --- | --- | --- |
 | **Đúng (Correct)** | Phân tích syllabus, câu hỏi và câu trả lời đúng nội dung, đúng trang | Benchmark `eval/` (F1 syllabus, độ đúng câu hỏi, trích dẫn) |
-| **Đáng tin (Trustworthy)** | Không link bịa, không nguồn chưa kiểm tra, luôn có trích dẫn hoặc nói "không có nguồn" | Safeguard 1–3, 7 (mục 13.1) |
-| **An toàn (Safe)** | An toàn cho K-12, chống prompt injection, không lộ PII | Safeguard 4–6, 9–11 |
+| **Đáng tin (Trustworthy)** | Không link bịa, không nguồn chưa kiểm tra, luôn có trích dẫn hoặc nói "không có nguồn" | Safeguard 1–3, 7, 8 (mục 13.1) |
+| **An toàn (Safe)** | An toàn cho K-12, chống prompt injection, không lộ PII | Safeguard 4–6, 10–12 |
 | **Dễ dùng (Usable)** | Người mới tự đi hết core loop không cần hướng dẫn; WCAG AA; dùng được bằng bàn phím | Usability test mỗi tuần, rà accessibility |
 | **Nhanh và bền (Fast & resilient)** | Đạt ngưỡng latency; một provider lỗi không làm vỡ luồng | Load test, test lỗi provider |
 | **Hiệu quả học (Effective)** | Người học hoàn thành chặng đúng hạn và nhớ lâu hơn | Metrics mục 15 (hoàn thành chặng, nhớ sau 1 tuần) |
@@ -235,7 +235,7 @@ Nguyên tắc "leo thang giải pháp vừa đủ" (Solution ladder): dùng bậ
 | Lọc nguồn | Rule: link sống, blocklist, paywall, ngôn ngữ, độ tuổi | Không cần |
 | Chấm độ liên quan và chất lượng sư phạm | LLM judge theo rubric + BM25 với CLO | Chỉ dùng điểm rule + BM25 |
 | Chọn bộ nguồn đa dạng | MMR (deterministic) | Top-k theo điểm |
-| Lấy bài tập luyện tập (bổ trợ) | Trích bài tập có sẵn (deterministic + retrieval) từ tài liệu người học và catalog; LLM chỉ phân loại và gắn concept | LLM soạn câu hỏi từ trang nguồn, gắn nhãn "Do AI soạn", không tính vào tiến độ |
+| Lấy bài tập luyện tập (bổ trợ) | Trích bài tập có sẵn (deterministic + retrieval) từ tài liệu người học và catalog; LLM chỉ phân loại và gắn concept | Không có bài tập → "Chưa có bài tập cho concept này" + nguồn đọc; **không** để LLM soạn câu hỏi |
 | Lên lịch ôn (bổ trợ) | Thư viện `fsrs` + review log | Không cần |
 | Tin nhắn companion (bổ trợ) | Rule cho trigger, LLM cho câu chữ | Template cố định |
 
@@ -289,7 +289,7 @@ Nguồn chuẩn: [`db/schema.sql`](../../db/schema.sql). Tạo DB local: `python
 
 | Bảng | Mục đích | Trường quan trọng |
 | --- | --- | --- |
-| `items` | Bài tập luyện tập | `type` (mcq/numeric/short/code/spot_bug), `origin` (user_material/catalog/ai), `source_id` hoặc `resource_id` + `location` (trang, số bài), `license`, `answer` (nếu nguồn có), `rubric`, `graded`, `status` |
+| `items` | Bài tập luyện tập | `type` (mcq/numeric/short/code/spot_bug), `origin` (user_material/catalog), `source_id` hoặc `resource_id` + `location` (trang, số bài), `license`, `answer` (nếu nguồn có), `rubric`, `graded`, `status` |
 | `cards` | Trạng thái ôn tập của 1 user với 1 item | `fsrs_state` (JSON), `due_at` |
 | `reviews` | Log mỗi lần trả lời, chỉ thêm, không sửa | `rating` (1–4), `answer_text`, `score`, `reviewed_at` |
 | `companion_events` | Sự kiện cho companion | `kind` (node_done/milestone/streak/unlock/checkin), `payload` |
@@ -376,7 +376,7 @@ Trả nguồn thay thế (nếu có) để UI đổi ngay.
 
 ### 8.8. Endpoint bổ trợ (đã có hoặc giữ từ bản 2.0)
 
-`POST /courses/{id}/sources` (slide riêng của chặng), `POST /courses/{id}/concepts:propose`, `POST /courses/{id}/concepts/{cid}/items:generate`, `GET /me/due`, `POST /reviews`, `POST /ask`, `POST /items/{id}/hint`, `GET/PUT /me/companion`, `GET /me/weekly-summary`, `GET /schedule`, `POST /schedule/{entry_id}/check-in`, `GET/PUT /availability`, `/busy-blocks`, `PUT /me/library/{resource_id}` (ghim, ẩn, ghi chú), `GET /me/export`, `DELETE /me`, `POST /auth/register`, `POST /auth/login`.
+`POST /courses/{id}/sources` (slide riêng của chặng), `POST /courses/{id}/concepts:propose`, `POST /courses/{id}/concepts/{cid}/items:find`, `GET /me/due`, `POST /reviews`, `POST /ask`, `POST /items/{id}/hint`, `GET/PUT /me/companion`, `GET /me/weekly-summary`, `GET /schedule`, `POST /schedule/{entry_id}/check-in`, `GET/PUT /availability`, `/busy-blocks`, `PUT /me/library/{resource_id}` (ghim, ẩn, ghi chú), `GET /me/export`, `DELETE /me`, `POST /auth/register`, `POST /auth/login`.
 
 ---
 
@@ -529,17 +529,17 @@ Slide bài giảng hoặc ghi chú của người học được gắn vào ch�
 
 ### 12.2. Bài tập có sẵn để kiểm tra tiến độ (UC-10)
 
-Bài tập dùng để đo tiến độ **không do AI soạn**. Chúng lấy từ bài tập đã có, theo thứ tự ưu tiên:
+**Không có câu hỏi nào do AI soạn.** Mọi bài tập đều lấy từ bài đã có trong nguồn chất lượng cao, trích dẫn được vị trí, theo thứ tự ưu tiên:
 
 | Ưu tiên | Nguồn bài tập | Lưu gì |
 | ---: | --- | --- |
 | 1 | Tài liệu người học tải lên (bài tập cuối slide, đề cũ, giáo trình) | Nguyên văn + `source_id` (trang) |
 | 2 | Nguồn đã xác minh trong catalog (problem set MIT OCW, bài cuối chương OpenStax, bài tập K-12 chính thống) | Nguyên văn chỉ khi giấy phép cho phép (CC BY, CC BY-SA); nếu không, chỉ link + vị trí (trang, số bài) |
-| 3 | Fallback: LLM soạn từ trang nguồn đã trích dẫn | Gắn nhãn "Do AI soạn", chỉ để luyện thêm, **không** tính vào mastery hay tiến độ |
 
-- Input: concept của chặng + tài liệu người học + nguồn catalog đã gắn với concept (#102). Output: 3–5 item có vị trí nguồn.
+- Input: concept của chặng + tài liệu người học + nguồn catalog đã gắn với concept (#102). Output: 0–5 item có vị trí nguồn.
+- LLM chỉ được **phân loại và gắn** bài có sẵn vào concept; không được viết, sửa đề hay thêm lựa chọn. Đề hiện cho học sinh khớp nguyên văn với nguồn (kiểm tra chuỗi con như safeguard *grounded justification*).
 - Loại: MCQ, numeric, short answer, code, spot-the-bug: giữ đúng dạng của bài gốc. Interleaving và gap repair (12.3) chọn trong cùng kho bài này.
-- Cite or refuse: mọi item có `source_id` hoặc `resource_id` + `location`; không tìm được bài tập có sẵn cho concept → nói rõ "Chưa có bài tập cho concept này" thay vì tự soạn để đo tiến độ.
+- Cite or refuse: mọi item có `source_id` hoặc `resource_id` + `location`; không tìm được bài tập có sẵn cho concept → hiện "Chưa có bài tập cho concept này", đưa 1–3 nguồn đọc đã xác minh của concept (không kèm quiz), link tới phần bài tập của nguồn nếu có, và gợi ý người học tải lên đề bài tập của môn. Concept đó được đánh dấu tiến độ theo "đã đọc" do người học tự xác nhận, không có điểm.
 - Chấm: dùng đáp án hoặc lời giải của chính nguồn khi có; MCQ/numeric so trực tiếp; short answer LLM chấm theo rubric dựng từ lời giải của nguồn; nguồn không có đáp án → học sinh tự đánh giá so với lời giải được link. Short answer khớp người chấm ≥ 85% (tuần 4), ≥ 90% (tuần 6).
 
 ### 12.3. Ôn tập ngắt quãng FSRS (UC-11)
@@ -598,10 +598,11 @@ Một nhân vật, ba mode; tiến độ và unlock giữ nguyên khi đổi mod
 | 5 | Chống prompt injection từ syllabus và trang web | core | 10 syllabus + 15 trang web chèn lệnh |
 | 6 | PII không rời hệ thống qua truy vấn tìm kiếm | core | 10 syllabus có tên/email; 0 truy vấn chứa PII |
 | 7 | Cite or refuse cho câu hỏi và hỏi đáp | bổ trợ | Case `missing_knowledge` trong benchmark |
-| 8 | Hint-only cho bài graded | bổ trợ | 30 prompt red-team, 0 lần lộ đáp án |
-| 9 | Guardrails companion + age gate | bổ trợ | 20 hội thoại + 50 test tài khoản K-12 |
-| 10 | Phân quyền theo user và role (student/admin) | nền | Ma trận phân quyền |
-| 11 | Không có secret và PII thật trong repo | nền | `python dev.py db scan-secrets` trong CI |
+| 8 | No AI-written questions: mọi item có `source_id` hoặc `resource_id` + `location`, đề khớp nguyên văn nguồn | bổ trợ | Toàn bộ item trong benchmark; 0 item không truy được nguồn |
+| 9 | Hint-only cho bài graded | bổ trợ | 30 prompt red-team, 0 lần lộ đáp án |
+| 10 | Guardrails companion + age gate | bổ trợ | 20 hội thoại + 50 test tài khoản K-12 |
+| 11 | Phân quyền theo user và role (student/admin) | nền | Ma trận phân quyền |
+| 12 | Không có secret và PII thật trong repo | nền | `python dev.py db scan-secrets` trong CI |
 
 ### 13.2. Quy tắc
 
@@ -645,7 +646,7 @@ Một nhân vật, ba mode; tiến độ và unlock giữ nguyên khi đổi mod
 | Concept trong 5 graph tham chiếu có ≥ 3 nguồn catalog đã xác minh | mới | 100% (hoặc báo `insufficient`) | 0 nguồn chưa xác minh hiện cho người học |
 | Link chết trong catalog đang hiện | mới | < 2% | Job làm mới định kỳ (#105) |
 | (Bổ trợ) Nhớ sau 1 tuần trên 20 câu của chặng | Nhóm chỉ đọc nguồn | +20 điểm | Ôn ≤ 15% quỹ tuần |
-| (Bổ trợ) Bài tập gắn đúng concept và đúng vị trí nguồn | mới | ≥ 90% trên 60 | 0 bài thiếu nguồn; 0 bài do AI soạn được tính vào tiến độ |
+| (Bổ trợ) Bài tập gắn đúng concept và đúng vị trí nguồn | mới | ≥ 90% trên 60 | 0 bài thiếu nguồn; 0 bài do AI soạn |
 
 ---
 
@@ -655,7 +656,7 @@ Một nhân vật, ba mode; tiến độ và unlock giữ nguyên khi đổi mod
 - Tự tạo nội dung bài giảng thay cho nguồn thật; app chọn và giải thích nguồn, không viết lại giáo trình.
 - Lưu trữ, sao chép hay phát lại nội dung của bên thứ ba; tải về giáo trình có bản quyền.
 - Nền tảng khóa học: khóa học, bài giảng hay lộ trình dựng sẵn để người dùng chọn (kiểu Coursera, Duolingo).
-- Bài tập do AI soạn để đo tiến độ.
+- Câu hỏi hay bài tập do AI soạn, ở bất kỳ dạng nào.
 - Thương mại hóa: gói trả phí, thanh toán, quảng cáo, bán dữ liệu, mua hộ khóa học, liên kết affiliate.
 - Nền tảng mobile: app native iOS/Android và PWA cài đặt; tập trung làm tốt một bản web responsive.
 - Tài khoản giáo viên, phụ huynh, quản lý lớp, giao bài; sản phẩm chỉ phục vụ người học.
