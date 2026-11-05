@@ -1,0 +1,169 @@
+{
+ "meta": {
+  "total_count": 5
+ },
+ "items": [
+  {
+   "id": 506,
+   "meta": {
+    "slug": "college-physics-courseware",
+    "type": "books.Book",
+    "detail_url": "https://openstax.org/apps/cms/api/v2/pages/506/",
+    "html_url": "https://openstax.org/details/books/college-physics-courseware",
+    "first_published_at": "2021-03-24T13:33:46.911602-05:00",
+    "locale": "en"
+   },
+   "title": "College Physics with Courseware",
+   "book_state": "retired",
+   "book_subjects": [],
+   "book_categories": [],
+   "description": "",
+   "license_name": null,
+   "license_version": null
+  },
+  {
+   "id": 847,
+   "meta": {
+    "slug": "introduction-computer-science",
+    "type": "books.Book",
+    "detail_url": "https://openstax.org/apps/cms/api/v2/pages/847/",
+    "html_url": "https://openstax.org/details/books/introduction-computer-science",
+    "first_published_at": "2024-10-29T11:09:01.451000-05:00",
+    "locale": "en"
+   },
+   "title": "Introduction to Computer Science",
+   "book_state": "live",
+   "book_subjects": [
+    {
+     "id": 387,
+     "meta": {
+      "type": "books.BookSubjects"
+     },
+     "subject_name": "Computer Science",
+     "subject_search_description": "Computer Science"
+    }
+   ],
+   "book_categories": [
+    {
+     "id": 206,
+     "meta": {
+      "type": "books.BookCategories"
+     },
+     "subject_name": "Computer Science",
+     "subject_category": "Foundations of Computer Science"
+    }
+   ],
+   "description": "<p data-block-key=\"do82c\"><i>Introduction to Computer Science</i> provides a comprehensive foundation in core computer science concepts and principles, aligning with the scope and sequence of most introductory computer science courses. The offering serves as an engaging entry point for students pursuing diverse fields of study and employment, including computer science, business, engineering, data",
+   "license_name": "Creative Commons Attribution-NonCommercial-ShareAlike License",
+   "license_version": "4.0"
+  },
+  {
+   "id": 304,
+   "meta": {
+    "slug": "principles-management",
+    "type": "books.Book",
+    "detail_url": "https://openstax.org/apps/cms/api/v2/pages/304/",
+    "html_url": "https://openstax.org/details/books/principles-management",
+    "first_published_at": "2019-02-28T14:08:03.807000-06:00",
+    "locale": "en"
+   },
+   "title": "Principles of Management",
+   "book_state": "live",
+   "book_subjects": [
+    {
+     "id": 132,
+     "meta": {
+      "type": "books.BookSubjects"
+     },
+     "subject_name": "Business",
+     "subject_search_description": "Business"
+    }
+   ],
+   "book_categories": [
+    {
+     "id": 101,
+     "meta": {
+      "type": "books.BookCategories"
+     },
+     "subject_name": "Business",
+     "subject_category": "Management and Marketing"
+    }
+   ],
+   "description": "<p data-block-key=\"2klic\"><i>Principles of Management</i> is designed to meet the scope and sequence requirements of the introductory course on management. This is a traditional approach to management using the leading, planning, organizing, and controlling approach. Management is a broad business discipline, and the Principles of Management course covers many management areas such as human resour",
+   "license_name": "Creative Commons Attribution-NonCommercial-ShareAlike License",
+   "license_version": "4.0"
+  },
+  {
+   "id": 413,
+   "meta": {
+    "slug": "statistics",
+    "type": "books.Book",
+    "detail_url": "https://openstax.org/apps/cms/api/v2/pages/413/",
+    "html_url": "https://openstax.org/details/books/statistics",
+    "first_published_at": "2020-03-27T10:07:53.129000-05:00",
+    "locale": "en"
+   },
+   "title": "Statistics",
+   "book_state": "live",
+   "book_subjects": [
+    {
+     "id": 212,
+     "meta": {
+      "type": "books.BookSubjects"
+     },
+     "subject_name": "Math",
+     "subject_search_description": "Math"
+    }
+   ],
+   "book_categories": [
+    {
+     "id": 14,
+     "meta": {
+      "type": "books.BookCategories"
+     },
+     "subject_name": "Math",
+     "subject_category": "Secondary Math"
+    }
+   ],
+   "description": "<p data-block-key=\"zsa89\">This <i>Statistics</i> resource was developed under the guidance and support of experienced high school teachers and subject matter experts. It is presented here in multiple formats: PDF, online, and low-cost print. <i>Statistics</i> offers instruction in grade-level appropriate concepts and skills in a logical, engaging progression that begins with sampling and data and ",
+   "license_name": "Creative Commons Attribution License",
+   "license_version": "4.0"
+  },
+  {
+   "id": 578,
+   "meta": {
+    "slug": "cálculo-volumen-1",
+    "type": "books.Book",
+    "detail_url": "https://openstax.org/apps/cms/api/v2/pages/578/",
+    "html_url": "https://openstax.org/details/books/cálculo-volumen-1",
+    "first_published_at": "2022-02-28T13:39:36.855000-06:00",
+    "locale": "es"
+   },
+   "title": "Cálculo volumen 1",
+   "book_state": "live",
+   "book_subjects": [
+    {
+     "id": 270,
+     "meta": {
+      "type": "books.BookSubjects"
+     },
+     "subject_name": "Matemáticas",
+     "subject_search_description": null
+    }
+   ],
+   "book_categories": [
+    {
+     "id": 137,
+     "meta": {
+      "type": "books.BookCategories"
+     },
+     "subject_name": "Matemáticas",
+     "subject_category": "Cálculo"
+    }
+   ],
+   "description": "<p data-block-key=\"7bx1n\"><i>Cálculo</i> está diseñado para el curso típico de cálculo general de dos o tres semestres, e incorpora características innovadoras que refuerzan el aprendizaje. El libro guía a los estudiantes a través de los conceptos básicos del cálculo y los ayuda a comprender cómo se aplican a sus vidas y al mundo que los rodea. Debido a la naturaleza integral del material, ofrecem",
+   "license_name": null,
+   "license_version": null
+  }
+ ]
+}

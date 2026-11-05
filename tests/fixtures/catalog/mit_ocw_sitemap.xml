@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>https://ocw.mit.edu/sitemap-www.xml</loc>
+  </sitemap>
+  <sitemap>
+    <loc>https://ocw.mit.edu/courses/6-0002-introduction-to-computational-thinking-and-data-science-fall-2016/sitemap.xml</loc>
+  </sitemap>
+  <sitemap>
+    <loc>https://ocw.mit.edu/courses/6-034-artificial-intelligence-fall-2010/sitemap.xml</loc>
+  </sitemap>
+  <sitemap>
+    <loc>https://ocw.mit.edu/courses/21w-735-writing-and-reading-the-essay-fall-2025/sitemap.xml</loc>
+  </sitemap>
+  <sitemap>
+    <loc>https://ocw.mit.edu/courses/res-tll-008-social-and-ethical-responsibilities-of-computing-serc/sitemap.xml</loc>
+  </sitemap>
+</sitemapindex>
