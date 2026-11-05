@@ -84,3 +84,25 @@ def test_scan_text_finds_fake_key():
 def test_report_template_formats():
     text = REPORT_TEMPLATE.format(week=1, today="2026-10-24")
     assert text.startswith("# Báo cáo QA tuần 1")
+
+
+def test_catalog_ingest_fills_csc10014_from_the_hand_lists_twice_without_new_rows(
+    tmp_path, monkeypatch, capsys
+):
+    # Offline: only the hand-list connectors run, into a throwaway database.
+    from devcli.ai import SYLLABUS_DIR
+
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///" + (tmp_path / "catalog.db").as_posix())
+    gold = str(SYLLABUS_DIR / "01_csc10014_problem_framing.gold.json")
+    argv = ["ai", "catalog-ingest", "--syllabus", gold,
+            "--connector", "manual_yaml", "--connector", "open_yale"]
+
+    args = build_parser().parse_args(argv)
+    assert args.func(args) == 0
+    first = capsys.readouterr().out
+    assert args.func(args) == 0
+    second = capsys.readouterr().out
+
+    assert "== CSC10014: 7/7 chặng có >= 5 ứng viên pending/verified" in first
+    assert "[ OK ] manual_yaml" in first and "tạo {'courses'" in first
+    assert "tạo {}" in second and "7/7" in second

@@ -321,3 +321,40 @@ def test_strip_pii_removes_everything_from_sample_syllabi(syllabus, secrets):
 def test_strip_pii_keeps_course_content():
     text = "Giảng viên: ThS. Nguyễn Văn An\nChương 2: Problem framing và CS252, năm 2025"
     assert strip_pii(text).splitlines()[1] == "Chương 2: Problem framing và CS252, năm 2025"
+
+
+# --- per-domain rate limit (#98) ------------------------------------------------------
+
+
+def test_throttle_spaces_requests_per_domain_at_its_rate():
+    from app.vetting.fetch import DomainThrottle
+
+    now, slept = [0.0], []
+
+    def sleep(seconds):
+        slept.append(round(seconds, 3))
+        now[0] += seconds
+
+    throttle = DomainThrottle({"ocw.mit.edu": 1, "zenodo.org": 0.1}, default=2,
+                              clock=lambda: now[0], sleep=sleep)
+    for host in ["ocw.mit.edu", "ocw.mit.edu", "zenodo.org", "zenodo.org", "example.org", "example.org"]:
+        throttle.wait(host)
+    # 1 s for MIT, 10 s for Zenodo, 0.5 s for an unlisted host; hosts never wait on each other.
+    assert slept == [1.0, 10.0, 0.5]
+    assert throttle.interval("www.ocw.mit.edu") == 1.0
+
+
+def test_fetcher_throttles_robots_and_pages_alike():
+    from app.vetting.fetch import DomainThrottle
+
+    waited = []
+
+    class Recorder(DomainThrottle):
+        def wait(self, host):
+            waited.append(host)
+
+    with fetcher({"example.org/notes": page()}, throttle=Recorder()) as client:
+        assert client.fetch("https://example.org/notes").ok
+        assert client.fetch("https://example.org/notes").ok
+    # robots.txt once (then cached), the page twice: every request is spaced.
+    assert waited == ["example.org"] * 3

@@ -75,7 +75,7 @@ providers:
     license: per_item
     item_licenses: [CC-BY-4.0, CC-BY-NC-SA-4.0]
     method: api
-    endpoint: https://openstax.org/apps/cms/api/v2/pages/?type=books.Book&fields=title,license_name,license_version,book_state
+    endpoint: https://openstax.org/apps/cms/api/v2/pages/?type=books.Book&fields=title,license_name,license_version,book_state,book_subjects,book_categories,description
     automated: true
     rate_limit_per_sec: 1
     attribution: "{title}, OpenStax, {url}. {license}."

@@ -389,6 +389,85 @@ def _tag_catalog(args):
     return 0
 
 
+def _demands(db, values: list[str], benchmark: bool) -> list[tuple[str, object]]:
+    """(label, SyllabusDemand) per --syllabus (a database id or a *.gold.json), in order."""
+    from app.catalog.demand import SyllabusDemand
+    from assistant.backend.catalog_ingest import syllabus_demand
+
+    items = [(value, Path(value)) for value in values]
+    if benchmark:
+        items += [(str(path), path) for path in sorted(SYLLABUS_DIR.glob("*.gold.json"))]
+    demands = []
+    for value, path in items:
+        if path.is_file():
+            gold = json.loads(path.read_text(encoding="utf-8"))
+            demands.append((gold["course_code"], SyllabusDemand.from_gold(gold)))
+        elif (demand := syllabus_demand(db, value)) is not None:
+            demands.append((value, demand))
+        else:
+            raise LookupError(value)
+    return demands
+
+
+def _catalog_ingest(args: argparse.Namespace) -> int:
+    from datetime import UTC, datetime
+
+    from dotenv import load_dotenv
+
+    from app.catalog.connectors import ConnectorError, build_connectors
+    from app.catalog.demand import priority_batches
+    from app.catalog.sources import load_sources
+    from app.vetting.fetch import DomainThrottle, SafeFetcher
+    from assistant.backend.catalog_ingest import ingest, node_candidates
+    from assistant.backend.config import Settings
+    from assistant.backend.database import Database
+
+    load_dotenv(ROOT / ".env")
+    database = Database(Settings.from_env().database_url)
+    database.create_schema()
+    with database.sessions() as db:
+        try:
+            demands = _demands(db, args.syllabus or [], args.benchmark)
+        except LookupError as exc:
+            print(f"[FAIL] Không tìm thấy syllabus {exc}")
+            return 2
+    if not demands:
+        print("[FAIL] Cần --syllabus <id hoặc file .gold.json> hoặc --benchmark")
+        return 2
+    since = datetime.fromisoformat(args.since).replace(tzinfo=UTC) if args.since else None
+    sources = load_sources()
+    now = datetime.now(UTC)
+    failed = False
+    with SafeFetcher(throttle=DomainThrottle(sources.rate_limits())) as fetcher:
+        try:
+            connectors = build_connectors(fetcher, args.connector, sources)
+        except ConnectorError as exc:
+            print(f"[FAIL] {exc.reason}")
+            return 2
+        for (label, _), (_, subjects) in zip(demands, priority_batches(d for _, d in demands)):
+            print(f"== {label}: {len(subjects)} nhãn môn mới {subjects}")
+            for connector in connectors if subjects else []:
+                # One transaction per connector: a later failure keeps earlier work.
+                with database.sessions() as db:
+                    report = ingest(db, connector, subjects, now=now, since=since, sources=sources)
+                    db.commit()
+                failed |= report.error is not None
+                status = f"[FAIL] {report.error}" if report.error else "[ OK ]"
+                print(
+                    f"  {status} {report.connector}: {report.records} bản ghi, "
+                    f"tạo {dict(report.created)}, cập nhật {report.updated}, "
+                    f"bỏ qua {dict(report.skipped)}"
+                )
+    with database.sessions() as db:
+        for label, demand in demands:
+            counts = node_candidates(db, demand)
+            ready = sum(count >= args.min for _, count in counts)
+            print(f"== {label}: {ready}/{len(counts)} chặng có >= {args.min} ứng viên pending/verified")
+            for title, count in counts:
+                print(f"  {'[ OK ]' if count >= args.min else '[THIẾU]'} {count:>3}  {title[:70]}")
+    return 1 if failed else 0
+
+
 def register(sub: argparse._SubParsersAction) -> None:
     p = sub.add_parser("ai", help="AI implementation: benchmark và trợ lý")
     ai_sub = p.add_subparsers(dest="ai_command", required=True)
@@ -396,6 +475,29 @@ def register(sub: argparse._SubParsersAction) -> None:
     ai_sub.add_parser(
         "tag-catalog", help="gắn taxonomy và vector cho nguồn catalog đã nhập"
     ).set_defaults(func=_tag_catalog)
+
+    ingest = ai_sub.add_parser(
+        "catalog-ingest",
+        help="nạp nguồn catalog (MIT OCW, OpenStax, Open Yale, YAML thêm tay) cho môn của syllabus",
+    )
+    ingest.add_argument(
+        "--syllabus",
+        action="append",
+        help="id syllabus trong DB hoặc file eval/syllabus/*.gold.json; lặp được, theo thứ tự ưu tiên",
+    )
+    ingest.add_argument(
+        "--benchmark", action="store_true", help="thêm mọi syllabus benchmark (#66) sau --syllabus"
+    )
+    ingest.add_argument(
+        "--connector",
+        action="append",
+        help="chỉ chạy connector này (mit_ocw, openstax, open_yale, manual_yaml); lặp được",
+    )
+    ingest.add_argument("--since", help="ngày ISO; connector có ngày sửa đổi bỏ qua bản cũ hơn")
+    ingest.add_argument(
+        "--min", type=int, default=5, help="số ứng viên tối thiểu mỗi chặng để báo [ OK ] (mặc định 5)"
+    )
+    ingest.set_defaults(func=_catalog_ingest)
 
     bench = ai_sub.add_parser(
         "benchmark", help="kiểm tra hoặc thống kê eval/benchmark.jsonl"

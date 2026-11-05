@@ -28,6 +28,7 @@ import truststore
 from app.vetting.policy import DomainPolicy, DomainTier, default_policy
 
 __all__ = [
+    "DomainThrottle",
     "FetchError",
     "FetchResult",
     "SafeFetcher",
@@ -140,6 +141,44 @@ def send_pinned(
     return client.send(request, stream=True)
 
 
+class DomainThrottle:
+    """Spaces requests to each host by the rate of the domain that owns it.
+
+    ``rates`` maps a domain to requests per second (``rate_limit_per_sec`` in
+    ADR 004); hosts under no listed domain get ``default`` (1 req/s when a
+    provider publishes no limit). Waits count toward a page's timeout.
+    """
+
+    def __init__(
+        self,
+        rates: dict[str, float] | None = None,
+        *,
+        default: float = 1.0,
+        clock: Callable[[], float] = time.monotonic,
+        sleep: Callable[[float], None] = time.sleep,
+    ):
+        self.rates = {d.lower().strip("."): r for d, r in (rates or {}).items()}
+        self.default = default
+        self.clock = clock
+        self.sleep = sleep
+        self._next: dict[str, float] = {}
+
+    def interval(self, host: str) -> float:
+        host = host.lower().rstrip(".")
+        rate = next(
+            (r for d, r in self.rates.items() if host == d or host.endswith("." + d)),
+            self.default,
+        )
+        return 1.0 / rate
+
+    def wait(self, host: str) -> None:
+        now = self.clock()
+        start = max(now, self._next.get(host, now))
+        if start > now:
+            self.sleep(start - now)
+        self._next[host] = start + self.interval(host)
+
+
 @dataclass(frozen=True)
 class FetchResult:
     url: str
@@ -177,7 +216,7 @@ class SafeFetcher:
     """Reusable fetcher; keep one per job so ``robots.txt`` answers are cached.
 
     ``resolver`` and ``transport`` exist for tests; production uses DNS and the
-    network.
+    network. ``throttle`` spaces every request, ``robots.txt`` included.
     """
 
     def __init__(
@@ -190,6 +229,7 @@ class SafeFetcher:
         resolver: Resolver = resolve,
         transport: httpx.BaseTransport | None = None,
         respect_robots: bool = True,
+        throttle: DomainThrottle | None = None,
     ):
         self.timeout = timeout
         self.max_bytes = max_bytes
@@ -197,6 +237,7 @@ class SafeFetcher:
         self.policy = policy or default_policy()
         self.resolver = resolver
         self.respect_robots = respect_robots
+        self.throttle = throttle
         self._client = pinned_client(transport)
         self._robots: dict[str, tuple[float, RobotFileParser]] = {}
 
@@ -257,6 +298,8 @@ class SafeFetcher:
         raise FetchError("too_many_redirects")
 
     def _send(self, target: httpx.URL, address: str, deadline: float) -> httpx.Response:
+        if self.throttle is not None:
+            self.throttle.wait(target.raw_host.decode("ascii"))
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise FetchError("timeout")

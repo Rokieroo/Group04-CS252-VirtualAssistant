@@ -181,5 +181,5 @@ Yêu cầu cho các issue sau, chưa có code trong ADR này:
 
 **Việc tiếp theo (ngoài phạm vi #93)**
 
-- `data/catalog/computer_science.yaml` chưa có trường `license`; #98 thêm khi chuyển nó thành connector `manual_yaml`.
+- ~~`data/catalog/computer_science.yaml` chưa có trường `license`~~: #98 đã thêm, file được connector `manual_yaml` đọc cùng `data/catalog/sources/manual.yaml`; Open Yale được liệt kê tay ở `data/catalog/sources/open_yale.yaml`.
 - Pipeline tìm web hiện tại (UC-05) vẫn fetch mọi domain ứng viên; nên áp quy tắc `automated: false` cho cả pipeline đó (issue riêng).

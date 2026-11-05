@@ -2,13 +2,12 @@
 
 import hashlib
 import json
-from pathlib import Path
 from uuid import NAMESPACE_URL, uuid5
 
-import yaml
 from sqlalchemy import select
 
 from app.catalog.exercises import exact, quote_hash, store_private
+from app.catalog.sources import load_sources
 from app.catalog.taxonomy import ensure_taxonomy, save_tags, tag_resource
 
 from .catalog_models import (
@@ -21,8 +20,6 @@ from .catalog_models import (
 )
 from .catalog_repository import verified_resources
 from .models import Source
-
-POLICY = Path(__file__).resolve().parents[3] / "data/policy/catalog_sources.yaml"
 
 
 def import_private_exercises(db, source, owner_id):
@@ -51,9 +48,7 @@ def import_catalog_exercise(db, resource_id, source_text, item, now):
     source_hash = hashlib.sha256(source_text.encode()).hexdigest()
     if row.content_hash != source_hash:
         raise ValueError("source_hash_mismatch")
-    license_rule = yaml.safe_load(POLICY.read_text(encoding="utf-8"))["licenses"].get(
-        row.license
-    )
+    license_rule = load_sources().licenses.get(row.license)
     if not license_rule or not item.get("location"):
         raise ValueError("missing_license_or_location")
     if not exact(item, source_text):
@@ -137,7 +132,7 @@ def exercises_for_node(db, node, roadmap, course, now, *, role="practice", limit
         )
     )
     public = {r["id"]: r for r in verified_resources(db, now)}
-    licenses = yaml.safe_load(POLICY.read_text(encoding="utf-8"))["licenses"]
+    licenses = load_sources().licenses
     result = []
     for exercise in db.scalars(
         select(Exercise)

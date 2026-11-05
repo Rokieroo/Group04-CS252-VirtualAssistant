@@ -95,6 +95,7 @@ Mọi lệnh chạy từ thư mục gốc repo, không cần cài thêm: `python
 | --- | --- | --- |
 | UI/UX | `python dev.py ui install \| dev \| build \| test` | Chạy các script npm của frontend trong `ui/` |
 | AI | `python dev.py ai benchmark validate \| stats` | Kiểm tra / thống kê `eval/benchmark.jsonl` |
+| AI | `python dev.py ai catalog-ingest --syllabus <id\|file.gold.json> [--benchmark] [--connector <tên>]` | Nạp nguồn catalog (MIT OCW, OpenStax, Open Yale, YAML thêm tay) cho môn của syllabus, rồi báo số ứng viên mỗi chặng; chạy lại không tạo dòng mới (#98) |
 | AI | `python dev.py ai tag-catalog` | Gắn taxonomy/vector cho nguồn đã nhập; embedding Gemini là tùy chọn, mặc định offline |
 | AI | `python dev.py ai concepts <file.pdf>` | Đề xuất concept/chủ đề từ một file PDF |
 | AI | `python dev.py ai items --concepts <file.json> <file.pdf>` | Trích bài tập có sẵn từ tài liệu, kèm trang; không gọi AI soạn đề (#115) |
