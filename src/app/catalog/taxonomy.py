@@ -8,9 +8,11 @@ vectors so incompatible embeddings are never compared.
 import hashlib
 import itertools
 import json
+import logging
 import math
 import re
 import unicodedata
+from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -127,7 +129,7 @@ def _tags(title, context="", *, encoder=encode, semantic=False):
 
 
 def tag_node(node, *, course="", outcomes=(), encoder=encode, semantic=False):
-    title = node.get("title", "") if isinstance(node, dict) else node.title
+    title = node.get("title", "") if isinstance(node, Mapping) else node.title
     return _tags(
         title, " ".join([course, *outcomes]), encoder=encoder, semantic=semantic
     )
@@ -136,7 +138,7 @@ def tag_node(node, *, course="", outcomes=(), encoder=encode, semantic=False):
 def tag_resource(resource, *, encoder=encode, semantic=False):
     get = (
         resource.get
-        if isinstance(resource, dict)
+        if isinstance(resource, Mapping)
         else lambda k, d="": getattr(resource, k, d)
     )
     return _tags(
@@ -161,9 +163,9 @@ def save_tags(db, kind, identifier, tags, content, *, vector=None, model=MODEL):
             db.execute(
                 text(
                     "INSERT INTO subjects (id,parent_id,slug,name,name_vi) "
-                    "VALUES (:id,:parent_id,:id,:name,:name_vi)"
+                    "VALUES (:id,:parent_id,:slug,:name,:name_vi)"
                 ),
-                {"parent_id": None, **row},
+                {"parent_id": None, **row, "slug": row["id"]},
             )
     table, key = (
         ("node_subjects", "node_id")
@@ -213,3 +215,105 @@ def save_tags(db, kind, identifier, tags, content, *, vector=None, model=MODEL):
         ),
         params,
     )
+
+
+def tag_records(db, kind, records, *, embedding=None):
+    """Batch semantic encoding on explicit writes; reuse model/hash-matched vectors.
+
+    Connectors may call this for resources; roadmap generation calls it for nodes.
+    The shared vocabulary is public; node vectors retain their node FK and privacy.
+    Vendor errors fall back to lexical rules/vectors without logging uploaded text.
+    """
+    from sqlalchemy import text
+
+    from app.llm.embeddings import clean
+
+    if kind not in {"node", "resource"}:
+        raise ValueError("unknown_tag_kind")
+    records = list(records)
+    if not records:
+        return 0
+    contents = []
+    for row in records:
+        context = (
+            " ".join([row.get("course", ""), *row.get("outcomes", [])])
+            if kind == "node"
+            else " ".join(
+                str(row.get(k, "") or "")
+                for k in ("code", "course", "department", "description")
+            )
+        )
+        contents.append(clean(row["title"] + " " + context))
+    vocabulary = {
+        r["id"]: clean(" ".join([r["name"], r["name_vi"], *r.get("aliases", [])]))
+        for r in subjects()
+        if r.get("depth") == 3
+    }
+    if embedding is not None:
+        cached = db.execute(
+            text(
+                "SELECT id,kind,model,content_hash,vector FROM catalog_embeddings "
+                "WHERE model=:model"
+            ),
+            {"model": embedding.model},
+        ).mappings()
+        wanted = {
+            (r["id"], kind): value for r, value in zip(records, contents, strict=True)
+        }
+        wanted.update({(key, "taxonomy"): value for key, value in vocabulary.items()})
+        for row in cached:
+            value = wanted.get((row["id"], row["kind"]))
+            if (
+                value
+                and hashlib.sha256(value.encode()).hexdigest() == row["content_hash"]
+            ):
+                embedding.cache[value] = json.loads(row["vector"])
+        try:
+            embedding.prepare([*vocabulary.values(), *contents])
+        except (ValueError, RuntimeError, ImportError) as exc:
+            logging.getLogger(__name__).warning(
+                "embedding_unavailable error=%s", type(exc).__name__
+            )
+            embedding = None
+    if embedding is not None:
+        for identifier, value in vocabulary.items():
+            params = {
+                "id": identifier,
+                "model": embedding.model,
+                "hash": hashlib.sha256(value.encode()).hexdigest(),
+                "vector": json.dumps(embedding.encode(value)),
+            }
+            db.execute(
+                text("DELETE FROM catalog_embeddings WHERE id=:id AND kind='taxonomy'"),
+                params,
+            )
+            db.execute(
+                text(
+                    "INSERT INTO catalog_embeddings (id,kind,model,content_hash,vector) "
+                    "VALUES (:id,'taxonomy',:model,:hash,:vector)"
+                ),
+                params,
+            )
+    for row, content in zip(records, contents, strict=True):
+        encoder = embedding.encode if embedding else encode
+        tags = (
+            tag_node(
+                row,
+                course=row.get("course", ""),
+                outcomes=row.get("outcomes", []),
+                encoder=encoder,
+                semantic=embedding is not None,
+            )
+            if kind == "node"
+            else tag_resource(row, encoder=encoder, semantic=embedding is not None)
+        )
+        save_tags(
+            db,
+            kind,
+            row["id"],
+            tags,
+            content,
+            vector=encoder(content),
+            model=embedding.model if embedding else MODEL,
+        )
+    return len(records)

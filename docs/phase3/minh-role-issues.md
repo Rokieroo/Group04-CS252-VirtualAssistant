@@ -6,9 +6,9 @@ Nguồn phân công là **người phụ trách đề xuất trong nội dung is
 | Issue | Phần đã triển khai | Điều kiện nghiệm thu bên ngoài còn lại |
 | --- | --- | --- |
 | [#96](https://github.com/Rokieroo/Group04-CS252-VirtualAssistant/issues/96) | Builder OpenAlex + ROR; CSV 500 trường; snapshot CC0 có phiên bản; CLI seed idempotent; authority theo tier; thêm domain tier 1 | 11 đề xuất trường Việt Nam/K-12 cần hai người duyệt theo ADR 004 trước khi áp tier ưu tiên |
-| [#99](https://github.com/Rokieroo/Group04-CS252-VirtualAssistant/issues/99) | 55 nhãn Việt–Anh, ba cấp; rule theo tiêu đề/mã môn/CLO; vector lexical offline có version và điểm tin cậy; bảo toàn nhãn manual; hàng chờ nhãn resource < 0,6 | Đo precision trên 100 nguồn do người chấm; bộ hiện có 10 syllabus, chưa phải 20; encoder semantic cần tích hợp qua điểm tiêm encoder/model thay fallback lexical |
+| [#99](https://github.com/Rokieroo/Group04-CS252-VirtualAssistant/issues/99) | 55 nhãn Việt–Anh, ba cấp; rule theo tiêu đề/mã môn/CLO; Gemini semantic embedding bật tùy chọn và vector lexical offline có version và điểm tin cậy; bảo toàn nhãn manual; hàng chờ nhãn resource < 0,6 | Đo precision trên 100 nguồn do người chấm; bộ hiện có 10 syllabus, chưa phải 20; nghiệm thu Gemini embedding thật cần key/model và quota; adapter có test offline bằng SDK giả lập |
 | [#100](https://github.com/Rokieroo/Group04-CS252-VirtualAssistant/issues/100) | Migration 0009; cạnh + concept FK + layout riêng; transaction lock dùng DB, cycle path; lưu strict/soft của graph; API thêm/xóa cạnh và layout | Xác nhận job PostgreSQL của PR; API global/local graph và GraphCanvas thuộc #97/#103/#108 |
-| [#102](https://github.com/Rokieroo/Group04-CS252-VirtualAssistant/issues/102) | Tài liệu riêng trước; catalog đọc DB, bốn check mới nhất phải pass và chưa quá 30 ngày; lọc chủ đề/trình độ/ngôn ngữ; BM25 + vector lexical, điểm bảy tiêu chí, MMR; summary một lượt; tín hiệu insufficient; đủ 3 nguồn ≥ 0,8 không gọi web/LLM | Connector/xác minh #98/#101 và tự gắn tài liệu #114 cung cấp dữ liệu thật; Precision@5 của #106 và p95 staging chưa được đo |
+| [#102](https://github.com/Rokieroo/Group04-CS252-VirtualAssistant/issues/102) | Tài liệu riêng trước; catalog đọc DB, bốn check mới nhất phải pass và chưa quá 30 ngày; lọc chủ đề/trình độ/ngôn ngữ; BM25 + vector lexical hoặc semantic cùng model, điểm bảy tiêu chí, MMR; summary một lượt; tín hiệu insufficient; đủ 3 nguồn ≥ 0,8 không gọi web/LLM | Connector/xác minh #98/#101 và tự gắn tài liệu #114 cung cấp dữ liệu thật; Precision@5 của #106 và p95 staging chưa được đo |
 | [#115](https://github.com/Rokieroo/Group04-CS252-VirtualAssistant/issues/115) | Migration 0010; bài tập có nguồn, hash, giấy phép và quyền sở hữu; trích bài đánh số/offset; đáp án chỉ từ nguồn; API practice/checkpoint; FSRS bridge có exercise_id; bỏ prompt và đường LLM soạn đề | Cần nạp nguồn đã xác minh; checkpoint thiếu 10 câu trả insufficient; chưa tuyên bố đã đủ 10 câu CSC10014 |
 
 ## Tích hợp main và migration
@@ -72,7 +72,7 @@ Các test tự động kiểm tra code path, quyền, migration, freshness và c
 
 ## Kiểm tra local ngày 05/11/2026
 
-- `python dev.py devops ci`: qua, **568 test Python**, Ruff, quét secret và benchmark validation đều qua.
+- `python dev.py devops ci`: qua, **593 test Python**, Ruff, quét secret và benchmark validation đều qua.
 - Frontend: **100 test Vitest / 17 file** qua; TypeScript và Vite production build qua. Chạy trực tiếp các binary đã cài bằng Node vì pnpm wrapper cần tải phiên bản package-manager qua mạng; không sửa lockfile có sẵn. jsdom vẫn báo `scrollTo` chưa được hỗ trợ trong vài test.
 - Snapshot registry dựng lại từ bộ gzip đã commit: SHA-256 CSV giống hệt.
 - Test summary 40 node: tối đa 16 câu SELECT, không ghi DB; đây là invariant truy vấn local, không phải kết quả p95 staging.
@@ -82,3 +82,14 @@ Các test tự động kiểm tra code path, quyền, migration, freshness và c
 Lần CI PostgreSQL đầu phát hiện DDL tổng quát dùng DATETIME (và DOUBLE) không portable. Đã chuyển 0009/0010 sang khai báo Alembic tĩnh được biên dịch theo dialect; thêm test biên dịch SQL PostgreSQL và từ chối các kiểu tổng quát này. Theo dõi lượt CI mới trên commit đã sửa.
 
 API nguồn học và feedback từ #117 cũng dùng hàng rào xác minh chung: nguồn pending/rejected/stale không thể đi vòng qua route cũ; nguồn dự phòng chưa xác minh không được trả trong feedback. Các test curation dùng verifier fixture minh bạch, không giả định cache có điểm là đã xác minh.
+
+
+## Embedding ngữ nghĩa tùy chọn (#99/#102)
+
+Cấu hình `LLM_PROVIDER=gemini`, `LLM_API_KEY` và `EMBEDDING_MODEL=gemini-embedding-001` trên backend/worker; mặc định model trống nên không có lời gọi embedding. Adapter nằm trong `app.llm`, batch tối đa 100 văn bản, chuẩn hóa vector và từ chối response rỗng/NaN/khác số lượng. Không dùng adapter này cho Embedding 2 vì model đó gộp các input trong một lần gọi (theo [tài liệu Gemini](https://ai.google.dev/gemini-api/docs/embeddings)).
+
+`python dev.py ai tag-catalog` gắn nhãn và lưu vector cho nguồn đã ingest. Roadmap generation/search dùng cùng helper cho node với ngữ cảnh môn + CLO. Cache trong DB kiểm tra model và content hash; vocabulary công khai và vector node/resource đã có không bị gọi lại. Matcher chỉ so semantic vector khi model khớp nhau, còn lại dùng lexical. GET sources/summary không gọi provider. Lỗi vendor chỉ log loại lỗi, không log text/key, và fallback offline.
+
+Test SDK giả lập kiểm tra batching, cache qua hai lượt, model opt-in và lỗi provider; không chứng minh chất lượng model thật. Không có câu hỏi nào được model embedding viết ra. Phần PostgreSQL còn sửa binding riêng cho `subjects.id` và `subjects.slug`, vì PostgreSQL không suy ra cùng một tham số SQL cho cả VARCHAR và TEXT.
+
+Bộ embedding có 10 test trọng tâm đã qua, bao gồm dùng adapter trong API tạo roadmap và GET không gọi provider. Chưa gọi Gemini thật vì phiên này không có model/key/quota được cấu hình.

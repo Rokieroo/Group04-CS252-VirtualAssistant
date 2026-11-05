@@ -25,10 +25,18 @@ def match_sources(node, resources, *, limit=5):
     query = normalize(node["title"] + " " + " ".join(node.get("outcomes", [])))
     bm25 = BM25Okapi(corpus).get_scores(query.split())
     maximum = max(max(bm25), 0.001)
-    vector = node.get("vector") or encode(query)
+    lexical_vector = encode(query)
     ranked = []
     for resource, lexical in zip(pool, bm25, strict=True):
-        resource_vector = resource.get("vector") or encode(resource["title"])
+        compatible = (
+            node.get("vector") is not None
+            and resource.get("vector") is not None
+            and node.get("vector_model") == resource.get("vector_model")
+        )
+        vector = node["vector"] if compatible else lexical_vector
+        resource_vector = (
+            resource["vector"] if compatible else encode(resource["title"])
+        )
         similarity = max(0, cosine(vector, resource_vector))
         overlap = len(subjects.intersection(resource["subjects"])) / max(
             1, len(subjects)

@@ -9,7 +9,8 @@ from sqlalchemy import select
 
 from app.catalog.institutions import domain_of, matches_domain
 from app.catalog.matching import match_sources
-from app.catalog.taxonomy import save_tags, tag_node, tag_resource
+from app.catalog.taxonomy import tag_records, tag_resource
+from app.llm.embeddings import get_embedding_encoder
 from app.search.service import canonical_url
 from app.vetting.policy import default_policy
 
@@ -48,11 +49,10 @@ def verified_resources(db, now):
         tags[row.resource_id].add(row.subject_id)
     institutions = list(db.scalars(select(Institution)))
     vectors = {
-        r.id: json.loads(r.vector)
+        r.id: (json.loads(r.vector), r.model)
         for r in db.scalars(
             select(CatalogEmbedding).where(
                 CatalogEmbedding.kind == "resource",
-                CatalogEmbedding.model == "sha256-word-bigram-256-v1",
             )
         )
     }
@@ -105,7 +105,8 @@ def verified_resources(db, now):
                 "tier": tier,
                 "subjects": tags[resource.id],
                 "is_free": resource.is_free,
-                "vector": vectors.get(resource.id),
+                "vector": vectors.get(resource.id, (None, None))[0],
+                "vector_model": vectors.get(resource.id, (None, None))[1],
             }
         )
     return rows
@@ -115,12 +116,11 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5):
     """One bulk context for a full roadmap, avoiding a query per node (#102)."""
     identifiers = [n.id for n in nodes]
     node_vectors = {
-        r.id: json.loads(r.vector)
+        r.id: (json.loads(r.vector), r.model)
         for r in db.scalars(
             select(CatalogEmbedding).where(
                 CatalogEmbedding.kind == "node",
                 CatalogEmbedding.id.in_(identifiers),
-                CatalogEmbedding.model == "sha256-word-bigram-256-v1",
             )
         )
     }
@@ -206,7 +206,8 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5):
         ]
         context = {
             "title": node.title,
-            "vector": node_vectors.get(node.id),
+            "vector": node_vectors.get(node.id, (None, None))[0],
+            "vector_model": node_vectors.get(node.id, (None, None))[1],
             "subjects": tags[node.id],
             "language": course.language,
             "level": "undergrad" if course.level == "university" else course.level,
@@ -272,14 +273,20 @@ def refresh_node_sources(db, nodes, roadmap, course, now):
         if latest
         else []
     )
-    for node in nodes:
-        save_tags(
-            db,
-            "node",
-            node.id,
-            tag_node(node, course=course.title, outcomes=outcomes),
-            " ".join([node.title, course.title, *outcomes]),
-        )
+    tag_records(
+        db,
+        "node",
+        [
+            {
+                "id": node.id,
+                "title": node.title,
+                "course": course.title,
+                "outcomes": outcomes,
+            }
+            for node in nodes
+        ],
+        embedding=get_embedding_encoder(),
+    )
     result = node_sources(db, nodes, roadmap, course, now)
     for node_id, value in result.items():
         signal = db.get(NodeSourceStatus, node_id)

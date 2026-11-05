@@ -1,4 +1,5 @@
 """AI implementation commands: benchmark checks and the assistant itself."""
+
 from __future__ import annotations
 
 import argparse
@@ -49,8 +50,14 @@ def load_resources(path: Path) -> tuple[list[dict], list[str]]:
         if not case.get("resources"):
             errors.append(f"dòng {n}: thiếu danh sách resources")
         for i, res in enumerate(case.get("resources") or [], start=1):
-            if not res.get("url") or not res.get("reason") or res.get("label") not in LABELS:
-                errors.append(f"dòng {n}, nguồn {i}: cần url, reason và label thuộc {sorted(LABELS)}")
+            if (
+                not res.get("url")
+                or not res.get("reason")
+                or res.get("label") not in LABELS
+            ):
+                errors.append(
+                    f"dòng {n}, nguồn {i}: cần url, reason và label thuộc {sorted(LABELS)}"
+                )
     return [case for _, case in rows], [f"{path.name} {err}" for err in errors]
 
 
@@ -65,7 +72,14 @@ def validate_syllabus_benchmark(syl_dir: Path) -> list[str]:
     for gf in gold_files:
         try:
             data = json.loads(gf.read_text(encoding="utf-8"))
-            for req in ("id", "course_code", "course_name", "learning_outcomes", "weeks", "assessments"):
+            for req in (
+                "id",
+                "course_code",
+                "course_name",
+                "learning_outcomes",
+                "weeks",
+                "assessments",
+            ):
                 if req not in data:
                     errors.append(f"{gf.name}: thiếu trường '{req}'")
         except json.JSONDecodeError as exc:
@@ -84,13 +98,19 @@ def validate_redteam_fixtures(fix_dir: Path) -> list[str]:
     else:
         rows, parse_errors = _read_jsonl(pirated_file)
         errors += [f"pirated_urls {err}" for err in parse_errors]
-        errors += [f"pirated_urls dòng {n}: thiếu url" for n, row in rows if not row.get("url")]
+        errors += [
+            f"pirated_urls dòng {n}: thiếu url" for n, row in rows if not row.get("url")
+        ]
     inj_files = list((fix_dir / "injections").glob("*.html"))
     if len(inj_files) < 15:
-        errors.append(f"Cần tối thiểu 15 file injection HTML (tìm thấy {len(inj_files)})")
+        errors.append(
+            f"Cần tối thiểu 15 file injection HTML (tìm thấy {len(inj_files)})"
+        )
     pii_files = list((fix_dir / "pii_syllabi").glob("*.txt"))
     if len(pii_files) < 10:
-        errors.append(f"Cần tối thiểu 10 file PII syllabus sample (tìm thấy {len(pii_files)})")
+        errors.append(
+            f"Cần tối thiểu 10 file PII syllabus sample (tìm thấy {len(pii_files)})"
+        )
     return errors
 
 
@@ -103,7 +123,9 @@ def load_cases(path: Path) -> tuple[list[dict], list[str]]:
         if missing:
             errors.append(f"dòng {n}: thiếu trường {', '.join(missing)}")
         if case.get("kind") and case["kind"] not in KINDS:
-            errors.append(f"dòng {n}: kind '{case['kind']}' không thuộc {sorted(KINDS)}")
+            errors.append(
+                f"dòng {n}: kind '{case['kind']}' không thuộc {sorted(KINDS)}"
+            )
         if case.get("use_case") and not USE_CASE_RE.match(case["use_case"]):
             errors.append(f"dòng {n}: use_case '{case['use_case']}' phải có dạng UC-01")
         if case.get("id") in seen:
@@ -132,26 +154,42 @@ def _benchmark(args: argparse.Namespace) -> int:
         print(f"Tổng số case: {len(cases)}")
         for key in ("kind", "use_case"):
             counts = Counter(c.get(key, "?") for c in cases)
-            print(f"Theo {key}: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items())))
+            print(
+                f"Theo {key}: "
+                + ", ".join(f"{k}={v}" for k, v in sorted(counts.items()))
+            )
         nodes, _ = load_resources(RESOURCES)
-        labels = Counter(res.get("label") for node in nodes for res in node.get("resources") or [])
+        labels = Counter(
+            res.get("label") for node in nodes for res in node.get("resources") or []
+        )
         if labels:
-            print(f"Nguồn gắn nhãn: {labels.total()} trên {len(nodes)} chặng, "
-                  f"good={labels['good']}, bad={labels['bad']}")
+            print(
+                f"Nguồn gắn nhãn: {labels.total()} trên {len(nodes)} chặng, "
+                f"good={labels['good']}, bad={labels['bad']}"
+            )
 
     ok = _report(errors, f"{len(cases)} case hợp lệ trong {path.name}")
     if args.action == "validate" and path == BENCHMARK:
         # The default run also checks the other #66 suites, so CI covers them too.
         nodes, resource_errors = load_resources(RESOURCES)
         gold_count = len(list(SYLLABUS_DIR.glob("*.gold.json")))
-        ok = all([
-            ok,
-            _report(resource_errors, f"{len(nodes)} chặng có nguồn gắn nhãn trong {RESOURCES.name}"),
-            _report(validate_syllabus_benchmark(SYLLABUS_DIR),
-                    f"{gold_count} syllabus benchmark + gold hợp lệ trong {SYLLABUS_DIR.name}/"),
-            _report(validate_redteam_fixtures(FIXTURES_DIR),
-                    "Red-team fixtures (injections, pirated URLs, PII) hợp lệ"),
-        ])
+        ok = all(
+            [
+                ok,
+                _report(
+                    resource_errors,
+                    f"{len(nodes)} chặng có nguồn gắn nhãn trong {RESOURCES.name}",
+                ),
+                _report(
+                    validate_syllabus_benchmark(SYLLABUS_DIR),
+                    f"{gold_count} syllabus benchmark + gold hợp lệ trong {SYLLABUS_DIR.name}/",
+                ),
+                _report(
+                    validate_redteam_fixtures(FIXTURES_DIR),
+                    "Red-team fixtures (injections, pirated URLs, PII) hợp lệ",
+                ),
+            ]
+        )
     return 0 if ok else 1
 
 
@@ -183,7 +221,9 @@ def _concepts(args: argparse.Namespace) -> int:
         print(json.dumps(concepts, ensure_ascii=False, indent=2))
         return 0
     for c in concepts:
-        print(f"- {c['title']} [{c['slug']}, {c['bloom_level']}, trang {c['source_pages']}]")
+        print(
+            f"- {c['title']} [{c['slug']}, {c['bloom_level']}, trang {c['source_pages']}]"
+        )
         print(f"  {c['summary']}")
     print(f"{path.name}: {len(pages)} trang, {len(concepts)} concept")
     return 0
@@ -220,24 +260,39 @@ def _syllabus(args: argparse.Namespace) -> int:
         print(f"{path.name}: LLM không trả được kết quả dùng được ({exc})")
         return 1
     if args.json:
-        result = {"parsed": draft.parsed, "warnings": [asdict(w) for w in draft.warnings]}
+        result = {
+            "parsed": draft.parsed,
+            "warnings": [asdict(w) for w in draft.warnings],
+        }
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     parsed = draft.parsed
     course = parsed["course"]
-    print(f"# {course['code']} {course['title']} ({course['credits']} tín chỉ, "
-          f"{course['term_start']} – {course['term_end']})")
+    print(
+        f"# {course['code']} {course['title']} ({course['credits']} tín chỉ, "
+        f"{course['term_start']} – {course['term_end']})"
+    )
     for outcome in parsed["outcomes"]:
-        print(f"- {outcome['code']} [{outcome['bloom_level']}, trang {outcome['source_page']}] "
-              f"{outcome['text']}")
+        print(
+            f"- {outcome['code']} [{outcome['bloom_level']}, trang {outcome['source_page']}] "
+            f"{outcome['text']}"
+        )
     for week in parsed["weeks"]:
-        print(f"- Tuần {week['week']} [trang {week['source_page']}]: {'; '.join(week['topics'])}")
+        print(
+            f"- Tuần {week['week']} [trang {week['source_page']}]: {'; '.join(week['topics'])}"
+        )
     for item in parsed["assessments"]:
-        due = item["due_date"] or (item["due_week"] and f"tuần {item['due_week']}") or "?"
-        print(f"- {item['title']} ({item['kind']}): {item['weight']}%, hạn {due} "
-              f"[trang {item['source_page']}]")
+        due = (
+            item["due_date"] or (item["due_week"] and f"tuần {item['due_week']}") or "?"
+        )
+        print(
+            f"- {item['title']} ({item['kind']}): {item['weight']}%, hạn {due} "
+            f"[trang {item['source_page']}]"
+        )
     for warning in draft.warnings:
-        print(f"[{'CHẶN' if warning.blocking else 'WARN'}] {warning.code}: {warning.message}")
+        print(
+            f"[{'CHẶN' if warning.blocking else 'WARN'}] {warning.code}: {warning.message}"
+        )
     print(f"{path.name}: {len(pages)} trang, {len(draft.warnings)} cảnh báo")
     return 0
 
@@ -256,8 +311,14 @@ def _items(args: argparse.Namespace) -> int:
     except (OSError, InvalidPdf, ValueError) as exc:
         print(f"Không đọc được đầu vào: {exc}")
         return 1
-    sources = [{"id": f"p{n}", "page": n, "text": t} for n, t in enumerate(pages, 1) if t.strip()]
-    result = [{**c, "items": generate_items(None, c, sources)} for c in concepts[:args.limit]]
+    sources = [
+        {"id": f"p{n}", "page": n, "text": t}
+        for n, t in enumerate(pages, 1)
+        if t.strip()
+    ]
+    result = [
+        {**c, "items": generate_items(None, c, sources)} for c in concepts[: args.limit]
+    ]
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
@@ -270,7 +331,9 @@ def _items(args: argparse.Namespace) -> int:
             if item["rubric"]:
                 print(f"    Đáp án: {item['answer']}")
                 print(f"    Rubric: {'; '.join(item['rubric'])}")
-    print(f"{path.name}: {sum(len(c['items']) for c in result)} item cho {len(result)} concept")
+    print(
+        f"{path.name}: {sum(len(c['items']) for c in result)} item cho {len(result)} concept"
+    )
     return 0
 
 
@@ -300,37 +363,85 @@ def _syllabus_preview(args: argparse.Namespace) -> int:
     return 0
 
 
+def _tag_catalog(args):
+    from dotenv import load_dotenv
+    from sqlalchemy import text
+
+    from app.catalog.taxonomy import tag_records
+    from app.db import session_scope
+    from app.llm.embeddings import get_embedding_encoder
+
+    load_dotenv(ROOT / ".env")
+    with session_scope() as db:
+        rows = list(
+            db.execute(
+                text(
+                    "SELECT r.id,r.title,cc.code,cc.title AS course FROM resources r "
+                    "LEFT JOIN catalog_courses cc ON cc.id=r.catalog_course_id"
+                )
+            ).mappings()
+        )
+        count = tag_records(db, "resource", rows, embedding=get_embedding_encoder())
+    print(f"[ OK ] Tagged {count} catalog resources")
+    return 0
+
+
 def register(sub: argparse._SubParsersAction) -> None:
     p = sub.add_parser("ai", help="AI implementation: benchmark và trợ lý")
     ai_sub = p.add_subparsers(dest="ai_command", required=True)
 
-    bench = ai_sub.add_parser("benchmark", help="kiểm tra hoặc thống kê eval/benchmark.jsonl")
+    ai_sub.add_parser(
+        "tag-catalog", help="gắn taxonomy và vector cho nguồn catalog đã nhập"
+    ).set_defaults(func=_tag_catalog)
+
+    bench = ai_sub.add_parser(
+        "benchmark", help="kiểm tra hoặc thống kê eval/benchmark.jsonl"
+    )
     bench.add_argument("action", choices=["validate", "stats"])
     bench.add_argument("--file", default=str(BENCHMARK))
     bench.set_defaults(func=_benchmark)
 
-    chat = ai_sub.add_parser("chat", help="chạy trợ lý (hỏi một câu, hoặc chế độ tương tác)")
+    chat = ai_sub.add_parser(
+        "chat", help="chạy trợ lý (hỏi một câu, hoặc chế độ tương tác)"
+    )
     chat.add_argument("question", nargs="*")
     chat.set_defaults(func=_chat)
 
-    concepts = ai_sub.add_parser("concepts", help="đề xuất concept từ một file PDF (dùng LLM_PROVIDER)")
+    concepts = ai_sub.add_parser(
+        "concepts", help="đề xuất concept từ một file PDF (dùng LLM_PROVIDER)"
+    )
     concepts.add_argument("file")
     concepts.add_argument("--json", action="store_true", help="in kết quả dạng JSON")
     concepts.set_defaults(func=_concepts)
 
-    syllabus = ai_sub.add_parser("syllabus", help="phân tích syllabus PDF/DOCX/TXT (dùng LLM_PROVIDER)")
+    syllabus = ai_sub.add_parser(
+        "syllabus", help="phân tích syllabus PDF/DOCX/TXT (dùng LLM_PROVIDER)"
+    )
     syllabus.add_argument("file")
     syllabus.add_argument("--json", action="store_true", help="in kết quả dạng JSON")
     syllabus.set_defaults(func=_syllabus)
 
-    preview = ai_sub.add_parser("syllabus-preview", help="xem trước syllabus có kiểm tra nguồn; mặc định offline")
+    preview = ai_sub.add_parser(
+        "syllabus-preview",
+        help="xem trước syllabus có kiểm tra nguồn; mặc định offline",
+    )
     preview.add_argument("file")
-    preview.add_argument("--llm", action="store_true", help="dùng parser LLM của nhóm thay cho đọc offline")
+    preview.add_argument(
+        "--llm",
+        action="store_true",
+        help="dùng parser LLM của nhóm thay cho đọc offline",
+    )
     preview.set_defaults(func=_syllabus_preview)
 
-    items = ai_sub.add_parser("items", help="sinh câu hỏi có trích dẫn trang cho concept của một PDF")
+    items = ai_sub.add_parser(
+        "items", help="trích bài tập đã có trong PDF, không soạn câu hỏi bằng AI"
+    )
     items.add_argument("file")
-    items.add_argument("--concepts", required=True, help="JSON từ `ai concepts <file> --json`")
-    items.add_argument("--limit", type=int, default=5, help="số concept tối đa (mặc định 5)")
+    items.add_argument(
+        "--concepts", required=True, help="JSON từ `ai concepts <file> --json`"
+    )
+    items.add_argument(
+        "--limit", type=int, default=5, help="số concept tối đa (mặc định 5)"
+    )
     items.add_argument("--json", action="store_true", help="in kết quả dạng JSON")
     items.set_defaults(func=_items)
