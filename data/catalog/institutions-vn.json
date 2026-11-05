@@ -10,16 +10,6 @@
     "reviewers": []
   },
   {
-    "ror_id": "https://ror.org/02hkzh190",
-    "name": "VNU Science and Technology Development Fund",
-    "name_vi": "",
-    "country": "VN",
-    "domain": "vnu.edu.vn",
-    "tier": 1,
-    "reason": "University in Vietnam serving the target learners; proposed tier under ADR 004; requires two independent human reviewers.",
-    "reviewers": []
-  },
-  {
     "ror_id": "https://ror.org/00waaqh38",
     "name": "Vietnam National University Ho Chi Minh City",
     "name_vi": "",
@@ -35,16 +25,6 @@
     "name_vi": "",
     "country": "VN",
     "domain": "vnu.edu.vn",
-    "tier": 1,
-    "reason": "University in Vietnam serving the target learners; proposed tier under ADR 004; requires two independent human reviewers.",
-    "reviewers": []
-  },
-  {
-    "ror_id": "https://ror.org/05prjj361",
-    "name": "Trung tâm Nghiên cứu Quan trắc và Mô hình hóa Môi trường",
-    "name_vi": "",
-    "country": "VN",
-    "domain": "hus.vnu.edu.vn",
     "tier": 1,
     "reason": "University in Vietnam serving the target learners; proposed tier under ADR 004; requires two independent human reviewers.",
     "reviewers": []

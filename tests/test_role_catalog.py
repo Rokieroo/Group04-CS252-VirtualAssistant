@@ -652,3 +652,22 @@ def test_new_migrations_compile_to_postgresql_types(revision):
     sql = output.getvalue()
     assert "CREATE TABLE" in sql and "ALTER TABLE" in sql
     assert not re.search(r"\bDATETIME\b|\bDOUBLE\b(?! PRECISION)", sql)
+
+
+@pytest.mark.parametrize("status", ["pending", "rejected", "stale"])
+def test_legacy_resource_api_cannot_bypass_verification(
+    app, client, headers, roadmap, clock, status
+):
+    from assistant.backend.models import NodeResource
+
+    node_id = roadmap["nodes"][0]["id"]
+    with app.state.database.sessions() as db:
+        resource = add_resource(db, clock[0], status=status)
+        db.add(
+            NodeResource(node_id=node_id, resource_id=resource.id, relevance_score=0.95)
+        )
+        db.commit()
+    response = client.get(f"/api/v1/roadmap-nodes/{node_id}/resources", headers=headers)
+    assert response.status_code == 200, response.text
+    assert response.json()["resources"] == []
+    assert response.json()["status"] == "insufficient"

@@ -639,3 +639,67 @@ class CostReport(Output):
     nodes: list[NodeCost]  # most expensive first
     providers: list[ProviderUsage]
     daily: list[DailyCost]
+
+
+# --- Resources & Feedback (issue #65, spec 8.5-8.7) -------------------------
+
+
+class ResourceSearchOut(Output):
+    run_id: str
+
+
+class ResourceItemOut(Output):
+    id: str
+    rank: int
+    title: str
+    url: str
+    domain: str
+    format: str
+    language: str = "en"
+    duration_min: int | None = None
+    is_free: bool = True
+    score: float
+    breakdown: dict[str, float] = Field(default_factory=dict)
+    reason: str = ""
+    evidence_quote: str = ""
+    pinned: bool = False
+
+
+class NodeResourcesOut(Output):
+    status: Literal["searching", "ready", "insufficient"]
+    resources: list[ResourceItemOut] = Field(default_factory=list)
+    gaps: list[str] = Field(default_factory=list)
+
+
+class ResourceFeedbackIn(Input):
+    node_id: str
+    helpful: bool
+    reason: str | None = None
+
+
+class ResourceFeedbackOut(Output):
+    status: Literal["ok"] = "ok"
+    replacement: ResourceItemOut | None = None
+
+
+# --- Replan (issue #65, spec 8.4, 10.5) -------------------------------------
+
+
+class RoadmapReplanIn(Input):
+    approve: bool = False
+    commit: bool = False
+    max_daily_minutes: int | None = None
+    starts_at: Timestamp | None = None
+
+
+class PlanDiffOut(Output):
+    moved: list[str] = Field(default_factory=list)
+    added: list[str] = Field(default_factory=list)
+    dropped: list[str] = Field(default_factory=list)
+
+
+class RoadmapReplanOut(Output):
+    roadmap_id: str
+    diff: PlanDiffOut
+    committed: bool
+    sessions: list[ProposedEntry] = Field(default_factory=list)
