@@ -25,7 +25,6 @@ from .models import (
     Roadmap,
     RoadmapNode,
 )
-from .resources import _outcomes
 from .schemas import (
     NodeResourcesOut,
     ResourceFeedbackIn,
@@ -33,6 +32,7 @@ from .schemas import (
     ResourceItemOut,
     ResourceSearchOut,
 )
+from .services import course_outcomes
 
 router = APIRouter(tags=["Learning resources"])
 
@@ -128,7 +128,7 @@ def get_node_resources(
         return NodeResourcesOut(status="searching", resources=[], gaps=[])
 
     course = db.get(Course, roadmap.course_id)
-    outcomes = _outcomes(db, course.id)
+    outcomes = course_outcomes(db, course.id)
     signature = node_signature(
         node.title, list(outcomes), course.level, course.language
     )
@@ -251,7 +251,7 @@ def resource_feedback(
     if not data.helpful:
         link.status = "replaced"
         course = db.get(Course, roadmap.course_id)
-        outcomes = _outcomes(db, course.id)
+        outcomes = course_outcomes(db, course.id)
         signature = node_signature(
             node.title, list(outcomes), course.level, course.language
         )
