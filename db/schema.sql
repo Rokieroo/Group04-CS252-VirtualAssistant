@@ -215,8 +215,23 @@ CREATE TABLE IF NOT EXISTS resources (
     -- Link maintenance (migration 0006, spec 11.7).
     last_checked_at  TIMESTAMP,
     http_status      INTEGER,
-    failed_checks    INTEGER NOT NULL DEFAULT 0
+    failed_checks    INTEGER NOT NULL DEFAULT 0,
+    -- Verified catalog (migration 0008, spec 7, ADR 004).
+    canonical_url        TEXT NOT NULL,                         -- dedupe key (app.search.canonical_url); url is what the user opens
+    domain               TEXT,
+    format               TEXT,                                  -- reading | video | exercise | course | book | paper
+    license              TEXT,                                  -- code from data/policy/catalog_sources.yaml
+    is_free              BOOLEAN,
+    duration_min         INTEGER CHECK (duration_min >= 0),
+    content_hash         VARCHAR(64),                           -- SHA-256 hex of the fetched body
+    source_connector     TEXT,                                  -- catalog connector that ingested it (#98)
+    ingested_at          TIMESTAMP,
+    verification_status  VARCHAR(16) NOT NULL DEFAULT 'pending'
+                         CHECK (verification_status IN ('pending', 'verified', 'rejected', 'stale'))
 );
+CREATE UNIQUE INDEX IF NOT EXISTS ux_resources_canonical_url ON resources (canonical_url);
+CREATE INDEX IF NOT EXISTS ix_resources_verification_status ON resources (verification_status);
+CREATE INDEX IF NOT EXISTS ix_resources_domain ON resources (domain);
 
 CREATE TABLE IF NOT EXISTS node_resources (
     node_id          VARCHAR(36) NOT NULL REFERENCES roadmap_nodes(id) ON DELETE CASCADE,
@@ -312,6 +327,92 @@ CREATE TABLE IF NOT EXISTS search_cache (
 );
 CREATE INDEX IF NOT EXISTS ix_search_cache_expires_at ON search_cache (expires_at);
 
+-- ---------------------------------------------------------------------------
+-- Verified catalog shared by every learner (migration 0008, ADR 004).
+-- Metadata and links only: no full text, files or learner data (ADR 004 section 5).
+-- ---------------------------------------------------------------------------
+
+-- Authority signal (#96); ror_id is a ROR ID or vn-k12:<slug> for official K-12 sources.
+CREATE TABLE IF NOT EXISTS institutions (
+    id           VARCHAR(36) PRIMARY KEY,
+    ror_id       TEXT NOT NULL UNIQUE,
+    name         TEXT NOT NULL,
+    name_vi      TEXT,
+    country      TEXT NOT NULL,                                 -- ISO 3166-1 alpha-2
+    domain       TEXT NOT NULL,
+    tier         INTEGER NOT NULL DEFAULT 3 CHECK (tier BETWEEN 1 AND 3),  -- = app.vetting.DomainTier
+    rank_signal  TEXT                                           -- JSON: h_index, cited_by_count, works_count, snapshot
+);
+
+CREATE TABLE IF NOT EXISTS catalog_courses (
+    id              VARCHAR(36) PRIMARY KEY,
+    institution_id  VARCHAR(36) REFERENCES institutions(id) ON DELETE SET NULL,
+    provider        TEXT NOT NULL,                              -- key in data/policy/catalog_sources.yaml
+    external_id     TEXT NOT NULL,                              -- the provider's own id; upserts key on it (#98)
+    code            TEXT,
+    title           TEXT NOT NULL,
+    level           TEXT NOT NULL CHECK (level IN ('k12', 'undergrad', 'grad')),
+    grade           INTEGER CHECK (grade BETWEEN 1 AND 12),     -- K-12 only
+    language        TEXT NOT NULL,
+    license         TEXT,
+    url             TEXT NOT NULL,
+    year            INTEGER,
+    UNIQUE (provider, external_id)
+);
+CREATE INDEX IF NOT EXISTS ix_catalog_courses_institution_id ON catalog_courses (institution_id);
+
+-- Lecture, chapter or problem set of a course. A resource may appear in many courses.
+CREATE TABLE IF NOT EXISTS catalog_units (
+    id           VARCHAR(36) PRIMARY KEY,
+    course_id    VARCHAR(36) NOT NULL REFERENCES catalog_courses(id) ON DELETE CASCADE,
+    position     INTEGER NOT NULL CHECK (position >= 1),
+    title        TEXT NOT NULL,
+    resource_id  VARCHAR(36) REFERENCES resources(id) ON DELETE SET NULL,
+    UNIQUE (course_id, position)
+);
+CREATE INDEX IF NOT EXISTS ix_catalog_units_resource_id ON catalog_units (resource_id);
+
+-- Subject taxonomy (#99): field -> subject -> topic.
+CREATE TABLE IF NOT EXISTS subjects (
+    id         VARCHAR(36) PRIMARY KEY,
+    parent_id  VARCHAR(36) REFERENCES subjects(id),
+    slug       TEXT NOT NULL UNIQUE,
+    name       TEXT NOT NULL,
+    name_vi    TEXT
+);
+
+-- The same labels on shared resources and on a learner's roadmap nodes, so they match.
+CREATE TABLE IF NOT EXISTS resource_subjects (
+    resource_id  VARCHAR(36) NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    subject_id   VARCHAR(36) NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+    confidence   REAL NOT NULL DEFAULT 1 CHECK (confidence >= 0 AND confidence <= 1),
+    method       TEXT NOT NULL,                                 -- rule | embedding | llm | manual
+    PRIMARY KEY (resource_id, subject_id)
+);
+CREATE INDEX IF NOT EXISTS ix_resource_subjects_subject_id ON resource_subjects (subject_id);
+
+CREATE TABLE IF NOT EXISTS node_subjects (
+    node_id     VARCHAR(36) NOT NULL REFERENCES roadmap_nodes(id) ON DELETE CASCADE,
+    subject_id  VARCHAR(36) NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+    confidence  REAL NOT NULL DEFAULT 1 CHECK (confidence >= 0 AND confidence <= 1),
+    method      TEXT NOT NULL,                                  -- rule | embedding | llm | manual
+    PRIMARY KEY (node_id, subject_id)
+);
+CREATE INDEX IF NOT EXISTS ix_node_subjects_subject_id ON node_subjects (subject_id);
+
+-- Append-only: one row per check run on a resource (#101); never updated.
+CREATE TABLE IF NOT EXISTS resource_verifications (
+    id           VARCHAR(36) PRIMARY KEY,
+    resource_id  VARCHAR(36) NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    check_name   TEXT NOT NULL,                                 -- fetch | domain | license | metadata
+    result       TEXT NOT NULL,                                 -- pass | fail | review
+    details      TEXT,                                          -- JSON
+    checked_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    checked_by   TEXT NOT NULL                                  -- job name, or the admin's user id
+);
+CREATE INDEX IF NOT EXISTS ix_resource_verifications_resource_id_checked_at
+    ON resource_verifications (resource_id, checked_at);
+
 CREATE TABLE IF NOT EXISTS tasks (
     id                 VARCHAR(36) PRIMARY KEY,
     created_at         TIMESTAMP NOT NULL,
@@ -397,5 +498,5 @@ CREATE TABLE IF NOT EXISTS alembic_version (
     version_num VARCHAR(32) NOT NULL PRIMARY KEY
 );
 INSERT INTO alembic_version (version_num)
-SELECT '0007_search_metrics'
+SELECT '0008_verified_catalog'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);

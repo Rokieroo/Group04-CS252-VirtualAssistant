@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.curator import Curation
 from app.finder import SearchStats, find_resources
 from app.llm import get_client
-from app.search import SearchService, node_signature
+from app.search import SearchService, canonical_url, node_signature
 from app.vetting import Learner, Node, SafeFetcher
 
 from .cache import cached_search, store_search
@@ -73,16 +73,24 @@ def _search(node: Node, learner: Learner, course: Course) -> tuple[Curation, Sea
 
 
 def _link(db: Session, node_id: str, curation: Curation) -> None:
-    """Show the curated resources on the node; one ``resources`` row per URL."""
+    """Show the curated resources on the node; one ``resources`` row per canonical URL."""
     for resource in curation.resources:
-        row = db.scalars(select(Resource).where(Resource.url == resource.url)).first()
+        key = canonical_url(resource.url)
+        row = db.scalars(select(Resource).where(Resource.canonical_url == key)).first()
         if row is None:
+            # New rows start pending: only the catalog pipeline (#101) verifies.
             row = Resource(
                 url=resource.url,
+                canonical_url=key,
                 title=resource.title,
                 provider=resource.provider,
                 kind="video" if resource.format == "video" else "article",
                 lang=resource.lang,
+                domain=resource.domain or None,
+                format=resource.format,
+                is_free=resource.is_free,
+                duration_min=resource.minutes,
+                content_hash=resource.content_hash or None,
             )
             db.add(row)
             db.flush()
