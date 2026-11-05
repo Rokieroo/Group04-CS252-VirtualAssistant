@@ -1,4 +1,4 @@
-"""Frozen portable DDL; generated once, independent of future ORM changes."""
+"""Frozen schema declarations; dialect-aware DDL independent of future ORM changes."""
 
 import sqlalchemy as sa
 
@@ -9,59 +9,103 @@ down_revision = "0009_roadmap_graph"
 branch_labels = None
 depends_on = None
 
-TABLES = [
-    """CREATE TABLE exercises (
-	id VARCHAR(36) NOT NULL,
-	origin TEXT NOT NULL,
-	resource_id VARCHAR(36),
-	source_id TEXT,
-	page INTEGER,
-	quote_hash TEXT NOT NULL,
-	source_hash TEXT NOT NULL,
-	owner_id TEXT,
-	type TEXT NOT NULL,
-	prompt TEXT,
-	choices TEXT,
-	answer TEXT,
-	solution_ref TEXT,
-	location TEXT,
-	difficulty INTEGER NOT NULL,
-	bloom_level TEXT NOT NULL,
-	license TEXT NOT NULL,
-	verification_status TEXT NOT NULL,
-	PRIMARY KEY (id),
-	CONSTRAINT ck_exercise_origin CHECK (origin IN ('catalog','user_material')),
-	CONSTRAINT ck_exercise_difficulty CHECK (difficulty BETWEEN 1 AND 5),
-	CONSTRAINT ck_exercise_type CHECK (type IN ('mcq','numeric','short','proof','code')),
-	CONSTRAINT ck_exercise_source CHECK ((origin = 'catalog' AND resource_id IS NOT NULL AND source_id IS NULL AND owner_id IS NULL) OR (origin = 'user_material' AND source_id IS NOT NULL AND resource_id IS NULL AND owner_id IS NOT NULL AND page IS NOT NULL AND page >= 1)),
-	CONSTRAINT ck_exercise_content CHECK (prompt IS NOT NULL OR location IS NOT NULL),
-	FOREIGN KEY(resource_id) REFERENCES resources (id) ON DELETE CASCADE,
-	FOREIGN KEY(source_id) REFERENCES sources (id) ON DELETE CASCADE,
-	FOREIGN KEY(owner_id) REFERENCES users (id) ON DELETE CASCADE
-)""",
-    """CREATE TABLE exercise_subjects (
-	exercise_id VARCHAR(36) NOT NULL,
-	subject_id TEXT NOT NULL,
-	PRIMARY KEY (exercise_id, subject_id),
-	FOREIGN KEY(exercise_id) REFERENCES exercises (id) ON DELETE CASCADE,
-	FOREIGN KEY(subject_id) REFERENCES subjects (id)
-)""",
-    """CREATE TABLE node_exercises (
-	node_id VARCHAR(36) NOT NULL,
-	exercise_id VARCHAR(36) NOT NULL,
-	role TEXT NOT NULL,
-	PRIMARY KEY (node_id, exercise_id, role),
-	CONSTRAINT ck_node_exercise_role CHECK (role IN ('practice','checkpoint')),
-	FOREIGN KEY(node_id) REFERENCES roadmap_nodes (id) ON DELETE CASCADE,
-	FOREIGN KEY(exercise_id) REFERENCES exercises (id) ON DELETE CASCADE
-)""",
-]
+
+def _create_tables():
+    op.create_table(
+        "exercises",
+        sa.Column("id", sa.String(36), primary_key=True, nullable=False),
+        sa.Column("origin", sa.Text(), nullable=False),
+        sa.Column(
+            "resource_id",
+            sa.String(36),
+            sa.ForeignKey("resources.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column(
+            "source_id",
+            sa.Text(),
+            sa.ForeignKey("sources.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column("page", sa.Integer(), nullable=True),
+        sa.Column("quote_hash", sa.Text(), nullable=False),
+        sa.Column("source_hash", sa.Text(), nullable=False),
+        sa.Column(
+            "owner_id",
+            sa.Text(),
+            sa.ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column("type", sa.Text(), nullable=False),
+        sa.Column("prompt", sa.Text(), nullable=True),
+        sa.Column("choices", sa.Text(), nullable=True),
+        sa.Column("answer", sa.Text(), nullable=True),
+        sa.Column("solution_ref", sa.Text(), nullable=True),
+        sa.Column("location", sa.Text(), nullable=True),
+        sa.Column("difficulty", sa.Integer(), nullable=False),
+        sa.Column("bloom_level", sa.Text(), nullable=False),
+        sa.Column("license", sa.Text(), nullable=False),
+        sa.Column("verification_status", sa.Text(), nullable=False),
+        sa.CheckConstraint(
+            "prompt IS NOT NULL OR location IS NOT NULL", name="ck_exercise_content"
+        ),
+        sa.CheckConstraint("difficulty BETWEEN 1 AND 5", name="ck_exercise_difficulty"),
+        sa.CheckConstraint(
+            "origin IN ('catalog','user_material')", name="ck_exercise_origin"
+        ),
+        sa.CheckConstraint(
+            "(origin = 'catalog' AND resource_id IS NOT NULL AND source_id IS NULL AND owner_id IS NULL) OR (origin = 'user_material' AND source_id IS NOT NULL AND resource_id IS NULL AND owner_id IS NOT NULL AND page IS NOT NULL AND page >= 1)",
+            name="ck_exercise_source",
+        ),
+        sa.CheckConstraint(
+            "type IN ('mcq','numeric','short','proof','code')", name="ck_exercise_type"
+        ),
+    )
+    op.create_table(
+        "exercise_subjects",
+        sa.Column(
+            "exercise_id",
+            sa.String(36),
+            sa.ForeignKey("exercises.id", ondelete="CASCADE"),
+            primary_key=True,
+            nullable=False,
+        ),
+        sa.Column(
+            "subject_id",
+            sa.Text(),
+            sa.ForeignKey("subjects.id"),
+            primary_key=True,
+            nullable=False,
+        ),
+    )
+    op.create_table(
+        "node_exercises",
+        sa.Column(
+            "node_id",
+            sa.String(36),
+            sa.ForeignKey("roadmap_nodes.id", ondelete="CASCADE"),
+            primary_key=True,
+            nullable=False,
+        ),
+        sa.Column(
+            "exercise_id",
+            sa.String(36),
+            sa.ForeignKey("exercises.id", ondelete="CASCADE"),
+            primary_key=True,
+            nullable=False,
+        ),
+        sa.Column("role", sa.Text(), primary_key=True, nullable=False),
+        sa.CheckConstraint(
+            "role IN ('practice','checkpoint')", name="ck_node_exercise_role"
+        ),
+    )
+
+
 INDEXES = ["CREATE INDEX ix_exercises_owner_id ON exercises (owner_id)"]
 
 
 def upgrade():
-    for ddl in TABLES:
-        op.execute(ddl)
+    _create_tables()
     for ddl in INDEXES:
         op.execute(ddl)
     if op.get_bind().dialect.name == "sqlite":

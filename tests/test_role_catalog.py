@@ -627,3 +627,28 @@ def test_summary_40_nodes_uses_bounded_queries_without_writes(app, client, heade
     assert len(response.json()["nodes"]) == 40
     assert len(statements) <= 16
     assert all(statement == "SELECT" for statement in statements)
+
+
+@pytest.mark.parametrize("revision", ["0009_roadmap_graph", "0010_quoted_exercises"])
+def test_new_migrations_compile_to_postgresql_types(revision):
+    import importlib.util
+    import io
+    import re
+
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+
+    output = io.StringIO()
+    context = MigrationContext.configure(
+        dialect_name="postgresql", opts={"as_sql": True, "output_buffer": output}
+    )
+    spec = importlib.util.spec_from_file_location(
+        revision, ROOT / "alembic/versions" / (revision + ".py")
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    with Operations.context(context):
+        module.upgrade()
+    sql = output.getvalue()
+    assert "CREATE TABLE" in sql and "ALTER TABLE" in sql
+    assert not re.search(r"\bDATETIME\b|\bDOUBLE\b(?! PRECISION)", sql)

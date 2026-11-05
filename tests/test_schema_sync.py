@@ -16,7 +16,12 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 # Same types, different spellings: Alembic on SQLite vs. portable SQL.
-_SAME_TYPE = {"DATETIME": "TIMESTAMP", "FLOAT": "REAL"}
+_SAME_TYPE = {
+    "DATETIME": "TIMESTAMP",
+    "FLOAT": "REAL",
+    "DOUBLE": "REAL",
+    "DOUBLE PRECISION": "REAL",
+}
 
 
 def _shape(engine):

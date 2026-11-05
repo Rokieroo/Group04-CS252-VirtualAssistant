@@ -1,4 +1,4 @@
-"""Frozen portable DDL; generated once, independent of future ORM changes."""
+"""Frozen schema declarations; dialect-aware DDL independent of future ORM changes."""
 
 import sqlalchemy as sa
 
@@ -9,67 +9,124 @@ down_revision = "0008_verified_catalog"
 branch_labels = None
 depends_on = None
 
-TABLES = [
-    """CREATE TABLE catalog_embeddings (
-	id TEXT NOT NULL,
-	kind TEXT NOT NULL,
-	model TEXT NOT NULL,
-	content_hash TEXT NOT NULL,
-	vector TEXT NOT NULL,
-	node_id VARCHAR(36),
-	resource_id VARCHAR(36),
-	PRIMARY KEY (id, kind),
-	FOREIGN KEY(node_id) REFERENCES roadmap_nodes (id) ON DELETE CASCADE,
-	FOREIGN KEY(resource_id) REFERENCES resources (id) ON DELETE CASCADE
-)""",
-    """CREATE TABLE node_source_status (
-	node_id VARCHAR(36) NOT NULL,
-	status TEXT NOT NULL,
-	updated_at DATETIME NOT NULL,
-	PRIMARY KEY (node_id),
-	FOREIGN KEY(node_id) REFERENCES roadmap_nodes (id) ON DELETE CASCADE
-)""",
-    """CREATE TABLE roadmap_edges (
-	roadmap_id VARCHAR(36) NOT NULL,
-	parent_id VARCHAR(36) NOT NULL,
-	child_id VARCHAR(36) NOT NULL,
-	kind TEXT NOT NULL,
-	origin TEXT NOT NULL,
-	confidence DOUBLE NOT NULL,
-	reason VARCHAR(300) DEFAULT '' NOT NULL,
-	created_by TEXT,
-	created_at DATETIME NOT NULL,
-	PRIMARY KEY (parent_id, child_id),
-	CONSTRAINT ck_roadmap_edge_self CHECK (parent_id <> child_id),
-	CONSTRAINT ck_roadmap_edge_kind CHECK (kind IN ('soft','strict')),
-	CONSTRAINT ck_roadmap_edge_origin CHECK (origin IN ('week_order','llm','user')),
-	CONSTRAINT ck_roadmap_edge_confidence CHECK (confidence BETWEEN 0 AND 1),
-	CONSTRAINT ck_roadmap_edge_reason CHECK (length(reason) <= 300),
-	FOREIGN KEY(roadmap_id) REFERENCES roadmaps (id) ON DELETE CASCADE,
-	FOREIGN KEY(parent_id) REFERENCES roadmap_nodes (id) ON DELETE CASCADE,
-	FOREIGN KEY(child_id) REFERENCES roadmap_nodes (id) ON DELETE CASCADE,
-	FOREIGN KEY(created_by) REFERENCES users (id) ON DELETE SET NULL
-)""",
-    """CREATE TABLE graph_layouts (
-	user_id TEXT NOT NULL,
-	node_id VARCHAR(36) NOT NULL,
-	x DOUBLE NOT NULL,
-	y DOUBLE NOT NULL,
-	pinned BOOLEAN NOT NULL,
-	updated_at DATETIME NOT NULL,
-	PRIMARY KEY (user_id, node_id),
-	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE,
-	FOREIGN KEY(node_id) REFERENCES roadmap_nodes (id) ON DELETE CASCADE
-)""",
-    """CREATE TABLE node_materials (
-	node_id VARCHAR(36) NOT NULL,
-	source_id TEXT NOT NULL,
-	confidence DOUBLE NOT NULL,
-	PRIMARY KEY (node_id, source_id),
-	FOREIGN KEY(node_id) REFERENCES roadmap_nodes (id) ON DELETE CASCADE,
-	FOREIGN KEY(source_id) REFERENCES sources (id) ON DELETE CASCADE
-)""",
-]
+
+def _create_tables():
+    op.create_table(
+        "catalog_embeddings",
+        sa.Column("id", sa.Text(), primary_key=True, nullable=False),
+        sa.Column("kind", sa.Text(), primary_key=True, nullable=False),
+        sa.Column("model", sa.Text(), nullable=False),
+        sa.Column("content_hash", sa.Text(), nullable=False),
+        sa.Column("vector", sa.Text(), nullable=False),
+        sa.Column(
+            "node_id",
+            sa.String(36),
+            sa.ForeignKey("roadmap_nodes.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+        sa.Column(
+            "resource_id",
+            sa.String(36),
+            sa.ForeignKey("resources.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
+    )
+    op.create_table(
+        "node_source_status",
+        sa.Column(
+            "node_id",
+            sa.String(36),
+            sa.ForeignKey("roadmap_nodes.id", ondelete="CASCADE"),
+            primary_key=True,
+            nullable=False,
+        ),
+        sa.Column("status", sa.Text(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+    )
+    op.create_table(
+        "roadmap_edges",
+        sa.Column(
+            "roadmap_id",
+            sa.String(36),
+            sa.ForeignKey("roadmaps.id", ondelete="CASCADE"),
+            nullable=False,
+        ),
+        sa.Column(
+            "parent_id",
+            sa.String(36),
+            sa.ForeignKey("roadmap_nodes.id", ondelete="CASCADE"),
+            primary_key=True,
+            nullable=False,
+        ),
+        sa.Column(
+            "child_id",
+            sa.String(36),
+            sa.ForeignKey("roadmap_nodes.id", ondelete="CASCADE"),
+            primary_key=True,
+            nullable=False,
+        ),
+        sa.Column("kind", sa.Text(), nullable=False),
+        sa.Column("origin", sa.Text(), nullable=False),
+        sa.Column("confidence", sa.Double(), nullable=False),
+        sa.Column("reason", sa.String(300), nullable=False, server_default=""),
+        sa.Column(
+            "created_by",
+            sa.Text(),
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+        sa.Column("created_at", sa.DateTime(), nullable=False),
+        sa.CheckConstraint(
+            "confidence BETWEEN 0 AND 1", name="ck_roadmap_edge_confidence"
+        ),
+        sa.CheckConstraint("kind IN ('soft','strict')", name="ck_roadmap_edge_kind"),
+        sa.CheckConstraint(
+            "origin IN ('week_order','llm','user')", name="ck_roadmap_edge_origin"
+        ),
+        sa.CheckConstraint("length(reason) <= 300", name="ck_roadmap_edge_reason"),
+        sa.CheckConstraint("parent_id <> child_id", name="ck_roadmap_edge_self"),
+    )
+    op.create_table(
+        "graph_layouts",
+        sa.Column(
+            "user_id",
+            sa.Text(),
+            sa.ForeignKey("users.id", ondelete="CASCADE"),
+            primary_key=True,
+            nullable=False,
+        ),
+        sa.Column(
+            "node_id",
+            sa.String(36),
+            sa.ForeignKey("roadmap_nodes.id", ondelete="CASCADE"),
+            primary_key=True,
+            nullable=False,
+        ),
+        sa.Column("x", sa.Double(), nullable=False),
+        sa.Column("y", sa.Double(), nullable=False),
+        sa.Column("pinned", sa.Boolean(), nullable=False),
+        sa.Column("updated_at", sa.DateTime(), nullable=False),
+    )
+    op.create_table(
+        "node_materials",
+        sa.Column(
+            "node_id",
+            sa.String(36),
+            sa.ForeignKey("roadmap_nodes.id", ondelete="CASCADE"),
+            primary_key=True,
+            nullable=False,
+        ),
+        sa.Column(
+            "source_id",
+            sa.Text(),
+            sa.ForeignKey("sources.id", ondelete="CASCADE"),
+            primary_key=True,
+            nullable=False,
+        ),
+        sa.Column("confidence", sa.Double(), nullable=False),
+    )
+
+
 INDEXES = ["CREATE INDEX ix_roadmap_edges_roadmap_id ON roadmap_edges (roadmap_id)"]
 
 
@@ -108,8 +165,7 @@ def upgrade():
                 ),
             ),
         )
-    for ddl in TABLES:
-        op.execute(ddl)
+    _create_tables()
     for ddl in INDEXES:
         op.execute(ddl)
 

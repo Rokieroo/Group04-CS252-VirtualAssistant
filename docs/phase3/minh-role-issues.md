@@ -77,3 +77,6 @@ Các test tự động kiểm tra code path, quyền, migration, freshness và c
 - Snapshot registry dựng lại từ bộ gzip đã commit: SHA-256 CSV giống hệt.
 - Test summary 40 node: tối đa 16 câu SELECT, không ghi DB; đây là invariant truy vấn local, không phải kết quả p95 staging.
 - Docker CLI có trên máy nhưng daemon chưa chạy; không tuyên bố đã thử PostgreSQL local. Bộ test tích hợp và race cạnh dùng database_url fixture để CI chạy thêm trên PostgreSQL khi đặt PATHLY_TEST_DATABASE_URL.
+
+
+Lần CI PostgreSQL đầu phát hiện DDL tổng quát dùng DATETIME (và DOUBLE) không portable. Đã chuyển 0009/0010 sang khai báo Alembic tĩnh được biên dịch theo dialect; thêm test biên dịch SQL PostgreSQL và từ chối các kiểu tổng quát này. Theo dõi lượt CI mới trên commit đã sửa.

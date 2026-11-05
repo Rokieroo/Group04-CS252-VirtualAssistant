@@ -207,7 +207,7 @@ CREATE TABLE IF NOT EXISTS resources (
 	provider TEXT DEFAULT 'web' NOT NULL,
 	kind TEXT DEFAULT 'article' NOT NULL,
 	lang TEXT DEFAULT 'vi' NOT NULL,
-	last_checked_at DATETIME,
+	last_checked_at TIMESTAMP,
 	http_status INTEGER,
 	failed_checks INTEGER DEFAULT '0' NOT NULL,
 	catalog_course_id VARCHAR(36),
@@ -219,7 +219,7 @@ CREATE TABLE IF NOT EXISTS resources (
 	duration_min INTEGER CHECK (duration_min >= 0),
 	content_hash VARCHAR(64),
 	source_connector TEXT,
-	ingested_at DATETIME,
+	ingested_at TIMESTAMP,
 	verification_status VARCHAR(16) DEFAULT 'pending' NOT NULL CHECK (verification_status IN ('pending', 'verified', 'rejected', 'stale')),
 	PRIMARY KEY (id),
 	FOREIGN KEY(catalog_course_id) REFERENCES catalog_courses (id) ON DELETE SET NULL
@@ -256,7 +256,7 @@ CREATE TABLE IF NOT EXISTS roadmap_nodes (
 	title TEXT NOT NULL,
 	week INTEGER,
 	duration_minutes INTEGER,
-	due_at DATETIME,
+	due_at TIMESTAMP,
 	covers TEXT,
 	concept_id TEXT,
 	PRIMARY KEY (id),
@@ -411,7 +411,7 @@ CREATE TABLE IF NOT EXISTS catalog_embeddings (
 CREATE TABLE IF NOT EXISTS node_source_status (
 	node_id VARCHAR(36) NOT NULL,
 	status TEXT NOT NULL,
-	updated_at DATETIME NOT NULL,
+	updated_at TIMESTAMP NOT NULL,
 	PRIMARY KEY (node_id),
 	FOREIGN KEY(node_id) REFERENCES roadmap_nodes (id) ON DELETE CASCADE
 );
@@ -422,10 +422,10 @@ CREATE TABLE IF NOT EXISTS roadmap_edges (
 	child_id VARCHAR(36) NOT NULL,
 	kind TEXT NOT NULL,
 	origin TEXT NOT NULL,
-	confidence DOUBLE NOT NULL,
+	confidence FLOAT NOT NULL,
 	reason VARCHAR(300) DEFAULT '' NOT NULL,
 	created_by TEXT,
-	created_at DATETIME NOT NULL,
+	created_at TIMESTAMP NOT NULL,
 	PRIMARY KEY (parent_id, child_id),
 	CONSTRAINT ck_roadmap_edge_self CHECK (parent_id <> child_id),
 	CONSTRAINT ck_roadmap_edge_kind CHECK (kind IN ('soft','strict')),
@@ -441,10 +441,10 @@ CREATE TABLE IF NOT EXISTS roadmap_edges (
 CREATE TABLE IF NOT EXISTS graph_layouts (
 	user_id TEXT NOT NULL,
 	node_id VARCHAR(36) NOT NULL,
-	x DOUBLE NOT NULL,
-	y DOUBLE NOT NULL,
+	x FLOAT NOT NULL,
+	y FLOAT NOT NULL,
 	pinned BOOLEAN NOT NULL,
-	updated_at DATETIME NOT NULL,
+	updated_at TIMESTAMP NOT NULL,
 	PRIMARY KEY (user_id, node_id),
 	FOREIGN KEY(user_id) REFERENCES users (id) ON DELETE CASCADE,
 	FOREIGN KEY(node_id) REFERENCES roadmap_nodes (id) ON DELETE CASCADE
@@ -453,7 +453,7 @@ CREATE TABLE IF NOT EXISTS graph_layouts (
 CREATE TABLE IF NOT EXISTS node_materials (
 	node_id VARCHAR(36) NOT NULL,
 	source_id TEXT NOT NULL,
-	confidence DOUBLE NOT NULL,
+	confidence FLOAT NOT NULL,
 	PRIMARY KEY (node_id, source_id),
 	FOREIGN KEY(node_id) REFERENCES roadmap_nodes (id) ON DELETE CASCADE,
 	FOREIGN KEY(source_id) REFERENCES sources (id) ON DELETE CASCADE
