@@ -8,12 +8,15 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
+from datetime import timedelta
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import delete, select
 
 from app.ingest import InvalidDocument, TextFormat
 from app.llm import RetryableError, get_client
+from app.planner import diff
 from app.roadmap import decode_covers, derive_nodes, link, node_spec
 from app.syllabus import (
     InvalidSyllabusResponse,
@@ -29,23 +32,36 @@ from .models import (
     Assessment,
     Course,
     LearningOutcome,
+    Notification,
     Roadmap,
     RoadmapNode,
+    ScheduleEntry,
     Source,
     Syllabus,
+    Task,
 )
 from .routes_courses import owned_course
 from .schemas import (
+    PlanRequest,
+    ProposedEntry,
     RoadmapGenerateIn,
     RoadmapOut,
+    RoadmapReplanIn,
+    RoadmapReplanOut,
     RoadmapScheduleIn,
     RoadmapScheduleOut,
     SyllabusIn,
     SyllabusOut,
     SyllabusParseIn,
 )
+from .services import (
+    MAX_PLAN_HORIZON,
+    ROADMAP_SESSION_MINUTES,
+    make_plan,
+    serialize_schedule_changes,
+    task_due_at,
+)
 from .services import schedule_roadmap as plan_roadmap
-from .services import serialize_schedule_changes
 
 router = APIRouter(tags=["Syllabus and roadmap"])
 
@@ -354,4 +370,148 @@ def schedule_roadmap(
         "entries": sessions,
         "unscheduled": plan.unscheduled,
         "overloaded_weeks": plan.overloaded_weeks,
+    }
+
+
+
+@router.post("/roadmaps/{roadmap_id}:replan", response_model=RoadmapReplanOut)
+@serialize_schedule_changes
+def replan_roadmap(
+    roadmap_id: str,
+    request: Request,
+    db: DB,
+    user: CurrentUser,
+    data: RoadmapReplanIn | None = None,
+):
+    """Propose or commit schedule changes for this roadmap (spec 8.4, 10.5).
+
+    Only pending sessions in the future are replanned; completed sessions and completed
+    tasks are never touched. Rate-limited to 1 proposal per day.
+    """
+    roadmap = _owned_roadmap(db, roadmap_id, user.id)
+    nodes = _roadmap_nodes(db, roadmap.id)
+    if not nodes:
+        return {"roadmap_id": roadmap.id, "diff": {}, "committed": False, "sessions": []}
+
+    now = request.app.state.now()
+    should_commit = bool(data and (data.approve or data.commit))
+
+    if not should_commit:
+        zone = ZoneInfo(user.timezone)
+        user_today_start = now.astimezone(zone).replace(hour=0, minute=0, second=0, microsecond=0)
+        recent_proposal = db.scalar(
+            select(Notification).where(
+                Notification.user_id == user.id,
+                Notification.message.like(f"Replan proposal for roadmap {roadmap.id}%"),
+                Notification.created_at >= user_today_start,
+            )
+        )
+        if recent_proposal is not None:
+            raise HTTPException(
+                429,
+                "Only one replan proposal per day is allowed",
+                headers={"Retry-After": "86400"},
+            )
+
+    existing = {
+        task.roadmap_node_id: task
+        for task in db.scalars(
+            select(Task).where(
+                Task.owner_id == user.id,
+                Task.roadmap_node_id.in_([node.id for node in nodes]),
+            )
+        )
+    }
+    tasks = []
+    for node in nodes:
+        task = existing.get(node.id)
+        if task is None:
+            task = Task(
+                owner_id=user.id,
+                assignee_id=user.id,
+                title=node.title,
+                description=f"Roadmap: {roadmap.title}",
+                duration_minutes=max(1, node.duration_minutes or 60),
+                priority=2,
+                due_at=task_due_at(node.due_at, node.week, now),
+                roadmap_node_id=node.id,
+            )
+            db.add(task)
+        tasks.append(task)
+    db.flush()
+
+    task_ids = {task.id for task in tasks}
+    old_sessions = list(
+        db.scalars(
+            select(ScheduleEntry)
+            .where(
+                ScheduleEntry.user_id == user.id,
+                ScheduleEntry.task_id.in_(task_ids),
+                ScheduleEntry.status == "planned",
+                ScheduleEntry.starts_at >= now,
+            )
+            .order_by(ScheduleEntry.starts_at)
+        ).all()
+    )
+
+    starts_at = data.starts_at if data else None
+    start = max(starts_at or now, now)
+    if start.second or start.microsecond:
+        start = start.replace(second=0, microsecond=0) + timedelta(minutes=1)
+    latest_due = max(task.due_at for task in tasks).replace(second=0, microsecond=0)
+    shortest, longest = ROADMAP_SESSION_MINUTES
+    max_daily = data.max_daily_minutes if (data and data.max_daily_minutes) else 120
+
+    plan_request = PlanRequest(
+        starts_at=start,
+        ends_at=min(start + MAX_PLAN_HORIZON, max(latest_due, start + timedelta(days=1))),
+        min_session_minutes=shortest,
+        max_session_minutes=longest,
+        daily_limit_minutes=max_daily,
+        commit=should_commit,
+    )
+
+    plan = make_plan(db, user, plan_request, now)
+    new_sessions = [e for e in plan.entries if e.task_id in task_ids]
+    plan_diff = diff(old_sessions, new_sessions)
+
+    if should_commit:
+        committed_sessions = list(
+            db.scalars(
+                select(ScheduleEntry)
+                .where(
+                    ScheduleEntry.user_id == user.id,
+                    ScheduleEntry.task_id.in_(task_ids),
+                    ScheduleEntry.status == "planned",
+                )
+                .order_by(ScheduleEntry.starts_at)
+            ).all()
+        )
+        sessions = [
+            ProposedEntry(task_id=s.task_id, starts_at=s.starts_at, ends_at=s.ends_at)
+            for s in committed_sessions
+        ]
+    else:
+        db.add(
+            Notification(
+                user_id=user.id,
+                created_at=now,
+                message=f"Replan proposal for roadmap {roadmap.id} generated.",
+            )
+        )
+        db.commit()
+        sessions = [
+            ProposedEntry(task_id=s.task_id, starts_at=s.starts_at, ends_at=s.ends_at)
+            for s in new_sessions
+        ]
+
+    return {
+        "roadmap_id": roadmap.id,
+        "diff": {
+            "moved": plan_diff.moved,
+            "added": plan_diff.added,
+            "dropped": plan_diff.dropped,
+        },
+        "committed": should_commit,
+        "sessions": sessions,
     }
