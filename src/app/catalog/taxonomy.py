@@ -73,36 +73,89 @@ def subjects():
     return rows
 
 
-def _tags(title, context="", *, encoder=encode, semantic=False):
-    title_key, context_key = (
-        " " + normalize(title) + " ",
-        " " + normalize(context) + " ",
+def _phrase(text):
+    """Normalized, space-padded, with a plural "s" dropped so "heaps" matches "heap".
+
+    CamelCase is split first: URLs and file names write "TestDrivenDevelopment".
+    """
+    words = normalize(re.sub(r"(?<=[a-z])(?=[A-Z])", " ", str(text))).split()
+    return (
+        " "
+        + " ".join(w[:-1] if len(w) > 3 and w[-1] == "s" else w for w in words)
+        + " "
     )
-    matches = []
-    for row in subjects():
-        terms = [row["name"], row["name_vi"], *row.get("aliases", [])]
-        if any(" " + normalize(term) + " " in title_key for term in terms if term):
-            matches.append(Tag(row["id"], 0.95, "rule:title"))
-    if matches:
-        # Prefer a concrete topic over its ancestor if both phrases matched.
-        parents = {
-            r.get("parent_id")
-            for r in subjects()
-            if any(t.subject_id == r["id"] for t in matches)
-        }
-        return [t for t in matches if t.subject_id not in parents][:5]
+
+
+@lru_cache(maxsize=1)
+def _phrases():
+    """Each label with the phrases of its names and aliases."""
+    return [
+        (
+            row,
+            [
+                _phrase(t)
+                for t in [row["name"], row["name_vi"], *row.get("aliases", [])]
+                if t
+            ],
+        )
+        for row in subjects()
+    ]
+
+
+def _mentioned(text):
+    """Labels named in ``text``, the longest phrase winning where phrases overlap.
+
+    "relational algebra" names SQL, not the "algebra" inside it.
+    """
+    key = _phrase(text)
+    hits = [(row, [p for p in phrases if p in key]) for row, phrases in _phrases()]
+    hits = [(row, found) for row, found in hits if found]
+    found = {p for _, phrases in hits for p in phrases}
+    return [
+        row
+        for row, phrases in hits
+        if any(not any(p != q and p in q for q in found) for p in phrases)
+    ]
+
+
+def _fields(kind, row):
+    """(title, context, own text) of a record: one definition for tags and vectors.
+
+    Context (course, outcomes, department) is shared by every item of a course, so it
+    only names the subject. Own text (a resource's description, the titles an
+    assessment node covers) is about this item alone, so it may name topics.
+    """
+    get = row.get if isinstance(row, Mapping) else lambda k, d=None: getattr(row, k, d)
+    if kind == "node":
+        context = " ".join([get("course", "") or "", *(get("outcomes") or [])])
+        return get("title", ""), context, " ".join(get("covers") or [])
+    context = " ".join(str(get(k, "") or "") for k in ("code", "course", "department"))
+    return get("title", ""), context, str(get("description", "") or "")
+
+
+def _tags(title, context="", own="", *, encoder=encode, semantic=False):
+    # Own text naming a topic is weaker evidence than the title, still above review.
+    for text, confidence, method in (
+        (title, 0.95, "rule:title"),
+        (own, 0.75, "rule:text"),
+    ):
+        matches = [Tag(r["id"], confidence, method) for r in _mentioned(text)]
+        if matches:
+            # Prefer a concrete topic over its ancestor if both phrases matched.
+            parents = {
+                r.get("parent_id")
+                for r in subjects()
+                if any(t.subject_id == r["id"] for t in matches)
+            }
+            return [t for t in matches if t.subject_id not in parents][:5]
     course = [
         Tag(r["id"], 0.65, "rule:course")
-        for r in subjects()
+        for r in _mentioned(context)
         if r.get("depth") == 2
-        and any(
-            " " + normalize(term) + " " in context_key
-            for term in [r["name"], r["name_vi"], *r.get("aliases", [])]
-        )
     ]
     if course:
         return course[:2]
-    vector = encoder(title + " " + context)
+    vector = encoder(f"{title} {context} {own}")
     ranked = sorted(
         (
             (
@@ -128,28 +181,17 @@ def _tags(title, context="", *, encoder=encode, semantic=False):
     return [Tag("computing", 0.3, "unclassified:review")]
 
 
-def tag_node(node, *, course="", outcomes=(), encoder=encode, semantic=False):
+def tag_node(
+    node, *, course="", outcomes=(), covers=(), encoder=encode, semantic=False
+):
+    """``covers``: titles of the nodes an assessment node examines."""
     title = node.get("title", "") if isinstance(node, Mapping) else node.title
-    return _tags(
-        title, " ".join([course, *outcomes]), encoder=encoder, semantic=semantic
-    )
+    row = {"title": title, "course": course, "outcomes": outcomes, "covers": covers}
+    return _tags(*_fields("node", row), encoder=encoder, semantic=semantic)
 
 
 def tag_resource(resource, *, encoder=encode, semantic=False):
-    get = (
-        resource.get
-        if isinstance(resource, Mapping)
-        else lambda k, d="": getattr(resource, k, d)
-    )
-    return _tags(
-        get("title", ""),
-        " ".join(
-            str(get(k, "") or "")
-            for k in ("code", "course", "department", "description")
-        ),
-        encoder=encoder,
-        semantic=semantic,
-    )
+    return _tags(*_fields("resource", resource), encoder=encoder, semantic=semantic)
 
 
 def ensure_taxonomy(db):
@@ -237,17 +279,9 @@ def tag_records(db, kind, records, *, embedding=None):
     records = list(records)
     if not records:
         return 0
-    contents = []
-    for row in records:
-        context = (
-            " ".join([row.get("course", ""), *row.get("outcomes", [])])
-            if kind == "node"
-            else " ".join(
-                str(row.get(k, "") or "")
-                for k in ("code", "course", "department", "description")
-            )
-        )
-        contents.append(clean(row["title"] + " " + context))
+    fields = [_fields(kind, row) for row in records]
+    # The same text _tags embeds, so the vectors prepared here are the ones it looks up.
+    contents = [clean(" ".join(parts)) for parts in fields]
     vocabulary = {
         r["id"]: clean(" ".join([r["name"], r["name_vi"], *r.get("aliases", [])]))
         for r in subjects()
@@ -297,19 +331,9 @@ def tag_records(db, kind, records, *, embedding=None):
                 params,
             )
     ensure_taxonomy(db)
-    for row, content in zip(records, contents, strict=True):
-        encoder = embedding.encode if embedding else encode
-        tags = (
-            tag_node(
-                row,
-                course=row.get("course", ""),
-                outcomes=row.get("outcomes", []),
-                encoder=encoder,
-                semantic=embedding is not None,
-            )
-            if kind == "node"
-            else tag_resource(row, encoder=encoder, semantic=embedding is not None)
-        )
+    encoder = embedding.encode if embedding else encode
+    for row, parts, content in zip(records, fields, contents, strict=True):
+        tags = _tags(*parts, encoder=encoder, semantic=embedding is not None)
         save_tags(
             db,
             kind,

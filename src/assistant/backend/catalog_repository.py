@@ -11,6 +11,7 @@ from app.catalog.institutions import domain_of, matches_domain
 from app.catalog.matching import match_sources
 from app.catalog.taxonomy import tag_records, tag_resource
 from app.llm.embeddings import get_embedding_encoder
+from app.roadmap import decode_covers
 from app.search.service import canonical_url
 from app.vetting.policy import default_policy
 
@@ -24,7 +25,14 @@ from .catalog_models import (
     ResourceSubject,
     ResourceVerification,
 )
-from .models import LearningOutcome, NodeResource, Resource, Source, Syllabus
+from .models import (
+    LearningOutcome,
+    NodeResource,
+    Resource,
+    RoadmapNode,
+    Source,
+    Syllabus,
+)
 
 CHECKS = {"fetch", "domain", "license", "metadata"}
 
@@ -273,6 +281,13 @@ def refresh_node_sources(db, nodes, roadmap, course, now):
         if latest
         else []
     )
+    titles = dict(
+        db.execute(
+            select(RoadmapNode.id, RoadmapNode.title).where(
+                RoadmapNode.roadmap_id == roadmap.id
+            )
+        ).all()
+    )
     tag_records(
         db,
         "node",
@@ -282,6 +297,9 @@ def refresh_node_sources(db, nodes, roadmap, course, now):
                 "title": node.title,
                 "course": course.title,
                 "outcomes": outcomes,
+                "covers": [
+                    titles[i] for i in decode_covers(node.covers) if i in titles
+                ],
             }
             for node in nodes
         ],

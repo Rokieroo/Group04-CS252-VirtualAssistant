@@ -118,6 +118,25 @@ def test_bilingual_taxonomy_covers_csc10014_and_flags_unknowns():
     assert {r["depth"] for r in subjects()} == {1, 2, 3}
 
 
+def test_own_text_names_topics_and_the_longest_phrase_wins():
+    # A resource's description names its topic, below a title match but accepted.
+    [tag] = tag_resource({"title": "Lecture 4", "description": "AVL tree rotations"})
+    assert (tag.subject_id, tag.method, tag.needs_review) == ("ds.trees", "rule:text", False)
+    # Course context alone names the subject, never a topic.
+    assert [t.subject_id for t in tag_resource({"title": "Lecture 4", "course": "CS201"})] == [
+        "ds"
+    ]
+    # "relational algebra" is SQL, not the "algebra" inside it; plurals and CamelCase match.
+    assert [t.subject_id for t in tag_resource({"title": "Relational algebra"})] == ["db.sql"]
+    assert [t.subject_id for t in tag_resource({"title": "Binary heaps"})] == ["ds.trees"]
+    assert [t.subject_id for t in tag_resource({"title": "/TestDrivenDevelopment"})] == [
+        "se.testing"
+    ]
+    # An assessment node takes the topics of the nodes it covers.
+    tags = tag_node({"title": "Midterm exam"}, course="CSC10014", covers=["Solution ladder"])
+    assert [(t.subject_id, t.needs_review) for t in tags] == [("ct.ladder", False)]
+
+
 @pytest.fixture
 def roadmap(client, headers):
     course = client.post(

@@ -32,6 +32,8 @@ subjects:
   - orientation
   - product risks
   - value usability feasibility viability
+  - problem definition
+  - solving the right problem
 - id: ct.ladder
   parent_id: ct
   name: Solution ladder
@@ -62,6 +64,8 @@ subjects:
   aliases:
   - UML
   - include vs extend
+  - usecase
+  - use case diagram
 - id: ct.pipelines
   parent_id: ct
   name: Success pipelines
@@ -80,6 +84,9 @@ subjects:
   aliases:
   - API design
   - data modeling
+  - software architecture
+  - enterprise architecture
+  - architecture patterns
 - id: ct.evaluation
   parent_id: ct
   name: AI evaluation
@@ -120,6 +127,12 @@ subjects:
   - containerization
   - Docker Compose
   - monitoring
+  - continuous integration
+  - continuous delivery
+  - continuous deployment
+  - trunk based development
+  - GitHub Actions
+  - twelve factor app
 - id: ct.project
   parent_id: ct
   name: Project presentation
@@ -136,6 +149,9 @@ subjects:
   depth: 2
   aliases:
   - CS102
+  - relational database
+  - database management system
+  - DBMS
 - id: db.sql
   parent_id: db
   name: SQL
@@ -143,6 +159,11 @@ subjects:
   depth: 3
   aliases:
   - relational algebra
+  - relational model
+  - query optimization
+  - query optimizer
+  - query planner
+  - execution plan
 - id: db.design
   parent_id: db
   name: Database design
@@ -152,6 +173,9 @@ subjects:
   - normalization
   - entity relationship
   - ER model
+  - normal form
+  - BCNF
+  - 3NF
 - id: db.transactions
   parent_id: db
   name: Transactions
@@ -161,6 +185,9 @@ subjects:
   - concurrency
   - ACID
   - indexes
+  - indexing
+  - isolation level
+  - concurrency control
 - id: ds
   parent_id: computing
   name: Data structures
@@ -187,6 +214,16 @@ subjects:
   - binary tree
   - heap
   - graph traversal
+  - AVL
+  - balanced tree
+  - binary search tree
+  - B tree
+  - priority queue
+  - BFS
+  - DFS
+  - breadth first search
+  - depth first search
+  - graph search
 - id: ds.algorithms
   parent_id: ds
   name: Algorithms
@@ -197,6 +234,11 @@ subjects:
   - searching
   - complexity
   - dynamic programming
+  - big O
+  - asymptotic
+  - time complexity
+  - Dijkstra
+  - shortest path
 - id: os
   parent_id: computing
   name: Operating systems
@@ -204,6 +246,8 @@ subjects:
   depth: 2
   aliases:
   - CS202
+  - operating system
+  - kernel
 - id: os.process
   parent_id: os
   name: Processes
@@ -213,6 +257,18 @@ subjects:
   - thread
   - scheduling
   - synchronization
+  - process scheduling
+  - CPU scheduling
+  - CPU virtualization
+  - context switch
+  - fork
+  - multi level feedback queue
+  - semaphore
+  - deadlock
+  - Coffman conditions
+  - dining philosophers
+  - scheduling algorithm
+  - turnaround time
 - id: os.memory
   parent_id: os
   name: Memory management
@@ -221,6 +277,9 @@ subjects:
   aliases:
   - paging
   - virtual memory
+  - page table
+  - page size
+  - TLB
 - id: os.files
   parent_id: os
   name: File systems
@@ -229,6 +288,10 @@ subjects:
   aliases:
   - file system
   - storage
+  - filesystem
+  - inode
+  - ext4
+  - disk layout
 - id: net
   parent_id: computing
   name: Computer networks
@@ -236,6 +299,9 @@ subjects:
   depth: 2
   aliases:
   - CS203
+  - networking
+  - OSI
+  - internet architecture
 - id: net.protocols
   parent_id: net
   name: Network protocols
@@ -248,6 +314,14 @@ subjects:
   - DNS
   - HTTP
   - routing
+  - transport layer
+  - subnetting
+  - subnet
+  - CIDR
+  - BGP
+  - border gateway protocol
+  - OSPF
+  - open shortest path first
 - id: net.link
   parent_id: net
   name: Link layer
@@ -264,6 +338,14 @@ subjects:
   depth: 2
   aliases:
   - SE301
+  - software design
+  - clean code
+  - design patterns
+  - SOLID
+  - refactoring
+  - version control
+  - git
+  - branching
 - id: se.testing
   parent_id: se
   name: Software testing
@@ -273,6 +355,10 @@ subjects:
   - unit test
   - integration test
   - verification
+  - TDD
+  - test driven development
+  - test pyramid
+  - testing
 - id: se.process
   parent_id: se
   name: Software process
@@ -289,6 +375,9 @@ subjects:
   depth: 2
   aliases:
   - AI101
+  - LLM
+  - large language model
+  - AI risk
 - id: ai.search
   parent_id: ai
   name: Search strategies
@@ -345,6 +434,9 @@ subjects:
   depth: 2
   aliases:
   - SEC204
+  - OWASP
+  - web security
+  - application security
 - id: sec.crypto
   parent_id: sec
   name: Cryptography
@@ -354,6 +446,12 @@ subjects:
   - encryption
   - hashing
   - digital signature
+  - TLS
+  - transport layer security
+  - PKI
+  - public key
+  - MD5
+  - SHA1
 - id: sec.access
   parent_id: sec
   name: Access control

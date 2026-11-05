@@ -190,6 +190,31 @@ def test_roadmap_embedding_is_batched_and_source_get_does_not_call_provider(
     assert len(sdk.calls) == 1
 
 
+def test_roadmap_milestone_is_tagged_with_the_topics_it_covers(app, client, headers):
+    from sqlalchemy import select
+
+    from assistant.backend.catalog_models import NodeSubject
+
+    course = client.post(
+        "/api/v1/courses", headers=headers, json={"title": "Course"}
+    ).json()["id"]
+    result = client.post(
+        f"/api/v1/courses/{course}/roadmap:generate",
+        headers=headers,
+        json={
+            "nodes": [
+                {"title": "Solution ladder", "week": 1},
+                {"title": "Midterm exam", "kind": "milestone", "week": 2},
+            ]
+        },
+    )
+    assert result.status_code == 201, result.text
+    milestone = result.json()["nodes"][1]["id"]
+    with app.state.database.sessions() as db:
+        tags = db.scalars(select(NodeSubject).where(NodeSubject.node_id == milestone))
+        assert [(t.subject_id, t.method) for t in tags] == [("ct.ladder", "rule:text")]
+
+
 def test_embedding_dimension_cannot_change_between_batches():
     class ChangingSDK(SDK):
         def embed_content(self, **options):
