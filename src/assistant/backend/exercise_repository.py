@@ -9,9 +9,15 @@ import yaml
 from sqlalchemy import select
 
 from app.catalog.exercises import exact, quote_hash, store_private
-from app.catalog.taxonomy import save_tags, tag_resource
+from app.catalog.taxonomy import ensure_taxonomy, save_tags, tag_resource
 
-from .catalog_models import Exercise, ExerciseSubject, NodeExercise, NodeSubject
+from .catalog_models import (
+    Exercise,
+    ExerciseSubject,
+    NodeExercise,
+    NodeSubject,
+    ResourceSubject,
+)
 from .catalog_repository import verified_resources
 from .models import Source
 
@@ -55,31 +61,43 @@ def import_catalog_exercise(db, resource_id, source_text, item, now):
     digest = quote_hash(item["prompt"], item.get("choices", []), item.get("answer"))
     identifier = str(uuid5(NAMESPACE_URL, resource_id + ":" + digest))
     exercise = db.get(Exercise, identifier)
-    if exercise:
+    values = {
+        "origin": "catalog",
+        "resource_id": resource_id,
+        "quote_hash": digest,
+        "source_hash": source_hash,
+        "type": item.get("type", "short"),
+        "prompt": item["prompt"] if verbatim else None,
+        "choices": json.dumps(item.get("choices", [])) if verbatim else None,
+        "answer": item.get("answer") if verbatim else None,
+        "location": item["location"],
+        "license": row.license,
+        "solution_ref": item.get("solution_ref"),
+        "difficulty": item.get("difficulty", 1),
+        "bloom_level": item.get("bloom_level", "understand"),
+    }
+    if exercise is not None:
+        for key, value in values.items():
+            setattr(exercise, key, value)
+        db.flush()
         return exercise
-    exercise = Exercise(
-        id=identifier,
-        origin="catalog",
-        resource_id=resource_id,
-        quote_hash=digest,
-        source_hash=source_hash,
-        type=item.get("type", "short"),
-        prompt=item["prompt"] if verbatim else None,
-        choices=json.dumps(item.get("choices", [])) if verbatim else None,
-        answer=item.get("answer") if verbatim else None,
-        location=item["location"],
-        license=row.license,
-        solution_ref=item.get("solution_ref"),
-        difficulty=item.get("difficulty", 1),
-        bloom_level=item.get("bloom_level", "understand"),
-    )
+    exercise = Exercise(id=identifier, **values)
     db.add(exercise)
     db.flush()
     # Tag through the same taxonomy, then copy subject IDs to the exercise.
     tags = tag_resource({"title": item["prompt"]})
-    save_tags(
-        db, "resource", resource_id, tag_resource({"title": row.title}), row.title
-    )
+    ensure_taxonomy(db)
+    if (
+        db.scalar(
+            select(ResourceSubject.resource_id)
+            .where(ResourceSubject.resource_id == resource_id)
+            .limit(1)
+        )
+        is None
+    ):
+        save_tags(
+            db, "resource", resource_id, tag_resource({"title": row.title}), row.title
+        )
     for tag in tags:
         if not tag.needs_review:
             db.add(ExerciseSubject(exercise_id=identifier, subject_id=tag.subject_id))
@@ -110,6 +128,7 @@ def exercises_for_node(db, node, roadmap, course, now, *, role="practice", limit
             )
         )
     public = {r["id"]: r for r in verified_resources(db, now)}
+    licenses = yaml.safe_load(POLICY.read_text(encoding="utf-8"))["licenses"]
     result = []
     for exercise in db.scalars(
         select(Exercise)
@@ -153,6 +172,17 @@ def exercises_for_node(db, node, roadmap, course, now, *, role="practice", limit
                 or resource["tier"] > 2
                 or not original
                 or original.content_hash != exercise.source_hash
+                or original.license != exercise.license
+            ):
+                continue
+            license_rule = licenses.get(original.license)
+            if not license_rule or (
+                not license_rule["verbatim"]
+                and (
+                    exercise.prompt is not None
+                    or choices
+                    or exercise.answer is not None
+                )
             ):
                 continue
             citation = {

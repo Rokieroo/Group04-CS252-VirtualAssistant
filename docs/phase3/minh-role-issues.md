@@ -93,3 +93,12 @@ Cấu hình `LLM_PROVIDER=gemini`, `LLM_API_KEY` và `EMBEDDING_MODEL=gemini-emb
 Test SDK giả lập kiểm tra batching, cache qua hai lượt, model opt-in và lỗi provider; không chứng minh chất lượng model thật. Không có câu hỏi nào được model embedding viết ra. Phần PostgreSQL còn sửa binding riêng cho `subjects.id` và `subjects.slug`, vì PostgreSQL không suy ra cùng một tham số SQL cho cả VARCHAR và TEXT.
 
 Bộ embedding có 10 test trọng tâm đã qua, bao gồm dùng adapter trong API tạo roadmap và GET không gọi provider. Chưa gọi Gemini thật vì phiên này không có model/key/quota được cấu hình.
+
+
+## Self-review trước merge
+
+Theo yêu cầu trực tiếp của tác giả: tự review và merge PR #119. Đây là self-review, không phải approve độc lập từ thành viên khác. Các tiêu chí nghiệm thu dữ liệu thật ở trên vẫn được giữ để theo dõi, không tự đánh dấu đã đạt.
+
+Các ca hồi quy mới đã tái hiện lỗi trước sửa và qua sau sửa: nguồn bị ẩn do stale có thể hiện lại sau khi xác minh, trong khi nguồn user đã từ chối vẫn bị loại; đổi giấy phép làm bài cũ bị ẩn đến khi nhập lại theo quyền mới; quote và nguồn dự phòng trong cache phải có content hash khớp nguồn đang được xác minh. Nhập lại nguồn chỉ-link xóa prompt/choices/answer khỏi bản bài tập tương ứng.
+
+Bổ sung upsert taxonomy/nhãn/vector để nhiều worker không gặp lỗi unique khi khởi tạo cùng lúc; giữ nhãn manual và vector semantic hiện có khi nhập bài tập. Encoder kiểm tra cả chiều vector giữa các batch và vector đã cache. Bộ kiểm thử tích hợp cho các phần này đã qua trước khi đẩy commit review.

@@ -186,6 +186,8 @@ def get_node_resources(
         if res is None or res.id not in verified_ids:
             continue
         scored = scored_by_url.get(res.url)
+        if scored is not None and scored.content_hash != res.content_hash:
+            continue
         if (scored.score if scored else link.relevance_score) < 0.65:
             continue
         if len(items) >= 5:
@@ -280,7 +282,11 @@ def resource_feedback(
                     from .catalog_repository import verified_resources
 
                     verified_ids = {r["id"] for r in verified_resources(db, now)}
-                    if rep_row is None or rep_row.id not in verified_ids:
+                    if (
+                        rep_row is None
+                        or rep_row.id not in verified_ids
+                        or rep_scored.content_hash != rep_row.content_hash
+                    ):
                         raise KeyError("no_verified_replacement")
                     rep_link = db.get(NodeResource, (node.id, rep_row.id))
                     if rep_link is None:

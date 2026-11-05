@@ -152,21 +152,30 @@ def tag_resource(resource, *, encoder=encode, semantic=False):
     )
 
 
-def save_tags(db, kind, identifier, tags, content, *, vector=None, model=MODEL):
+def ensure_taxonomy(db):
+    """Seed stable labels atomically when concurrent workers see an empty catalog."""
+    from sqlalchemy import text
+
+    for row in subjects():
+        db.execute(
+            text(
+                "INSERT INTO subjects (id,parent_id,slug,name,name_vi) "
+                "VALUES (:id,:parent_id,:slug,:name,:name_vi) ON CONFLICT(id) DO NOTHING"
+            ),
+            {"parent_id": None, **row, "slug": row["id"]},
+        )
+
+
+def save_tags(
+    db, kind, identifier, tags, content, *, vector=None, model=MODEL, ensure=True
+):
     """Replace machine tags atomically; preserve manually reviewed tags."""
     from sqlalchemy import text
 
     if kind not in {"node", "resource"}:
         raise ValueError("unknown_tag_kind")
-    for row in subjects():
-        if not db.scalar(text("SELECT id FROM subjects WHERE id=:id"), row):
-            db.execute(
-                text(
-                    "INSERT INTO subjects (id,parent_id,slug,name,name_vi) "
-                    "VALUES (:id,:parent_id,:slug,:name,:name_vi)"
-                ),
-                {"parent_id": None, **row, "slug": row["id"]},
-            )
+    if ensure:
+        ensure_taxonomy(db)
     table, key = (
         ("node_subjects", "node_id")
         if kind == "node"
@@ -183,19 +192,15 @@ def save_tags(db, kind, identifier, tags, content, *, vector=None, model=MODEL):
             "confidence": tag.confidence,
             "method": tag.method,
         }
-        if not db.scalar(
+        db.execute(
             text(
-                f"SELECT subject_id FROM {table} WHERE {key}=:id AND subject_id=:subject"
+                f"INSERT INTO {table} ({key},subject_id,confidence,method) "
+                "VALUES (:id,:subject,:confidence,:method) "
+                f"ON CONFLICT({key},subject_id) DO UPDATE SET confidence=excluded.confidence, "
+                f"method=excluded.method WHERE {table}.method <> 'manual'"
             ),
             values,
-        ):
-            db.execute(
-                text(
-                    f"INSERT INTO {table} ({key},subject_id,confidence,method) "
-                    "VALUES (:id,:subject,:confidence,:method)"
-                ),
-                values,
-            )
+        )
     params = {
         "id": identifier,
         "kind": kind,
@@ -206,12 +211,11 @@ def save_tags(db, kind, identifier, tags, content, *, vector=None, model=MODEL):
         "vector": json.dumps(vector if vector is not None else encode(content)),
     }
     db.execute(
-        text("DELETE FROM catalog_embeddings WHERE id=:id AND kind=:kind"), params
-    )
-    db.execute(
         text(
             "INSERT INTO catalog_embeddings (id,kind,model,content_hash,vector,node_id,resource_id) "
-            "VALUES (:id,:kind,:model,:content_hash,:vector,:node_id,:resource_id)"
+            "VALUES (:id,:kind,:model,:content_hash,:vector,:node_id,:resource_id) "
+            "ON CONFLICT(id,kind) DO UPDATE SET model=excluded.model, content_hash=excluded.content_hash, "
+            "vector=excluded.vector, node_id=excluded.node_id, resource_id=excluded.resource_id"
         ),
         params,
     )
@@ -284,16 +288,15 @@ def tag_records(db, kind, records, *, embedding=None):
                 "vector": json.dumps(embedding.encode(value)),
             }
             db.execute(
-                text("DELETE FROM catalog_embeddings WHERE id=:id AND kind='taxonomy'"),
-                params,
-            )
-            db.execute(
                 text(
                     "INSERT INTO catalog_embeddings (id,kind,model,content_hash,vector) "
-                    "VALUES (:id,'taxonomy',:model,:hash,:vector)"
+                    "VALUES (:id,'taxonomy',:model,:hash,:vector) "
+                    "ON CONFLICT(id,kind) DO UPDATE SET model=excluded.model, "
+                    "content_hash=excluded.content_hash, vector=excluded.vector"
                 ),
                 params,
             )
+    ensure_taxonomy(db)
     for row, content in zip(records, contents, strict=True):
         encoder = embedding.encode if embedding else encode
         tags = (
@@ -315,5 +318,6 @@ def tag_records(db, kind, records, *, embedding=None):
             content,
             vector=encoder(content),
             model=embedding.model if embedding else MODEL,
+            ensure=False,
         )
     return len(records)

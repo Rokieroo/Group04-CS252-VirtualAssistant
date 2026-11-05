@@ -671,3 +671,77 @@ def test_legacy_resource_api_cannot_bypass_verification(
     assert response.status_code == 200, response.text
     assert response.json()["resources"] == []
     assert response.json()["status"] == "insufficient"
+
+
+def test_removed_source_can_recover_without_reintroducing_user_rejection(
+    app, client, headers, roadmap, clock
+):
+    from assistant.backend.catalog_repository import refresh_node_sources
+    from assistant.backend.models import NodeResource
+
+    with app.state.database.sessions() as db:
+        resource = add_resource(db, clock[0])
+        node = db.get(RoadmapNode, roadmap["nodes"][0]["id"])
+        graph = db.get(Roadmap, roadmap["id"])
+        course = db.get(Course, roadmap["course_id"])
+        refresh_node_sources(db, [node], graph, course, clock[0])
+        db.flush()
+        link = db.get(NodeResource, (node.id, resource.id))
+        assert link.status == "shown"
+        resource.verification_status = "stale"
+        db.flush()
+        refresh_node_sources(db, [node], graph, course, clock[0])
+        db.flush()
+        assert link.status == "removed"
+        resource.verification_status = "verified"
+        db.flush()
+        recovered = refresh_node_sources(db, [node], graph, course, clock[0])
+        db.flush()
+        assert any(r["id"] == resource.id for r in recovered[node.id]["sources"])
+        assert link.status == "shown"
+        link.status = "replaced"
+        db.flush()
+        rejected = refresh_node_sources(db, [node], graph, course, clock[0])
+        db.flush()
+        assert all(r["id"] != resource.id for r in rejected[node.id]["sources"])
+        assert link.status == "replaced"
+
+
+def test_catalog_license_change_hides_old_exercise_until_reimport(
+    app, client, headers, roadmap, clock
+):
+    from assistant.backend.catalog_models import Exercise
+
+    node_id = roadmap["nodes"][0]["id"]
+    source_text = "Exercise 1: Solution ladder?"
+    item = {"prompt": "Solution ladder?", "location": "Exercise 1"}
+    with app.state.database.sessions() as db:
+        resource = add_resource(db, clock[0])
+        exercise = import_catalog_exercise(db, resource.id, source_text, item, clock[0])
+        db.add(NodeExercise(node_id=node_id, exercise_id=exercise.id, role="practice"))
+        db.commit()
+        resource_id, exercise_id = resource.id, exercise.id
+    endpoint = f"/api/v1/roadmap-nodes/{node_id}/exercises"
+    assert (
+        client.get(endpoint, headers=headers).json()["exercises"][0]["prompt"]
+        == item["prompt"]
+    )
+    with app.state.database.sessions() as db:
+        resource = db.get(Resource, resource_id)
+        resource.license = "CC-BY-NC-SA-4.0"
+        db.commit()
+    assert client.get(endpoint, headers=headers).json()["count"] == 0
+    with app.state.database.sessions() as db:
+        refreshed = import_catalog_exercise(
+            db, resource_id, source_text, item, clock[0]
+        )
+        db.commit()
+        assert refreshed.id == exercise_id
+        assert db.get(Exercise, exercise_id).prompt is None
+    result = client.get(endpoint, headers=headers).json()["exercises"][0]
+    assert (
+        result["prompt"] is None
+        and result["choices"] == []
+        and not result["auto_grade"]
+    )
+    assert result["citation"]["license"] == "CC-BY-NC-SA-4.0"

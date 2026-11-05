@@ -643,3 +643,63 @@ def test_roadmap_replan_approve_commits_and_preserves_completed_work(
 
         task1 = db.get(Task, task1.id)
         assert task1.status == "completed"
+
+
+def test_old_cached_quote_is_hidden_when_verified_resource_content_changes(
+    client, headers, sessions, mock_pipeline
+):
+    from assistant.backend.models import Resource
+
+    user_id = client.get("/api/v1/me", headers=headers).json()["id"]
+    _, _, node_id, _ = setup_course_and_roadmap(sessions, user_id)
+    job = client.post(
+        f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers
+    ).json()["run_id"]
+    assert jobs.run_once(sessions, NOW) == job
+    verify_test_catalog(sessions, node_id)
+    endpoint = f"/api/v1/roadmap-nodes/{node_id}/resources"
+    before = client.get(endpoint, headers=headers).json()["resources"]
+    assert before
+    changed_id = before[0]["id"]
+    with sessions() as db:
+        resource = db.get(Resource, changed_id)
+        resource.content_hash = "a" * 64
+        db.commit()
+    after = client.get(endpoint, headers=headers).json()["resources"]
+    assert changed_id not in {r["id"] for r in after}
+
+
+def test_feedback_does_not_return_reserve_with_stale_cached_provenance(
+    client, headers, sessions, monkeypatch
+):
+    from assistant.backend.models import Resource
+
+    pool_urls = [f"https://example{i}.org/recursion-{i}" for i in range(8)]
+    monkeypatch.setattr(resources, "make_search", lambda: make_test_search(pool_urls))
+    monkeypatch.setattr(resources, "make_llm", ModerateJudgeLLM)
+    monkeypatch.setattr(resources, "make_fetcher", make_safe_fetcher)
+    user_id = client.get("/api/v1/me", headers=headers).json()["id"]
+    _, _, node_id, _ = setup_course_and_roadmap(sessions, user_id)
+    job = client.post(
+        f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers
+    ).json()["run_id"]
+    assert jobs.run_once(sessions, NOW) == job
+    verify_test_catalog(sessions, node_id)
+    shown = client.get(
+        f"/api/v1/roadmap-nodes/{node_id}/resources", headers=headers
+    ).json()["resources"]
+    assert len(shown) == 5
+    shown_ids = {r["id"] for r in shown}
+    with sessions() as db:
+        for resource in db.scalars(
+            select(Resource).where(Resource.id.not_in(shown_ids))
+        ):
+            resource.content_hash = "b" * 64
+        db.commit()
+    result = client.post(
+        f"/api/v1/resources/{shown[0]['id']}/feedback",
+        headers=headers,
+        json={"node_id": node_id, "helpful": False, "reason": "wrong_level"},
+    )
+    assert result.status_code == 200, result.text
+    assert result.json()["replacement"] is None

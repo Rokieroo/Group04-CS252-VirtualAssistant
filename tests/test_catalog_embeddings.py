@@ -188,3 +188,89 @@ def test_roadmap_embedding_is_batched_and_source_get_does_not_call_provider(
         == 200
     )
     assert len(sdk.calls) == 1
+
+
+def test_embedding_dimension_cannot_change_between_batches():
+    class ChangingSDK(SDK):
+        def embed_content(self, **options):
+            self.calls.append(options)
+            dimension = 2 if len(self.calls) == 1 else 3
+            return SimpleNamespace(
+                embeddings=[
+                    SimpleNamespace(values=[1.0] * dimension)
+                    for _ in options["contents"]
+                ]
+            )
+
+    with pytest.raises(ValueError, match="inconsistent_embedding_dimensions"):
+        GeminiEmbeddingEncoder(client=ChangingSDK()).prepare(
+            [f"text {i}" for i in range(101)]
+        )
+
+
+@pytest.mark.parametrize("semantic", [False, True])
+def test_concurrent_taggers_share_taxonomy_and_embedding_cache(
+    tmp_path, database_url, semantic
+):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    from sqlalchemy import func, select
+
+    from app.catalog.taxonomy import subjects
+    from assistant.backend.database import Database
+    from assistant.backend.models import Subject
+
+    database = Database(
+        "sqlite:///" + (tmp_path / "tags.db").as_posix()
+        if database_url == "sqlite://"
+        else database_url
+    )
+    database.create_schema()
+    with database.sessions() as db:
+        resources = [
+            Resource(
+                url=f"https://example.edu/{i}",
+                canonical_url=f"https://example.edu/{i}",
+                title="Solution ladder",
+            )
+            for i in range(2)
+        ]
+        db.add_all(resources)
+        db.commit()
+        identifiers = [row.id for row in resources]
+    start = Barrier(2)
+
+    def tag(identifier):
+        with database.sessions() as db:
+            start.wait(timeout=10)
+            tag_records(
+                db,
+                "resource",
+                [{"id": identifier, "title": "Solution ladder"}],
+                embedding=GeminiEmbeddingEncoder(client=SDK()) if semantic else None,
+            )
+            db.commit()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        runs = [executor.submit(tag, identifier) for identifier in identifiers]
+        for result in runs:
+            result.result(timeout=20)
+    with database.sessions() as db:
+        assert db.scalar(select(func.count()).select_from(Subject)) == len(subjects())
+        assert db.scalar(select(func.count()).select_from(ResourceSubject)) == 2
+        assert (
+            db.scalar(
+                select(func.count())
+                .select_from(CatalogEmbedding)
+                .where(CatalogEmbedding.kind == "resource")
+            )
+            == 2
+        )
+        if semantic:
+            assert db.scalar(
+                select(func.count())
+                .select_from(CatalogEmbedding)
+                .where(CatalogEmbedding.kind == "taxonomy")
+            ) == len([r for r in subjects() if r["depth"] == 3])
+    database.engine.dispose()

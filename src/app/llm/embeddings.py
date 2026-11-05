@@ -57,18 +57,15 @@ class GeminiEmbeddingEncoder:
                 raise ValueError("invalid_embedding_count")
             checked = []
             for vector in vectors:
-                if (
-                    not vector
-                    or any(
-                        type(v) not in (int, float) or not math.isfinite(v)
-                        for v in vector
-                    )
-                    or sum(v * v for v in vector) <= 0
+                if not vector or any(
+                    type(v) not in (int, float) or not math.isfinite(v) for v in vector
                 ):
                     raise ValueError("invalid_embedding_values")
-                norm = math.sqrt(sum(v * v for v in vector))
+                norm = math.hypot(*vector)
+                if not math.isfinite(norm) or norm <= 0:
+                    raise ValueError("invalid_embedding_values")
                 checked.append([v / norm for v in vector])
-            if len({len(v) for v in checked}) != 1:
+            if len({len(v) for v in [*self.cache.values(), *checked]}) != 1:
                 raise ValueError("inconsistent_embedding_dimensions")
             self.cache.update(zip(batch, checked, strict=True))
 

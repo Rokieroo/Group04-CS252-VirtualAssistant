@@ -194,7 +194,7 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5):
     rejected = defaultdict(set)
     for row in db.scalars(
         select(NodeResource).where(
-            NodeResource.node_id.in_(identifiers), NodeResource.status != "shown"
+            NodeResource.node_id.in_(identifiers), NodeResource.status == "replaced"
         )
     ):
         rejected[row.node_id].add(row.resource_id)
@@ -302,7 +302,8 @@ def refresh_node_sources(db, nodes, roadmap, course, now):
             r["id"]: r for r in value["sources"] if r["kind"] != "user_material"
         }
         for resource_id, resource in selected.items():
-            if db.get(NodeResource, (node_id, resource_id)) is None:
+            link = db.get(NodeResource, (node_id, resource_id))
+            if link is None:
                 db.add(
                     NodeResource(
                         node_id=node_id,
@@ -310,6 +311,9 @@ def refresh_node_sources(db, nodes, roadmap, course, now):
                         relevance_score=resource["score"],
                     )
                 )
+            else:
+                link.status = "shown"
+                link.relevance_score = resource["score"]
         for link in db.scalars(
             select(NodeResource).where(
                 NodeResource.node_id == node_id, NodeResource.status == "shown"
