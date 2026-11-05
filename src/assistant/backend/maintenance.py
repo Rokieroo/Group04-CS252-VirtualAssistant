@@ -1,4 +1,5 @@
-"""Daily upkeep jobs: re-check the links learners see (spec 11.7) and prune old rows."""
+"""Daily upkeep jobs: re-check the links learners see (spec 11.7), verify the shared
+catalog (#101, ``catalog_verification``) and prune old rows."""
 
 from datetime import datetime, timedelta
 
@@ -7,23 +8,21 @@ from sqlalchemy.orm import Session
 
 from app import vetting
 
-from .jobs import enqueue, handler
+from . import catalog_verification  # registers verify_catalog
+from .jobs import NetworkDown, enqueue, handler
 from .models import Job, NodeResource, Resource, SearchCacheEntry
 
 CHECK_EVERY = timedelta(hours=24)
 DEAD_AFTER = 2  # consecutive dead checks before a link is removed (spec 11.7)
 BATCH = 25  # links per job: worst case 25 x 2 requests x 5 s stays inside the lease
 JOB_RETENTION = timedelta(days=30)
-
-
-class NetworkDown(Exception):
-    """No link in a batch answered: our side is offline, so record nothing."""
+DAILY = ("check_links", "prune", catalog_verification.KIND)
 
 
 def schedule_daily(db: Session, now: datetime) -> None:
     """Enqueue today's upkeep once; the dedupe key makes extra workers harmless."""
     today = now.date().isoformat()
-    for kind in ("check_links", "prune"):
+    for kind in DAILY:
         enqueue(db, kind, now=now, dedupe_key=f"{kind}:{today}")
 
 

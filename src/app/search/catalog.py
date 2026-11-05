@@ -195,10 +195,11 @@ class CatalogSearch(SearchProvider):
         return self._entries
 
     def _database_entries(self):
-        from datetime import UTC, datetime, timedelta
+        from datetime import UTC, datetime
 
         from sqlalchemy import text
 
+        from app.catalog.verification import is_current, latest_results
         from app.vetting.policy import default_policy
 
         now = self.now or datetime.now(UTC)
@@ -206,24 +207,14 @@ class CatalogSearch(SearchProvider):
             "WHERE verification_status='verified' AND canonical_url IS NOT NULL "
             "AND content_hash IS NOT NULL AND license IS NOT NULL AND failed_checks < 2 "
             "AND (http_status IS NULL OR http_status=200)" )).mappings()
-        checks = {}
-        for row in self.session.execute(text("SELECT resource_id,check_name,result,checked_at FROM "
-                "resource_verifications ORDER BY checked_at DESC,id DESC")).mappings():
-            checks.setdefault(row["resource_id"], {}).setdefault(row["check_name"], row)
+        checks = latest_results(self.session.execute(text(
+            "SELECT resource_id,check_name,result,checked_at FROM "
+            "resource_verifications ORDER BY checked_at DESC,id DESC")))
         entries = []
         for row in rows:
-            latest = checks.get(row["id"], {})
-            if not {"fetch", "domain", "license", "metadata"}.issubset(latest):
+            if not is_current(checks.get(row["id"], {}), now):
                 continue
-            fresh = True
-            for check in ("fetch", "domain", "license", "metadata"):
-                value = latest[check]
-                moment = value["checked_at"]
-                if isinstance(moment, str):
-                    moment = datetime.fromisoformat(moment)
-                moment = moment.replace(tzinfo=UTC) if moment.tzinfo is None else moment
-                fresh &= value["result"] == "pass" and now-timedelta(days=30) <= moment <= now
-            if not fresh or default_policy().tier(row["url"]).value == 0:
+            if default_policy().tier(row["url"]).value == 0:
                 continue
             candidate = Candidate(row["url"], row["title"], "catalog", row["format"] or row["kind"], row["lang"])
             entries.append(_Entry(candidate, _normalize(row["title"]), _normalize(row["title"]), ()))

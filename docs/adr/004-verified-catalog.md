@@ -133,7 +133,7 @@ Coursera, edX, Khan Academy (và mọi provider có `automated: false`):
 Hạn chót 48 giờ (spec 13.2).
 
 1. **Tiếp nhận**: chủ sở hữu mở issue theo mẫu [Yêu cầu gỡ nguồn](../../.github/ISSUE_TEMPLATE/takedown.md) (nhãn `takedown`), hoặc liên hệ nhóm qua kênh khác; người nhận tạo issue thay họ để có hồ sơ.
-2. **Gỡ ngay** (trong 24 giờ): admin gọi `POST /admin/catalog/resources/{id}:reject` (#101) với lý do `takedown`. Nguồn `rejected` không bao giờ hiện, nên biến mất khỏi mọi chặng; chặng lấy ứng viên kế tiếp đã chấm (spec 11.6). Trước khi #101 có API admin: xóa dòng khỏi `data/catalog/*.yaml` bằng PR.
+2. **Gỡ ngay** (trong 24 giờ): admin gọi `POST /admin/catalog/resources/{id}:reject` (#101) với lý do `takedown`. Nguồn `rejected` không bao giờ hiện, nên biến mất khỏi mọi chặng; chặng lấy ứng viên kế tiếp đã chấm (spec 11.6). Lý do được ghi vào `resource_verifications` (`check_name = admin`, `checked_by` = id admin). Nguồn thêm tay thì xóa thêm dòng khỏi `data/catalog/*.yaml` bằng PR.
 3. **Không nạp lại**: `upsert_records()` (#98) giữ nguyên `rejected`, không đặt lại `pending`.
 4. **Gỡ cả site**: nếu yêu cầu gồm toàn bộ domain, PR thêm domain vào `data/policy/blocklist.txt` và bỏ provider khỏi `catalog_sources.yaml`.
 5. **Trả lời** trên issue những gì đã gỡ, rồi đóng issue.
@@ -151,7 +151,7 @@ Hạn chót 48 giờ (spec 13.2).
 
 Yêu cầu cho các issue sau, chưa có code trong ADR này:
 
-- #101: fetch bị `robots.txt` chặn (`FetchError("robots")`) đưa nguồn vào hàng chờ duyệt, không `rejected`; kiểm tra `license` chỉ chấp nhận mã trong `catalog_sources.yaml`.
+- #101: fetch bị `robots.txt` chặn (`FetchError("robots")`) đưa nguồn vào hàng chờ duyệt, không `rejected`; kiểm tra `license` chỉ chấp nhận mã trong `catalog_sources.yaml`. Đã làm: luật ở `src/app/catalog/verification.py`, job `verify_catalog` (chạy hằng ngày) và API admin ở `src/assistant/backend/catalog_verification.py`; provider `automated: false` không bị fetch mà vào hàng chờ duyệt.
 - #98: đọc `method`, `endpoint`, `rate_limit_per_sec` từ YAML; gửi request qua `SafeFetcher` (đã tôn trọng `robots.txt`); không chạy cho provider `automated: false`.
 - #96: dựng `institutions` theo mục 4 từ snapshot đã lưu.
 
