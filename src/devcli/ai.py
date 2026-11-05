@@ -369,6 +369,7 @@ def _tag_catalog(args):
 
     from app.catalog.taxonomy import tag_records
     from app.db import session_scope
+    from app.llm import get_client
     from app.llm.embeddings import get_embedding_encoder
 
     load_dotenv(ROOT / ".env")
@@ -381,7 +382,9 @@ def _tag_catalog(args):
                 )
             ).mappings()
         )
-        count = tag_records(db, "resource", rows, embedding=get_embedding_encoder())
+        count = tag_records(
+            db, "resource", rows, embedding=get_embedding_encoder(), llm=get_client()
+        )
     print(f"[ OK ] Tagged {count} catalog resources")
     return 0
 

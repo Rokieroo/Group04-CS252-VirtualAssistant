@@ -19,6 +19,7 @@ from app.catalog.institutions import (
     write_registry,
 )
 from app.catalog.taxonomy import encode, save_tags, subjects, tag_node, tag_resource
+from app.llm import FakeLLM
 from app.roadmap.graph import topological_sort, would_create_cycle
 from app.search.catalog import CatalogSearch
 from assistant.backend.catalog_models import (
@@ -135,6 +136,22 @@ def test_own_text_names_topics_and_the_longest_phrase_wins():
     # An assessment node takes the topics of the nodes it covers.
     tags = tag_node({"title": "Midterm exam"}, course="CSC10014", covers=["Solution ladder"])
     assert [(t.subject_id, t.needs_review) for t in tags] == [("ct.ladder", False)]
+
+
+def test_llm_decides_only_unsure_resources_and_only_with_known_labels():
+    answer = json.dumps({"subjects": ["ds.trees", "made.up", "ds.trees"], "confidence": 0.8})
+    llm = FakeLLM({"zzzz": answer})
+    [tag] = tag_resource({"title": "zzzz qqqq"}, llm=llm)
+    assert (tag.subject_id, tag.method, tag.needs_review) == ("ds.trees", "llm", False)
+    # A rule match is sure already: no call.
+    assert tag_resource({"title": "Binary heaps"}, llm=llm)[0].method == "rule:title"
+    assert llm.calls == 1
+    # Low self-reported confidence still goes to review; bad answers keep the vector tag.
+    low = FakeLLM({"zzzz": json.dumps({"subjects": ["ds.trees"], "confidence": 0.3})})
+    assert tag_resource({"title": "zzzz"}, llm=low)[0].needs_review
+    for bad in ("not json", "[]", '{"subjects": ["made.up"], "confidence": 1}'):
+        [tag] = tag_resource({"title": "zzzz"}, llm=FakeLLM({"zzzz": bad}))
+        assert tag.method != "llm" and tag.needs_review
 
 
 @pytest.fixture
