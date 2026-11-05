@@ -8,6 +8,7 @@ Thư mục tài liệu của dự án: kế hoạch, đặc tả, nhiệm vụ h
 | [week1/](week1/README.md) | Nhiệm vụ tuần 1 theo role (UI/UX, AI, DB & Security, QA/QC, DevOps) |
 | [phase2/](phase2/AI.md) | Kết quả phase 2 theo role: `AI.md` (parser syllabus, benchmark 10 syllabus) |
 | [phase2/minh-syllabus-preview.md](phase2/minh-syllabus-preview.md) | API preview, đọc offline và kiểm tra nguồn bổ sung cho parser #59 |
+| [phase3/minh-role-issues.md](phase3/minh-role-issues.md) | Phần AI và Security & Data: #96, #99, #100, #102, #115; cách chạy và điều kiện nghiệm thu còn lại |
 | [guidelines/](guidelines/README.md) | Quy tắc nhánh, Pull Request, commit |
 | [qa/reports/](qa/reports/) | Báo cáo QA hằng tuần (`python dev.py qa report --week N`) |
 | `adr/` | Architecture Decision Records (tạo từ tuần 1, issue #12 và #18) |

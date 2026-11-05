@@ -1,0 +1,472 @@
+version: '1.0'
+references:
+- https://www.acm.org/publications/class-2012
+- https://mathscinet.ams.org/mathscinet/msc/msc2020.html
+- https://moet.gov.vn/
+note: Project labels inspired by these subject families; not a verbatim copy of a
+  classification. K-12 coverage starts with mathematics.
+subjects:
+- id: computing
+  parent_id: null
+  name: Computer science
+  name_vi: Khoa học máy tính
+  depth: 1
+  aliases:
+  - information technology
+  - CNTT
+- id: ct
+  parent_id: computing
+  name: Computational thinking
+  name_vi: Tư duy tính toán
+  depth: 2
+  aliases:
+  - CSC10014
+  - CS252
+  - Problem Framing and Solution Architecture
+- id: ct.framing
+  parent_id: ct
+  name: Problem framing
+  name_vi: Xác định vấn đề
+  depth: 3
+  aliases:
+  - orientation
+  - product risks
+  - value usability feasibility viability
+- id: ct.ladder
+  parent_id: ct
+  name: Solution ladder
+  name_vi: Thang giải pháp
+  depth: 3
+  aliases: []
+- id: ct.requirements
+  parent_id: ct
+  name: Requirements engineering
+  name_vi: Kỹ nghệ yêu cầu
+  depth: 3
+  aliases:
+  - functional
+  - non functional requirements
+  - MoSCoW
+- id: ct.decomposition
+  parent_id: ct
+  name: Task decomposition
+  name_vi: Phân rã tác vụ
+  depth: 3
+  aliases:
+  - anatomy of a task
+- id: ct.use-cases
+  parent_id: ct
+  name: Use case
+  name_vi: Ca sử dụng
+  depth: 3
+  aliases:
+  - UML
+  - include vs extend
+- id: ct.pipelines
+  parent_id: ct
+  name: Success pipelines
+  name_vi: Quy trình thành công
+  depth: 3
+  aliases:
+  - pitfalls
+  - pipeline patterns
+  - checkpoint
+  - human in the loop
+- id: ct.architecture
+  parent_id: ct
+  name: System architecture
+  name_vi: Kiến trúc hệ thống
+  depth: 3
+  aliases:
+  - API design
+  - data modeling
+- id: ct.evaluation
+  parent_id: ct
+  name: AI evaluation
+  name_vi: Đánh giá AI
+  depth: 3
+  aliases:
+  - red teaming
+  - benchmark
+  - engineering quality
+  - real world evaluation
+- id: ct.retrieval
+  parent_id: ct
+  name: Information retrieval
+  name_vi: Truy xuất thông tin
+  depth: 3
+  aliases:
+  - retrieval integration
+  - LLM interface
+  - cite or refuse
+  - citation
+- id: ct.performance
+  parent_id: ct
+  name: Performance optimization
+  name_vi: Tối ưu hiệu năng
+  depth: 3
+  aliases:
+  - caching
+  - asynchronous
+  - background workers
+  - job queues
+- id: ct.deployment
+  parent_id: ct
+  name: Deployment
+  name_vi: Triển khai
+  depth: 3
+  aliases:
+  - CI CD
+  - containerization
+  - Docker Compose
+  - monitoring
+- id: ct.project
+  parent_id: ct
+  name: Project presentation
+  name_vi: Trình bày dự án
+  depth: 3
+  aliases:
+  - milestone report
+  - capstone
+  - project defense
+- id: db
+  parent_id: computing
+  name: Database systems
+  name_vi: Cơ sở dữ liệu
+  depth: 2
+  aliases:
+  - CS102
+- id: db.sql
+  parent_id: db
+  name: SQL
+  name_vi: Truy vấn SQL
+  depth: 3
+  aliases:
+  - relational algebra
+- id: db.design
+  parent_id: db
+  name: Database design
+  name_vi: Thiết kế dữ liệu
+  depth: 3
+  aliases:
+  - normalization
+  - entity relationship
+  - ER model
+- id: db.transactions
+  parent_id: db
+  name: Transactions
+  name_vi: Giao dịch
+  depth: 3
+  aliases:
+  - concurrency
+  - ACID
+  - indexes
+- id: ds
+  parent_id: computing
+  name: Data structures
+  name_vi: Cấu trúc dữ liệu
+  depth: 2
+  aliases:
+  - CS201
+- id: ds.lists
+  parent_id: ds
+  name: Lists and arrays
+  name_vi: Danh sách và mảng
+  depth: 3
+  aliases:
+  - linked list
+  - array
+  - stack
+  - queue
+- id: ds.trees
+  parent_id: ds
+  name: Trees and graphs
+  name_vi: Cây và đồ thị
+  depth: 3
+  aliases:
+  - binary tree
+  - heap
+  - graph traversal
+- id: ds.algorithms
+  parent_id: ds
+  name: Algorithms
+  name_vi: Thuật toán
+  depth: 3
+  aliases:
+  - sorting
+  - searching
+  - complexity
+  - dynamic programming
+- id: os
+  parent_id: computing
+  name: Operating systems
+  name_vi: Hệ điều hành
+  depth: 2
+  aliases:
+  - CS202
+- id: os.process
+  parent_id: os
+  name: Processes
+  name_vi: Tiến trình
+  depth: 3
+  aliases:
+  - thread
+  - scheduling
+  - synchronization
+- id: os.memory
+  parent_id: os
+  name: Memory management
+  name_vi: Quản lý bộ nhớ
+  depth: 3
+  aliases:
+  - paging
+  - virtual memory
+- id: os.files
+  parent_id: os
+  name: File systems
+  name_vi: Hệ thống tệp
+  depth: 3
+  aliases:
+  - file system
+  - storage
+- id: net
+  parent_id: computing
+  name: Computer networks
+  name_vi: Mạng máy tính
+  depth: 2
+  aliases:
+  - CS203
+- id: net.protocols
+  parent_id: net
+  name: Network protocols
+  name_vi: Giao thức mạng
+  depth: 3
+  aliases:
+  - TCP
+  - IP
+  - UDP
+  - DNS
+  - HTTP
+  - routing
+- id: net.link
+  parent_id: net
+  name: Link layer
+  name_vi: Tầng liên kết
+  depth: 3
+  aliases:
+  - Ethernet
+  - wireless
+  - congestion
+- id: se
+  parent_id: computing
+  name: Software engineering
+  name_vi: Kỹ nghệ phần mềm
+  depth: 2
+  aliases:
+  - SE301
+- id: se.testing
+  parent_id: se
+  name: Software testing
+  name_vi: Kiểm thử phần mềm
+  depth: 3
+  aliases:
+  - unit test
+  - integration test
+  - verification
+- id: se.process
+  parent_id: se
+  name: Software process
+  name_vi: Quy trình phần mềm
+  depth: 3
+  aliases:
+  - agile
+  - scrum
+  - software lifecycle
+- id: ai
+  parent_id: computing
+  name: Artificial intelligence
+  name_vi: Trí tuệ nhân tạo
+  depth: 2
+  aliases:
+  - AI101
+- id: ai.search
+  parent_id: ai
+  name: Search strategies
+  name_vi: Chiến lược tìm kiếm
+  depth: 3
+  aliases:
+  - heuristic
+  - A star
+  - adversarial search
+- id: ai.logic
+  parent_id: ai
+  name: Knowledge representation
+  name_vi: Biểu diễn tri thức
+  depth: 3
+  aliases:
+  - first order logic
+  - inference
+- id: ml
+  parent_id: computing
+  name: Machine learning
+  name_vi: Học máy
+  depth: 2
+  aliases:
+  - CS315
+- id: ml.supervised
+  parent_id: ml
+  name: Supervised learning
+  name_vi: Học có giám sát
+  depth: 3
+  aliases:
+  - regression
+  - classification
+  - decision tree
+- id: ml.neural
+  parent_id: ml
+  name: Neural networks
+  name_vi: Mạng nơ ron
+  depth: 3
+  aliases:
+  - deep learning
+  - backpropagation
+- id: ml.clustering
+  parent_id: ml
+  name: Unsupervised learning
+  name_vi: Học không giám sát
+  depth: 3
+  aliases:
+  - clustering
+  - dimensionality reduction
+- id: sec
+  parent_id: computing
+  name: Information security
+  name_vi: An toàn thông tin
+  depth: 2
+  aliases:
+  - SEC204
+- id: sec.crypto
+  parent_id: sec
+  name: Cryptography
+  name_vi: Mật mã học
+  depth: 3
+  aliases:
+  - encryption
+  - hashing
+  - digital signature
+- id: sec.access
+  parent_id: sec
+  name: Access control
+  name_vi: Kiểm soát truy cập
+  depth: 3
+  aliases:
+  - authentication
+  - authorization
+  - security policy
+- id: cloud
+  parent_id: computing
+  name: Cloud computing
+  name_vi: Điện toán đám mây
+  depth: 2
+  aliases:
+  - CS405
+- id: cloud.virtual
+  parent_id: cloud
+  name: Virtualization
+  name_vi: Ảo hóa
+  depth: 3
+  aliases:
+  - hypervisor
+  - container
+- id: cloud.distributed
+  parent_id: cloud
+  name: Distributed systems
+  name_vi: Hệ phân tán
+  depth: 3
+  aliases:
+  - replication
+  - consensus
+  - fault tolerance
+- id: cloud.services
+  parent_id: cloud
+  name: Cloud services
+  name_vi: Dịch vụ đám mây
+  depth: 3
+  aliases:
+  - IaaS
+  - PaaS
+  - SaaS
+  - serverless
+- id: math
+  parent_id: null
+  name: Mathematics
+  name_vi: Toán học
+  depth: 1
+  aliases: []
+- id: math.algebra
+  parent_id: math
+  name: Algebra
+  name_vi: Đại số
+  depth: 2
+  aliases:
+  - MSC 15
+  - MSC 13
+- id: math.linear
+  parent_id: math.algebra
+  name: Linear algebra
+  name_vi: Đại số tuyến tính
+  depth: 3
+  aliases:
+  - matrix
+  - vector space
+  - eigenvalue
+- id: math.analysis
+  parent_id: math
+  name: Analysis
+  name_vi: Giải tích
+  depth: 2
+  aliases:
+  - MSC 26
+- id: math.calculus
+  parent_id: math.analysis
+  name: Calculus
+  name_vi: Vi tích phân
+  depth: 3
+  aliases:
+  - derivative
+  - integral
+  - limit
+- id: k12
+  parent_id: null
+  name: General education
+  name_vi: Giáo dục phổ thông
+  depth: 1
+  aliases: []
+- id: k12.math
+  parent_id: k12
+  name: High school mathematics
+  name_vi: Toán THPT
+  depth: 2
+  aliases:
+  - GDPT 2018
+  - toán lớp 10
+  - toán lớp 11
+  - toán lớp 12
+- id: k12.functions
+  parent_id: k12.math
+  name: Functions and equations
+  name_vi: Hàm số và phương trình
+  depth: 3
+  aliases:
+  - quadratic
+  - logarithm
+  - trigonometry
+- id: k12.geometry
+  parent_id: k12.math
+  name: Geometry
+  name_vi: Hình học
+  depth: 3
+  aliases:
+  - triangle
+  - circle
+  - spatial geometry

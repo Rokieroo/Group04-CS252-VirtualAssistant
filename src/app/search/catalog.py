@@ -92,11 +92,15 @@ class CatalogSearch(SearchProvider):
         *,
         catalog_dir: str | Path | None = None,
         max_results: int = 5,
+        session=None,
+        now=None,
     ):
         chosen = directory if directory is not None else catalog_dir
         self.directory = Path(chosen) if chosen is not None else DEFAULT_CATALOG_DIR
         self.max_results = max(1, max_results)
         self.last_error: str | None = None
+        self.session = session
+        self.now = now
         self._entries: list[_Entry] = []
         self._signature: tuple[tuple[str, int, int], ...] | None = None
 
@@ -177,6 +181,8 @@ class CatalogSearch(SearchProvider):
         )
 
     def _load(self) -> list[_Entry]:
+        if self.session is not None:
+            return self._database_entries()
         files = self._files()
         signature = tuple(
             (str(path), path.stat().st_mtime_ns, path.stat().st_size) for path in files
@@ -187,6 +193,41 @@ class CatalogSearch(SearchProvider):
             if self._entries:
                 self.last_error = None
         return self._entries
+
+    def _database_entries(self):
+        from datetime import UTC, datetime, timedelta
+
+        from sqlalchemy import text
+
+        from app.vetting.policy import default_policy
+
+        now = self.now or datetime.now(UTC)
+        rows = self.session.execute(text("SELECT id,url,title,kind,lang,format FROM resources r "
+            "WHERE verification_status='verified' AND canonical_url IS NOT NULL "
+            "AND content_hash IS NOT NULL AND license IS NOT NULL AND failed_checks < 2 "
+            "AND (http_status IS NULL OR http_status=200)" )).mappings()
+        checks = {}
+        for row in self.session.execute(text("SELECT resource_id,\"check\",result,checked_at FROM "
+                "resource_verifications ORDER BY checked_at DESC,id DESC")).mappings():
+            checks.setdefault(row["resource_id"], {}).setdefault(row["check"], row)
+        entries = []
+        for row in rows:
+            latest = checks.get(row["id"], {})
+            if not {"fetch", "domain", "license", "metadata"}.issubset(latest):
+                continue
+            fresh = True
+            for check in ("fetch", "domain", "license", "metadata"):
+                value = latest[check]
+                moment = value["checked_at"]
+                if isinstance(moment, str):
+                    moment = datetime.fromisoformat(moment)
+                moment = moment.replace(tzinfo=UTC) if moment.tzinfo is None else moment
+                fresh &= value["result"] == "pass" and now-timedelta(days=30) <= moment <= now
+            if not fresh or default_policy().tier(row["url"]).value == 0:
+                continue
+            candidate = Candidate(row["url"], row["title"], "catalog", row["format"] or row["kind"], row["lang"])
+            entries.append(_Entry(candidate, _normalize(row["title"]), _normalize(row["title"]), ()))
+        return entries
 
     def search(
         self,

@@ -1,0 +1,132 @@
+[
+  {
+    "ror_id": "https://ror.org/05kdc4973",
+    "name": "University of Information Technology",
+    "name_vi": "",
+    "country": "VN",
+    "domain": "uit.edu.vn",
+    "tier": 1,
+    "reason": "University in Vietnam serving the target learners; proposed tier under ADR 004; requires two independent human reviewers.",
+    "reviewers": []
+  },
+  {
+    "ror_id": "https://ror.org/02hkzh190",
+    "name": "VNU Science and Technology Development Fund",
+    "name_vi": "",
+    "country": "VN",
+    "domain": "vnu.edu.vn",
+    "tier": 1,
+    "reason": "University in Vietnam serving the target learners; proposed tier under ADR 004; requires two independent human reviewers.",
+    "reviewers": []
+  },
+  {
+    "ror_id": "https://ror.org/00waaqh38",
+    "name": "Vietnam National University Ho Chi Minh City",
+    "name_vi": "",
+    "country": "VN",
+    "domain": "vnuhcm.edu.vn",
+    "tier": 1,
+    "reason": "University in Vietnam serving the target learners; proposed tier under ADR 004; requires two independent human reviewers.",
+    "reviewers": []
+  },
+  {
+    "ror_id": "https://ror.org/011109p83",
+    "name": "VNU University of Social Sciences and Humanities",
+    "name_vi": "",
+    "country": "VN",
+    "domain": "vnu.edu.vn",
+    "tier": 1,
+    "reason": "University in Vietnam serving the target learners; proposed tier under ADR 004; requires two independent human reviewers.",
+    "reviewers": []
+  },
+  {
+    "ror_id": "https://ror.org/05prjj361",
+    "name": "Trung tâm Nghiên cứu Quan trắc và Mô hình hóa Môi trường",
+    "name_vi": "",
+    "country": "VN",
+    "domain": "hus.vnu.edu.vn",
+    "tier": 1,
+    "reason": "University in Vietnam serving the target learners; proposed tier under ADR 004; requires two independent human reviewers.",
+    "reviewers": []
+  },
+  {
+    "ror_id": "https://ror.org/05hzn5427",
+    "name": "Ho Chi Minh City University of Technology and Engineering",
+    "name_vi": "",
+    "country": "VN",
+    "domain": "hcmute.edu.vn",
+    "tier": 1,
+    "reason": "University in Vietnam serving the target learners; proposed tier under ADR 004; requires two independent human reviewers.",
+    "reviewers": []
+  },
+  {
+    "ror_id": "https://ror.org/04nyv3z04",
+    "name": "Hanoi University of Science and Technology",
+    "name_vi": "",
+    "country": "VN",
+    "domain": "hust.edu.vn",
+    "tier": 1,
+    "reason": "University in Vietnam serving the target learners; proposed tier under ADR 004; requires two independent human reviewers.",
+    "reviewers": []
+  },
+  {
+    "ror_id": "https://ror.org/05w54hk79",
+    "name": "VNU University of Science",
+    "name_vi": "",
+    "country": "VN",
+    "domain": "hus.vnu.edu.vn",
+    "tier": 1,
+    "reason": "University in Vietnam serving the target learners; proposed tier under ADR 004; requires two independent human reviewers.",
+    "reviewers": []
+  },
+  {
+    "ror_id": "https://ror.org/05jfbgm49",
+    "name": "Ho Chi Minh City University of Science",
+    "name_vi": "",
+    "country": "VN",
+    "domain": "hcmus.edu.vn",
+    "tier": 1,
+    "reason": "University in Vietnam serving the target learners; proposed tier under ADR 004; requires two independent human reviewers.",
+    "reviewers": []
+  },
+  {
+    "ror_id": "https://ror.org/04qva2324",
+    "name": "Ho Chi Minh City University of Technology",
+    "name_vi": "",
+    "country": "VN",
+    "domain": "hcmut.edu.vn",
+    "tier": 1,
+    "reason": "University in Vietnam serving the target learners; proposed tier under ADR 004; requires two independent human reviewers.",
+    "reviewers": []
+  },
+  {
+    "ror_id": "https://ror.org/02jmfj006",
+    "name": "Vietnam National University, Hanoi",
+    "name_vi": "",
+    "country": "VN",
+    "domain": "vnu.edu.vn",
+    "tier": 1,
+    "reason": "University in Vietnam serving the target learners; proposed tier under ADR 004; requires two independent human reviewers.",
+    "reviewers": []
+  },
+  {
+    "ror_id": "vn-k12:moet",
+    "name": "Ministry of Education and Training",
+    "name_vi": "Bộ Giáo dục và Đào tạo",
+    "country": "VN",
+    "domain": "moet.gov.vn",
+    "tier": 1,
+    "reason": "Official K-12 curriculum authority, ADR 004.",
+    "reviewers": []
+  },
+  {
+    "ror_id": "vn-k12:nxbgd",
+    "name": "Vietnam Education Publishing House",
+    "name_vi": "Nhà xuất bản Giáo dục Việt Nam",
+    "country": "VN",
+    "domain": "nxbgd.vn",
+    "tier": 1,
+    "reason": "Official textbook publisher, ADR 004.",
+    "reviewers": []
+  }
+]

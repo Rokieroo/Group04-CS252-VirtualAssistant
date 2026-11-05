@@ -92,6 +92,10 @@ def register(sub: argparse._SubParsersAction) -> None:
     p = sub.add_parser("db", help="Database & Security: schema cục bộ và quét secret")
     db_sub = p.add_subparsers(dest="db_command", required=True)
 
+    seed = db_sub.add_parser("seed-institutions", help="nạp registry ROR/OpenAlex vào DB (idempotent)")
+    seed.add_argument("--file", default=str(ROOT / "data/catalog/institutions.csv"))
+    seed.set_defaults(func=_seed_institutions)
+
     init = db_sub.add_parser(
         "init", help="tạo database từ db/schema.sql (mặc định theo DATABASE_URL)"
     )
@@ -105,3 +109,13 @@ def register(sub: argparse._SubParsersAction) -> None:
         "scan-secrets", help="tìm API key, token, private key trong repo"
     )
     scan.set_defaults(func=_scan)
+
+
+def _seed_institutions(args):
+    from app.catalog.institutions import read_registry, seed_institutions
+    from app.db import session_scope
+    rows = read_registry(args.file)
+    with session_scope() as db:
+        count = seed_institutions(db, rows)
+    print(f"[ OK ] {count} institutions")
+    return 0

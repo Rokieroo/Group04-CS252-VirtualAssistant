@@ -52,3 +52,4 @@ data/local.db
 
 # Local Claude Code settings, skills and worktrees
 .claude/
+.tmp/

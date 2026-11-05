@@ -45,6 +45,10 @@ EXPECTED_TABLES = {
     "notifications",
     "chat_messages",
     "alembic_version",
+    "institutions", "catalog_courses", "catalog_units", "subjects",
+    "resource_subjects", "node_subjects", "catalog_embeddings", "resource_verifications",
+    "roadmap_edges", "graph_layouts", "node_materials", "node_source_status",
+    "exercises", "exercise_subjects", "node_exercises",
 }
 
 

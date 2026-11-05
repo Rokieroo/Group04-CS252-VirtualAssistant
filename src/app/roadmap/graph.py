@@ -217,3 +217,29 @@ def find_cycles(nodes: Iterable[Any], edges: Iterable[Any]) -> list[Any]:
             seen.add(pair)
             result.append(edge)
     return result
+
+
+def would_create_cycle(edges: Iterable[Any], parent: str, child: str) -> list[str] | None:
+    """The closed path introduced by parent → child, or None (#97/#100).
+
+    Iterative DFS avoids recursion limits on long, valid prerequisite chains.
+    """
+    adjacency: dict[str, list[str]] = {}
+    for edge in edges:
+        start, end = edge_pair(edge)
+        adjacency.setdefault(start, []).append(end)
+    stack = [child]
+    previous: dict[str, str | None] = {child: None}
+    while stack:
+        current = stack.pop()
+        if current == parent:
+            path = []
+            while current is not None:
+                path.append(current)
+                current = previous[current]
+            return [parent, *reversed(path)]
+        for target in reversed(adjacency.get(current, [])):
+            if target not in previous:
+                previous[target] = current
+                stack.append(target)
+    return None

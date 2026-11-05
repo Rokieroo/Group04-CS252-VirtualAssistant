@@ -59,13 +59,18 @@ def _outcomes(db: Session, course_id: str) -> tuple[str, ...]:
     return tuple(rows)
 
 
-def _search(node: Node, learner: Learner, course: Course) -> tuple[Curation, SearchStats]:
+def _search(node: Node, learner: Learner, course: Course, *, db=None) -> tuple[Curation, SearchStats]:
+    from app.search.catalog import CatalogSearch
+    from app.search.web import WebSearch
+    from app.search.youtube import YouTubeSearch
+    search = (SearchService(providers=[CatalogSearch(session=db), YouTubeSearch(), WebSearch()])
+              if db is not None and make_search is SearchService else make_search())
     with make_fetcher() as fetcher:
         found = find_resources(
             node,
             learner,
             course=course.title,
-            search=make_search(),
+            search=search,
             llm=make_llm(),
             fetcher=fetcher,
         )
@@ -145,6 +150,16 @@ def search_resources(db: Session, payload: dict, now: datetime) -> dict:
     roadmap = db.get(Roadmap, node.roadmap_id)
     course = db.get(Course, roadmap.course_id)
     user = db.get(User, roadmap.user_id)
+    from .catalog_repository import refresh_node_sources
+    selection = refresh_node_sources(db, [node], roadmap, course, now)[node.id]
+    public = [r for r in selection["sources"] if r["kind"] != "user_material" and r["score"] >= 0.8]
+    if len(public) >= 3:
+        search = ResourceSearch(node_id=node.id, user_id=roadmap.user_id, node_title=node.title,
+            status=selection["status"], kept=len(public), candidates=len(public), created_at=now)
+        db.add(search)
+        db.flush()
+        return {"search_id": search.id, "status": selection["status"], "shown": selection["source_count"],
+                "cache_hit": False, "cost_usd": 0.0, "catalog_sufficient": True}
     outcomes = _outcomes(db, course.id)
     target = Node(node.title, outcomes, node.duration_minutes)
     learner = Learner(
@@ -158,7 +173,8 @@ def search_resources(db: Session, payload: dict, now: datetime) -> dict:
     if cached is not None:
         curation, stats = Curation.from_dict(cached), None
     else:
-        curation, stats = _search(target, learner, course)
+        curation, stats = (_search(target, learner, course, db=db) if make_search is SearchService
+                           else _search(target, learner, course))
         store_search(db, signature, asdict(curation), now)
 
     _link(db, node.id, curation)

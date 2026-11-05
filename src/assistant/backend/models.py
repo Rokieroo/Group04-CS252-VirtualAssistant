@@ -340,6 +340,9 @@ class RoadmapNode(Base):
     duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     due_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     covers: Mapped[str | None] = mapped_column(Text, nullable=True)
+    concept_id: Mapped[str | None] = mapped_column(
+        Text, ForeignKey("concepts.id", ondelete="SET NULL")
+    )
 
     @property
     def kind(self) -> str:
@@ -364,6 +367,21 @@ class Resource(Base):
     )
     http_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
     failed_checks: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    canonical_url: Mapped[str | None] = mapped_column(Text, unique=True, index=True)
+    domain: Mapped[str | None] = mapped_column(Text, index=True)
+    format: Mapped[str | None] = mapped_column(Text)
+    license: Mapped[str | None] = mapped_column(Text)
+    is_free: Mapped[bool] = mapped_column(default=False, server_default="0")
+    duration_min: Mapped[int | None] = mapped_column(Integer)
+    content_hash: Mapped[str | None] = mapped_column(Text)
+    verification_status: Mapped[str] = mapped_column(
+        Text, default="pending", server_default="pending", index=True
+    )
+    source_connector: Mapped[str | None] = mapped_column(Text)
+    ingested_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
+    catalog_course_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("catalog_courses.id", ondelete="SET NULL")
+    )
 
 
 class NodeResource(Base):
@@ -491,3 +509,7 @@ class SearchCacheEntry(Base):
     signature: Mapped[str] = mapped_column(String(64), primary_key=True)
     payload: Mapped[str] = mapped_column(Text)
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+
+
+# Register the catalog/graph mappings on the same metadata and migration history.
+from . import catalog_models  # noqa: F401

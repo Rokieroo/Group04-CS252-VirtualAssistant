@@ -247,7 +247,6 @@ def _items(args: argparse.Namespace) -> int:
 
     from app.ingest import InvalidPdf, extract_pages
     from app.items.generate import generate_items
-    from app.llm import get_client
 
     load_dotenv(ROOT / ".env")
     path = Path(args.file)
@@ -258,8 +257,7 @@ def _items(args: argparse.Namespace) -> int:
         print(f"Không đọc được đầu vào: {exc}")
         return 1
     sources = [{"id": f"p{n}", "page": n, "text": t} for n, t in enumerate(pages, 1) if t.strip()]
-    llm = get_client()
-    result = [{**c, "items": generate_items(llm, c, sources)} for c in concepts[:args.limit]]
+    result = [{**c, "items": generate_items(None, c, sources)} for c in concepts[:args.limit]]
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
