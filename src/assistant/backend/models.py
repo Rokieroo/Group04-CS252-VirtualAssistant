@@ -648,8 +648,9 @@ class ResourceVerification(Base):
     resource_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("resources.id", ondelete="CASCADE")
     )
-    check_name: Mapped[str] = mapped_column(Text)  # fetch | domain | license | metadata
-    result: Mapped[str] = mapped_column(Text)  # pass | fail | review
+    # fetch | domain | license | metadata, or admin (a reviewer's rejection)
+    check_name: Mapped[str] = mapped_column(Text)
+    result: Mapped[str] = mapped_column(Text)  # pass | fail | review | error (no answer)
     details: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
     checked_at: Mapped[datetime] = mapped_column(
         UTCDateTime(), default=utcnow, server_default=func.current_timestamp()

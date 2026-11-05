@@ -30,6 +30,10 @@ LEASE = timedelta(minutes=10)  # longer than any handler may run
 RETRY_DELAY = timedelta(seconds=30)  # doubles after each failed attempt
 
 
+class NetworkDown(Exception):
+    """No link in a batch answered: our side is offline, so record nothing."""
+
+
 def handler(kind: str):
     """Register ``fn(db, payload, now) -> JSON-serializable result`` for ``kind``."""
 

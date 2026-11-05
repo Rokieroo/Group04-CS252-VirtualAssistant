@@ -3,13 +3,13 @@
 import json
 import re
 from collections import defaultdict
-from datetime import timedelta
 
 from sqlalchemy import select
 
 from app.catalog.institutions import domain_of, matches_domain
 from app.catalog.matching import match_sources
 from app.catalog.taxonomy import tag_records, tag_resource
+from app.catalog.verification import is_current, latest_results
 from app.llm.embeddings import get_embedding_encoder
 from app.roadmap import decode_covers
 from app.search.service import canonical_url
@@ -34,22 +34,24 @@ from .models import (
     Syllabus,
 )
 
-CHECKS = {"fetch", "domain", "license", "metadata"}
-
 
 def verified_resources(db, now):
-    """Bulk read: latest result of each check wins, not any historic pass.
+    """Bulk read of what learners may see (``verification.is_current``).
 
-    This also fails closed if a producer incorrectly sets verification_status
-    without four fresh checks. Read paths do not mutate the catalog.
+    Read paths do not mutate the catalog.
     """
-    checks = defaultdict(dict)
-    for row in db.scalars(
-        select(ResourceVerification).order_by(
-            ResourceVerification.checked_at.desc(), ResourceVerification.id.desc()
+    checks = latest_results(
+        db.execute(
+            select(
+                ResourceVerification.resource_id,
+                ResourceVerification.check_name,
+                ResourceVerification.result,
+                ResourceVerification.checked_at,
+            ).order_by(
+                ResourceVerification.checked_at.desc(), ResourceVerification.id.desc()
+            )
         )
-    ):
-        checks[row.resource_id].setdefault(row.check_name, row)
+    )
     tags = defaultdict(set)
     for row in db.scalars(
         select(ResourceSubject).where(ResourceSubject.confidence >= 0.6)
@@ -70,14 +72,8 @@ def verified_resources(db, now):
         .outerjoin(CatalogCourse, Resource.catalog_course_id == CatalogCourse.id)
         .where(Resource.verification_status == "verified", Resource.failed_checks < 2)
     ):
-        verified = checks[resource.id]
         if (
-            not CHECKS.issubset(verified)
-            or any(
-                verified[c].result != "pass"
-                or not now - timedelta(days=30) <= verified[c].checked_at <= now
-                for c in CHECKS
-            )
+            not is_current(checks.get(resource.id, {}), now)
             or not resource.license
             or not resource.content_hash
             or not resource.canonical_url

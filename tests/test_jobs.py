@@ -110,6 +110,8 @@ def test_schedule_daily_enqueues_upkeep_once_per_day(sessions):
         "check_links:2030-01-08",
         "prune:2030-01-07",
         "prune:2030-01-08",
+        "verify_catalog:2030-01-07",
+        "verify_catalog:2030-01-08",
     ]
 
 
@@ -305,7 +307,7 @@ def test_worker_schedules_upkeep_and_runs_jobs_until_stopped(app, client, monkey
 
     def run_and_stop(sessions, now):
         ran.append(real_run_once(sessions, now))
-        if len(ran) == 2:
+        if len(ran) == len(maintenance.DAILY):
             stop.set()
         return ran[-1]
 
@@ -313,7 +315,7 @@ def test_worker_schedules_upkeep_and_runs_jobs_until_stopped(app, client, monkey
     worker.serve(app.state.database, stop)
     with app.state.database.sessions() as db:
         statuses = {job.kind: job.status for job in db.scalars(select(Job))}
-    assert statuses == {"check_links": "done", "prune": "done"}
+    assert statuses == {"check_links": "done", "prune": "done", "verify_catalog": "done"}
 
 
 def test_search_keys_come_from_the_environment_and_stay_out_of_repr(monkeypatch):
