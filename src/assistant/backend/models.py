@@ -347,6 +347,9 @@ class RoadmapNode(Base):
     duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     due_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     covers: Mapped[str | None] = mapped_column(Text, nullable=True)
+    concept_id: Mapped[str | None] = mapped_column(
+        Text, ForeignKey("concepts.id", ondelete="SET NULL")
+    )
 
     @property
     def kind(self) -> str:
@@ -358,12 +361,8 @@ class Resource(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     url: Mapped[str] = mapped_column(Text)
     title: Mapped[str] = mapped_column(Text)
-    provider: Mapped[str] = mapped_column(
-        Text, default="web", server_default="web"
-    )
-    kind: Mapped[str] = mapped_column(
-        Text, default="article", server_default="article"
-    )
+    provider: Mapped[str] = mapped_column(Text, default="web", server_default="web")
+    kind: Mapped[str] = mapped_column(Text, default="article", server_default="article")
     lang: Mapped[str] = mapped_column(Text, default="vi", server_default="vi")
     # Link maintenance (spec 11.7): the daily check updates these three.
     last_checked_at: Mapped[datetime | None] = mapped_column(
@@ -371,6 +370,9 @@ class Resource(Base):
     )
     http_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
     failed_checks: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    catalog_course_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("catalog_courses.id", ondelete="SET NULL")
+    )
     # Verified catalog (migration 0008). One row per canonical_url; url is what the user opens.
     canonical_url: Mapped[str] = mapped_column(Text)
     domain: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -401,12 +403,15 @@ class Resource(Base):
 class NodeResource(Base):
     __tablename__ = "node_resources"
     node_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("roadmap_nodes.id", ondelete="CASCADE"),
+        String(36),
+        ForeignKey("roadmap_nodes.id", ondelete="CASCADE"),
         primary_key=True,
     )
     resource_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("resources.id", ondelete="CASCADE"),
-        primary_key=True, index=True,
+        String(36),
+        ForeignKey("resources.id", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
     )
     relevance_score: Mapped[float] = mapped_column(
         Float, default=0.0, server_default="0"
@@ -449,10 +454,15 @@ class ResourceSearch(Base):
     kept: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     llm_calls: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     llm_cost_usd: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
-    search_cost_usd: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
+    search_cost_usd: Mapped[float] = mapped_column(
+        Float, default=0.0, server_default="0"
+    )
     duration_ms: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
-        UTCDateTime(), default=utcnow, server_default=func.current_timestamp(), index=True
+        UTCDateTime(),
+        default=utcnow,
+        server_default=func.current_timestamp(),
+        index=True,
     )
 
 
@@ -465,17 +475,16 @@ class SearchRun(Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     query: Mapped[str] = mapped_column(Text)
-    provider: Mapped[str] = mapped_column(
-        Text, default="web", server_default="web"
-    )
+    provider: Mapped[str] = mapped_column(Text, default="web", server_default="web")
     status: Mapped[str] = mapped_column(
         Text, default="pending", server_default="pending"
     )
-    results_count: Mapped[int] = mapped_column(
-        Integer, default=0, server_default="0"
-    )
+    results_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
-        UTCDateTime(), default=utcnow, server_default=func.current_timestamp(), index=True
+        UTCDateTime(),
+        default=utcnow,
+        server_default=func.current_timestamp(),
+        index=True,
     )
     search_id: Mapped[str | None] = mapped_column(
         String(36),
@@ -592,9 +601,7 @@ class Subject(Base):
 
     __tablename__ = "subjects"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    parent_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("subjects.id")
-    )
+    parent_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("subjects.id"))
     slug: Mapped[str] = mapped_column(Text, unique=True)
     name: Mapped[str] = mapped_column(Text)
     name_vi: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -655,3 +662,7 @@ class ResourceVerification(Base):
             "checked_at",
         ),
     )
+
+
+# Register graph/exercise extensions on the canonical schema metadata.
+from . import catalog_models  # noqa: F401

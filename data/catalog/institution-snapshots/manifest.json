@@ -1,0 +1,10 @@
+{
+  "snapshot_date": "2026-11-05",
+  "openalex_version": "sha256:6f21fc7c842da1ead06ea29cf7cbce12aff0bf99a7c0d98045f2640a5e9cdc8d",
+  "ror_version": "10.5281/zenodo.23500708",
+  "ror_checksum": "md5:5522990688eb1b94811a8145e131b41e",
+  "license": "CC0-1.0",
+  "openalex_url": "https://api.openalex.org/institutions",
+  "ror_url": "https://doi.org/10.5281/zenodo.23500708",
+  "note": "Only fields consumed by the builder and matching ROR records are retained; the OpenAlex version hash identifies the original full 2000-row download."
+}

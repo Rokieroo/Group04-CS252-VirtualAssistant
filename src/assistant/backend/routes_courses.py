@@ -109,6 +109,10 @@ def upload_source(
                visual_notes=note or None, kind=kind)
         for number, (text, note) in enumerate(zip(pages, notes, strict=True), start=1)
     )
+    from .exercise_repository import import_private_exercises
+    db.flush()
+    for source in db.scalars(select(Source).where(Source.course_id == course_id, Source.file_name == name)):
+        import_private_exercises(db, source, user.id)
     try:
         db.commit()
     except IntegrityError:
@@ -190,13 +194,28 @@ def course_concept(db, course_id: str, concept_id: str) -> dict:
 
 
 def concept_items(db, concept_id: str) -> list[dict]:
+    import hashlib
+
+    from app.catalog.exercises import exact, quote_hash
     rows = db.execute(text(
         "SELECT i.id, i.type, i.prompt, i.choices, i.answer, i.rubric, i.source_id, i.status, "
-        "s.page, s.file_name FROM items i JOIN sources s ON s.id = i.source_id "
-        "WHERE i.concept_id = :id ORDER BY s.file_name, s.page, i.type, i.id"),
+        "s.page, s.file_name, s.text AS source_text, e.quote_hash, e.source_hash "
+        "FROM items i JOIN sources s ON s.id = i.source_id "
+        "JOIN exercises e ON e.id = i.exercise_id AND e.source_id = i.source_id "
+        "JOIN concepts c ON c.id = i.concept_id JOIN courses co ON co.id = c.course_id "
+        "WHERE i.concept_id = :id AND e.verification_status = 'verified' AND i.status <> 'rejected' "
+        "AND s.course_id=c.course_id AND e.owner_id=co.owner_id "
+        "ORDER BY s.file_name, s.page, i.type, i.id"),
         {"id": concept_id}).mappings()
-    return [{**row, "choices": json.loads(row["choices"] or "[]"),
-             "rubric": json.loads(row["rubric"] or "[]")} for row in rows]
+    result = []
+    for row in rows:
+        item = {**row, "choices": json.loads(row["choices"] or "[]"),
+                "rubric": json.loads(row["rubric"] or "[]")}
+        if (exact(item, row["source_text"]) and
+                hashlib.sha256(row["source_text"].encode()).hexdigest() == row["source_hash"] and
+                quote_hash(item["prompt"], item["choices"], item["answer"]) == row["quote_hash"]):
+            result.append(item)
+    return result
 
 
 @router.get("/courses/{course_id}/concepts/{concept_id}/items", response_model=list[ItemOut])
@@ -213,10 +232,8 @@ def generate_concept_items(
     concept_id: str,
     db: DB,
     user: CurrentUser,
-    llm: Annotated[LLMClient, Depends(get_client)],
 ):
-    """Write cited practice items for one concept, store them as drafts and return all of the
-    concept's items (UC-03, issue #10)."""
+    """Extract existing numbered exercises; no model authors content (#115)."""
     owned_course(db, course_id, user.id)
     concept = course_concept(db, course_id, concept_id)
     sources = [dict(row) for row in db.execute(
@@ -224,9 +241,9 @@ def generate_concept_items(
         .order_by(Source.file_name, Source.page)).mappings()]
     if not sources:
         raise HTTPException(404, "no_sources")
-    items = generate_items(llm, concept, sources)
-    if not items:  # every LLM call failed, or every item was refused for lack of a citation
-        raise HTTPException(503, "items_unavailable")
+    items = generate_items(None, concept, sources)
+    if not items:
+        raise HTTPException(409, "exercise_bank_insufficient")
     save_items(db, concept_id, items)
     db.commit()
     return concept_items(db, concept_id)

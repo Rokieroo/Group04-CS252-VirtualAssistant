@@ -177,12 +177,22 @@ def get_node_resources(
     else:
         links.sort(key=lambda l: l.relevance_score, reverse=True)
 
+    from .catalog_repository import verified_resources
+
+    verified_ids = {r["id"] for r in verified_resources(db, now)}
     items = []
     for rank, link in enumerate(links, start=1):
         res = resources_by_id.get(link.resource_id)
-        if res is None:
+        if res is None or res.id not in verified_ids:
             continue
         scored = scored_by_url.get(res.url)
+        if scored is not None and scored.content_hash != res.content_hash:
+            continue
+        if (scored.score if scored else link.relevance_score) < 0.65:
+            continue
+        if len(items) >= 5:
+            break
+        rank = len(items) + 1
         parsed_domain = urllib.parse.urlparse(res.url).netloc or "web"
         items.append(
             ResourceItemOut(
@@ -269,16 +279,15 @@ def resource_feedback(
                     rep_row = db.scalars(
                         select(Resource).where(Resource.url == rep_scored.url)
                     ).first()
-                    if rep_row is None:
-                        rep_row = Resource(
-                            url=rep_scored.url,
-                            title=rep_scored.title,
-                            provider=rep_scored.provider,
-                            kind="video" if rep_scored.format == "video" else "article",
-                            lang=rep_scored.lang,
-                        )
-                        db.add(rep_row)
-                        db.flush()
+                    from .catalog_repository import verified_resources
+
+                    verified_ids = {r["id"] for r in verified_resources(db, now)}
+                    if (
+                        rep_row is None
+                        or rep_row.id not in verified_ids
+                        or rep_scored.content_hash != rep_row.content_hash
+                    ):
+                        raise KeyError("no_verified_replacement")
                     rep_link = db.get(NodeResource, (node.id, rep_row.id))
                     if rep_link is None:
                         rep_link = NodeResource(

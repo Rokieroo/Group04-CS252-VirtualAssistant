@@ -491,7 +491,7 @@
           "Courses and sources"
         ],
         "summary": "Generate Concept Items",
-        "description": "Write cited practice items for one concept, store them as drafts and return all of the\nconcept's items (UC-03, issue #10).",
+        "description": "Extract existing numbered exercises; no model authors content (#115).",
         "operationId": "generate_concept_items_api_v1_courses__course_id__concepts__concept_id__items_generate_post",
         "security": [
           {
@@ -2949,6 +2949,500 @@
         }
       }
     },
+    "/api/v1/concepts/{node_id}/sources": {
+      "get": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Sources",
+        "operationId": "sources_api_v1_concepts__node_id__sources_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Node Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 5,
+              "minimum": 1,
+              "default": 5,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeSourcesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmaps/{roadmap_id}/sources:summary": {
+      "get": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Summary",
+        "operationId": "summary_api_v1_roadmaps__roadmap_id__sources_summary_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roadmap_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Roadmap Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceSummaryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmap-nodes/{node_id}/exercises": {
+      "get": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Exercises",
+        "operationId": "exercises_api_v1_roadmap_nodes__node_id__exercises_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Node Id"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "practice",
+                "checkpoint"
+              ],
+              "type": "string",
+              "default": "practice",
+              "title": "Role"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExercisesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmap-nodes/{node_id}/materials": {
+      "post": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Attach Material",
+        "operationId": "attach_material_api_v1_roadmap_nodes__node_id__materials_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Node Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaterialIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmaps/{roadmap_id}/edges": {
+      "post": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Add Edge",
+        "operationId": "add_edge_api_v1_roadmaps__roadmap_id__edges_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roadmap_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Roadmap Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EdgeIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmaps/{roadmap_id}/edges/{parent_id}/{child_id}": {
+      "delete": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Remove Edge",
+        "operationId": "remove_edge_api_v1_roadmaps__roadmap_id__edges__parent_id___child_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roadmap_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Roadmap Id"
+            }
+          },
+          {
+            "name": "parent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Parent Id"
+            }
+          },
+          {
+            "name": "child_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Child Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmaps/{roadmap_id}/layout": {
+      "put": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Put Layout",
+        "operationId": "put_layout_api_v1_roadmaps__roadmap_id__layout_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roadmap_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Roadmap Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LayoutIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Get Layout",
+        "operationId": "get_layout_api_v1_roadmaps__roadmap_id__layout_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roadmap_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Roadmap Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/catalog/subject-review-queue": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Subject Review Queue",
+        "description": "Only shared resource labels: never include private node/material text (#99).",
+        "operationId": "subject_review_queue_api_v1_admin_catalog_subject_review_queue_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/costs": {
       "get": {
         "tags": [
@@ -3561,6 +4055,15 @@
             ],
             "title": "Level",
             "default": "university"
+          },
+          "language": {
+            "type": "string",
+            "enum": [
+              "vi",
+              "en"
+            ],
+            "title": "Language",
+            "default": "vi"
           }
         },
         "additionalProperties": false,
@@ -3617,6 +4120,40 @@
         ],
         "title": "DailyCost"
       },
+      "EdgeIn": {
+        "properties": {
+          "parent_id": {
+            "type": "string",
+            "title": "Parent Id"
+          },
+          "child_id": {
+            "type": "string",
+            "title": "Child Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "soft",
+              "strict"
+            ],
+            "title": "Kind",
+            "default": "strict"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "parent_id",
+          "child_id"
+        ],
+        "title": "EdgeIn"
+      },
       "EntryOut": {
         "properties": {
           "id": {
@@ -3656,6 +4193,208 @@
           "actual_minutes"
         ],
         "title": "EntryOut"
+      },
+      "ExerciseCitationOut": {
+        "properties": {
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          },
+          "license": {
+            "type": "string",
+            "title": "License"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_id",
+          "resource_id",
+          "title",
+          "url",
+          "institution",
+          "license"
+        ],
+        "title": "ExerciseCitationOut"
+      },
+      "ExerciseOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "mcq",
+              "numeric",
+              "short",
+              "proof",
+              "code"
+            ],
+            "title": "Type"
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt"
+          },
+          "choices": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Choices"
+          },
+          "difficulty": {
+            "type": "integer",
+            "title": "Difficulty"
+          },
+          "bloom_level": {
+            "type": "string",
+            "title": "Bloom Level"
+          },
+          "auto_grade": {
+            "type": "boolean",
+            "title": "Auto Grade"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/ExerciseCitationOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "prompt",
+          "choices",
+          "difficulty",
+          "bloom_level",
+          "auto_grade",
+          "location",
+          "citation"
+        ],
+        "title": "ExerciseOut"
+      },
+      "ExercisesOut": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "practice",
+              "checkpoint"
+            ],
+            "title": "Role"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "insufficient"
+            ],
+            "title": "Status"
+          },
+          "required": {
+            "type": "integer",
+            "title": "Required"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "exercises": {
+            "items": {
+              "$ref": "#/components/schemas/ExerciseOut"
+            },
+            "type": "array",
+            "title": "Exercises"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node_id",
+          "role",
+          "status",
+          "required",
+          "count",
+          "exercises"
+        ],
+        "title": "ExercisesOut"
       },
       "GoalCreate": {
         "properties": {
@@ -4012,6 +4751,23 @@
         ],
         "title": "JobOut"
       },
+      "LayoutIn": {
+        "properties": {
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/PositionIn"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "title": "Positions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "positions"
+        ],
+        "title": "LayoutIn"
+      },
       "LearningOutcomeIn": {
         "properties": {
           "code": {
@@ -4121,6 +4877,20 @@
           "password"
         ],
         "title": "Login"
+      },
+      "MaterialIn": {
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_id"
+        ],
+        "title": "MaterialIn"
       },
       "MemberOut": {
         "properties": {
@@ -4261,6 +5031,78 @@
           "status"
         ],
         "title": "NodeResourcesOut"
+      },
+      "NodeSourceSummary": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "insufficient"
+            ],
+            "title": "Status"
+          },
+          "source_count": {
+            "type": "integer",
+            "title": "Source Count"
+          },
+          "user_material_count": {
+            "type": "integer",
+            "title": "User Material Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node_id",
+          "status",
+          "source_count",
+          "user_material_count"
+        ],
+        "title": "NodeSourceSummary"
+      },
+      "NodeSourcesOut": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "insufficient"
+            ],
+            "title": "Status"
+          },
+          "source_count": {
+            "type": "integer",
+            "title": "Source Count"
+          },
+          "user_material_count": {
+            "type": "integer",
+            "title": "User Material Count"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/RankedSourceOut"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node_id",
+          "status",
+          "source_count",
+          "user_material_count",
+          "sources"
+        ],
+        "title": "NodeSourcesOut"
       },
       "NotificationOut": {
         "properties": {
@@ -4418,6 +5260,39 @@
           "ends_at"
         ],
         "title": "PlanRequest"
+      },
+      "PositionIn": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "x": {
+            "type": "number",
+            "maximum": 10000000.0,
+            "minimum": -10000000.0,
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "maximum": 10000000.0,
+            "minimum": -10000000.0,
+            "title": "Y"
+          },
+          "pinned": {
+            "type": "boolean",
+            "title": "Pinned",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "node_id",
+          "x",
+          "y"
+        ],
+        "title": "PositionIn"
       },
       "PrereqOut": {
         "properties": {
@@ -4582,6 +5457,115 @@
           "cost_usd"
         ],
         "title": "ProviderUsage"
+      },
+      "RankedSourceOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "user_material",
+              "catalog",
+              "web"
+            ],
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "pages": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Pages"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          },
+          "license": {
+            "type": "string",
+            "title": "License"
+          },
+          "format": {
+            "type": "string",
+            "title": "Format"
+          },
+          "duration_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Min"
+          },
+          "verification_status": {
+            "type": "string",
+            "title": "Verification Status"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "title",
+          "provider",
+          "license",
+          "format",
+          "verification_status",
+          "score",
+          "reason"
+        ],
+        "title": "RankedSourceOut"
       },
       "Register": {
         "properties": {
@@ -5363,6 +6347,27 @@
           "kind"
         ],
         "title": "SourceOut"
+      },
+      "SourceSummaryOut": {
+        "properties": {
+          "roadmap_id": {
+            "type": "string",
+            "title": "Roadmap Id"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/NodeSourceSummary"
+            },
+            "type": "array",
+            "title": "Nodes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "roadmap_id",
+          "nodes"
+        ],
+        "title": "SourceSummaryOut"
       },
       "SyllabusIn": {
         "properties": {

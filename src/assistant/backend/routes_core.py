@@ -27,6 +27,7 @@ from app.syllabus import (
     preview_syllabus as parse_preview,
 )
 
+from .catalog_repository import refresh_node_sources
 from .dependencies import DB, CurrentUser
 from .models import (
     Assessment,
@@ -40,6 +41,7 @@ from .models import (
     Syllabus,
     Task,
 )
+from .roadmap_repository import persist_generated_edges
 from .routes_courses import owned_course
 from .schemas import (
     PlanRequest,
@@ -287,6 +289,7 @@ def _roadmap_payload(roadmap: Roadmap, nodes: list[RoadmapNode]) -> dict:
 )
 def generate_roadmap(
     course_id: str,
+    request: Request,
     db: DB,
     user: CurrentUser,
     data: RoadmapGenerateIn | None = None,
@@ -332,6 +335,9 @@ def generate_roadmap(
         for spec in link(specs)
     ]
     db.add_all(nodes)
+    db.flush()
+    persist_generated_edges(db, roadmap, nodes)
+    refresh_node_sources(db, nodes, roadmap, course, request.app.state.now())
     db.commit()
     return _roadmap_payload(roadmap, nodes)
 

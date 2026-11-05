@@ -276,6 +276,10 @@ Nguồn chuẩn: [`db/schema.sql`](../../db/schema.sql). Tạo DB local: `python
 | `prereqs` | Cạnh của graph | `parent_id → child_id`, `kind` (strict/soft), `origin` (week_order/llm/user), `confidence` |
 | `roadmaps` **(mới)** | Một roadmap của một user cho một môn | `course_id`, `user_id`, `syllabus_id`, `status` (draft/active/archived), `weekly_minutes` |
 | `roadmap_nodes` **(mới)** | Một chặng | `roadmap_id`, `concept_id`, `week`, `kind` (topic/milestone), `est_minutes`, `due_at`, `status` (locked/available/in_progress/done/needs_review), `outcome_ids` (JSON) |
+| `roadmap_edges` | Cạnh giữa các chặng, migration `0009_roadmap_graph` (#100) | PK `(parent_id, child_id)`, `roadmap_id`, `kind` soft/strict, `origin` week_order/llm/user, `confidence`, `reason` ≤ 300, `created_by`, `created_at`; mọi lần ghi qua repository chặn cycle trong transaction |
+| `graph_layouts` | Vị trí kéo riêng của user, migration `0009` | PK `(user_id, node_id)`, `x`, `y`, `pinned`, `updated_at`; cascade khi xóa user/node |
+| `node_materials` | Contract gắn từng trang tài liệu riêng vào node (#114/#102) | PK `(node_id, source_id)`, `confidence`; nguồn phải thuộc cùng môn và chủ sở hữu |
+| `node_source_status` | Tín hiệu lấp khoảng trống cho #105 | `node_id`, `status` ready/insufficient, `updated_at`; cập nhật khi generate/search, GET không ghi dữ liệu |
 | `resources` **(mới)** | Một nguồn web đã kiểm tra, dùng chung giữa các user | `canonical_url` (unique), `title`, `provider`, `domain`, `format` (article/video/course/book/paper/exercise), `language`, `duration_min`, `license`, `is_free`, `content_hash`, `last_checked_at`, `http_status` |
 | `node_resources` **(mới)** | Nguồn được chọn cho một chặng | `node_id`, `resource_id`, `rank`, `score`, `score_breakdown` (JSON), `reason`, `evidence_quote`, `pinned_by` (user id hoặc null), `status` (shown/replaced/removed) |
 | `resource_feedback` **(mới)** | Đánh giá của người học | `user_id`, `node_id`, `resource_id`, `helpful` (bool), `reason` (wrong_level/dead_link/low_quality/off_topic/other), `created_at` |
@@ -289,7 +293,8 @@ Nguồn chuẩn: [`db/schema.sql`](../../db/schema.sql). Tạo DB local: `python
 
 | Bảng | Mục đích | Trường quan trọng |
 | --- | --- | --- |
-| `items` | Bài tập luyện tập | `type` (mcq/numeric/short/code/spot_bug), `origin` (user_material/catalog), `source_id` hoặc `resource_id` + `location` (trang, số bài), `license`, `answer` (nếu nguồn có), `rubric`, `graded`, `status` |
+| `exercises`, `exercise_subjects`, `node_exercises` | Ngân hàng bài tập nguyên văn có kiểm chứng, migration `0010_quoted_exercises` (#115) | `origin` catalog/user_material, `resource_id` hoặc `source_id` + page, `owner_id`, `quote_hash`, `source_hash`, giấy phép, vị trí nguồn; bài chỉ-link không lưu đề/đáp án; role practice/checkpoint |
+| `items` | Bài tập luyện tập; FSRS bridge có `exercise_id` FK tới ngân hàng bài tập | `type` (mcq/numeric/short/code/spot_bug), `origin` (user_material/catalog), `source_id` hoặc `resource_id` + `location` (trang, số bài), `license`, `answer` (nếu nguồn có), `rubric`, `graded`, `status` |
 | `cards` | Trạng thái ôn tập của 1 user với 1 item | `fsrs_state` (JSON), `due_at` |
 | `reviews` | Log mỗi lần trả lời, chỉ thêm, không sửa | `rating` (1–4), `answer_text`, `score`, `reviewed_at` |
 | `companion_events` | Sự kiện cho companion | `kind` (node_done/milestone/streak/unlock/checkin), `payload` |

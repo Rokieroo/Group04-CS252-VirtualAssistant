@@ -384,6 +384,7 @@ class ReportOut(Output):
 class CourseCreate(Input):
     title: Title
     level: AccountLevel = "university"
+    language: Literal["vi", "en"] = "vi"
 
 
 class CourseOut(Output):

@@ -49,24 +49,32 @@ class MockJudgeLLM(LLMClient):
         for quote in (QUOTE_1, QUOTE_2, QUOTE_3):
             if quote in prompt:
                 return LLMResult(
-                    json.dumps({
-                        "relevance": 4,
-                        "level_fit": 4,
-                        "pedagogy": 4,
-                        "evidence_quote": quote,
-                        "reason": f"Matches CLO1: {quote}",
-                    }),
-                    100, 20, 0.005,
+                    json.dumps(
+                        {
+                            "relevance": 4,
+                            "level_fit": 4,
+                            "pedagogy": 4,
+                            "evidence_quote": quote,
+                            "reason": f"Matches CLO1: {quote}",
+                        }
+                    ),
+                    100,
+                    20,
+                    0.005,
                 )
         return LLMResult(
-            json.dumps({
-                "relevance": 4,
-                "level_fit": 4,
-                "pedagogy": 4,
-                "evidence_quote": QUOTE_1,
-                "reason": "Recursion fundamentals",
-            }),
-            100, 20, 0.005,
+            json.dumps(
+                {
+                    "relevance": 4,
+                    "level_fit": 4,
+                    "pedagogy": 4,
+                    "evidence_quote": QUOTE_1,
+                    "reason": "Recursion fundamentals",
+                }
+            ),
+            100,
+            20,
+            0.005,
         )
 
 
@@ -75,21 +83,31 @@ class ModerateJudgeLLM(LLMClient):
 
     def complete(self, prompt, **options):
         return LLMResult(
-            json.dumps({
-                "relevance": 3,
-                "level_fit": 3,
-                "pedagogy": 3,
-                "evidence_quote": QUOTE_1,
-                "reason": "Moderate fit for curriculum",
-            }),
-            100, 20, 0.005,
+            json.dumps(
+                {
+                    "relevance": 3,
+                    "level_fit": 3,
+                    "pedagogy": 3,
+                    "evidence_quote": QUOTE_1,
+                    "reason": "Moderate fit for curriculum",
+                }
+            ),
+            100,
+            20,
+            0.005,
         )
 
 
 def make_test_search(urls=URLS):
     candidates = [
-        Candidate(url, f"Article on {url.split('/')[-1]}", "web", "article", "en",
-                  snippet=f"{QUOTE_1} on {url}")
+        Candidate(
+            url,
+            f"Article on {url.split('/')[-1]}",
+            "web",
+            "article",
+            "en",
+            snippet=f"{QUOTE_1} on {url}",
+        )
         for url in urls
     ]
     return SearchService([FakeSearch(candidates, name="web")])
@@ -126,7 +144,9 @@ def sessions(app):
 
 def setup_course_and_roadmap(sessions, user_id, title="Recursion"):
     with sessions() as db:
-        course = Course(owner_id=user_id, title="Data Structures", level="university", language="en")
+        course = Course(
+            owner_id=user_id, title="Data Structures", level="university", language="en"
+        )
         db.add(course)
         db.flush()
 
@@ -134,10 +154,17 @@ def setup_course_and_roadmap(sessions, user_id, title="Recursion"):
         db.add(syllabus)
         db.flush()
 
-        db.add(LearningOutcome(syllabus_id=syllabus.id, code="CLO1",
-                               description="Write recursive algorithms with proper base cases"))
+        db.add(
+            LearningOutcome(
+                syllabus_id=syllabus.id,
+                code="CLO1",
+                description="Write recursive algorithms with proper base cases",
+            )
+        )
 
-        roadmap = Roadmap(course_id=course.id, user_id=user_id, title="Data Structures Roadmap")
+        roadmap = Roadmap(
+            course_id=course.id, user_id=user_id, title="Data Structures Roadmap"
+        )
         db.add(roadmap)
         db.flush()
 
@@ -162,6 +189,53 @@ def setup_course_and_roadmap(sessions, user_id, title="Recursion"):
         return course.id, roadmap.id, node1.id, node2.id
 
 
+def verify_test_catalog(sessions, node_id):
+    """Synthetic verifier fixture: #102 requires four checks, not merely a cached score."""
+    from app.search import node_signature
+    from assistant.backend.cache import cached_search
+    from assistant.backend.catalog_models import ResourceVerification
+    from assistant.backend.models import Resource
+    from assistant.backend.resources import _outcomes
+
+    with sessions() as db:
+        node = db.get(RoadmapNode, node_id)
+        roadmap = db.get(Roadmap, node.roadmap_id)
+        course = db.get(Course, roadmap.course_id)
+        signature = node_signature(
+            node.title, list(_outcomes(db, course.id)), course.level, course.language
+        )
+        cached = cached_search(db, signature, NOW)
+        for scored in (
+            (cached["resources"] + cached.get("reserve", [])) if cached else []
+        ):
+            row = db.scalars(
+                select(Resource).where(Resource.url == scored["url"])
+            ).first()
+            if row is None:
+                row = Resource(
+                    url=scored["url"],
+                    canonical_url=scored["url"],
+                    title=scored["title"],
+                    lang=scored["lang"],
+                    content_hash=scored["content_hash"],
+                )
+                db.add(row)
+                db.flush()
+            row.verification_status = "verified"
+            row.license = "CC0-1.0"
+            for check in ("fetch", "domain", "license", "metadata"):
+                db.add(
+                    ResourceVerification(
+                        resource_id=row.id,
+                        check_name=check,
+                        result="pass",
+                        checked_at=NOW.replace(hour=0),
+                        checked_by="test:synthetic-verifier",
+                    )
+                )
+        db.commit()
+
+
 # ==============================================================================
 # 1. Search resources endpoint tests
 # ==============================================================================
@@ -171,7 +245,9 @@ def test_search_resources_enqueues_background_job(client, headers, sessions):
     user_id = client.get("/api/v1/me", headers=headers).json()["id"]
     _, _, node_id, _ = setup_course_and_roadmap(sessions, user_id)
 
-    response = client.post(f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers)
+    response = client.post(
+        f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers
+    )
     assert response.status_code == 202
     data = response.json()
     assert "run_id" in data
@@ -192,7 +268,9 @@ def test_search_resources_ownership_check(client, headers, headers_a, sessions):
     _, _, node_id, _ = setup_course_and_roadmap(sessions, user_id)
 
     # Calling as another user returns 404
-    response = client.post(f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers_a)
+    response = client.post(
+        f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers_a
+    )
     assert response.status_code == 404
 
 
@@ -202,11 +280,15 @@ def test_search_resources_rate_limit(client, headers, sessions):
 
     # Enqueue up to the 20 requests/hour limit
     for _ in range(20):
-        res = client.post(f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers)
+        res = client.post(
+            f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers
+        )
         assert res.status_code == 202
 
     # 21st request should be rate-limited (HTTP 429)
-    res_21 = client.post(f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers)
+    res_21 = client.post(
+        f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers
+    )
     assert res_21.status_code == 429
     assert "Retry-After" in res_21.headers
 
@@ -231,15 +313,21 @@ def test_get_resources_searching_status_when_job_active(client, headers, session
     assert data["resources"] == []
 
 
-def test_get_resources_ready_after_job_completes(client, headers, sessions, mock_pipeline):
+def test_get_resources_ready_after_job_completes(
+    client, headers, sessions, mock_pipeline
+):
     user_id = client.get("/api/v1/me", headers=headers).json()["id"]
     _, _, node_id, _ = setup_course_and_roadmap(sessions, user_id)
 
     # Enqueue and execute the search job
-    search_res = client.post(f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers)
+    search_res = client.post(
+        f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers
+    )
     run_id = search_res.json()["run_id"]
 
     assert jobs.run_once(sessions, NOW) == run_id
+
+    verify_test_catalog(sessions, node_id)
 
     # GET returns ready with curated resources
     res = client.get(f"/api/v1/roadmap-nodes/{node_id}/resources", headers=headers)
@@ -259,12 +347,27 @@ def test_get_resources_ready_after_job_completes(client, headers, sessions, mock
     assert first["evidence_quote"]
 
 
-def test_get_resources_insufficient_when_few_found(client, headers, sessions, monkeypatch):
+def test_get_resources_insufficient_when_few_found(
+    client, headers, sessions, monkeypatch
+):
     # Only 1 candidate available -> less than MIN_SOURCES (2)
-    single_search = lambda: SearchService([FakeSearch(
-        [Candidate("https://single.org/res", "Single", "web", "article", "en", snippet=QUOTE_1)],
-        name="web",
-    )])
+    single_search = lambda: SearchService(
+        [
+            FakeSearch(
+                [
+                    Candidate(
+                        "https://single.org/res",
+                        "Single",
+                        "web",
+                        "article",
+                        "en",
+                        snippet=QUOTE_1,
+                    )
+                ],
+                name="web",
+            )
+        ]
+    )
     monkeypatch.setattr(resources, "make_search", single_search)
     monkeypatch.setattr(resources, "make_llm", MockJudgeLLM)
     monkeypatch.setattr(resources, "make_fetcher", make_safe_fetcher)
@@ -272,7 +375,9 @@ def test_get_resources_insufficient_when_few_found(client, headers, sessions, mo
     user_id = client.get("/api/v1/me", headers=headers).json()["id"]
     _, _, node_id, _ = setup_course_and_roadmap(sessions, user_id)
 
-    search_res = client.post(f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers)
+    search_res = client.post(
+        f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers
+    )
     assert jobs.run_once(sessions, NOW) == search_res.json()["run_id"]
 
     res = client.get(f"/api/v1/roadmap-nodes/{node_id}/resources", headers=headers)
@@ -291,8 +396,12 @@ def test_resource_feedback_helpful(client, headers, sessions, mock_pipeline):
     user_id = client.get("/api/v1/me", headers=headers).json()["id"]
     _, _, node_id, _ = setup_course_and_roadmap(sessions, user_id)
 
-    search_res = client.post(f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers)
+    search_res = client.post(
+        f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers
+    )
     assert jobs.run_once(sessions, NOW) == search_res.json()["run_id"]
+
+    verify_test_catalog(sessions, node_id)
 
     get_res = client.get(f"/api/v1/roadmap-nodes/{node_id}/resources", headers=headers)
     resource_id = get_res.json()["resources"][0]["id"]
@@ -318,7 +427,9 @@ def test_resource_feedback_helpful(client, headers, sessions, mock_pipeline):
         assert fb.rating == 1
 
 
-def test_resource_feedback_unhelpful_returns_replacement(client, headers, sessions, monkeypatch):
+def test_resource_feedback_unhelpful_returns_replacement(
+    client, headers, sessions, monkeypatch
+):
     pool_urls = [f"https://example{i}.org/recursion-{i}" for i in range(8)]
     monkeypatch.setattr(resources, "make_search", lambda: make_test_search(pool_urls))
     monkeypatch.setattr(resources, "make_llm", ModerateJudgeLLM)
@@ -327,8 +438,12 @@ def test_resource_feedback_unhelpful_returns_replacement(client, headers, sessio
     user_id = client.get("/api/v1/me", headers=headers).json()["id"]
     _, _, node_id, _ = setup_course_and_roadmap(sessions, user_id)
 
-    search_res = client.post(f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers)
+    search_res = client.post(
+        f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers
+    )
     assert jobs.run_once(sessions, NOW) == search_res.json()["run_id"]
+
+    verify_test_catalog(sessions, node_id)
 
     get_res = client.get(f"/api/v1/roadmap-nodes/{node_id}/resources", headers=headers)
     resources_before = get_res.json()["resources"]
@@ -371,7 +486,9 @@ def test_resource_feedback_unhelpful_returns_replacement(client, headers, sessio
         assert fb.comment == "wrong_level"
 
     # Subsequent GET no longer lists the replaced resource
-    after_res = client.get(f"/api/v1/roadmap-nodes/{node_id}/resources", headers=headers)
+    after_res = client.get(
+        f"/api/v1/roadmap-nodes/{node_id}/resources", headers=headers
+    )
     shown_ids = [r["id"] for r in after_res.json()["resources"]]
     assert dropped_resource_id not in shown_ids
     assert replacement["id"] in shown_ids
@@ -390,10 +507,18 @@ def test_roadmap_replan_proposal_diff_without_commit(client, headers, sessions):
     client.put(
         "/api/v1/availability",
         headers=headers,
-        json={"windows": [
-            {"starts_at": (NOW + timedelta(days=1)).isoformat(), "ends_at": (NOW + timedelta(days=1, hours=3)).isoformat()},
-            {"starts_at": (NOW + timedelta(days=2)).isoformat(), "ends_at": (NOW + timedelta(days=2, hours=3)).isoformat()},
-        ]},
+        json={
+            "windows": [
+                {
+                    "starts_at": (NOW + timedelta(days=1)).isoformat(),
+                    "ends_at": (NOW + timedelta(days=1, hours=3)).isoformat(),
+                },
+                {
+                    "starts_at": (NOW + timedelta(days=2)).isoformat(),
+                    "ends_at": (NOW + timedelta(days=2, hours=3)).isoformat(),
+                },
+            ]
+        },
     )
 
     # Initial schedule
@@ -403,7 +528,11 @@ def test_roadmap_replan_proposal_diff_without_commit(client, headers, sessions):
     assert initial_entries_count > 0
 
     # Call replan with approve=False -> returns proposal diff
-    replan_res = client.post(f"/api/v1/roadmaps/{roadmap_id}:replan", headers=headers, json={"approve": False})
+    replan_res = client.post(
+        f"/api/v1/roadmaps/{roadmap_id}:replan",
+        headers=headers,
+        json={"approve": False},
+    )
     assert replan_res.status_code == 200
     data = replan_res.json()
     assert data["roadmap_id"] == roadmap_id
@@ -426,16 +555,26 @@ def test_roadmap_replan_rate_limit_one_proposal_per_day(client, headers, session
     _, roadmap_id, _, _ = setup_course_and_roadmap(sessions, user_id)
 
     # First proposal succeeds
-    res1 = client.post(f"/api/v1/roadmaps/{roadmap_id}:replan", headers=headers, json={"approve": False})
+    res1 = client.post(
+        f"/api/v1/roadmaps/{roadmap_id}:replan",
+        headers=headers,
+        json={"approve": False},
+    )
     assert res1.status_code == 200
 
     # Second proposal on the same day returns 429
-    res2 = client.post(f"/api/v1/roadmaps/{roadmap_id}:replan", headers=headers, json={"approve": False})
+    res2 = client.post(
+        f"/api/v1/roadmaps/{roadmap_id}:replan",
+        headers=headers,
+        json={"approve": False},
+    )
     assert res2.status_code == 429
     assert "Retry-After" in res2.headers
 
 
-def test_roadmap_replan_approve_commits_and_preserves_completed_work(client, headers, sessions):
+def test_roadmap_replan_approve_commits_and_preserves_completed_work(
+    client, headers, sessions
+):
     user_id = client.get("/api/v1/me", headers=headers).json()["id"]
     _, roadmap_id, node1_id, _ = setup_course_and_roadmap(sessions, user_id)
 
@@ -443,11 +582,22 @@ def test_roadmap_replan_approve_commits_and_preserves_completed_work(client, hea
     client.put(
         "/api/v1/availability",
         headers=headers,
-        json={"windows": [
-            {"starts_at": (NOW + timedelta(days=1)).isoformat(), "ends_at": (NOW + timedelta(days=1, hours=3)).isoformat()},
-            {"starts_at": (NOW + timedelta(days=2)).isoformat(), "ends_at": (NOW + timedelta(days=2, hours=3)).isoformat()},
-            {"starts_at": (NOW + timedelta(days=3)).isoformat(), "ends_at": (NOW + timedelta(days=3, hours=3)).isoformat()},
-        ]},
+        json={
+            "windows": [
+                {
+                    "starts_at": (NOW + timedelta(days=1)).isoformat(),
+                    "ends_at": (NOW + timedelta(days=1, hours=3)).isoformat(),
+                },
+                {
+                    "starts_at": (NOW + timedelta(days=2)).isoformat(),
+                    "ends_at": (NOW + timedelta(days=2, hours=3)).isoformat(),
+                },
+                {
+                    "starts_at": (NOW + timedelta(days=3)).isoformat(),
+                    "ends_at": (NOW + timedelta(days=3, hours=3)).isoformat(),
+                },
+            ]
+        },
     )
 
     sched_res = client.post(f"/api/v1/roadmaps/{roadmap_id}:schedule", headers=headers)
@@ -456,7 +606,9 @@ def test_roadmap_replan_approve_commits_and_preserves_completed_work(client, hea
     # Complete node 1's task directly
     with sessions() as db:
         task1 = db.scalars(
-            select(Task).where(Task.owner_id == user_id, Task.roadmap_node_id == node1_id)
+            select(Task).where(
+                Task.owner_id == user_id, Task.roadmap_node_id == node1_id
+            )
         ).one()
         task1.status = "completed"
         task1.completed_minutes = task1.duration_minutes
@@ -475,7 +627,9 @@ def test_roadmap_replan_approve_commits_and_preserves_completed_work(client, hea
         completed_entry_id = completed_entry.id
 
     # Call replan with approve=True
-    replan_res = client.post(f"/api/v1/roadmaps/{roadmap_id}:replan", headers=headers, json={"approve": True})
+    replan_res = client.post(
+        f"/api/v1/roadmaps/{roadmap_id}:replan", headers=headers, json={"approve": True}
+    )
     assert replan_res.status_code == 200
     data = replan_res.json()
     assert data["committed"] is True
@@ -489,3 +643,63 @@ def test_roadmap_replan_approve_commits_and_preserves_completed_work(client, hea
 
         task1 = db.get(Task, task1.id)
         assert task1.status == "completed"
+
+
+def test_old_cached_quote_is_hidden_when_verified_resource_content_changes(
+    client, headers, sessions, mock_pipeline
+):
+    from assistant.backend.models import Resource
+
+    user_id = client.get("/api/v1/me", headers=headers).json()["id"]
+    _, _, node_id, _ = setup_course_and_roadmap(sessions, user_id)
+    job = client.post(
+        f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers
+    ).json()["run_id"]
+    assert jobs.run_once(sessions, NOW) == job
+    verify_test_catalog(sessions, node_id)
+    endpoint = f"/api/v1/roadmap-nodes/{node_id}/resources"
+    before = client.get(endpoint, headers=headers).json()["resources"]
+    assert before
+    changed_id = before[0]["id"]
+    with sessions() as db:
+        resource = db.get(Resource, changed_id)
+        resource.content_hash = "a" * 64
+        db.commit()
+    after = client.get(endpoint, headers=headers).json()["resources"]
+    assert changed_id not in {r["id"] for r in after}
+
+
+def test_feedback_does_not_return_reserve_with_stale_cached_provenance(
+    client, headers, sessions, monkeypatch
+):
+    from assistant.backend.models import Resource
+
+    pool_urls = [f"https://example{i}.org/recursion-{i}" for i in range(8)]
+    monkeypatch.setattr(resources, "make_search", lambda: make_test_search(pool_urls))
+    monkeypatch.setattr(resources, "make_llm", ModerateJudgeLLM)
+    monkeypatch.setattr(resources, "make_fetcher", make_safe_fetcher)
+    user_id = client.get("/api/v1/me", headers=headers).json()["id"]
+    _, _, node_id, _ = setup_course_and_roadmap(sessions, user_id)
+    job = client.post(
+        f"/api/v1/roadmap-nodes/{node_id}/resources:search", headers=headers
+    ).json()["run_id"]
+    assert jobs.run_once(sessions, NOW) == job
+    verify_test_catalog(sessions, node_id)
+    shown = client.get(
+        f"/api/v1/roadmap-nodes/{node_id}/resources", headers=headers
+    ).json()["resources"]
+    assert len(shown) == 5
+    shown_ids = {r["id"] for r in shown}
+    with sessions() as db:
+        for resource in db.scalars(
+            select(Resource).where(Resource.id.not_in(shown_ids))
+        ):
+            resource.content_hash = "b" * 64
+        db.commit()
+    result = client.post(
+        f"/api/v1/resources/{shown[0]['id']}/feedback",
+        headers=headers,
+        json={"node_id": node_id, "helpful": False, "reason": "wrong_level"},
+    )
+    assert result.status_code == 200, result.text
+    assert result.json()["replacement"] is None
