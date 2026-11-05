@@ -125,7 +125,7 @@ def shown_resources(client, headers, sessions, urls):
     ).json()
     node_id = roadmap["nodes"][0]["id"]
     with sessions() as db:
-        resources = [Resource(url=url, title=url) for url in urls]
+        resources = [Resource(url=url, canonical_url=url, title=url) for url in urls]
         db.add_all(resources)
         db.flush()
         db.add_all(NodeResource(node_id=node_id, resource_id=r.id) for r in resources)

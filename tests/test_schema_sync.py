@@ -8,7 +8,7 @@ from alembic.migration import MigrationContext
 from sqlalchemy import create_engine, inspect
 
 from alembic import command
-from app.db import get_engine, init_db
+from app.db import _TABLES, get_engine, init_db
 from assistant.backend.database import Database
 from assistant.backend.models import Base
 
@@ -67,6 +67,12 @@ def test_orm_models_match_migrations(tmp_path):
         diffs = compare_metadata(context, Base.metadata)
     # The ORM maps only some tables; ignore differences in the ones it does not own.
     assert [diff for diff in diffs if _table_of(diff) in mapped] == []
+
+
+def test_reset_knows_every_table(tmp_path):
+    # A reset on PostgreSQL drops _TABLES in reverse; a missing table blocks the drop.
+    created = init_db(database_url=tmp_path / "all.db", reset=True)
+    assert set(created) == {*_TABLES, "alembic_version"}
 
 
 def test_backend_accepts_a_database_created_by_the_dev_cli(tmp_path):

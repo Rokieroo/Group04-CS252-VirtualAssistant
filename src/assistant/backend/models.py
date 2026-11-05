@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     Float,
@@ -19,7 +20,13 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import (
+    DeclarativeBase,
+    Mapped,
+    declared_attr,
+    mapped_column,
+    relationship,
+)
 from sqlalchemy.types import TypeDecorator
 
 
@@ -364,6 +371,31 @@ class Resource(Base):
     )
     http_status: Mapped[int | None] = mapped_column(Integer, nullable=True)
     failed_checks: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # Verified catalog (migration 0008). One row per canonical_url; url is what the user opens.
+    canonical_url: Mapped[str] = mapped_column(Text)
+    domain: Mapped[str | None] = mapped_column(Text, nullable=True)
+    format: Mapped[str | None] = mapped_column(Text, nullable=True)
+    license: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_free: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    duration_min: Mapped[int | None] = mapped_column(
+        Integer, CheckConstraint("duration_min >= 0"), nullable=True
+    )
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source_connector: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ingested_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    verification_status: Mapped[str] = mapped_column(
+        String(16),
+        CheckConstraint(
+            "verification_status IN ('pending', 'verified', 'rejected', 'stale')"
+        ),
+        default="pending",
+        server_default="pending",
+        index=True,
+    )
+    __table_args__ = (
+        Index("ux_resources_canonical_url", "canonical_url", unique=True),
+        Index("ix_resources_domain", "domain"),
+    )
 
 
 class NodeResource(Base):
@@ -491,3 +523,135 @@ class SearchCacheEntry(Base):
     signature: Mapped[str] = mapped_column(String(64), primary_key=True)
     payload: Mapped[str] = mapped_column(Text)
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+
+
+# --- verified catalog (migration 0008, ADR 004) ---------------------------------
+
+
+class Institution(Base):
+    """A university or official K-12 source; ``tier`` is its ``DomainTier`` (#96)."""
+
+    __tablename__ = "institutions"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    ror_id: Mapped[str] = mapped_column(Text, unique=True)  # or vn-k12:<slug>
+    name: Mapped[str] = mapped_column(Text)
+    name_vi: Mapped[str | None] = mapped_column(Text, nullable=True)
+    country: Mapped[str] = mapped_column(Text)
+    domain: Mapped[str] = mapped_column(Text)
+    tier: Mapped[int] = mapped_column(Integer, default=3, server_default="3")
+    rank_signal: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
+    __table_args__ = (CheckConstraint("tier BETWEEN 1 AND 3"),)
+
+
+class CatalogCourse(Base):
+    """A course or book of a provider; upserts key on ``(provider, external_id)``."""
+
+    __tablename__ = "catalog_courses"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    institution_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("institutions.id", ondelete="SET NULL"), index=True
+    )
+    provider: Mapped[str] = mapped_column(Text)
+    external_id: Mapped[str] = mapped_column(Text)
+    code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    title: Mapped[str] = mapped_column(Text)
+    level: Mapped[str] = mapped_column(Text)  # k12 | undergrad | grad
+    grade: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    language: Mapped[str] = mapped_column(Text)
+    license: Mapped[str | None] = mapped_column(Text, nullable=True)
+    url: Mapped[str] = mapped_column(Text)
+    year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    __table_args__ = (
+        UniqueConstraint("provider", "external_id"),
+        CheckConstraint("level IN ('k12', 'undergrad', 'grad')"),
+        CheckConstraint("grade BETWEEN 1 AND 12"),
+    )
+
+
+class CatalogUnit(Base):
+    """A lecture, chapter or problem set; one resource may serve many courses."""
+
+    __tablename__ = "catalog_units"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    course_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("catalog_courses.id", ondelete="CASCADE")
+    )
+    position: Mapped[int] = mapped_column(Integer)
+    title: Mapped[str] = mapped_column(Text)
+    resource_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("resources.id", ondelete="SET NULL"), index=True
+    )
+    __table_args__ = (
+        UniqueConstraint("course_id", "position"),
+        CheckConstraint("position >= 1"),
+    )
+
+
+class Subject(Base):
+    """A node of the subject taxonomy: field -> subject -> topic (#99)."""
+
+    __tablename__ = "subjects"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    parent_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("subjects.id")
+    )
+    slug: Mapped[str] = mapped_column(Text, unique=True)
+    name: Mapped[str] = mapped_column(Text)
+    name_vi: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class _Tag:
+    """How a subject label was assigned: ``method`` is rule | embedding | llm | manual."""
+
+    subject_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("subjects.id", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
+    )
+    confidence: Mapped[float] = mapped_column(Float, default=1.0, server_default="1")
+    method: Mapped[str] = mapped_column(Text)
+
+    @declared_attr.directive
+    def __table_args__(cls):  # a constraint belongs to one table, so one per subclass
+        return (CheckConstraint("confidence >= 0 AND confidence <= 1"),)
+
+
+class ResourceSubject(_Tag, Base):
+    __tablename__ = "resource_subjects"
+    resource_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("resources.id", ondelete="CASCADE"), primary_key=True
+    )
+
+
+class NodeSubject(_Tag, Base):
+    """Deleted with its roadmap; the shared resources and subjects stay."""
+
+    __tablename__ = "node_subjects"
+    node_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("roadmap_nodes.id", ondelete="CASCADE"), primary_key=True
+    )
+
+
+class ResourceVerification(Base):
+    """Append-only: one row per check on a resource (#101). Insert, never update."""
+
+    __tablename__ = "resource_verifications"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    resource_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("resources.id", ondelete="CASCADE")
+    )
+    check_name: Mapped[str] = mapped_column(Text)  # fetch | domain | license | metadata
+    result: Mapped[str] = mapped_column(Text)  # pass | fail | review
+    details: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
+    checked_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), default=utcnow, server_default=func.current_timestamp()
+    )
+    checked_by: Mapped[str] = mapped_column(Text)  # job name or admin user id
+    __table_args__ = (
+        Index(
+            "ix_resource_verifications_resource_id_checked_at",
+            "resource_id",
+            "checked_at",
+        ),
+    )
