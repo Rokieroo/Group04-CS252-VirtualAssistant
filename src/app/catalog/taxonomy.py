@@ -160,8 +160,8 @@ def save_tags(db, kind, identifier, tags, content, *, vector=None, model=MODEL):
         if not db.scalar(text("SELECT id FROM subjects WHERE id=:id"), row):
             db.execute(
                 text(
-                    "INSERT INTO subjects (id,parent_id,name,name_vi) "
-                    "VALUES (:id,:parent_id,:name,:name_vi)"
+                    "INSERT INTO subjects (id,parent_id,slug,name,name_vi) "
+                    "VALUES (:id,:parent_id,:id,:name,:name_vi)"
                 ),
                 {"parent_id": None, **row},
             )

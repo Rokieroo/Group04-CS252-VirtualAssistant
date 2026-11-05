@@ -12,7 +12,29 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .models import Base, UTCDateTime, _uuid, utcnow
+from .models import (
+    Base,
+    CatalogCourse,
+    CatalogUnit,
+    Institution,
+    NodeSubject,
+    ResourceSubject,
+    ResourceVerification,
+    Subject,
+    UTCDateTime,
+    _uuid,
+    utcnow,
+)
+
+__all__ = [
+    "CatalogCourse",
+    "CatalogUnit",
+    "Institution",
+    "NodeSubject",
+    "ResourceSubject",
+    "ResourceVerification",
+    "Subject",
+]
 
 
 class Concept(Base):
@@ -30,103 +52,6 @@ class Concept(Base):
     source_pages: Mapped[str | None] = mapped_column(Text)
     confirmed: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     __table_args__ = (UniqueConstraint("course_id", "slug"),)
-
-
-class Institution(Base):
-    __tablename__ = "institutions"
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    ror_id: Mapped[str] = mapped_column(Text, unique=True)
-    name: Mapped[str] = mapped_column(Text)
-    name_vi: Mapped[str | None] = mapped_column(Text)
-    country: Mapped[str] = mapped_column(Text)
-    domain: Mapped[str] = mapped_column(Text, index=True)
-    tier: Mapped[int] = mapped_column(Integer)
-    rank_signal: Mapped[str] = mapped_column(Text, default="{}", server_default="{}")
-    __table_args__ = (
-        CheckConstraint("tier BETWEEN 1 AND 3", name="ck_institutions_tier"),
-    )
-
-
-class CatalogCourse(Base):
-    __tablename__ = "catalog_courses"
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    institution_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("institutions.id", ondelete="SET NULL")
-    )
-    provider: Mapped[str] = mapped_column(Text)
-    external_id: Mapped[str] = mapped_column(Text)
-    code: Mapped[str | None] = mapped_column(Text)
-    title: Mapped[str] = mapped_column(Text)
-    level: Mapped[str] = mapped_column(
-        Text, default="undergrad", server_default="undergrad"
-    )
-    grade: Mapped[int | None] = mapped_column(Integer)
-    language: Mapped[str] = mapped_column(Text, default="en", server_default="en")
-    license: Mapped[str | None] = mapped_column(Text)
-    url: Mapped[str] = mapped_column(Text)
-    year: Mapped[int | None] = mapped_column(Integer)
-    __table_args__ = (UniqueConstraint("provider", "external_id"),)
-
-
-class CatalogUnit(Base):
-    __tablename__ = "catalog_units"
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    course_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("catalog_courses.id", ondelete="CASCADE")
-    )
-    position: Mapped[int] = mapped_column(Integer)
-    title: Mapped[str] = mapped_column(Text)
-    resource_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("resources.id", ondelete="CASCADE")
-    )
-
-
-class Subject(Base):
-    __tablename__ = "subjects"
-    id: Mapped[str] = mapped_column(Text, primary_key=True)
-    parent_id: Mapped[str | None] = mapped_column(Text, ForeignKey("subjects.id"))
-    name: Mapped[str] = mapped_column(Text)
-    name_vi: Mapped[str] = mapped_column(Text)
-
-
-class ResourceSubject(Base):
-    __tablename__ = "resource_subjects"
-    resource_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("resources.id", ondelete="CASCADE"), primary_key=True
-    )
-    subject_id: Mapped[str] = mapped_column(
-        Text,
-        ForeignKey("subjects.id", ondelete="CASCADE"),
-        primary_key=True,
-        index=True,
-    )
-    confidence: Mapped[float] = mapped_column()
-    method: Mapped[str] = mapped_column(Text)
-    __table_args__ = (
-        CheckConstraint(
-            "confidence BETWEEN 0 AND 1", name="ck_resource_subject_confidence"
-        ),
-    )
-
-
-class NodeSubject(Base):
-    __tablename__ = "node_subjects"
-    node_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("roadmap_nodes.id", ondelete="CASCADE"), primary_key=True
-    )
-    subject_id: Mapped[str] = mapped_column(
-        Text,
-        ForeignKey("subjects.id", ondelete="CASCADE"),
-        primary_key=True,
-        index=True,
-    )
-    confidence: Mapped[float] = mapped_column()
-    method: Mapped[str] = mapped_column(Text)
-    __table_args__ = (
-        CheckConstraint(
-            "confidence BETWEEN 0 AND 1", name="ck_node_subject_confidence"
-        ),
-    )
 
 
 class CatalogEmbedding(Base):
@@ -151,21 +76,6 @@ class NodeSourceStatus(Base):
     )
     status: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
-
-
-class ResourceVerification(Base):
-    __tablename__ = "resource_verifications"
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    resource_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("resources.id", ondelete="CASCADE"), index=True
-    )
-    check: Mapped[str] = mapped_column(Text)
-    result: Mapped[str] = mapped_column(Text)
-    details: Mapped[str] = mapped_column(Text, default="{}", server_default="{}")
-    checked_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
-    checked_by: Mapped[str | None] = mapped_column(
-        Text, ForeignKey("users.id", ondelete="SET NULL")
-    )
 
 
 class RoadmapEdge(Base):

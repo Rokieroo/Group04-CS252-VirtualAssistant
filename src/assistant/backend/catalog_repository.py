@@ -40,7 +40,7 @@ def verified_resources(db, now):
             ResourceVerification.checked_at.desc(), ResourceVerification.id.desc()
         )
     ):
-        checks[row.resource_id].setdefault(row.check, row)
+        checks[row.resource_id].setdefault(row.check_name, row)
     tags = defaultdict(set)
     for row in db.scalars(
         select(ResourceSubject).where(ResourceSubject.confidence >= 0.6)
@@ -114,6 +114,16 @@ def verified_resources(db, now):
 def node_sources(db, nodes, roadmap, course, now, *, limit=5):
     """One bulk context for a full roadmap, avoiding a query per node (#102)."""
     identifiers = [n.id for n in nodes]
+    node_vectors = {
+        r.id: json.loads(r.vector)
+        for r in db.scalars(
+            select(CatalogEmbedding).where(
+                CatalogEmbedding.kind == "node",
+                CatalogEmbedding.id.in_(identifiers),
+                CatalogEmbedding.model == "sha256-word-bigram-256-v1",
+            )
+        )
+    }
     tags = defaultdict(set)
     for row in db.scalars(
         select(NodeSubject).where(
@@ -196,6 +206,7 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5):
         ]
         context = {
             "title": node.title,
+            "vector": node_vectors.get(node.id),
             "subjects": tags[node.id],
             "language": course.language,
             "level": "undergrad" if course.level == "university" else course.level,
@@ -244,13 +255,30 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5):
 
 def refresh_node_sources(db, nodes, roadmap, course, now):
     """Write selections only from explicit generation/search jobs, never from GET."""
+    latest = db.scalar(
+        select(Syllabus.id)
+        .where(Syllabus.course_id == course.id)
+        .order_by(Syllabus.created_at.desc())
+        .limit(1)
+    )
+    outcomes = (
+        list(
+            db.scalars(
+                select(LearningOutcome.description).where(
+                    LearningOutcome.syllabus_id == latest
+                )
+            )
+        )
+        if latest
+        else []
+    )
     for node in nodes:
         save_tags(
             db,
             "node",
             node.id,
-            tag_node(node, course=course.title),
-            node.title + " " + course.title,
+            tag_node(node, course=course.title, outcomes=outcomes),
+            " ".join([node.title, course.title, *outcomes]),
         )
     result = node_sources(db, nodes, roadmap, course, now)
     for node_id, value in result.items():

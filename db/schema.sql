@@ -1,27 +1,4 @@
--- Canonical portable schema, synchronized with migrations 0001 through 0010.
-
-CREATE TABLE IF NOT EXISTS institutions (
-	id VARCHAR(36) NOT NULL,
-	ror_id TEXT NOT NULL,
-	name TEXT NOT NULL,
-	name_vi TEXT,
-	country TEXT NOT NULL,
-	domain TEXT NOT NULL,
-	tier INTEGER NOT NULL,
-	rank_signal TEXT DEFAULT '{}' NOT NULL,
-	PRIMARY KEY (id),
-	CONSTRAINT ck_institutions_tier CHECK (tier BETWEEN 1 AND 3),
-	UNIQUE (ror_id)
-);
-
-CREATE TABLE IF NOT EXISTS subjects (
-	id TEXT NOT NULL,
-	parent_id TEXT,
-	name TEXT NOT NULL,
-	name_vi TEXT NOT NULL,
-	PRIMARY KEY (id),
-	FOREIGN KEY(parent_id) REFERENCES subjects (id)
-);
+-- Canonical portable schema through migration 0010.
 
 CREATE TABLE IF NOT EXISTS users (
     id                     TEXT PRIMARY KEY,
@@ -47,26 +24,27 @@ CREATE TABLE IF NOT EXISTS search_cache (
     expires_at  TIMESTAMP NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS alembic_version (
-    version_num VARCHAR(32) NOT NULL PRIMARY KEY
+CREATE TABLE IF NOT EXISTS institutions (
+    id           VARCHAR(36) PRIMARY KEY,
+    ror_id       TEXT NOT NULL UNIQUE,
+    name         TEXT NOT NULL,
+    name_vi      TEXT,
+    country      TEXT NOT NULL,
+    domain       TEXT NOT NULL,
+    tier         INTEGER NOT NULL DEFAULT 3 CHECK (tier BETWEEN 1 AND 3),
+    rank_signal  TEXT
 );
 
-CREATE TABLE IF NOT EXISTS catalog_courses (
-	id VARCHAR(36) NOT NULL,
-	institution_id VARCHAR(36),
-	provider TEXT NOT NULL,
-	external_id TEXT NOT NULL,
-	code TEXT,
-	title TEXT NOT NULL,
-	level TEXT DEFAULT 'undergrad' NOT NULL,
-	grade INTEGER,
-	language TEXT DEFAULT 'en' NOT NULL,
-	license TEXT,
-	url TEXT NOT NULL,
-	year INTEGER,
-	PRIMARY KEY (id),
-	UNIQUE (provider, external_id),
-	FOREIGN KEY(institution_id) REFERENCES institutions (id) ON DELETE SET NULL
+CREATE TABLE IF NOT EXISTS subjects (
+    id         VARCHAR(36) PRIMARY KEY,
+    parent_id  VARCHAR(36) REFERENCES subjects(id),
+    slug       TEXT NOT NULL UNIQUE,
+    name       TEXT NOT NULL,
+    name_vi    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS alembic_version (
+    version_num VARCHAR(32) NOT NULL PRIMARY KEY
 );
 
 CREATE TABLE IF NOT EXISTS courses (
@@ -123,6 +101,22 @@ CREATE TABLE IF NOT EXISTS jobs (
     error       TEXT,
     created_at  TIMESTAMP NOT NULL,
     updated_at  TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS catalog_courses (
+    id              VARCHAR(36) PRIMARY KEY,
+    institution_id  VARCHAR(36) REFERENCES institutions(id) ON DELETE SET NULL,
+    provider        TEXT NOT NULL,
+    external_id     TEXT NOT NULL,
+    code            TEXT,
+    title           TEXT NOT NULL,
+    level           TEXT NOT NULL CHECK (level IN ('k12', 'undergrad', 'grad')),
+    grade           INTEGER CHECK (grade BETWEEN 1 AND 12),
+    language        TEXT NOT NULL,
+    license         TEXT,
+    url             TEXT NOT NULL,
+    year            INTEGER,
+    UNIQUE (provider, external_id)
 );
 
 CREATE TABLE IF NOT EXISTS availability (
@@ -216,84 +210,19 @@ CREATE TABLE IF NOT EXISTS resources (
 	last_checked_at DATETIME,
 	http_status INTEGER,
 	failed_checks INTEGER DEFAULT '0' NOT NULL,
-	canonical_url TEXT,
+	catalog_course_id VARCHAR(36),
+	canonical_url TEXT NOT NULL,
 	domain TEXT,
 	format TEXT,
 	license TEXT,
-	is_free BOOLEAN DEFAULT '0' NOT NULL,
-	duration_min INTEGER,
-	content_hash TEXT,
-	verification_status TEXT DEFAULT 'pending' NOT NULL,
+	is_free BOOLEAN,
+	duration_min INTEGER CHECK (duration_min >= 0),
+	content_hash VARCHAR(64),
 	source_connector TEXT,
 	ingested_at DATETIME,
-	catalog_course_id VARCHAR(36),
+	verification_status VARCHAR(16) DEFAULT 'pending' NOT NULL CHECK (verification_status IN ('pending', 'verified', 'rejected', 'stale')),
 	PRIMARY KEY (id),
 	FOREIGN KEY(catalog_course_id) REFERENCES catalog_courses (id) ON DELETE SET NULL
-);
-
-CREATE TABLE IF NOT EXISTS resource_subjects (
-	resource_id VARCHAR(36) NOT NULL,
-	subject_id TEXT NOT NULL,
-	confidence DOUBLE NOT NULL,
-	method TEXT NOT NULL,
-	PRIMARY KEY (resource_id, subject_id),
-	CONSTRAINT ck_resource_subject_confidence CHECK (confidence BETWEEN 0 AND 1),
-	FOREIGN KEY(resource_id) REFERENCES resources (id) ON DELETE CASCADE,
-	FOREIGN KEY(subject_id) REFERENCES subjects (id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS resource_verifications (
-	id VARCHAR(36) NOT NULL,
-	resource_id VARCHAR(36) NOT NULL,
-	"check" TEXT NOT NULL,
-	result TEXT NOT NULL,
-	details TEXT DEFAULT '{}' NOT NULL,
-	checked_at DATETIME NOT NULL,
-	checked_by TEXT,
-	PRIMARY KEY (id),
-	FOREIGN KEY(resource_id) REFERENCES resources (id) ON DELETE CASCADE,
-	FOREIGN KEY(checked_by) REFERENCES users (id) ON DELETE SET NULL
-);
-
-CREATE TABLE IF NOT EXISTS catalog_units (
-	id VARCHAR(36) NOT NULL,
-	course_id VARCHAR(36) NOT NULL,
-	position INTEGER NOT NULL,
-	title TEXT NOT NULL,
-	resource_id VARCHAR(36) NOT NULL,
-	PRIMARY KEY (id),
-	FOREIGN KEY(course_id) REFERENCES catalog_courses (id) ON DELETE CASCADE,
-	FOREIGN KEY(resource_id) REFERENCES resources (id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS exercises (
-	id VARCHAR(36) NOT NULL,
-	origin TEXT NOT NULL,
-	resource_id VARCHAR(36),
-	source_id TEXT,
-	page INTEGER,
-	quote_hash TEXT NOT NULL,
-	source_hash TEXT NOT NULL,
-	owner_id TEXT,
-	type TEXT NOT NULL,
-	prompt TEXT,
-	choices TEXT,
-	answer TEXT,
-	solution_ref TEXT,
-	location TEXT,
-	difficulty INTEGER NOT NULL,
-	bloom_level TEXT NOT NULL,
-	license TEXT NOT NULL,
-	verification_status TEXT NOT NULL,
-	PRIMARY KEY (id),
-	CONSTRAINT ck_exercise_origin CHECK (origin IN ('catalog','user_material')),
-	CONSTRAINT ck_exercise_difficulty CHECK (difficulty BETWEEN 1 AND 5),
-	CONSTRAINT ck_exercise_type CHECK (type IN ('mcq','numeric','short','proof','code')),
-	CONSTRAINT ck_exercise_source CHECK ((origin = 'catalog' AND resource_id IS NOT NULL AND source_id IS NULL AND owner_id IS NULL) OR (origin = 'user_material' AND source_id IS NOT NULL AND resource_id IS NULL AND owner_id IS NOT NULL AND page IS NOT NULL AND page >= 1)),
-	CONSTRAINT ck_exercise_content CHECK (prompt IS NOT NULL OR location IS NOT NULL),
-	FOREIGN KEY(resource_id) REFERENCES resources (id) ON DELETE CASCADE,
-	FOREIGN KEY(source_id) REFERENCES sources (id) ON DELETE CASCADE,
-	FOREIGN KEY(owner_id) REFERENCES users (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS prereqs (
@@ -343,6 +272,129 @@ CREATE TABLE IF NOT EXISTS resource_feedback (
     comment      TEXT
 );
 
+CREATE TABLE IF NOT EXISTS catalog_units (
+    id           VARCHAR(36) PRIMARY KEY,
+    course_id    VARCHAR(36) NOT NULL REFERENCES catalog_courses(id) ON DELETE CASCADE,
+    position     INTEGER NOT NULL CHECK (position >= 1),
+    title        TEXT NOT NULL,
+    resource_id  VARCHAR(36) REFERENCES resources(id) ON DELETE SET NULL,
+    UNIQUE (course_id, position)
+);
+
+CREATE TABLE IF NOT EXISTS resource_subjects (
+    resource_id  VARCHAR(36) NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    subject_id   VARCHAR(36) NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+    confidence   REAL NOT NULL DEFAULT 1 CHECK (confidence >= 0 AND confidence <= 1),
+    method       TEXT NOT NULL,
+    PRIMARY KEY (resource_id, subject_id)
+);
+
+CREATE TABLE IF NOT EXISTS resource_verifications (
+    id           VARCHAR(36) PRIMARY KEY,
+    resource_id  VARCHAR(36) NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    check_name   TEXT NOT NULL,
+    result       TEXT NOT NULL,
+    details      TEXT,
+    checked_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    checked_by   TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS exercises (
+	id VARCHAR(36) NOT NULL,
+	origin TEXT NOT NULL,
+	resource_id VARCHAR(36),
+	source_id TEXT,
+	page INTEGER,
+	quote_hash TEXT NOT NULL,
+	source_hash TEXT NOT NULL,
+	owner_id TEXT,
+	type TEXT NOT NULL,
+	prompt TEXT,
+	choices TEXT,
+	answer TEXT,
+	solution_ref TEXT,
+	location TEXT,
+	difficulty INTEGER NOT NULL,
+	bloom_level TEXT NOT NULL,
+	license TEXT NOT NULL,
+	verification_status TEXT NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT ck_exercise_origin CHECK (origin IN ('catalog','user_material')),
+	CONSTRAINT ck_exercise_difficulty CHECK (difficulty BETWEEN 1 AND 5),
+	CONSTRAINT ck_exercise_type CHECK (type IN ('mcq','numeric','short','proof','code')),
+	CONSTRAINT ck_exercise_source CHECK ((origin = 'catalog' AND resource_id IS NOT NULL AND source_id IS NULL AND owner_id IS NULL) OR (origin = 'user_material' AND source_id IS NOT NULL AND resource_id IS NULL AND owner_id IS NOT NULL AND page IS NOT NULL AND page >= 1)),
+	CONSTRAINT ck_exercise_content CHECK (prompt IS NOT NULL OR location IS NOT NULL),
+	FOREIGN KEY(resource_id) REFERENCES resources (id) ON DELETE CASCADE,
+	FOREIGN KEY(source_id) REFERENCES sources (id) ON DELETE CASCADE,
+	FOREIGN KEY(owner_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS items (
+    id          TEXT PRIMARY KEY,
+    exercise_id VARCHAR(36) REFERENCES exercises(id) ON DELETE CASCADE,
+    concept_id  TEXT NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
+    source_id   TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+    type        TEXT NOT NULL,
+    prompt      TEXT NOT NULL,
+    choices     TEXT,
+    answer      TEXT NOT NULL,
+    rubric      TEXT,
+    graded      INTEGER NOT NULL DEFAULT 0,
+    status      TEXT NOT NULL DEFAULT 'draft'
+);
+
+CREATE TABLE IF NOT EXISTS node_resources (
+    node_id          VARCHAR(36) NOT NULL REFERENCES roadmap_nodes(id) ON DELETE CASCADE,
+    resource_id      VARCHAR(36) NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+    relevance_score  REAL NOT NULL DEFAULT 0,
+    status           TEXT NOT NULL DEFAULT 'shown',
+    PRIMARY KEY (node_id, resource_id)
+);
+
+CREATE TABLE IF NOT EXISTS resource_searches (
+    id               VARCHAR(36) PRIMARY KEY,
+    node_id          VARCHAR(36) REFERENCES roadmap_nodes(id) ON DELETE SET NULL,
+    user_id          TEXT REFERENCES users(id) ON DELETE CASCADE,
+    node_title       TEXT NOT NULL,
+    status           TEXT NOT NULL,
+    cache_hit        INTEGER NOT NULL DEFAULT 0,
+    queries          INTEGER NOT NULL DEFAULT 0,
+    candidates       INTEGER NOT NULL DEFAULT 0,
+    vetted           INTEGER NOT NULL DEFAULT 0,
+    kept             INTEGER NOT NULL DEFAULT 0,
+    llm_calls        INTEGER NOT NULL DEFAULT 0,
+    llm_cost_usd     REAL NOT NULL DEFAULT 0,
+    search_cost_usd  REAL NOT NULL DEFAULT 0,
+    duration_ms      INTEGER NOT NULL DEFAULT 0,
+    created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS node_subjects (
+    node_id     VARCHAR(36) NOT NULL REFERENCES roadmap_nodes(id) ON DELETE CASCADE,
+    subject_id  VARCHAR(36) NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+    confidence  REAL NOT NULL DEFAULT 1 CHECK (confidence >= 0 AND confidence <= 1),
+    method      TEXT NOT NULL,
+    PRIMARY KEY (node_id, subject_id)
+);
+
+CREATE TABLE IF NOT EXISTS tasks (
+    id                 VARCHAR(36) PRIMARY KEY,
+    created_at         TIMESTAMP NOT NULL,
+    owner_id           TEXT NOT NULL REFERENCES users(id),
+    assignee_id        TEXT NOT NULL REFERENCES users(id),
+    goal_id            VARCHAR(36) REFERENCES goals(id) ON DELETE SET NULL,
+    team_id            VARCHAR(36) REFERENCES teams(id),
+    title              VARCHAR(200) NOT NULL,
+    description        TEXT NOT NULL,
+    duration_minutes   INTEGER NOT NULL CHECK (duration_minutes > 0),
+    completed_minutes  INTEGER NOT NULL,
+    priority           INTEGER NOT NULL CHECK (priority BETWEEN 1 AND 3),
+    due_at             TIMESTAMP NOT NULL,
+    status             VARCHAR(16) NOT NULL,
+    roadmap_node_id    VARCHAR(36) CONSTRAINT fk_tasks_roadmap_node_id REFERENCES roadmap_nodes(id) ON DELETE SET NULL,
+    CHECK (completed_minutes >= 0 AND completed_minutes <= duration_minutes)
+);
+
 CREATE TABLE IF NOT EXISTS catalog_embeddings (
 	id TEXT NOT NULL,
 	kind TEXT NOT NULL,
@@ -356,15 +408,12 @@ CREATE TABLE IF NOT EXISTS catalog_embeddings (
 	FOREIGN KEY(resource_id) REFERENCES resources (id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS node_subjects (
+CREATE TABLE IF NOT EXISTS node_source_status (
 	node_id VARCHAR(36) NOT NULL,
-	subject_id TEXT NOT NULL,
-	confidence DOUBLE NOT NULL,
-	method TEXT NOT NULL,
-	PRIMARY KEY (node_id, subject_id),
-	CONSTRAINT ck_node_subject_confidence CHECK (confidence BETWEEN 0 AND 1),
-	FOREIGN KEY(node_id) REFERENCES roadmap_nodes (id) ON DELETE CASCADE,
-	FOREIGN KEY(subject_id) REFERENCES subjects (id) ON DELETE CASCADE
+	status TEXT NOT NULL,
+	updated_at DATETIME NOT NULL,
+	PRIMARY KEY (node_id),
+	FOREIGN KEY(node_id) REFERENCES roadmap_nodes (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS roadmap_edges (
@@ -428,72 +477,6 @@ CREATE TABLE IF NOT EXISTS node_exercises (
 	FOREIGN KEY(exercise_id) REFERENCES exercises (id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS items (
-    id          TEXT PRIMARY KEY,
-    exercise_id VARCHAR(36) REFERENCES exercises(id) ON DELETE CASCADE,
-    concept_id  TEXT NOT NULL REFERENCES concepts(id) ON DELETE CASCADE,
-    source_id   TEXT NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
-    type        TEXT NOT NULL,
-    prompt      TEXT NOT NULL,
-    choices     TEXT,
-    answer      TEXT NOT NULL,
-    rubric      TEXT,
-    graded      INTEGER NOT NULL DEFAULT 0,
-    status      TEXT NOT NULL DEFAULT 'draft'
-);
-
-CREATE TABLE IF NOT EXISTS node_resources (
-    node_id          VARCHAR(36) NOT NULL REFERENCES roadmap_nodes(id) ON DELETE CASCADE,
-    resource_id      VARCHAR(36) NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
-    relevance_score  REAL NOT NULL DEFAULT 0,
-    status           TEXT NOT NULL DEFAULT 'shown',
-    PRIMARY KEY (node_id, resource_id)
-);
-
-CREATE TABLE IF NOT EXISTS resource_searches (
-    id               VARCHAR(36) PRIMARY KEY,
-    node_id          VARCHAR(36) REFERENCES roadmap_nodes(id) ON DELETE SET NULL,
-    user_id          TEXT REFERENCES users(id) ON DELETE CASCADE,
-    node_title       TEXT NOT NULL,
-    status           TEXT NOT NULL,
-    cache_hit        INTEGER NOT NULL DEFAULT 0,
-    queries          INTEGER NOT NULL DEFAULT 0,
-    candidates       INTEGER NOT NULL DEFAULT 0,
-    vetted           INTEGER NOT NULL DEFAULT 0,
-    kept             INTEGER NOT NULL DEFAULT 0,
-    llm_calls        INTEGER NOT NULL DEFAULT 0,
-    llm_cost_usd     REAL NOT NULL DEFAULT 0,
-    search_cost_usd  REAL NOT NULL DEFAULT 0,
-    duration_ms      INTEGER NOT NULL DEFAULT 0,
-    created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS tasks (
-    id                 VARCHAR(36) PRIMARY KEY,
-    created_at         TIMESTAMP NOT NULL,
-    owner_id           TEXT NOT NULL REFERENCES users(id),
-    assignee_id        TEXT NOT NULL REFERENCES users(id),
-    goal_id            VARCHAR(36) REFERENCES goals(id) ON DELETE SET NULL,
-    team_id            VARCHAR(36) REFERENCES teams(id),
-    title              VARCHAR(200) NOT NULL,
-    description        TEXT NOT NULL,
-    duration_minutes   INTEGER NOT NULL CHECK (duration_minutes > 0),
-    completed_minutes  INTEGER NOT NULL,
-    priority           INTEGER NOT NULL CHECK (priority BETWEEN 1 AND 3),
-    due_at             TIMESTAMP NOT NULL,
-    status             VARCHAR(16) NOT NULL,
-    roadmap_node_id    VARCHAR(36) CONSTRAINT fk_tasks_roadmap_node_id REFERENCES roadmap_nodes(id) ON DELETE SET NULL,
-    CHECK (completed_minutes >= 0 AND completed_minutes <= duration_minutes)
-);
-
-CREATE TABLE IF NOT EXISTS node_source_status (
-	node_id VARCHAR(36) NOT NULL,
-	status TEXT NOT NULL,
-	updated_at DATETIME NOT NULL,
-	PRIMARY KEY (node_id),
-	FOREIGN KEY(node_id) REFERENCES roadmap_nodes (id) ON DELETE CASCADE
-);
-
 CREATE TABLE IF NOT EXISTS cards (
     user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     item_id     TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
@@ -548,8 +531,6 @@ CREATE TABLE IF NOT EXISTS notifications (
     read        BOOLEAN NOT NULL
 );
 
--- Portable canonical schema;
-
 CREATE INDEX IF NOT EXISTS idx_cards_user_due ON cards (user_id, due_at);
 
 CREATE INDEX IF NOT EXISTS idx_reviews_user ON reviews (user_id, reviewed_at);
@@ -561,6 +542,12 @@ CREATE INDEX IF NOT EXISTS ix_goals_owner_id ON goals (owner_id);
 CREATE INDEX IF NOT EXISTS ix_teams_owner_id ON teams (owner_id);
 
 CREATE INDEX IF NOT EXISTS ix_invitations_team_id ON invitations (team_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_resources_canonical_url ON resources (canonical_url);
+
+CREATE INDEX IF NOT EXISTS ix_resources_verification_status ON resources (verification_status);
+
+CREATE INDEX IF NOT EXISTS ix_resources_domain ON resources (domain);
 
 CREATE INDEX IF NOT EXISTS ix_syllabi_course_id ON syllabi (course_id);
 
@@ -600,6 +587,17 @@ CREATE INDEX IF NOT EXISTS ix_jobs_user_id ON jobs (user_id);
 
 CREATE INDEX IF NOT EXISTS ix_search_cache_expires_at ON search_cache (expires_at);
 
+CREATE INDEX IF NOT EXISTS ix_catalog_courses_institution_id ON catalog_courses (institution_id);
+
+CREATE INDEX IF NOT EXISTS ix_catalog_units_resource_id ON catalog_units (resource_id);
+
+CREATE INDEX IF NOT EXISTS ix_resource_subjects_subject_id ON resource_subjects (subject_id);
+
+CREATE INDEX IF NOT EXISTS ix_node_subjects_subject_id ON node_subjects (subject_id);
+
+CREATE INDEX IF NOT EXISTS ix_resource_verifications_resource_id_checked_at
+    ON resource_verifications (resource_id, checked_at);
+
 CREATE INDEX IF NOT EXISTS ix_tasks_owner_id ON tasks (owner_id);
 
 CREATE INDEX IF NOT EXISTS ix_tasks_assignee_id ON tasks (assignee_id);
@@ -628,20 +626,6 @@ INSERT INTO alembic_version (version_num)
 SELECT '0010_quoted_exercises'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);
 
-CREATE INDEX IF NOT EXISTS ix_institutions_domain ON institutions (domain);
-
-CREATE INDEX IF NOT EXISTS ix_resource_subjects_subject_id ON resource_subjects (subject_id);
-
-CREATE INDEX IF NOT EXISTS ix_node_subjects_subject_id ON node_subjects (subject_id);
-
-CREATE INDEX IF NOT EXISTS ix_resource_verifications_resource_id ON resource_verifications (resource_id);
-
 CREATE INDEX IF NOT EXISTS ix_roadmap_edges_roadmap_id ON roadmap_edges (roadmap_id);
 
 CREATE INDEX IF NOT EXISTS ix_exercises_owner_id ON exercises (owner_id);
-
-CREATE INDEX IF NOT EXISTS ix_resources_verification_status ON resources (verification_status);
-
-CREATE INDEX IF NOT EXISTS ix_resources_domain ON resources (domain);
-
-CREATE UNIQUE INDEX IF NOT EXISTS ix_resources_canonical_url ON resources (canonical_url);

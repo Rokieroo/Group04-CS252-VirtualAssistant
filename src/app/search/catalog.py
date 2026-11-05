@@ -207,9 +207,9 @@ class CatalogSearch(SearchProvider):
             "AND content_hash IS NOT NULL AND license IS NOT NULL AND failed_checks < 2 "
             "AND (http_status IS NULL OR http_status=200)" )).mappings()
         checks = {}
-        for row in self.session.execute(text("SELECT resource_id,\"check\",result,checked_at FROM "
+        for row in self.session.execute(text("SELECT resource_id,check_name,result,checked_at FROM "
                 "resource_verifications ORDER BY checked_at DESC,id DESC")).mappings():
-            checks.setdefault(row["resource_id"], {}).setdefault(row["check"], row)
+            checks.setdefault(row["resource_id"], {}).setdefault(row["check_name"], row)
         entries = []
         for row in rows:
             latest = checks.get(row["id"], {})

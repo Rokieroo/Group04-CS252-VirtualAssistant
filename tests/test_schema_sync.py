@@ -8,7 +8,7 @@ from alembic.migration import MigrationContext
 from sqlalchemy import create_engine, inspect
 
 from alembic import command
-from app.db import get_engine, init_db
+from app.db import _TABLES, get_engine, init_db
 from assistant.backend.database import Database
 from assistant.backend.models import Base
 
@@ -100,6 +100,12 @@ def _assert_sqlite_foreign_keys(engine):
                 for fk in table.foreign_keys
             }
             assert actual == expected, table.name
+
+
+def test_reset_knows_every_table(tmp_path):
+    # A reset on PostgreSQL drops _TABLES in reverse; a missing table blocks the drop.
+    created = init_db(database_url=tmp_path / "all.db", reset=True)
+    assert set(created) == {*_TABLES, "alembic_version"}
 
 
 def test_backend_accepts_a_database_created_by_the_dev_cli(tmp_path):

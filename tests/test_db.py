@@ -38,6 +38,14 @@ EXPECTED_TABLES = {
     "search_cache",
     # Cost and latency of resource searches (migration 0007).
     "resource_searches",
+    # Verified catalog (migration 0008).
+    "institutions",
+    "catalog_courses",
+    "catalog_units",
+    "subjects",
+    "resource_subjects",
+    "node_subjects",
+    "resource_verifications",
     "tasks",
     "availability",
     "busy_blocks",
@@ -45,9 +53,7 @@ EXPECTED_TABLES = {
     "notifications",
     "chat_messages",
     "alembic_version",
-    "institutions", "catalog_courses", "catalog_units", "subjects",
-    "resource_subjects", "node_subjects", "catalog_embeddings", "resource_verifications",
-    "roadmap_edges", "graph_layouts", "node_materials", "node_source_status",
+    "catalog_embeddings", "roadmap_edges", "graph_layouts", "node_materials", "node_source_status",
     "exercises", "exercise_subjects", "node_exercises",
 }
 

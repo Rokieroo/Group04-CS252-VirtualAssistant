@@ -220,8 +220,9 @@ def add_resource(db, now, *, number=0, status="verified", days=0):
     for check in ("fetch", "domain", "license", "metadata"):
         db.add(
             ResourceVerification(
+                checked_by="test:offline",
                 resource_id=row.id,
-                check=check,
+                check_name=check,
                 result="pass",
                 checked_at=now - timedelta(days=days),
             )
@@ -317,8 +318,9 @@ def test_latest_failed_check_and_changed_source_invalidate_exercises(
     with app.state.database.sessions() as db:
         db.add(
             ResourceVerification(
+                checked_by="test:offline",
                 resource_id=resource_id,
-                check="domain",
+                check_name="domain",
                 result="fail",
                 checked_at=clock[0] + timedelta(seconds=1),
             )
@@ -361,8 +363,12 @@ def test_catalog_exercises_reject_fabrication_and_respect_link_only_licenses(
         assert exercise.location == "Exercise 1"
 
 
-def test_only_one_concurrent_opposite_edge_commits(tmp_path):
-    database = Database("sqlite:///" + (tmp_path / "race.db").as_posix())
+def test_only_one_concurrent_opposite_edge_commits(tmp_path, database_url):
+    database = Database(
+        "sqlite:///" + (tmp_path / "race.db").as_posix()
+        if database_url == "sqlite://"
+        else database_url
+    )
     database.create_schema()
     with database.sessions() as db:
         user = User(email="race@example.com", password_hash="test", name="Race")
@@ -590,3 +596,34 @@ def test_canonical_urls_are_unique_and_exercise_origin_cannot_be_ai(
                 )
             )
             db.flush()
+
+
+def test_summary_40_nodes_uses_bounded_queries_without_writes(app, client, headers):
+    from sqlalchemy import event
+
+    course = client.post(
+        "/api/v1/courses", headers=headers, json={"title": "CSC10014"}
+    ).json()["id"]
+    roadmap = client.post(
+        f"/api/v1/courses/{course}/roadmap:generate",
+        headers=headers,
+        json={
+            "nodes": [{"title": f"Solution ladder {i}", "week": 1} for i in range(40)]
+        },
+    ).json()
+    statements = []
+
+    def record(connection, cursor, statement, parameters, context, many):
+        statements.append(statement.lstrip().split()[0].upper())
+
+    event.listen(app.state.database.engine, "before_cursor_execute", record)
+    try:
+        response = client.get(
+            f"/api/v1/roadmaps/{roadmap['id']}/sources:summary", headers=headers
+        )
+    finally:
+        event.remove(app.state.database.engine, "before_cursor_execute", record)
+    assert response.status_code == 200, response.text
+    assert len(response.json()["nodes"]) == 40
+    assert len(statements) <= 16
+    assert all(statement == "SELECT" for statement in statements)

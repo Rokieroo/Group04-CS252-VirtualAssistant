@@ -10,6 +10,25 @@ branch_labels = None
 depends_on = None
 
 TABLES = [
+    """CREATE TABLE catalog_embeddings (
+	id TEXT NOT NULL,
+	kind TEXT NOT NULL,
+	model TEXT NOT NULL,
+	content_hash TEXT NOT NULL,
+	vector TEXT NOT NULL,
+	node_id VARCHAR(36),
+	resource_id VARCHAR(36),
+	PRIMARY KEY (id, kind),
+	FOREIGN KEY(node_id) REFERENCES roadmap_nodes (id) ON DELETE CASCADE,
+	FOREIGN KEY(resource_id) REFERENCES resources (id) ON DELETE CASCADE
+)""",
+    """CREATE TABLE node_source_status (
+	node_id VARCHAR(36) NOT NULL,
+	status TEXT NOT NULL,
+	updated_at DATETIME NOT NULL,
+	PRIMARY KEY (node_id),
+	FOREIGN KEY(node_id) REFERENCES roadmap_nodes (id) ON DELETE CASCADE
+)""",
     """CREATE TABLE roadmap_edges (
 	roadmap_id VARCHAR(36) NOT NULL,
 	parent_id VARCHAR(36) NOT NULL,
@@ -57,6 +76,23 @@ INDEXES = ["CREATE INDEX ix_roadmap_edges_roadmap_id ON roadmap_edges (roadmap_i
 def upgrade():
     if op.get_bind().dialect.name == "sqlite":
         op.execute(
+            "ALTER TABLE resources ADD COLUMN catalog_course_id VARCHAR(36) REFERENCES catalog_courses(id) ON DELETE SET NULL"
+        )
+    else:
+        op.add_column(
+            "resources",
+            sa.Column(
+                "catalog_course_id",
+                sa.String(36),
+                sa.ForeignKey(
+                    "catalog_courses.id",
+                    name="fk_resources_catalog_course",
+                    ondelete="SET NULL",
+                ),
+            ),
+        )
+    if op.get_bind().dialect.name == "sqlite":
+        op.execute(
             "ALTER TABLE roadmap_nodes ADD COLUMN concept_id TEXT REFERENCES concepts(id) ON DELETE SET NULL"
         )
     else:
@@ -79,7 +115,10 @@ def upgrade():
 
 
 def downgrade():
+    op.drop_column("resources", "catalog_course_id")
     op.drop_column("roadmap_nodes", "concept_id")
     op.drop_table("node_materials")
     op.drop_table("graph_layouts")
     op.drop_table("roadmap_edges")
+    op.drop_table("node_source_status")
+    op.drop_table("catalog_embeddings")
