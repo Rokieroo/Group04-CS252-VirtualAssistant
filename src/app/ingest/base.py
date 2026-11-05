@@ -4,8 +4,11 @@ Document text is data only, never a prompt (spec 12.3).
 """
 
 from abc import ABC, abstractmethod
+from io import BytesIO
+from zipfile import BadZipFile, ZipFile, ZipInfo
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+MAX_UNZIPPED_BYTES = 100 * 1024 * 1024
 PAGE_CHARS = 3000  # a "page" for formats without real pages (spec 9.2)
 
 
@@ -38,6 +41,29 @@ class DocumentFormat(ABC):
     @abstractmethod
     def read(self, data: bytes) -> list[str]:
         """One string per page, in order. Raises InvalidDocument or UnsupportedType."""
+
+    def as_pdf(self, data: bytes) -> bytes | None:
+        """The pages as a PDF the vision model can look at, or None when there is nothing
+        to see beyond the text (spec 9.2: diagrams, scans and photos)."""
+        return None
+
+
+def check_package(data: bytes, required: str) -> list[ZipInfo]:
+    """Entries of an Office (zip) package that contains ``required``.
+
+    Zip bomb guard: zipfile never inflates an entry past its declared size, so the
+    declared sizes bound what reading the package can cost.
+    """
+    try:
+        with ZipFile(BytesIO(data)) as package:
+            entries = package.infolist()
+    except (BadZipFile, ValueError, OSError) as exc:
+        raise InvalidDocument(type(exc).__name__) from exc
+    if required not in {entry.filename for entry in entries}:
+        raise UnsupportedType(f"zip archive has no {required}")
+    if sum(entry.file_size for entry in entries) > MAX_UNZIPPED_BYTES:
+        raise InvalidDocument("unzipped size over limit")
+    return entries
 
 
 def split_text(text: str, limit: int = PAGE_CHARS) -> list[str]:

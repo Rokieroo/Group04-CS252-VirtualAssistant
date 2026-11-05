@@ -37,7 +37,7 @@ async function registerAndUpload(page: Page) {
   await page.getByRole("button", { name: "Register", exact: true }).click();
   await expect(page.locator(".topbar")).toBeVisible();
   await navigate(page, "Courses");
-  await page.getByLabel("Choose PDF files to upload").setInputFiles({
+  await page.getByLabel("Choose files to upload").setInputFiles({
     name: "week01.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-1.7\n%%EOF"),

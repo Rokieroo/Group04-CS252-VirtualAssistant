@@ -104,6 +104,15 @@ describe("#56 real syllabus adapter", () => {
     });
     expect(actual.source_pages).toEqual(preview.source_pages);
   });
+  it("asks for a draft syllabus when the learner pastes goals instead (#114)", async () => {
+    const fetch = vi.fn().mockResolvedValue(reply(preview));
+    vi.stubGlobal("fetch", fetch);
+    await uploadSyllabus("Recursion\nSorting", { goals: true });
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
+      text: "Recursion\nSorting",
+      kind: "goals",
+    });
+  });
   it("saves the corrected complete draft, including fields without database columns", async () => {
     const fetch = vi.fn().mockResolvedValue(reply({ id: "saved" }));
     vi.stubGlobal("fetch", fetch);

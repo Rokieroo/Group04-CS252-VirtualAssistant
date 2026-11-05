@@ -4,15 +4,11 @@ Named word.py so it never shadows the python-docx package (`import docx`).
 """
 
 from io import BytesIO
-from zipfile import BadZipFile, ZipFile
 
 import docx
 from docx.oxml.ns import qn
 
-from app.ingest.base import DocumentFormat, InvalidDocument, UnsupportedType, split_text
-
-# Zip bomb guard: zipfile never inflates an entry past its declared size.
-MAX_UNZIPPED_BYTES = 100 * 1024 * 1024
+from app.ingest.base import DocumentFormat, InvalidDocument, check_package, split_text
 
 _P, _TABLE, _ROW, _CELL = qn("w:p"), qn("w:tbl"), qn("w:tr"), qn("w:tc")
 _TEXT, _TAB, _BREAK, _RETURN = qn("w:t"), qn("w:tab"), qn("w:br"), qn("w:cr")
@@ -28,7 +24,7 @@ class DocxFormat(DocumentFormat):
     magic = b"PK\x03\x04"
 
     def read(self, data: bytes) -> list[str]:
-        self._check_package(data)
+        check_package(data, "word/document.xml")
         try:
             body = docx.Document(BytesIO(data)).element.body
         except Exception as exc:  # python-docx raises many types for malformed parts
@@ -37,18 +33,6 @@ class DocxFormat(DocumentFormat):
         if not pages:
             raise InvalidDocument("no text")
         return pages
-
-    @staticmethod
-    def _check_package(data: bytes) -> None:
-        try:
-            with ZipFile(BytesIO(data)) as package:
-                entries = package.infolist()
-        except (BadZipFile, ValueError, OSError) as exc:
-            raise InvalidDocument(type(exc).__name__) from exc
-        if "word/document.xml" not in {entry.filename for entry in entries}:
-            raise UnsupportedType("zip archive is not a Word document")
-        if sum(entry.file_size for entry in entries) > MAX_UNZIPPED_BYTES:
-            raise InvalidDocument("unzipped size over limit")
 
 
 class _PageWriter:

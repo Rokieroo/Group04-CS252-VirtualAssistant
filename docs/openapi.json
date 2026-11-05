@@ -309,7 +309,7 @@
           "Courses and sources"
         ],
         "summary": "Upload Source",
-        "description": "PDF, DOCX or UTF-8 .txt up to 20 MB; the type comes from name and content, not the client.",
+        "description": "PDF, DOCX, PPTX, JPEG/PNG photo or UTF-8 .txt up to 20 MB; the type comes from name\nand content, not the client. Material is then mapped onto the roadmap in a job.",
         "operationId": "upload_source_api_v1_courses__course_id__sources_post",
         "security": [
           {
@@ -347,6 +347,56 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/courses/{course_id}/sources/{file_name}": {
+      "delete": {
+        "tags": [
+          "Courses and sources"
+        ],
+        "summary": "Delete Source File",
+        "description": "Delete an uploaded file: its pages, their node links and the exercises quoted from it.",
+        "operationId": "delete_source_file_api_v1_courses__course_id__sources__file_name__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Course Id"
+            }
+          },
+          {
+            "name": "file_name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Name"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -3129,6 +3179,52 @@
       }
     },
     "/api/v1/roadmap-nodes/{node_id}/materials": {
+      "get": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "List Materials",
+        "description": "The learner's own pages on this node: attached, then those awaiting one tap.",
+        "operationId": "list_materials_api_v1_roadmap_nodes__node_id__materials_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Node Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeMaterialsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "Node learning and graph"
@@ -3167,6 +3263,73 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmap-nodes/{node_id}/materials/{source_id}": {
+      "put": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Decide Material",
+        "description": "One tap: confirm a suggested page for this node, or reject it for good.",
+        "operationId": "decide_material_api_v1_roadmap_nodes__node_id__materials__source_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Node Id"
+            }
+          },
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Source Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialPageOut"
+                }
               }
             }
           },
@@ -4120,6 +4283,20 @@
         ],
         "title": "DailyCost"
       },
+      "DecisionIn": {
+        "properties": {
+          "attached": {
+            "type": "boolean",
+            "title": "Attached"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "attached"
+        ],
+        "title": "DecisionIn"
+      },
       "EdgeIn": {
         "properties": {
           "parent_id": {
@@ -4878,6 +5055,36 @@
         ],
         "title": "Login"
       },
+      "MaterialFileOut": {
+        "properties": {
+          "file_name": {
+            "type": "string",
+            "title": "File Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "attached",
+              "suggested"
+            ],
+            "title": "Status"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/MaterialPageOut"
+            },
+            "type": "array",
+            "title": "Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_name",
+          "status",
+          "pages"
+        ],
+        "title": "MaterialFileOut"
+      },
       "MaterialIn": {
         "properties": {
           "source_id": {
@@ -4891,6 +5098,38 @@
           "source_id"
         ],
         "title": "MaterialIn"
+      },
+      "MaterialPageOut": {
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "manual"
+            ],
+            "title": "Method"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_id",
+          "page",
+          "confidence",
+          "method"
+        ],
+        "title": "MaterialPageOut"
       },
       "MemberOut": {
         "properties": {
@@ -4999,6 +5238,27 @@
           "last_search_at"
         ],
         "title": "NodeCost"
+      },
+      "NodeMaterialsOut": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/MaterialFileOut"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node_id",
+          "files"
+        ],
+        "title": "NodeMaterialsOut"
       },
       "NodeResourcesOut": {
         "properties": {
@@ -6586,6 +6846,15 @@
             "type": "boolean",
             "title": "Use Llm",
             "default": false
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "syllabus",
+              "goals"
+            ],
+            "title": "Kind",
+            "default": "syllabus"
           }
         },
         "additionalProperties": false,
@@ -7004,6 +7273,17 @@
               }
             ],
             "title": "Warning"
+          },
+          "mapping_job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mapping Job Id"
           }
         },
         "type": "object",

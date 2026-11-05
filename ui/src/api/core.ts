@@ -67,8 +67,10 @@ export type RoadmapDraft = {
   edges: Edge[];
   overloaded_weeks: number[];
 };
+export type UploadOptions = { goals?: boolean };
 export type CoreService = {
-  upload(file: File | string): Promise<SyllabusDraft>;
+  /** ``goals``: pasted goals or a table of contents, from a learner with no syllabus. */
+  upload(file: File | string, options?: UploadOptions): Promise<SyllabusDraft>;
   confirm(draft: SyllabusDraft): Promise<SyllabusDraft>;
   generate(syllabusId: string): Promise<RoadmapDraft>;
   schedule(

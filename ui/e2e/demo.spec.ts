@@ -151,7 +151,7 @@ test("mock login, upload and concept edits work across navigation", async ({
   await page.screenshot({ path: testInfo.outputPath("sign-in.png") });
   await signIn(page);
   await navigate(page, "Courses");
-  const picker = page.getByLabel("Choose PDF files to upload");
+  const picker = page.getByLabel("Choose files to upload");
   await picker.setInputFiles({
     name: "notes.txt",
     mimeType: "text/plain",

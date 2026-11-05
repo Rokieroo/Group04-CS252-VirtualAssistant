@@ -1,0 +1,47 @@
+{
+  "about": "Gold slide-to-node map for eval/run_materials.py (issue #114). Slides: CSC10014 weeks 1-3 decks (not committed; pass their folder). Nodes: the roadmap roadmap:generate derives from eval/syllabus/01_csc10014_problem_framing.gold.json, one topic per CLO. Each range lists every node a rater would accept for those slides; [] marks a slide with no topic (title, agenda, Q&A, logistics) that is left out of the score. Labelled by section heading by Claude; two human raters must confirm before #114's acceptance numbers are final.",
+  "syllabus": "01_csc10014_problem_framing.gold.json",
+  "decks": {
+    "CSC10014_2026_Week01_Problem_Framing.pdf": [
+      [1, 4, []],
+      [5, 18, ["CLO1"]],
+      [19, 19, ["CLO1", "CLO2"]],
+      [20, 60, ["CLO1"]],
+      [61, 69, ["CLO1", "CLO3"]],
+      [70, 73, ["CLO1"]],
+      [74, 74, ["CLO2"]],
+      [75, 76, ["CLO1", "CLO2"]],
+      [77, 78, ["CLO2"]],
+      [79, 86, ["CLO1", "CLO2"]],
+      [87, 99, ["CLO2"]],
+      [100, 108, ["CLO1"]],
+      [109, 118, ["CLO1", "CLO2"]],
+      [119, 140, ["CLO1"]],
+      [141, 146, []]
+    ],
+    "CSC10014_2026_Week02_Decomposition_UseCases.pdf": [
+      [1, 4, []],
+      [5, 9, ["CLO1", "CLO2"]],
+      [10, 11, ["CLO3", "CLO4"]],
+      [12, 17, ["CLO1", "CLO2"]],
+      [18, 25, ["CLO1"]],
+      [26, 71, ["CLO3"]],
+      [72, 75, []],
+      [76, 76, ["CLO3"]],
+      [77, 78, ["CLO1"]],
+      [79, 80, []]
+    ],
+    "CSC10014_2026_Week03_Pitfalls_Pipelines_Decomposition-Final.pdf": [
+      [1, 4, []],
+      [5, 6, ["CLO3"]],
+      [7, 11, ["CLO1"]],
+      [12, 18, ["CLO3"]],
+      [19, 32, ["CLO4"]],
+      [33, 51, ["CLO3"]],
+      [52, 54, ["CLO2", "CLO3"]],
+      [55, 64, ["CLO3"]],
+      [65, 75, ["CLO1", "CLO2", "CLO4"]],
+      [76, 83, []]
+    ]
+  }
+}

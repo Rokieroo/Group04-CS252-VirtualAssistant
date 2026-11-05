@@ -16,6 +16,7 @@ import {
   type Edge,
   type SyllabusDraft,
   type RoadmapDraft,
+  type UploadOptions,
 } from "../api/core";
 import "./core-journey.css";
 
@@ -73,10 +74,10 @@ export function CoreJourney({
       setBusy(false);
     }
   };
-  const load = (file: File | string) => {
+  const load = (file: File | string, options?: UploadOptions) => {
     if (busy) return;
     void run(async () => {
-      const result = await service.upload(file);
+      const result = await service.upload(file, options);
       setDraft(result);
       setRoadmap(null);
       setRoadmapApproved(false);
@@ -329,6 +330,7 @@ export function CoreJourney({
                   draft={draft}
                   weekly={weekly}
                   onWeeklyChange={setWeekly}
+                  live={roadmapApproved && !mock}
                 />
               ) : (
                 <section className="card core-panel">

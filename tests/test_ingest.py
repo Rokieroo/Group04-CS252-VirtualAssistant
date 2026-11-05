@@ -66,6 +66,7 @@ def test_three_page_pdf_stores_three_numbered_pages(client, app, headers, course
         "kind": "material",
         "status": "processed",
         "warning": None,
+        "mapping_job_id": None,  # no roadmap yet: nothing to map onto
     }
     stored = rows(app, course)
     assert [(row.page, row.text) for row in stored] == [
@@ -91,7 +92,8 @@ def test_reupload_replaces_pages_of_the_same_file(client, app, headers, course, 
     [
         ("notes.pdf", b"plain text renamed to pdf", 415, "unsupported_type"),
         ("slides.txt", make_pdf("alpha"), 415, "unsupported_type"),
-        ("slides.pptx", b"PK\x03\x04", 415, "unsupported_type"),
+        ("sheet.xlsx", b"PK\x03\x04", 415, "unsupported_type"),
+        ("slides.pptx", b"PK\x03\x04 truncated", 400, "invalid_file"),
         ("broken.docx", b"PK\x03\x04 truncated", 400, "invalid_file"),
         ("blank.txt", b" \n\n ", 400, "invalid_file"),
         ("empty.pdf", b"", 400, "invalid_pdf"),

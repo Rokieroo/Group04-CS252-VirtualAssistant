@@ -407,6 +407,9 @@ class UploadOut(Output):
     kind: SourceKind
     status: Literal["processed"]
     warning: Literal["scanned_pdf"] | None = None
+    # The job that maps this material onto the roadmap (GET /jobs/{id}); None when
+    # there is no roadmap yet: generating one maps every uploaded file.
+    mapping_job_id: str | None = None
 
 
 class ConceptOut(Output):
@@ -492,6 +495,8 @@ class SyllabusParseIn(BaseModel):
     text: str | None = Field(default=None, min_length=1, max_length=120000)
     file_name: str | None = Field(default=None, min_length=1, max_length=255)
     use_llm: bool = False
+    # "goals": pasted goals or a table of contents from a learner with no syllabus.
+    kind: Literal["syllabus", "goals"] = "syllabus"
 
 
 class RoadmapNodeIn(FlexibleInput):

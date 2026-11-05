@@ -6,10 +6,11 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import delete, select
 
-from .catalog_models import GraphLayout, NodeExercise, NodeMaterial, RoadmapEdge
+from .catalog_models import GraphLayout, RoadmapEdge
 from .catalog_repository import node_sources
 from .dependencies import DB, CurrentUser
-from .exercise_repository import exercises_for_node, import_private_exercises
+from .exercise_repository import exercises_for_node
+from .material_repository import decide, node_materials
 from .models import RoadmapNode, Source
 from .roadmap_repository import CycleError, add_roadmap_edge, owned_node, save_layout
 from .routes_core import _owned_roadmap
@@ -142,22 +143,65 @@ class MaterialIn(BaseModel):
     source_id: str
 
 
+class DecisionIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    attached: bool
+
+
+class MaterialPageOut(BaseModel):
+    source_id: str
+    page: int
+    confidence: float
+    method: Literal["auto", "manual"]
+
+
+class MaterialFileOut(BaseModel):
+    file_name: str
+    status: Literal["attached", "suggested"]
+    pages: list[MaterialPageOut]
+
+
+class NodeMaterialsOut(BaseModel):
+    node_id: str
+    files: list[MaterialFileOut]
+
+
+def _course_page(db, course, source_id) -> Source:
+    source = db.get(Source, source_id)
+    if source is None or source.course_id != course.id:
+        raise HTTPException(404, "Source not found")  # never reveal others' material
+    return source
+
+
+@router.get("/roadmap-nodes/{node_id}/materials", response_model=NodeMaterialsOut)
+def list_materials(node_id: str, db: DB, user: CurrentUser):
+    """The learner's own pages on this node: attached, then those awaiting one tap."""
+    node, _, _ = _node(db, node_id, user.id)
+    return {"node_id": node.id, "files": node_materials(db, node)}
+
+
 @router.post("/roadmap-nodes/{node_id}/materials", status_code=201)
 def attach_material(node_id: str, data: MaterialIn, db: DB, user: CurrentUser):
-    _, _, course = _node(db, node_id, user.id)
-    source = db.get(Source, data.source_id)
-    if source is None or source.course_id != course.id:
-        raise HTTPException(404, "Source not found")
-    if db.get(NodeMaterial, (node_id, source.id)) is None:
-        db.add(NodeMaterial(node_id=node_id, source_id=source.id, confidence=1.0))
-    for exercise in import_private_exercises(db, source, user.id):
-        for role in ("practice", "checkpoint"):
-            if db.get(NodeExercise, (node_id, exercise.id, role)) is None:
-                db.add(
-                    NodeExercise(node_id=node_id, exercise_id=exercise.id, role=role)
-                )
+    node, _, course = _node(db, node_id, user.id)
+    source = _course_page(db, course, data.source_id)
+    decide(db, node, source, attached=True, owner_id=user.id)
     db.commit()
     return {"node_id": node_id, "source_id": source.id, "pages": [source.page]}
+
+
+@router.put("/roadmap-nodes/{node_id}/materials/{source_id}", response_model=MaterialPageOut)
+def decide_material(node_id: str, source_id: str, data: DecisionIn, db: DB, user: CurrentUser):
+    """One tap: confirm a suggested page for this node, or reject it for good."""
+    node, _, course = _node(db, node_id, user.id)
+    source = _course_page(db, course, source_id)
+    row = decide(db, node, source, attached=data.attached, owner_id=user.id)
+    db.commit()
+    return {
+        "source_id": source.id,
+        "page": source.page,
+        "confidence": row.confidence,
+        "method": row.method,
+    }
 
 
 class EdgeIn(BaseModel):
