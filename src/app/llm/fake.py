@@ -1,7 +1,33 @@
-"""Offline LLM for tests: no network, no cost."""
+"""Offline LLM and embedder for tests: no network, no cost."""
 from __future__ import annotations
 
-from app.llm.base import LLMClient, LLMResult
+import math
+import re
+from hashlib import blake2b
+
+from app.llm.base import Embedder, LLMClient, LLMResult
+
+
+class HashingEmbedder(Embedder):
+    """Bag of hashed words, L2-normalised: texts that share words point the same way.
+
+    Lexical only, so it stands in for a real model in tests; never mix its vectors
+    with another model's (``model`` tells them apart).
+    """
+
+    model = "hashing-256"
+    dimensions = 256
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        return [self._vector(text) for text in texts]
+
+    def _vector(self, text: str) -> list[float]:
+        vector = [0.0] * self.dimensions
+        for word in re.findall(r"\w+", text.casefold()):
+            digest = blake2b(word.encode(), digest_size=4).digest()
+            vector[int.from_bytes(digest, "big") % self.dimensions] += 1.0
+        norm = math.sqrt(sum(value * value for value in vector)) or 1.0
+        return [value / norm for value in vector]
 
 
 class FakeLLM(LLMClient):

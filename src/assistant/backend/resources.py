@@ -21,42 +21,25 @@ from app.llm import get_client
 from app.search import SearchService, canonical_url, node_signature
 from app.vetting import Learner, Node, SafeFetcher
 
+from . import taxonomy  # noqa: F401  registers tag_resources, enqueued below
 from .cache import cached_search, store_search
-from .jobs import handler
+from .jobs import enqueue, handler
 from .models import (
     Course,
-    LearningOutcome,
     NodeResource,
     Resource,
     ResourceSearch,
     Roadmap,
     RoadmapNode,
     SearchRun,
-    Syllabus,
     User,
 )
+from .services import course_outcomes
 
 # Seams for tests and vendor swaps; production uses the configured providers.
 make_search = SearchService
 make_llm = get_client
 make_fetcher = SafeFetcher
-
-
-def _outcomes(db: Session, course_id: str) -> tuple[str, ...]:
-    """Learning outcomes of the course's latest syllabus."""
-    latest = (
-        select(Syllabus.id)
-        .where(Syllabus.course_id == course_id)
-        .order_by(Syllabus.created_at.desc())
-        .limit(1)
-        .scalar_subquery()
-    )
-    rows = db.scalars(
-        select(LearningOutcome.description)
-        .where(LearningOutcome.syllabus_id == latest)
-        .order_by(LearningOutcome.code)
-    )
-    return tuple(rows)
 
 
 def _search(node: Node, learner: Learner, course: Course) -> tuple[Curation, SearchStats]:
@@ -72,8 +55,10 @@ def _search(node: Node, learner: Learner, course: Course) -> tuple[Curation, Sea
     return found.curation, found.stats
 
 
-def _link(db: Session, node_id: str, curation: Curation) -> None:
-    """Show the curated resources on the node; one ``resources`` row per canonical URL."""
+def _link(db: Session, node_id: str, curation: Curation) -> list[str]:
+    """Show the curated resources on the node; one ``resources`` row per canonical URL.
+    Returns the ids of the rows it created."""
+    created = []
     for resource in curation.resources:
         key = canonical_url(resource.url)
         row = db.scalars(select(Resource).where(Resource.canonical_url == key)).first()
@@ -94,12 +79,14 @@ def _link(db: Session, node_id: str, curation: Curation) -> None:
             )
             db.add(row)
             db.flush()
+            created.append(row.id)
         link = db.get(NodeResource, (node_id, row.id))
         if link is None:
             db.add(NodeResource(node_id=node_id, resource_id=row.id,
                                 relevance_score=resource.score))
         elif link.status == "shown":
             link.relevance_score = resource.score
+    return created
 
 
 def _log(
@@ -153,7 +140,7 @@ def search_resources(db: Session, payload: dict, now: datetime) -> dict:
     roadmap = db.get(Roadmap, node.roadmap_id)
     course = db.get(Course, roadmap.course_id)
     user = db.get(User, roadmap.user_id)
-    outcomes = _outcomes(db, course.id)
+    outcomes = course_outcomes(db, course.id)
     target = Node(node.title, outcomes, node.duration_minutes)
     learner = Learner(
         langs=tuple(dict.fromkeys((course.language, "vi", "en"))),
@@ -169,7 +156,10 @@ def search_resources(db: Session, payload: dict, now: datetime) -> dict:
         curation, stats = _search(target, learner, course)
         store_search(db, signature, asdict(curation), now)
 
-    _link(db, node.id, curation)
+    created = _link(db, node.id, curation)
+    if created:
+        level = "k12" if learner.k12 else course.level
+        enqueue(db, "tag_resources", {"resource_ids": created, "level": level}, now=now)
     search = _log(db, node, roadmap.user_id, curation, stats, now)
     return {
         "search_id": search.id,

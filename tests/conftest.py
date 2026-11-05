@@ -63,6 +63,22 @@ def client(app):
         yield instance
 
 
+def run_job(sessions, now, job_id, limit=10):
+    """Run due jobs in queue order until ``job_id`` has run.
+
+    Generating a roadmap queues its tagging job first, so the next job is not
+    always the one a test just added.
+    """
+    from assistant.backend import jobs
+
+    for _ in range(limit):
+        ran = jobs.run_once(sessions, now)
+        assert ran is not None, f"job {job_id} was never due"
+        if ran == job_id:
+            return
+    raise AssertionError(f"job {job_id} did not run within {limit} jobs")
+
+
 def register(client, name="Minh", email="minh@example.com"):
     response = client.post(
         "/api/v1/auth/register",

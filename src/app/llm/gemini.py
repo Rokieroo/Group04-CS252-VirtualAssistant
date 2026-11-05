@@ -6,7 +6,7 @@ import logging
 import threading
 import time
 
-from app.llm.base import LLMClient, LLMResult, RetryableError
+from app.llm.base import Embedder, LLMClient, LLMResult, RetryableError
 
 log = logging.getLogger("app.llm")
 
@@ -17,7 +17,27 @@ MAX_WAIT = 60  # a longer server-requested wait is a daily quota: retrying now c
 # shortcut: unknown models log cost 0, add their price here when the team switches model.
 PRICES = {"gemini-3.8-flash": (0.75, 3.75)}  # standard tier, Oct 2026
 
-__all__ = ["GeminiClient", "RetryableError"]
+__all__ = ["GeminiClient", "GeminiEmbedder", "RetryableError"]
+
+EMBED_DIMENSIONS = 768  # enough for topic matching; a quarter of the default to store
+EMBED_BATCH = 100  # texts per request, the API's limit
+# The free tier counts each text as a request (100 a minute) and a 429 often names no
+# wait, so the last retry waits out the minute instead of failing the job.
+EMBED_RETRY_DELAYS = (5, MAX_WAIT)
+
+
+def _sdk_client(api_key: str):
+    import ssl
+
+    import truststore
+    from google import genai
+    from google.genai import types
+
+    # OS trust store, not certifi: antivirus/proxy TLS inspection on Windows
+    # otherwise fails every call with CERTIFICATE_VERIFY_FAILED.
+    verify = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    return genai.Client(api_key=api_key, http_options=types.HttpOptions(
+        timeout=TIMEOUT_MS, client_args={"verify": verify}))
 
 
 def _retry_after(error) -> float | None:
@@ -89,20 +109,12 @@ class GeminiClient(LLMClient):
 
     def _generate(self, model: str, prompt: str, system: str, json_schema: dict | None,
                   max_tokens: int, temperature: float, pdf: bytes | None) -> tuple[str, int, int]:
-        import ssl
-
         import httpx
-        import truststore
-        from google import genai
         from google.genai import errors, types
 
         with self._lock:
             if self._client is None:
-                # OS trust store, not certifi: antivirus/proxy TLS inspection on Windows
-                # otherwise fails every call with CERTIFICATE_VERIFY_FAILED.
-                verify = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-                self._client = genai.Client(api_key=self.api_key, http_options=types.HttpOptions(
-                    timeout=TIMEOUT_MS, client_args={"verify": verify}))
+                self._client = _sdk_client(self.api_key)
         config = types.GenerateContentConfig(
             system_instruction=system or None,
             max_output_tokens=max_tokens,
@@ -130,3 +142,51 @@ class GeminiClient(LLMClient):
         ) if usage else 0
         prompt_tokens = (getattr(usage, "prompt_token_count", 0) or 0) if usage else 0
         return (resp.text or "", prompt_tokens, output_tokens)
+
+
+class GeminiEmbedder(Embedder):
+    """Gemini text embeddings for semantic similarity, ``EMBED_DIMENSIONS`` long."""
+
+    def __init__(self, api_key: str, model: str):
+        self.api_key = api_key
+        self.model = model
+        self._client = None
+        self._lock = threading.Lock()
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        with self._lock:
+            if self._client is None:
+                self._client = _sdk_client(self.api_key)
+        vectors: list[list[float]] = []
+        for start in range(0, len(texts), EMBED_BATCH):
+            vectors += self._with_retries(texts[start:start + EMBED_BATCH])
+        log.info("provider=gemini model=%s embedded=%d", self.model, len(texts))
+        return vectors
+
+    def _with_retries(self, texts: list[str]) -> list[list[float]]:
+        for delay in (*EMBED_RETRY_DELAYS, None):
+            try:
+                return self._embed(texts)
+            except RetryableError as e:
+                wait = max(delay or 0, e.retry_after or 0)
+                if delay is None or wait > MAX_WAIT:
+                    raise
+                time.sleep(wait)
+        raise AssertionError("unreachable")  # the last attempt returns or raises
+
+    def _embed(self, texts: list[str]) -> list[list[float]]:
+        import httpx
+        from google.genai import errors, types
+
+        config = types.EmbedContentConfig(
+            task_type="SEMANTIC_SIMILARITY", output_dimensionality=EMBED_DIMENSIONS)
+        try:
+            resp = self._client.models.embed_content(model=self.model, contents=texts,
+                                                     config=config)
+        except errors.APIError as e:
+            if e.code == 429 or e.code >= 500:
+                raise RetryableError(f"Gemini HTTP {e.code}", _retry_after(e)) from e
+            raise
+        except httpx.TransportError as e:
+            raise RetryableError(f"Gemini network error: {type(e).__name__}: {e}") from e
+        return [list(item.values) for item in resp.embeddings]

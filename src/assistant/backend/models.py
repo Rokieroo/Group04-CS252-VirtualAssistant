@@ -347,6 +347,9 @@ class RoadmapNode(Base):
     duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     due_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
     covers: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Subject tagging (migration 0009): JSON float list, kept for hybrid retrieval.
+    embedding: Mapped[str | None] = mapped_column(Text, nullable=True)
+    embedding_model: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     @property
     def kind(self) -> str:
@@ -392,6 +395,10 @@ class Resource(Base):
         server_default="pending",
         index=True,
     )
+    # Subject tagging (migration 0009). tagged_at NULL: the daily sweep tags it.
+    embedding: Mapped[str | None] = mapped_column(Text, nullable=True)
+    embedding_model: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tagged_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True, index=True)
     __table_args__ = (
         Index("ux_resources_canonical_url", "canonical_url", unique=True),
         Index("ix_resources_domain", "domain"),

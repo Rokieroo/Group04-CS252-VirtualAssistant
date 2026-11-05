@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 import httpx
 import pytest
+from conftest import run_job
 from sqlalchemy import select
 
 from app.finder import find_resources
@@ -143,7 +144,7 @@ def run_search(sessions, node_id, user_id):
                            user_id=user_id)
         db.commit()
         job_id = job.id
-    assert jobs.run_once(sessions, NOW) == job_id
+    run_job(sessions, NOW, job_id)
     with sessions() as db:
         job = db.get(Job, job_id)
         assert job.status == "done", job.error

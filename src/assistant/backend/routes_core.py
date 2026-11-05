@@ -27,7 +27,9 @@ from app.syllabus import (
     preview_syllabus as parse_preview,
 )
 
+from . import taxonomy  # noqa: F401  registers tag_roadmap, enqueued below
 from .dependencies import DB, CurrentUser
+from .jobs import enqueue
 from .models import (
     Assessment,
     Course,
@@ -287,11 +289,13 @@ def _roadmap_payload(roadmap: Roadmap, nodes: list[RoadmapNode]) -> dict:
 )
 def generate_roadmap(
     course_id: str,
+    request: Request,
     db: DB,
     user: CurrentUser,
     data: RoadmapGenerateIn | None = None,
 ):
-    """Nodes from the body, else derived from the syllabus (the given or latest one)."""
+    """Nodes from the body, else derived from the syllabus (the given or latest one).
+    A ``tag_roadmap`` job then labels the nodes with subjects (#99)."""
     course = owned_course(db, course_id, user.id)
     data = data or RoadmapGenerateIn()
     syllabus = (
@@ -332,6 +336,9 @@ def generate_roadmap(
         for spec in link(specs)
     ]
     db.add_all(nodes)
+    if nodes:
+        enqueue(db, "tag_roadmap", {"roadmap_id": roadmap.id},
+                now=request.app.state.now(), user_id=user.id)
     db.commit()
     return _roadmap_payload(roadmap, nodes)
 

@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
+from conftest import run_job
 from sqlalchemy import select
 
 from app import vetting
@@ -110,6 +111,8 @@ def test_schedule_daily_enqueues_upkeep_once_per_day(sessions):
         "check_links:2030-01-08",
         "prune:2030-01-07",
         "prune:2030-01-08",
+        "tag_resources:2030-01-07",
+        "tag_resources:2030-01-08",
     ]
 
 
@@ -135,7 +138,7 @@ def shown_resources(client, headers, sessions, urls):
 
 def run_check(sessions, now):
     job_id = add_job(sessions, "check_links", now=now)
-    assert jobs.run_once(sessions, now) == job_id
+    run_job(sessions, now, job_id)
     return load(sessions, job_id)
 
 
@@ -305,7 +308,7 @@ def test_worker_schedules_upkeep_and_runs_jobs_until_stopped(app, client, monkey
 
     def run_and_stop(sessions, now):
         ran.append(real_run_once(sessions, now))
-        if len(ran) == 2:
+        if len(ran) == 3:  # today's upkeep: check_links, prune, tag_resources
             stop.set()
         return ran[-1]
 
@@ -313,7 +316,7 @@ def test_worker_schedules_upkeep_and_runs_jobs_until_stopped(app, client, monkey
     worker.serve(app.state.database, stop)
     with app.state.database.sessions() as db:
         statuses = {job.kind: job.status for job in db.scalars(select(Job))}
-    assert statuses == {"check_links": "done", "prune": "done"}
+    assert statuses == {"check_links": "done", "prune": "done", "tag_resources": "done"}
 
 
 def test_search_keys_come_from_the_environment_and_stay_out_of_repr(monkeypatch):

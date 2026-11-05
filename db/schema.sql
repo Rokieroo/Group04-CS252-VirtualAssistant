@@ -202,7 +202,10 @@ CREATE TABLE IF NOT EXISTS roadmap_nodes (
     week              INTEGER,
     duration_minutes  INTEGER,
     due_at            TIMESTAMP,
-    covers            TEXT                                      -- JSON array of covered node ids
+    covers            TEXT,                                     -- JSON array of covered node ids
+    -- Subject tagging (migration 0009): kept for hybrid retrieval, deleted with the roadmap.
+    embedding         TEXT,                                     -- JSON float list
+    embedding_model   TEXT
 );
 
 CREATE TABLE IF NOT EXISTS resources (
@@ -227,11 +230,16 @@ CREATE TABLE IF NOT EXISTS resources (
     source_connector     TEXT,                                  -- catalog connector that ingested it (#98)
     ingested_at          TIMESTAMP,
     verification_status  VARCHAR(16) NOT NULL DEFAULT 'pending'
-                         CHECK (verification_status IN ('pending', 'verified', 'rejected', 'stale'))
+                         CHECK (verification_status IN ('pending', 'verified', 'rejected', 'stale')),
+    -- Subject tagging (migration 0009).
+    embedding            TEXT,                                  -- JSON float list
+    embedding_model      TEXT,
+    tagged_at            TIMESTAMP                              -- NULL: the daily sweep tags it
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ux_resources_canonical_url ON resources (canonical_url);
 CREATE INDEX IF NOT EXISTS ix_resources_verification_status ON resources (verification_status);
 CREATE INDEX IF NOT EXISTS ix_resources_domain ON resources (domain);
+CREATE INDEX IF NOT EXISTS ix_resources_tagged_at ON resources (tagged_at);
 
 CREATE TABLE IF NOT EXISTS node_resources (
     node_id          VARCHAR(36) NOT NULL REFERENCES roadmap_nodes(id) ON DELETE CASCADE,
@@ -498,5 +506,5 @@ CREATE TABLE IF NOT EXISTS alembic_version (
     version_num VARCHAR(32) NOT NULL PRIMARY KEY
 );
 INSERT INTO alembic_version (version_num)
-SELECT '0008_verified_catalog'
+SELECT '0009_subject_tagging'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);

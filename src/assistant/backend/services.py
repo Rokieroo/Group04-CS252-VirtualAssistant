@@ -33,11 +33,13 @@ from .models import (
     BusyBlock,
     ChatMessage,
     Goal,
+    LearningOutcome,
     Membership,
     Notification,
     Roadmap,
     RoadmapNode,
     ScheduleEntry,
+    Syllabus,
     Task,
     Team,
     User,
@@ -47,6 +49,23 @@ from .schemas import ChatOut, ChatRequest, PlanOut, PlanRequest, ReportOut
 REMINDER_LEAD = timedelta(minutes=15)
 ROADMAP_SESSION_MINUTES = (25, 50)  # spec 10.3.4
 MAX_PLAN_HORIZON = timedelta(days=90)  # PlanRequest's limit
+
+
+def course_outcomes(db: Session, course_id: str) -> tuple[str, ...]:
+    """Learning outcomes of the course's latest syllabus."""
+    latest = (
+        select(Syllabus.id)
+        .where(Syllabus.course_id == course_id)
+        .order_by(Syllabus.created_at.desc())
+        .limit(1)
+        .scalar_subquery()
+    )
+    rows = db.scalars(
+        select(LearningOutcome.description)
+        .where(LearningOutcome.syllabus_id == latest)
+        .order_by(LearningOutcome.code)
+    )
+    return tuple(rows)
 
 
 def serialize_schedule_changes(handler):

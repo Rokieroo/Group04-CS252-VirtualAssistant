@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app import vetting
 
+from . import taxonomy  # noqa: F401  registers tag_resources, enqueued daily
 from .jobs import enqueue, handler
 from .models import Job, NodeResource, Resource, SearchCacheEntry
 
@@ -21,9 +22,10 @@ class NetworkDown(Exception):
 
 
 def schedule_daily(db: Session, now: datetime) -> None:
-    """Enqueue today's upkeep once; the dedupe key makes extra workers harmless."""
+    """Enqueue today's upkeep once; the dedupe key makes extra workers harmless.
+    ``tag_resources`` labels whatever is still untagged (catalog ingest, retries)."""
     today = now.date().isoformat()
-    for kind in ("check_links", "prune"):
+    for kind in ("check_links", "prune", "tag_resources"):
         enqueue(db, kind, now=now, dedupe_key=f"{kind}:{today}")
 
 

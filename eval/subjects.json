@@ -1,0 +1,141 @@
+{
+  "about": "Gold subjects for eval/run_subjects.py (issue #99). \"nodes\": each node of eval/resources.jsonl maps to the taxonomy topics that a resource two raters judged on-topic for it should carry. \"resources\": hand-graded topics a page itself teaches beyond its node's, judged from the page, e.g. RFC 1122 found for network architecture also specifies TCP and UDP. Values are slugs of data/catalog/subjects.yaml.",
+  "nodes": {
+    "R01": [
+      "computing.problem-solving.problem-framing",
+      "computing.problem-solving.solution-ladder"
+    ],
+    "R02": [
+      "computing.problem-solving.task-decomposition",
+      "computing.software-engineering.uml"
+    ],
+    "R03": [
+      "computing.problem-solving.success-pipelines"
+    ],
+    "R04": [
+      "computing.software-engineering.architecture",
+      "computing.security.software-security"
+    ],
+    "R05": [
+      "computing.software-engineering.quality-evaluation",
+      "computing.machine-learning.model-evaluation"
+    ],
+    "R06": [
+      "computing.databases.relational-model"
+    ],
+    "R07": [
+      "computing.databases.normalization",
+      "computing.databases.sql"
+    ],
+    "R08": [
+      "computing.databases.indexing"
+    ],
+    "R09": [
+      "computing.databases.transactions"
+    ],
+    "R10": [
+      "computing.databases.query-processing"
+    ],
+    "R11": [
+      "computing.algorithms.complexity"
+    ],
+    "R12": [
+      "computing.algorithms.search-trees"
+    ],
+    "R13": [
+      "computing.algorithms.heaps"
+    ],
+    "R14": [
+      "computing.algorithms.graph-traversal"
+    ],
+    "R15": [
+      "computing.algorithms.shortest-paths"
+    ],
+    "R16": [
+      "computing.operating-systems.processes"
+    ],
+    "R17": [
+      "computing.operating-systems.scheduling"
+    ],
+    "R18": [
+      "computing.operating-systems.concurrency"
+    ],
+    "R19": [
+      "computing.operating-systems.memory"
+    ],
+    "R20": [
+      "computing.operating-systems.file-systems"
+    ],
+    "R21": [
+      "computing.networks.architecture"
+    ],
+    "R22": [
+      "computing.networks.transport"
+    ],
+    "R23": [
+      "computing.networks.addressing"
+    ],
+    "R24": [
+      "computing.networks.routing"
+    ],
+    "R25": [
+      "computing.security.network-security",
+      "computing.security.cryptography"
+    ],
+    "R26": [
+      "computing.software-engineering.agile"
+    ],
+    "R27": [
+      "computing.software-engineering.version-control"
+    ],
+    "R28": [
+      "computing.software-engineering.design-principles"
+    ],
+    "R29": [
+      "computing.software-engineering.testing"
+    ],
+    "R30": [
+      "computing.software-engineering.ci-cd"
+    ]
+  },
+  "resources": {
+    "https://martinfowler.com/articles/enterprise-architecture.html": [
+      "computing.software-engineering.architecture"
+    ],
+    "https://cloud.google.com/architecture/devops/devops-process-continuous-delivery": [
+      "computing.software-engineering.ci-cd"
+    ],
+    "https://aws.amazon.com/architecture/well-architected/": [
+      "computing.cloud.cloud-services"
+    ],
+    "https://spammy-tech-notes.cc/sec-tips": [
+      "computing.security.cryptography"
+    ],
+    "https://www.nist.gov/itl/ai-risk-management-framework": [
+      "computing.ai"
+    ],
+    "https://owasp.org/www-project-top-10-for-large-language-model-applications/": [
+      "computing.ai.language-models",
+      "computing.security.software-security"
+    ],
+    "https://jepsen.io/analyses": [
+      "computing.cloud.distributed-systems"
+    ],
+    "https://www.redblobgames.com/pathfinding/a-star/introduction.html": [
+      "computing.algorithms.shortest-paths"
+    ],
+    "https://www.destroyallsoftware.com/screencasts/catalog/how-git-and-filesystems-work": [
+      "computing.software-engineering.version-control"
+    ],
+    "https://datatracker.ietf.org/doc/html/rfc1122": [
+      "computing.networks.transport"
+    ],
+    "https://www.oreilly.com/library/view/high-performance-browser/9781449344757/ch01.html": [
+      "computing.networks.transport",
+      "computing.networks.application-layer"
+    ],
+    "https://trunkbaseddevelopment.com/": [
+      "computing.software-engineering.ci-cd"
+    ]
+  }
+}

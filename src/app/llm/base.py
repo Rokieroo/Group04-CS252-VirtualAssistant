@@ -21,6 +21,16 @@ class RetryableError(Exception):
         self.retry_after = retry_after
 
 
+class Embedder(ABC):
+    """Turns texts into vectors; only vectors from the same ``model`` are comparable."""
+
+    model: str
+
+    @abstractmethod
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        """One vector per text, in order. Raises RetryableError like ``complete``."""
+
+
 class LLMClient(ABC):
     @abstractmethod
     def complete(self, prompt: str, *, system: str = "", json_schema: dict | None = None,

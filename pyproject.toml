@@ -51,6 +51,7 @@ app = [
     "items/prompts/*.txt",
     "roadmap/prompts/*.txt",
     "syllabus/prompts/*.txt",
+    "taxonomy/prompts/*.txt",
     "vetting/prompts/*.txt",
 ]
 

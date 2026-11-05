@@ -854,7 +854,7 @@
           "Syllabus and roadmap"
         ],
         "summary": "Generate Roadmap",
-        "description": "Nodes from the body, else derived from the syllabus (the given or latest one).",
+        "description": "Nodes from the body, else derived from the syllabus (the given or latest one).\nA ``tag_roadmap`` job then labels the nodes with subjects (#99).",
         "operationId": "generate_roadmap_api_v1_courses__course_id__roadmap_generate_post",
         "security": [
           {

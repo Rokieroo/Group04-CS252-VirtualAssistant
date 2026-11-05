@@ -1,0 +1,606 @@
+# Subject taxonomy (issue #99): field -> subject -> topic.
+#
+# The same labels go on roadmap nodes and on catalog resources, so #102 can match
+# them and #98 knows which subjects to ingest. Read by app.taxonomy.load_taxonomy();
+# tests/test_taxonomy.py keeps it well-formed.
+#
+# - slug: the parent's slug plus one segment ("computing.databases.sql"). Never
+#   rename a slug: stored labels point at it. Retire one in a PR that also
+#   migrates its labels.
+# - name / name_vi: display names, both required; both also count as keywords.
+# - ref: where the entry comes from (ACM CCS 2012 for computing, MSC 2020 for
+#   mathematics, GDPT 2018 for K-12) or the syllabus that needed it.
+# - keywords: phrases that identify the entry, English and Vietnamese. Matching
+#   ignores case and Vietnamese diacritics and accepts a plural "s". Prefer specific
+#   phrases: a word that fits many subjects ("process", "index", "stack") mislabels.
+# - course_codes: regular expressions, matched in full against a course code.
+# - departments (fields and subjects): names of the faculty that teaches them.
+# - levels (fields only): learner levels the field serves (k12 | undergrad | grad).
+#
+# Start: CSC10014 and the syllabi in eval/syllabus/ (#66). Add a subject when a
+# syllabus needs one, in the same PR as the syllabus.
+
+fields:
+  - slug: computing
+    name: Computing
+    name_vi: Máy tính và công nghệ thông tin
+    ref: "ACM Computing Classification System 2012"
+    levels: [undergrad, grad]
+    departments:
+      - computer science
+      - information technology
+      - electrical engineering and computer science
+      - công nghệ thông tin
+      - khoa học máy tính
+    subjects:
+      - slug: computing.problem-solving
+        name: Problem framing and solution design
+        name_vi: Định hình bài toán và thiết kế giải pháp
+        ref: "CSC10014 (HCMUS) syllabus; ACM CCS: Software and its engineering > Designing software"
+        course_codes: ["CSC10014"]
+        topics:
+          - slug: computing.problem-solving.problem-framing
+            name: Problem framing
+            name_vi: Định hình bài toán
+            ref: "CSC10014 CLO1"
+            keywords: [frame business problems, problem definition, problem statement,
+                       right problem, framing the problem, xác định vấn đề]
+          - slug: computing.problem-solving.product-risks
+            name: Product risks
+            name_vi: Rủi ro sản phẩm
+            ref: "CSC10014 CLO1"
+            keywords: [product risk, value risk, usability risk, feasibility risk,
+                       viability risk, product discovery]
+          - slug: computing.problem-solving.solution-ladder
+            name: Solution ladder
+            name_vi: Thang giải pháp
+            ref: "CSC10014 CLO2"
+            keywords: [solution tier, automation level, choose a solution approach,
+                       bậc giải pháp]
+          - slug: computing.problem-solving.task-decomposition
+            name: Task decomposition
+            name_vi: Phân rã công việc
+            ref: "CSC10014 CLO3"
+            keywords: [decompose tasks, decomposition, anatomy of a task, work breakdown,
+                       breaking a problem into steps]
+          - slug: computing.problem-solving.success-pipelines
+            name: Success pipelines
+            name_vi: Quy trình thành công
+            ref: "CSC10014 CLO4"
+            keywords: [success pipeline, pipeline pattern, checkpoint, human in the loop,
+                       human-in-the-loop, saving metrics]
+          - slug: computing.problem-solving.computational-thinking
+            name: Computational thinking
+            name_vi: Tư duy tính toán
+            ref: "ACM CCS: Social and professional topics > Computing education"
+            keywords: [problem solving, giải quyết vấn đề]
+
+      - slug: computing.software-engineering
+        name: Software engineering
+        name_vi: Công nghệ phần mềm
+        ref: "ACM CCS: Software and its engineering > Software creation and management"
+        course_codes: ["SE\\d{3}", "6\\.031", "6\\.1020"]
+        departments: [software engineering, kỹ thuật phần mềm]
+        topics:
+          - slug: computing.software-engineering.requirements
+            name: Requirements engineering
+            name_vi: Kỹ thuật yêu cầu
+            ref: "ACM CCS: Designing software > Requirements analysis"
+            keywords: [functional requirement, non-functional requirement,
+                       nonfunctional requirement, requirements analysis,
+                       software requirements, user story, moscow, prioritisation,
+                       prioritization, yêu cầu chức năng, yêu cầu phi chức năng, đặc tả]
+          - slug: computing.software-engineering.uml
+            name: Use cases and UML
+            name_vi: Use case và UML
+            ref: "ACM CCS: Software notations and tools > Unified Modeling Language (UML)"
+            keywords: [use case, use case diagram, uml, unified modeling language,
+                       include vs extend, sequence diagram, class diagram, ca sử dụng]
+          - slug: computing.software-engineering.architecture
+            name: Software architecture
+            name_vi: Kiến trúc phần mềm
+            ref: "ACM CCS: Software system structures > Software architectures"
+            keywords: [system architecture, enterprise architecture, solution architecture,
+                       microservice, api design, rest api, kiến trúc hệ thống, thiết kế api]
+          - slug: computing.software-engineering.design-principles
+            name: Design principles and clean code
+            name_vi: Nguyên lý thiết kế và mã sạch
+            ref: "ACM CCS: Software notations and tools > Software design techniques"
+            keywords: [solid principle, clean code, design pattern, refactoring,
+                       code smell, single responsibility, dependency inversion]
+          - slug: computing.software-engineering.agile
+            name: Agile methods
+            name_vi: Phương pháp Agile
+            ref: "ACM CCS: Software development process management > Agile software development"
+            keywords: [agile, scrum, kanban, sprint, agile manifesto, scrum guide]
+          - slug: computing.software-engineering.version-control
+            name: Version control
+            name_vi: Quản lý phiên bản
+            ref: "ACM CCS: Software configuration management and version control systems"
+            keywords: [git, git workflow, branching, pull request, gitflow, github flow,
+                       merge conflict]
+          - slug: computing.software-engineering.testing
+            name: Software testing
+            name_vi: Kiểm thử phần mềm
+            ref: "ACM CCS: Software verification and validation > Software testing and debugging"
+            keywords: [test-driven development, test driven development, tdd, unit test,
+                       unit testing, integration test, test case, kiểm thử]
+          - slug: computing.software-engineering.ci-cd
+            name: Continuous integration and delivery
+            name_vi: Tích hợp và triển khai liên tục
+            ref: "ACM CCS: Software creation and management > Software development process management"
+            keywords: [continuous integration, continuous delivery, continuous deployment,
+                       ci/cd, ci cd, cicd, github actions, jenkins, deployment pipeline,
+                       tích hợp liên tục]
+          - slug: computing.software-engineering.project-practice
+            name: Software project practice
+            name_vi: Thực hành dự án phần mềm
+            ref: "ACM CCS: Software development process management"
+            keywords: [capstone, project milestone, milestone report, project presentation,
+                       project defense, project management, đồ án, quản lý dự án]
+          - slug: computing.software-engineering.quality-evaluation
+            name: Quality engineering and evaluation
+            name_vi: Kỹ thuật chất lượng và đánh giá
+            ref: "CSC10014 week 5; ACM CCS: Software verification and validation"
+            keywords: [engineering quality, benchmark dataset, red-teaming, red teaming,
+                       ai evaluation, llm evaluation, evaluation harness]
+
+      - slug: computing.algorithms
+        name: Algorithms and data structures
+        name_vi: Cấu trúc dữ liệu và giải thuật
+        ref: "ACM CCS: Theory of computation > Design and analysis of algorithms; Data structures design and analysis"
+        course_codes: ["CS20[01]", "6\\.006", "6\\.046J?", "6\\.12[12]0"]
+        topics:
+          - slug: computing.algorithms.complexity
+            name: Algorithmic complexity
+            name_vi: Độ phức tạp thuật toán
+            ref: "ACM CCS: Theory of computation > Computational complexity and cryptography"
+            keywords: [big-o, big o, asymptotic, time complexity, complexity analysis,
+                       analysis of algorithms, asymptotic notation, độ phức tạp]
+          - slug: computing.algorithms.sorting-searching
+            name: Sorting and searching
+            name_vi: Sắp xếp và tìm kiếm
+            ref: "ACM CCS: Design and analysis of algorithms > Sorting and searching"
+            keywords: [sorting algorithm, quicksort, merge sort, mergesort, binary search,
+                       tìm kiếm nhị phân]
+          - slug: computing.algorithms.search-trees
+            name: Search trees
+            name_vi: Cây tìm kiếm
+            ref: "ACM CCS: Data structures design and analysis > Sorting and searching"
+            keywords: [binary search tree, avl, avl tree, red-black tree, red black tree,
+                       balanced search tree, self-balancing, tree rotation, cây nhị phân,
+                       cây avl]
+          - slug: computing.algorithms.heaps
+            name: Heaps and priority queues
+            name_vi: Heap và hàng đợi ưu tiên
+            ref: "ACM CCS: Data structures design and analysis"
+            keywords: [binary heap, heap, priority queue, heapsort, heapq, hàng đợi ưu tiên]
+          - slug: computing.algorithms.graph-traversal
+            name: Graph traversal
+            name_vi: Duyệt đồ thị
+            ref: "ACM CCS: Design and analysis of algorithms > Graph algorithms analysis"
+            keywords: [graph traversal, breadth-first search, breadth first search,
+                       depth-first search, depth first search, bfs, dfs, topological sort,
+                       duyệt đồ thị]
+          - slug: computing.algorithms.shortest-paths
+            name: Shortest paths
+            name_vi: Đường đi ngắn nhất
+            ref: "ACM CCS: Graph algorithms analysis > Shortest paths"
+            keywords: [shortest path, dijkstra, bellman-ford, bellman ford, floyd-warshall]
+          - slug: computing.algorithms.hashing
+            name: Hashing
+            name_vi: Bảng băm
+            ref: "ACM CCS: Data structures design and analysis"
+            keywords: [hash table, hash map]
+          - slug: computing.algorithms.algorithm-design
+            name: Algorithm design techniques
+            name_vi: Kỹ thuật thiết kế thuật toán
+            ref: "ACM CCS: Design and analysis of algorithms > Algorithm design techniques"
+            keywords: [dynamic programming, greedy algorithm, divide and conquer, recursion,
+                       backtracking, quy hoạch động, đệ quy]
+          - slug: computing.algorithms.linear-structures
+            name: Lists, stacks and queues
+            name_vi: Danh sách, ngăn xếp và hàng đợi
+            ref: "ACM CCS: Data structures design and analysis"
+            keywords: [linked list, stack data structure, queue data structure,
+                       dynamic array, danh sách liên kết, ngăn xếp]
+
+      - slug: computing.databases
+        name: Database systems
+        name_vi: Hệ cơ sở dữ liệu
+        ref: "ACM CCS: Information systems > Data management systems"
+        course_codes: ["CS102", "6\\.830", "6\\.5830"]
+        topics:
+          - slug: computing.databases.relational-model
+            name: Relational model
+            name_vi: Mô hình quan hệ
+            ref: "ACM CCS: Data management systems > Database design and models > Relational database model"
+            keywords: [relational algebra, relational database, entity relationship,
+                       er diagram, data modeling, đại số quan hệ, mô hình dữ liệu]
+          - slug: computing.databases.sql
+            name: SQL
+            name_vi: Ngôn ngữ truy vấn SQL
+            ref: "ACM CCS: Query languages > Structured Query Language"
+            keywords: [structured query language, sql join, select statement, sql query]
+          - slug: computing.databases.normalization
+            name: Normalization
+            name_vi: Chuẩn hóa cơ sở dữ liệu
+            ref: "ACM CCS: Database design and models > Relational database model"
+            keywords: [normal form, normalisation, database normalization, 1nf, 2nf, 3nf,
+                       bcnf, functional dependency, dạng chuẩn]
+          - slug: computing.databases.indexing
+            name: Indexing
+            name_vi: Chỉ mục
+            ref: "ACM CCS: Data management systems > Data structures > Data access methods"
+            keywords: [database index, b-tree, b tree, b+ tree, b+tree, chỉ mục]
+          - slug: computing.databases.transactions
+            name: Transactions and concurrency control
+            name_vi: Giao tác và điều khiển đồng thời
+            ref: "ACM CCS: Database management system engines > Database transaction processing"
+            keywords: [transaction, acid, concurrency control, isolation level,
+                       two-phase locking, serializability, mvcc, giao tác]
+          - slug: computing.databases.query-processing
+            name: Query processing and optimization
+            name_vi: Xử lý và tối ưu truy vấn
+            ref: "ACM CCS: Database management system engines > Database query processing"
+            keywords: [query optimization, query optimizer, query plan, execution plan,
+                       explain analyze, query processing, using explain, tối ưu truy vấn]
+
+      - slug: computing.operating-systems
+        name: Operating systems
+        name_vi: Hệ điều hành
+        ref: "ACM CCS: Software and its engineering > Contextual software domains > Operating systems"
+        course_codes: ["CS202", "6\\.828", "6\\.1810"]
+        topics:
+          - slug: computing.operating-systems.processes
+            name: Processes and threads
+            name_vi: Tiến trình và luồng
+            ref: "ACM CCS: Operating systems > Process management"
+            keywords: [context switch, context switching, process control block,
+                       process management, process creation, system call, kernel space,
+                       user space, multithreading, tiến trình]
+          - slug: computing.operating-systems.scheduling
+            name: CPU scheduling
+            name_vi: Điều phối CPU
+            ref: "ACM CCS: Process management > Scheduling"
+            keywords: [scheduling algorithm, round robin, shortest job first,
+                       process scheduling, multi-level feedback queue, mlfq, turnaround time,
+                       lập lịch cpu]
+          - slug: computing.operating-systems.concurrency
+            name: Concurrency and synchronization
+            name_vi: Đồng bộ hóa và bế tắc
+            ref: "ACM CCS: Process management > Synchronization; Deadlocks"
+            keywords: [semaphore, mutex, deadlock, race condition, synchronization,
+                       critical section, dining philosophers, bế tắc, đồng bộ hóa]
+          - slug: computing.operating-systems.memory
+            name: Memory management
+            name_vi: Quản lý bộ nhớ
+            ref: "ACM CCS: Operating systems > Memory management > Virtual memory"
+            keywords: [virtual memory, paging, demand paging, page table, page fault,
+                       page replacement, tlb, bộ nhớ ảo, phân trang]
+          - slug: computing.operating-systems.file-systems
+            name: File systems
+            name_vi: Hệ thống tập tin
+            ref: "ACM CCS: Operating systems > File systems management"
+            keywords: [file system, filesystem, inode, journaling, ext4]
+
+      - slug: computing.networks
+        name: Computer networks
+        name_vi: Mạng máy tính
+        ref: "ACM CCS: Networks"
+        course_codes: ["CS203", "6\\.829", "6\\.5820"]
+        topics:
+          - slug: computing.networks.architecture
+            name: Network architecture and layers
+            name_vi: Kiến trúc mạng và mô hình phân tầng
+            ref: "ACM CCS: Networks > Network architectures > Layering"
+            keywords: [osi model, tcp/ip model, layered network, network layers,
+                       protocol stack, osi, mô hình osi]
+          - slug: computing.networks.transport
+            name: Transport layer
+            name_vi: Tầng giao vận
+            ref: "ACM CCS: Network protocols > Transport protocols"
+            keywords: [tcp, udp, congestion control, flow control, three-way handshake]
+          - slug: computing.networks.addressing
+            name: IP addressing
+            name_vi: Địa chỉ IP
+            ref: "ACM CCS: Network protocols > Network layer protocols"
+            keywords: [ip address, subnet, subnetting, cidr, ipv4, ipv6, mạng con]
+          - slug: computing.networks.routing
+            name: Routing protocols
+            name_vi: Giao thức định tuyến
+            ref: "ACM CCS: Network layer protocols > Routing protocols"
+            keywords: [ospf, open shortest path first, bgp, border gateway protocol,
+                       link-state routing, distance vector, autonomous system, định tuyến]
+          - slug: computing.networks.application-layer
+            name: Application-layer protocols
+            name_vi: Giao thức tầng ứng dụng
+            ref: "ACM CCS: Network protocols > Application layer protocols"
+            keywords: [dns, domain name system, application layer, smtp, tầng ứng dụng]
+
+      - slug: computing.security
+        name: Information security
+        name_vi: An toàn thông tin
+        ref: "ACM CCS: Security and privacy"
+        course_codes: ["SEC\\d{3}", "6\\.858", "6\\.5660"]
+        departments: [information security, an toàn thông tin]
+        topics:
+          - slug: computing.security.cryptography
+            name: Cryptography
+            name_vi: Mật mã học
+            ref: "ACM CCS: Security and privacy > Cryptography"
+            keywords: [encryption, public key, public-key, rsa, aes, symmetric key,
+                       digital signature, cipher, mật mã, mã hóa]
+          - slug: computing.security.network-security
+            name: Network security
+            name_vi: An ninh mạng
+            ref: "ACM CCS: Security and privacy > Network security"
+            keywords: [tls, ssl, transport layer security, firewall, vpn, bảo mật mạng]
+          - slug: computing.security.software-security
+            name: Software security
+            name_vi: Bảo mật phần mềm
+            ref: "ACM CCS: Security and privacy > Software and application security"
+            keywords: [owasp, sql injection, cross-site scripting, xss, vulnerability,
+                       buffer overflow, prompt injection, defensive safeguards, lỗ hổng]
+          - slug: computing.security.access-control
+            name: Authentication and access control
+            name_vi: Xác thực và kiểm soát truy cập
+            ref: "ACM CCS: Security services > Authentication; Access control"
+            keywords: [authentication, authorization, access control, oauth, phân quyền]
+
+      - slug: computing.ai
+        name: Artificial intelligence
+        name_vi: Trí tuệ nhân tạo
+        ref: "ACM CCS: Computing methodologies > Artificial intelligence"
+        course_codes: ["AI\\d{3}", "6\\.034", "6\\.4100"]
+        topics:
+          - slug: computing.ai.search
+            name: Search and planning
+            name_vi: Tìm kiếm và lập kế hoạch
+            ref: "ACM CCS: Artificial intelligence > Search methodologies"
+            keywords: [heuristic search, a* search, minimax, adversarial search,
+                       state space search, tìm kiếm heuristic]
+          - slug: computing.ai.knowledge-reasoning
+            name: Knowledge representation and reasoning
+            name_vi: Biểu diễn tri thức và suy luận
+            ref: "ACM CCS: Artificial intelligence > Knowledge representation and reasoning"
+            keywords: [knowledge representation, logical inference, propositional logic,
+                       first-order logic, biểu diễn tri thức, suy diễn]
+          - slug: computing.ai.language-models
+            name: Language models and retrieval
+            name_vi: Mô hình ngôn ngữ và truy xuất
+            ref: "ACM CCS: Artificial intelligence > Natural language processing"
+            keywords: [large language model, llm, llm interface, natural language processing,
+                       nlp, retrieval augmented generation, rag, retrieval integration,
+                       cite-or-refuse, transformer, prompt engineering, mô hình ngôn ngữ lớn,
+                       xử lý ngôn ngữ tự nhiên]
+          - slug: computing.ai.agents
+            name: Intelligent agents
+            name_vi: Tác tử thông minh
+            ref: "ACM CCS: Artificial intelligence > Distributed artificial intelligence > Intelligent agents"
+            keywords: [intelligent agent, ai agent, multi-agent, agent tools, tác tử]
+
+      - slug: computing.machine-learning
+        name: Machine learning
+        name_vi: Học máy
+        ref: "ACM CCS: Computing methodologies > Machine learning"
+        course_codes: ["CS315", "6\\.036", "6\\.3900"]
+        topics:
+          - slug: computing.machine-learning.supervised
+            name: Supervised learning
+            name_vi: Học có giám sát
+            ref: "ACM CCS: Machine learning > Learning paradigms > Supervised learning"
+            keywords: [linear regression, logistic regression, decision tree,
+                       support vector machine, svm, classifier]
+          - slug: computing.machine-learning.unsupervised
+            name: Unsupervised learning
+            name_vi: Học không giám sát
+            ref: "ACM CCS: Machine learning > Learning paradigms > Unsupervised learning"
+            keywords: [clustering, k-means, kmeans, dimensionality reduction, pca, phân cụm]
+          - slug: computing.machine-learning.neural-networks
+            name: Neural networks and deep learning
+            name_vi: Mạng nơ-ron và học sâu
+            ref: "ACM CCS: Machine learning approaches > Neural networks"
+            keywords: [neural network, deep learning, backpropagation, gradient descent,
+                       convolutional neural network, cnn, học sâu]
+          - slug: computing.machine-learning.data-mining
+            name: Data mining
+            name_vi: Khai phá dữ liệu
+            ref: "ACM CCS: Information systems > Information systems applications > Data mining"
+            keywords: [association rule, apriori, feature engineering]
+          - slug: computing.machine-learning.model-evaluation
+            name: Model evaluation
+            name_vi: Đánh giá mô hình
+            ref: "ACM CCS: Machine learning > Cross-validation"
+            keywords: [cross-validation, cross validation, overfitting, confusion matrix,
+                       precision and recall, bias-variance]
+
+      - slug: computing.cloud
+        name: Cloud and distributed systems
+        name_vi: Điện toán đám mây và hệ phân tán
+        ref: "ACM CCS: Computer systems organization > Distributed architectures > Cloud computing"
+        course_codes: ["CS405", "6\\.824", "6\\.5840"]
+        topics:
+          - slug: computing.cloud.containers
+            name: Containers
+            name_vi: Container
+            ref: "ACM CCS: Software and its engineering > Virtual machines"
+            keywords: [docker, docker compose, containerization, kubernetes, k8s]
+          - slug: computing.cloud.deployment
+            name: Deployment and operations
+            name_vi: Triển khai và vận hành
+            ref: "ACM CCS: Software and its engineering > Software post-development issues"
+            keywords: [staging deployment, infrastructure as code, terraform,
+                       runtime monitoring, observability, triển khai hệ thống]
+          - slug: computing.cloud.performance
+            name: Caching and asynchronous processing
+            name_vi: Bộ nhớ đệm và xử lý bất đồng bộ
+            ref: "ACM CCS: Computer systems organization > Distributed architectures"
+            keywords: [caching, performance optimization, job queue, message queue,
+                       background worker, asynchronous job, load balancing, bộ nhớ đệm]
+          - slug: computing.cloud.distributed-systems
+            name: Distributed systems
+            name_vi: Hệ phân tán
+            ref: "ACM CCS: Computing methodologies > Distributed computing methodologies"
+            keywords: [distributed system, consensus algorithm, raft, paxos, replication,
+                       cap theorem]
+          - slug: computing.cloud.cloud-services
+            name: Cloud services
+            name_vi: Dịch vụ đám mây
+            ref: "ACM CCS: Networks > Network services > Cloud computing"
+            keywords: [cloud computing, amazon web services, serverless, iaas, paas, saas,
+                       well-architected, điện toán đám mây]
+
+  - slug: mathematics
+    name: Mathematics
+    name_vi: Toán học
+    ref: "Mathematics Subject Classification 2020"
+    levels: [undergrad, grad]
+    departments: [mathematics, toán học, toán - tin học]
+    subjects:
+      - slug: mathematics.discrete
+        name: Discrete mathematics
+        name_vi: Toán rời rạc
+        ref: "MSC 2020: 05 Combinatorics; 03 Mathematical logic; 68R Discrete mathematics in relation to computer science"
+        course_codes: ["6\\.042J?", "6\\.1200J?"]
+        topics:
+          - slug: mathematics.discrete.logic-proofs
+            name: Logic and proofs
+            name_vi: Logic và chứng minh
+            ref: "MSC 2020: 03 Mathematical logic and foundations"
+            keywords: [proof by induction, mathematical induction, propositional calculus,
+                       quy nạp toán học]
+          - slug: mathematics.discrete.combinatorics
+            name: Combinatorics
+            name_vi: Tổ hợp
+            ref: "MSC 2020: 05A Enumerative combinatorics"
+            keywords: [permutation, pigeonhole principle, binomial coefficient, chỉnh hợp]
+          - slug: mathematics.discrete.graph-theory
+            name: Graph theory
+            name_vi: Lý thuyết đồ thị
+            ref: "MSC 2020: 05C Graph theory"
+      - slug: mathematics.linear-algebra
+        name: Linear algebra
+        name_vi: Đại số tuyến tính
+        ref: "MSC 2020: 15 Linear and multilinear algebra; matrix theory"
+        course_codes: ["18\\.06"]
+        topics:
+          - slug: mathematics.linear-algebra.matrices
+            name: Matrices and linear systems
+            name_vi: Ma trận và hệ phương trình tuyến tính
+            ref: "MSC 2020: 15A Basic linear algebra"
+            keywords: [matrices, matrix multiplication, linear system, gaussian elimination,
+                       determinant, định thức]
+          - slug: mathematics.linear-algebra.eigenvalues
+            name: Eigenvalues and eigenvectors
+            name_vi: Trị riêng và vector riêng
+            ref: "MSC 2020: 15A18 Eigenvalues, singular values, and eigenvectors"
+            keywords: [eigenvalue, eigenvector, singular value decomposition, trị riêng]
+      - slug: mathematics.probability-statistics
+        name: Probability and statistics
+        name_vi: Xác suất thống kê
+        ref: "MSC 2020: 60 Probability theory; 62 Statistics"
+        course_codes: ["18\\.05", "18\\.600"]
+        topics:
+          - slug: mathematics.probability-statistics.probability
+            name: Probability
+            name_vi: Xác suất
+            ref: "MSC 2020: 60A Foundations of probability theory"
+            keywords: [random variable, bayes theorem, probability distribution,
+                       biến ngẫu nhiên]
+          - slug: mathematics.probability-statistics.statistics
+            name: Statistical inference
+            name_vi: Thống kê suy luận
+            ref: "MSC 2020: 62F Parametric inference"
+            keywords: [hypothesis testing, confidence interval, kiểm định giả thuyết]
+      - slug: mathematics.calculus
+        name: Calculus
+        name_vi: Giải tích
+        ref: "MSC 2020: 26 Real functions"
+        course_codes: ["18\\.01", "18\\.02"]
+        topics:
+          - slug: mathematics.calculus.differential
+            name: Limits and derivatives
+            name_vi: Giới hạn và đạo hàm
+            ref: "MSC 2020: 26A24 Differentiation"
+            keywords: [derivative, limit of a function, differentiation, đạo hàm]
+          - slug: mathematics.calculus.integral
+            name: Integrals
+            name_vi: Tích phân
+            ref: "MSC 2020: 26A42 Integrals of Riemann, Stieltjes and Lebesgue type"
+            keywords: [riemann sum, definite integral, antiderivative, nguyên hàm]
+
+  # Subjects of the general-education programme (GDPT 2018, Thông tư 32/2018/TT-BGDĐT).
+  # Only Toán and Tin học have topics yet: the strands their programmes name. The rest
+  # get topics when the first K-12 syllabus arrives (ADR 004: from week 4).
+  - slug: k12
+    name: School education (K-12)
+    name_vi: Giáo dục phổ thông
+    ref: "Chương trình giáo dục phổ thông 2018 (Thông tư 32/2018/TT-BGDĐT)"
+    levels: [k12]
+    subjects:
+      - slug: k12.math
+        name: Mathematics
+        name_vi: Toán
+        ref: "GDPT 2018: Chương trình môn Toán"
+        topics:
+          - slug: k12.math.numbers-algebra
+            name: Numbers and algebra
+            name_vi: Số và đại số
+            ref: "GDPT 2018 Toán: mạch Số và Đại số"
+            keywords: [phương trình, đa thức, số học]
+          - slug: k12.math.geometry-measurement
+            name: Geometry and measurement
+            name_vi: Hình học và đo lường
+            ref: "GDPT 2018 Toán: mạch Hình học và Đo lường"
+            keywords: [hình học, đo lường, tam giác, đường tròn]
+          - slug: k12.math.statistics-probability
+            name: Statistics and probability
+            name_vi: Thống kê và xác suất
+            ref: "GDPT 2018 Toán: mạch Thống kê và Xác suất"
+            keywords: [thống kê, xác suất]
+      - slug: k12.informatics
+        name: Informatics
+        name_vi: Tin học
+        ref: "GDPT 2018: Chương trình môn Tin học"
+        topics:
+          - slug: k12.informatics.computers-society
+            name: Computers and society
+            name_vi: Máy tính và cộng đồng
+            ref: "GDPT 2018 Tin học: chủ đề A"
+          - slug: k12.informatics.networks-internet
+            name: Computer networks and the Internet
+            name_vi: Mạng máy tính và Internet
+            ref: "GDPT 2018 Tin học: chủ đề B"
+            keywords: [mạng máy tính, internet]
+          - slug: k12.informatics.information
+            name: Storing, finding and exchanging information
+            name_vi: Tổ chức lưu trữ, tìm kiếm và trao đổi thông tin
+            ref: "GDPT 2018 Tin học: chủ đề C"
+            keywords: [lưu trữ thông tin, tìm kiếm thông tin, trao đổi thông tin]
+          - slug: k12.informatics.digital-citizenship
+            name: Ethics, law and culture in the digital environment
+            name_vi: Đạo đức, pháp luật và văn hoá trong môi trường số
+            ref: "GDPT 2018 Tin học: chủ đề D"
+            keywords: [môi trường số, an toàn trên mạng]
+          - slug: k12.informatics.applications
+            name: Computer applications
+            name_vi: Ứng dụng tin học
+            ref: "GDPT 2018 Tin học: chủ đề E"
+            keywords: [soạn thảo văn bản, bảng tính, trình chiếu]
+          - slug: k12.informatics.problem-solving
+            name: Problem solving with computers
+            name_vi: Giải quyết vấn đề với sự trợ giúp của máy tính
+            ref: "GDPT 2018 Tin học: chủ đề F"
+            keywords: [lập trình, thuật toán, scratch, python]
+          - slug: k12.informatics.careers
+            name: Careers in informatics
+            name_vi: Hướng nghiệp với tin học
+            ref: "GDPT 2018 Tin học: chủ đề G"
+      - {slug: k12.literature, name: Literature, name_vi: Ngữ văn, ref: "GDPT 2018: Chương trình môn Ngữ văn"}
+      - {slug: k12.english, name: English, name_vi: Tiếng Anh, ref: "GDPT 2018: Chương trình môn Tiếng Anh"}
+      - {slug: k12.physics, name: Physics, name_vi: Vật lí, ref: "GDPT 2018: Chương trình môn Vật lí"}
+      - {slug: k12.chemistry, name: Chemistry, name_vi: Hoá học, ref: "GDPT 2018: Chương trình môn Hoá học"}
+      - {slug: k12.biology, name: Biology, name_vi: Sinh học, ref: "GDPT 2018: Chương trình môn Sinh học"}
+      - {slug: k12.history, name: History, name_vi: Lịch sử, ref: "GDPT 2018: Chương trình môn Lịch sử"}
+      - {slug: k12.geography, name: Geography, name_vi: Địa lí, ref: "GDPT 2018: Chương trình môn Địa lí"}
