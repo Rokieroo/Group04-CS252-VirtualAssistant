@@ -1,9 +1,17 @@
-"""Courses, page-level PDF/DOCX/text sources (UC-01, #13, #49), concept proposals (UC-02, #9) and cited items (UC-03, #10)."""
+"""Courses, page-level PDF/DOCX/PPTX/photo/text sources (UC-01, #13, #49, #114), concept proposals (UC-02, #9) and cited items (UC-03, #10)."""
 
 import json
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    Form,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+)
 from sqlalchemy import delete, select, text
 from sqlalchemy.exc import IntegrityError
 
@@ -11,9 +19,9 @@ from app.concepts.extract import extract_concepts, save_concepts
 from app.concepts.visual import read_visuals
 from app.ingest import (
     MAX_UPLOAD_BYTES,
-    PDF,
     InvalidDocument,
     UnsupportedType,
+    as_pdf,
     detect_media_type,
     extract_pages,
     looks_scanned,
@@ -22,6 +30,7 @@ from app.items.generate import generate_items, save_items
 from app.llm import LLMClient, get_client, get_vision_client
 
 from .dependencies import DB, CurrentUser
+from .material_repository import delete_material, enqueue_mapping
 from .models import Course, Source
 from .schemas import (
     ConceptGraphOut,
@@ -72,13 +81,15 @@ def list_sources(course_id: str, db: DB, user: CurrentUser):
 def upload_source(
     course_id: str,
     file: UploadFile,
+    request: Request,
     db: DB,
     user: CurrentUser,
     vision: Annotated[LLMClient, Depends(get_vision_client)],
     kind: Annotated[SourceKind, Form()] = "material",
 ):
-    """PDF, DOCX or UTF-8 .txt up to 20 MB; the type comes from name and content, not the client."""
-    owned_course(db, course_id, user.id)
+    """PDF, DOCX, PPTX, JPEG/PNG photo or UTF-8 .txt up to 20 MB; the type comes from name
+    and content, not the client. Material is then mapped onto the roadmap in a job."""
+    course = owned_course(db, course_id, user.id)
     # Browsers may send a Windows path; keep only the base name.
     name = (file.filename or "").replace("\\", "/").rsplit("/", 1)[-1].strip()
     if not 1 <= len(name) <= 255:
@@ -93,11 +104,11 @@ def upload_source(
         raise HTTPException(415, "unsupported_type") from None
     except InvalidDocument as exc:
         raise HTTPException(400, exc.code) from None
-    is_pdf = media_type == PDF
-    # Only PDFs have page images for the vision model to read.
+    # PDFs and photos have page images for the vision model to read.
+    pdf = as_pdf(data, media_type)
     notes = (
-        read_visuals(vision, data, len(pages), _previous_notes(db, course_id, name, len(pages)))
-        if is_pdf
+        read_visuals(vision, pdf, len(pages), _previous_notes(db, course_id, name, len(pages)))
+        if pdf
         else [""] * len(pages)
     )
     # Re-uploading the same file name replaces its pages.
@@ -113,6 +124,11 @@ def upload_source(
     db.flush()
     for source in db.scalars(select(Source).where(Source.course_id == course_id, Source.file_name == name)):
         import_private_exercises(db, source, user.id)
+    job = (
+        enqueue_mapping(db, course, request.app.state.now(), file_name=name)
+        if kind == "material"
+        else None
+    )
     try:
         db.commit()
     except IntegrityError:
@@ -123,8 +139,19 @@ def upload_source(
         pages=len(pages),
         kind=kind,
         status="processed",
-        warning="scanned_pdf" if is_pdf and looks_scanned(pages) else None,
+        warning="scanned_pdf" if pdf and looks_scanned(pages) else None,
+        mapping_job_id=job.id if job else None,
     )
+
+
+@router.delete("/courses/{course_id}/sources/{file_name}", status_code=204)
+def delete_source_file(course_id: str, file_name: str, db: DB, user: CurrentUser):
+    """Delete an uploaded file: its pages, their node links and the exercises quoted from it."""
+    course = owned_course(db, course_id, user.id)
+    if not delete_material(db, course, file_name):
+        raise HTTPException(404, "File not found")
+    db.commit()
+    return Response(status_code=204)
 
 
 def _previous_notes(db, course_id: str, name: str, page_count: int) -> list[str]:

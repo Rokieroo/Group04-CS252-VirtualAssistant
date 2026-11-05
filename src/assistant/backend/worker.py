@@ -9,7 +9,7 @@ import signal
 import threading
 
 # Importing these modules registers their job handlers.
-from . import maintenance, resources  # noqa: F401
+from . import maintenance, material_repository, resources  # noqa: F401
 from .config import Settings
 from .database import Database
 from .jobs import run_once

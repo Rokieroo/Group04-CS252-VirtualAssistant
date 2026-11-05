@@ -40,6 +40,9 @@ class PdfFormat(DocumentFormat):
             raise InvalidPdf("no pages")
         return pages
 
+    def as_pdf(self, data: bytes) -> bytes:
+        return data
+
 
 def looks_scanned(pages: list[str]) -> bool:
     return sum(not text for text in pages) > SCANNED_RATIO * len(pages)

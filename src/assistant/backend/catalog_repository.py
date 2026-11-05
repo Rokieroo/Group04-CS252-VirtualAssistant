@@ -139,7 +139,7 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5):
         )
     ):
         tags[row.node_id].add(row.subject_id)
-    materials = defaultdict(list)
+    materials = defaultdict(dict)  # node -> file name -> one item for all its pages
     covered_subjects = defaultdict(set)
     for attachment, source in db.execute(
         select(NodeMaterial, Source)
@@ -149,14 +149,16 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5):
             Source.course_id == course.id,
             NodeMaterial.confidence >= 0.6,
         )
+        .order_by(Source.file_name, Source.page)
     ):
-        materials[attachment.node_id].append(
+        item = materials[attachment.node_id].setdefault(
+            source.file_name,
             {
                 "kind": "user_material",
                 "id": source.id,
                 "title": source.file_name,
                 "source_id": source.id,
-                "pages": [source.page],
+                "pages": [],
                 "url": None,
                 "provider": "user",
                 "institution": None,
@@ -166,8 +168,9 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5):
                 "verification_status": "private",
                 "score": 1.0,
                 "reason": "Tài liệu của bạn",
-            }
+            },
         )
+        item["pages"].append(source.page)
         covered_subjects[attachment.node_id].update(
             t.subject_id
             for t in tag_resource({"title": source.text[:12000]})
@@ -209,9 +212,8 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5):
     catalog = verified_resources(db, now)
     result = {}
     for node in nodes:
-        private = sorted(materials[node.id], key=lambda r: (r["title"], r["pages"]))[
-            :limit
-        ]
+        # The learner's own files come first (spec 12.1), one item per file.
+        private = list(materials[node.id].values())[:limit]
         context = {
             "title": node.title,
             "vector": node_vectors.get(node.id, (None, None))[0],
@@ -228,9 +230,9 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5):
             if r["id"] not in rejected[node.id]
             and not set(r["subjects"]).issubset(covered_subjects[node.id])
         ]
-        ranked = match_sources(
-            context, remaining, limit=min(3 if private else 5, limit - len(private))
-        )
+        # A node with private material still gets up to 3 catalog sources for the
+        # subjects that material does not cover.
+        ranked = match_sources(context, remaining, limit=min(3, limit) if private else limit)
         public = [
             {
                 k: r.get(k)

@@ -20,6 +20,7 @@ psycopg[binary]~=3.3      # driver Postgres cho Docker Compose và staging
 # --- Ingest PDF, DOCX, text (#13, #49) ---
 pypdf~=6.21
 python-docx~=1.2          # đọc syllabus DOCX theo trang
+pillow~=10.3              # ảnh chụp tài liệu → PDF một trang cho vision (#114)
 
 # --- Security (#14) ---
 argon2-cffi~=25.1         # hash mật khẩu

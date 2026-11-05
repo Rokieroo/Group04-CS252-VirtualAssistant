@@ -58,6 +58,8 @@ export interface CourseService {
   proposeConcepts(course: string, fileName: string): Promise<Graph>;
   /** Writes new questions for a stored concept and returns all of its questions. */
   generateItems(course: string, conceptId: string): Promise<Item[]>;
+  /** Deletes an uploaded file with its pages, node links and quoted exercises (#114). */
+  deleteSource(course: string, fileName: string): Promise<void>;
 }
 
 // shortcut: one fixed course until the course list (S2) lets the user pick one.
@@ -130,9 +132,17 @@ export async function proposeConcepts(course: string, fileName: string): Promise
   };
 }
 
+export async function deleteSource(course: string, fileName: string): Promise<void> {
+  await backend<void>(
+    `/courses/${await courseId(course)}/sources/${encodeURIComponent(fileName)}`,
+    { method: "DELETE" },
+  );
+}
+
 export const backendCourses: CourseService = {
   live: true,
   uploadSource,
   proposeConcepts,
   generateItems,
+  deleteSource,
 };

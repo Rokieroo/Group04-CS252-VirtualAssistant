@@ -25,5 +25,6 @@ class PromptBlocks:
 # Shared by every prompt so text in one block can never fake another block's tags.
 BLOCKS = PromptBlocks(
     "document_text", "known_concepts", "previous_concepts", "previous_notes", "candidates",
-    "concept", "learning_goal", "page_text", "syllabus_anchors",
+    "concept", "learning_goal", "page_text", "syllabus_anchors", "roadmap_nodes",
+    "material_outline",
 )

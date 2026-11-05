@@ -26,9 +26,12 @@ from app.syllabus import (
 from app.syllabus import (
     preview_syllabus as parse_preview,
 )
+from app.syllabus.goals import goals_syllabus
+from app.syllabus.preview import Warning
 
 from .catalog_repository import refresh_node_sources
 from .dependencies import DB, CurrentUser
+from .material_repository import enqueue_mapping
 from .models import (
     Assessment,
     Course,
@@ -81,10 +84,13 @@ def preview_syllabus(course_id: str, data: SyllabusParseIn, db: DB, user: Curren
     owned_course(db, course_id, user.id)
     if (data.text is None) == (data.file_name is None):
         raise HTTPException(422, "provide_text_or_file_name")
+    if data.kind == "goals" and data.text is None:
+        raise HTTPException(422, "goals_need_text")
     if data.text is not None:
         try:
-            pages = TextFormat().read(data.text.encode("utf-8"))
-        except InvalidDocument:
+            text = goals_syllabus(data.text) if data.kind == "goals" else data.text
+            pages = TextFormat().read(text.encode("utf-8"))
+        except (InvalidDocument, NotASyllabus):
             raise HTTPException(422, "not_a_syllabus") from None
     else:
         sources = db.scalars(select(Source).where(
@@ -106,8 +112,14 @@ def preview_syllabus(course_id: str, data: SyllabusParseIn, db: DB, user: Curren
         raise HTTPException(503, "llm_unavailable") from None
     except ValueError:
         raise HTTPException(422, "invalid_syllabus") from None
+    result = draft.to_dict()
+    if data.kind == "goals":
+        result["warnings"].append(asdict(Warning(
+            "estimated_schedule",
+            "Lịch tuần được chia đều từ mục tiêu của bạn; hãy chỉnh lại cho vừa sức.",
+        )))
     return {
-        **draft.to_dict(),
+        **result,
         "file_name": data.file_name,
         "source_pages": {number: text for number, text in enumerate(pages, 1)},
     }
@@ -338,6 +350,8 @@ def generate_roadmap(
     db.flush()
     persist_generated_edges(db, roadmap, nodes)
     refresh_node_sources(db, nodes, roadmap, course, request.app.state.now())
+    # Material uploaded before this roadmap existed is mapped onto it in the background.
+    enqueue_mapping(db, course, request.app.state.now())
     db.commit()
     return _roadmap_payload(roadmap, nodes)
 

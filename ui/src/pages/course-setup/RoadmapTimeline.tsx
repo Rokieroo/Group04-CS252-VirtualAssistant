@@ -1,11 +1,14 @@
 import { useState } from "react";
 import type { RoadmapDraft, SyllabusDraft } from "../../api/core";
+import { NodeMaterials } from "./NodeMaterials";
 
 type Props = {
   roadmap: RoadmapDraft;
   draft: SyllabusDraft | null;
   weekly: number;
   onWeeklyChange: (minutes: number) => void;
+  /** The roadmap is saved on the backend, so its nodes have sources to show. */
+  live?: boolean;
 };
 
 /** S5 overview and selected-week detail share the same approved syllabus data. */
@@ -14,6 +17,7 @@ export function RoadmapTimeline({
   draft,
   weekly,
   onWeeklyChange,
+  live = false,
 }: Props) {
   const [selected, setSelected] = useState<number | null>(null);
   const weeks = [...new Set(roadmap.nodes.map((n) => n.week ?? 1))].sort(
@@ -74,6 +78,7 @@ export function RoadmapTimeline({
                     )
                     .join(", ") || "None specified"}
                 </p>
+                {live && node.type !== "milestone" && <NodeMaterials nodeId={node.id} />}
               </div>
             ))}
           </section>

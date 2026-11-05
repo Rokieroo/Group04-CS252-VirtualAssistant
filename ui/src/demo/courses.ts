@@ -21,6 +21,9 @@ const sample: [string, string, string, number][] = [
 /** No server: files are checked locally and the concepts are fixed Week 1 examples. */
 export const demoCourses: CourseService = {
   live: false,
+  async deleteSource() {
+    // Nothing is stored without a server.
+  },
   async uploadSource(_course, file) {
     const rejected = checkFile(file);
     if (rejected) throw new ApiError(rejected);

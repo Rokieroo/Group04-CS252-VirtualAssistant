@@ -125,7 +125,14 @@ class GraphLayout(Base):
 
 
 class NodeMaterial(Base):
-    """Page-level attachment contract for #114; never shared with the catalog."""
+    """One page of the learner's own material attached to a node (#114); never shared
+    with the catalog, and gone with the page when the file is deleted.
+
+    ``method`` "auto": the mapper's suggestion, recomputed on every mapping run;
+    shown once ``confidence`` reaches review (0.6), otherwise awaiting one tap.
+    ``method`` "manual": the learner's decision, never overwritten; confidence 1.0
+    means attached or confirmed, 0.0 means rejected.
+    """
 
     __tablename__ = "node_materials"
     node_id: Mapped[str] = mapped_column(
@@ -135,6 +142,7 @@ class NodeMaterial(Base):
         Text, ForeignKey("sources.id", ondelete="CASCADE"), primary_key=True
     )
     confidence: Mapped[float] = mapped_column(default=1.0)
+    method: Mapped[str] = mapped_column(Text, default="manual", server_default="manual")
 
 
 class Exercise(Base):

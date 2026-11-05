@@ -454,6 +454,7 @@ CREATE TABLE IF NOT EXISTS node_materials (
 	node_id VARCHAR(36) NOT NULL,
 	source_id TEXT NOT NULL,
 	confidence FLOAT NOT NULL,
+	method TEXT DEFAULT 'manual' NOT NULL,
 	PRIMARY KEY (node_id, source_id),
 	FOREIGN KEY(node_id) REFERENCES roadmap_nodes (id) ON DELETE CASCADE,
 	FOREIGN KEY(source_id) REFERENCES sources (id) ON DELETE CASCADE
@@ -623,7 +624,7 @@ CREATE INDEX IF NOT EXISTS ix_notifications_user_id ON notifications (user_id);
 CREATE INDEX IF NOT EXISTS ix_chat_messages_user_id ON chat_messages (user_id);
 
 INSERT INTO alembic_version (version_num)
-SELECT '0010_quoted_exercises'
+SELECT '0011_material_method'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);
 
 CREATE INDEX IF NOT EXISTS ix_roadmap_edges_roadmap_id ON roadmap_edges (roadmap_id);

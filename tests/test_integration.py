@@ -70,12 +70,12 @@ def test_ingest_corrupted_pdf_rejected_400(client, headers_a):
 
 
 def test_ingest_unsupported_file_type_rejected_415(client, headers_a):
-    """Uploading a file that is not PDF, DOCX or text (an image) returns HTTP 415."""
+    """Uploading a file that is not PDF, DOCX, PPTX, a JPEG/PNG photo or text returns 415."""
     course = create_course(client, headers_a, "Literature")
     response = client.post(
         f"/api/v1/courses/{course['id']}/sources",
         headers=headers_a,
-        files={"file": ("notes.png", b"\x89PNG\r\n\x1a\n image bytes", "image/png")},
+        files={"file": ("notes.gif", b"GIF89a image bytes", "image/gif")},
     )
     assert response.status_code == 415
     assert response.json()["detail"] == "unsupported_type"

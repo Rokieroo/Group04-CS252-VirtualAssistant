@@ -15,6 +15,7 @@ from .catalog_models import (
     Exercise,
     ExerciseSubject,
     NodeExercise,
+    NodeMaterial,
     NodeSubject,
     ResourceSubject,
 )
@@ -127,6 +128,14 @@ def exercises_for_node(db, node, roadmap, course, now, *, role="practice", limit
                 )
             )
         )
+    # Exercises quoted from a page of the learner's material attached to this node.
+    linked.update(
+        db.scalars(
+            select(Exercise.id)
+            .join(NodeMaterial, NodeMaterial.source_id == Exercise.source_id)
+            .where(NodeMaterial.node_id == node.id, NodeMaterial.confidence >= 0.6)
+        )
+    )
     public = {r["id"]: r for r in verified_resources(db, now)}
     licenses = yaml.safe_load(POLICY.read_text(encoding="utf-8"))["licenses"]
     result = []

@@ -18,12 +18,16 @@ export type Prereq = {
 export type Graph = { concepts: Concept[]; prereqs: Prereq[] };
 
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+/** Lecture material the backend reads page by page (#114); the server checks content too. */
+export const UPLOAD_TYPES = /\.(pdf|docx|pptx|jpe?g|png)$/i;
+export const UPLOAD_ACCEPT = ".pdf,.docx,.pptx,.jpg,.jpeg,.png";
 export const ERRORS = {
-  not_pdf: "Only PDF files are supported.",
+  not_pdf: "Only PDF, Word (DOCX), PowerPoint (PPTX) or photo (JPG/PNG) files are supported.",
   file_too_large: "This file is larger than 20 MB. Split or compress it first.",
   invalid_pdf: "This PDF is damaged or cannot be opened.",
-  // Backend codes for any upload type (#49): PDF, DOCX and UTF-8 .txt are accepted.
-  unsupported_type: "Only PDF, DOCX and plain-text (.txt) files are supported.",
+  // Backend codes for any upload type (#49, #114): PDF, DOCX, PPTX, JPG/PNG and .txt.
+  unsupported_type:
+    "Only PDF, DOCX, PPTX, JPG/PNG photos and plain-text (.txt) files are supported.",
   invalid_file: "This file is damaged or has no readable text.",
   scanned_pdf:
     "No readable text in this file. You can paste the page content instead.",
@@ -41,9 +45,7 @@ export function checkFile(file: {
   size: number;
   type: string;
 }): "not_pdf" | "file_too_large" | null {
-  const pdf =
-    file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-  if (!pdf) return "not_pdf";
+  if (!UPLOAD_TYPES.test(file.name)) return "not_pdf";
   if (file.size > MAX_UPLOAD_BYTES) return "file_too_large";
   return null;
 }

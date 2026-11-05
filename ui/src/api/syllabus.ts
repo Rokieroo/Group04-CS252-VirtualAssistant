@@ -217,6 +217,7 @@ export function checkSyllabusInput(input: File | string): void {
 }
 export async function uploadSyllabus(
   input: File | string,
+  { goals = false }: { goals?: boolean } = {},
 ): Promise<SyllabusDraft> {
   checkSyllabusInput(input);
   const id = await courseId(currentCourse.name);
@@ -230,7 +231,10 @@ export async function uploadSyllabus(
       { method: "POST", body },
     ));
   }
-  const request = typeof input === "string" ? { text: input } : { file_name };
+  const request =
+    typeof input === "string"
+      ? { text: input, ...(goals ? { kind: "goals" } : {}) }
+      : { file_name };
   const result = await call<Preview>(`/courses/${id}/syllabus:parse`, {
     method: "POST",
     body: JSON.stringify(request),

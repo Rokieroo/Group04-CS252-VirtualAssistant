@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
+import type { UploadOptions } from "../../api/core";
 import { currentCourse } from "../../api/courses";
 
 type Props = {
   busy: boolean;
   mock: boolean;
-  onUpload: (input: File | string) => void;
+  onUpload: (input: File | string, options?: UploadOptions) => void;
 };
 
 /** S3: selecting input and submitting it are separate, deliberate actions. */
@@ -13,6 +14,7 @@ export function SyllabusUpload({ busy, mock, onUpload }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [text, setText] = useState("");
   const [paste, setPaste] = useState(false);
+  const [goals, setGoals] = useState(false);
   return (
     <>
       <div className="core-setup-columns">
@@ -82,8 +84,23 @@ export function SyllabusUpload({ busy, mock, onUpload }: Props) {
                 rows={6}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="Paste learning outcomes, weekly topics and assessments…"
+                placeholder={
+                  goals
+                    ? "One goal or chapter per line, e.g. Recursion, Sorting, Binary trees…"
+                    : "Paste learning outcomes, weekly topics and assessments…"
+                }
               />
+            </label>
+          )}
+          {paste && (
+            <label className="core-checkbox">
+              <input
+                type="checkbox"
+                disabled={busy}
+                checked={goals}
+                onChange={(e) => setGoals(e.target.checked)}
+              />
+              I have no syllabus: these are my learning goals or a table of contents
             </label>
           )}
           <p className="hint">
@@ -141,7 +158,7 @@ export function SyllabusUpload({ busy, mock, onUpload }: Props) {
           disabled={busy || (paste ? !text.trim() : !file)}
           onClick={() => {
             const value = paste ? text : file;
-            if (value) onUpload(value);
+            if (value) onUpload(value, { goals: paste && goals });
           }}
         >
           Continue to review →

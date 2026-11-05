@@ -15,7 +15,9 @@ import {
   removePrereq,
   rename,
   type Graph,
+  UPLOAD_ACCEPT,
 } from "../concepts";
+import { Button } from "../components/Button";
 
 type Row = UploadResult & { error?: string };
 const STATUS = { processing: "Processing…", processed: "Done", error: "Error" };
@@ -100,6 +102,14 @@ export function CoursesPage({
 
   const update = (name: string, row: Partial<Row>) =>
     setFiles((fs) => fs.map((f) => (f.file_name === name ? { ...f, ...row } : f)));
+  const deleteFile = async (name: string) => {
+    try {
+      await service.deleteSource(course, name);
+      setFiles((fs) => fs.filter((f) => f.file_name !== name));
+    } catch (err) {
+      update(name, { error: err instanceof Error ? err.message : "Could not delete this file." });
+    }
+  };
 
   const upload = async (list: FileList | null) => {
     let proposed = graph !== null;
@@ -202,17 +212,17 @@ export function CoursesPage({
           }}
           onDrop={drop}
         >
-          <p>Drag and drop PDF files here (up to 20 MB)</p>
+          <p>Drag and drop slides, PDFs, Word files or photos here (up to 20 MB each)</p>
           <button className="primary-action" onClick={() => picker.current?.click()}>
-            Choose PDF files
+            Choose files
           </button>
           <input
             ref={picker}
             type="file"
-            accept="application/pdf,.pdf"
+            accept={UPLOAD_ACCEPT}
             multiple
             hidden
-            aria-label="Choose PDF files to upload"
+            aria-label="Choose files to upload"
             onChange={(e) => {
               void upload(e.target.files);
               e.target.value = "";
@@ -227,6 +237,9 @@ export function CoursesPage({
                 <span>{f.pages ? `${f.pages} ${f.pages === 1 ? "page" : "pages"}` : ""}</span>
                 <span>{STATUS[f.status]}</span>
                 {f.error && <span className="row-error">{f.error}</span>}
+                {service.live && f.status === "processed" && (
+                  <Button onClick={() => void deleteFile(f.file_name)}>Delete</Button>
+                )}
               </li>
             ))}
           </ul>

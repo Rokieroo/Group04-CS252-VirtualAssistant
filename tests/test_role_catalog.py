@@ -665,8 +665,11 @@ def test_summary_40_nodes_uses_bounded_queries_without_writes(app, client, heade
     assert all(statement == "SELECT" for statement in statements)
 
 
-@pytest.mark.parametrize("revision", ["0009_roadmap_graph", "0010_quoted_exercises"])
-def test_new_migrations_compile_to_postgresql_types(revision):
+@pytest.mark.parametrize(
+    ("revision", "creates_tables"),
+    [("0009_roadmap_graph", True), ("0010_quoted_exercises", True), ("0011_material_method", False)],
+)
+def test_new_migrations_compile_to_postgresql_types(revision, creates_tables):
     import importlib.util
     import io
     import re
@@ -686,7 +689,7 @@ def test_new_migrations_compile_to_postgresql_types(revision):
     with Operations.context(context):
         module.upgrade()
     sql = output.getvalue()
-    assert "CREATE TABLE" in sql and "ALTER TABLE" in sql
+    assert "ALTER TABLE" in sql and ("CREATE TABLE" in sql) == creates_tables
     assert not re.search(r"\bDATETIME\b|\bDOUBLE\b(?! PRECISION)", sql)
 
 
