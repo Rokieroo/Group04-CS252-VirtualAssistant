@@ -10,6 +10,7 @@ import itertools
 import json
 import logging
 import math
+import operator
 import re
 import unicodedata
 from collections.abc import Mapping
@@ -46,7 +47,7 @@ def encode(value):
 def cosine(left, right):
     if len(left) != len(right):
         return 0.0
-    return sum(a * b for a, b in zip(left, right, strict=True))
+    return sum(map(operator.mul, left, right))  # C-speed; summing a pair genexpr is not
 
 
 @dataclass(frozen=True)

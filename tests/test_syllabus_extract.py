@@ -7,7 +7,12 @@ import pytest
 
 from app.llm import FakeLLM
 from app.syllabus import NotASyllabus, check_syllabus, extract_syllabus
-from app.syllabus.anchors import find_anchors, looks_like_syllabus, parse_date
+from app.syllabus.anchors import (
+    find_anchors,
+    looks_like_syllabus,
+    parse_date,
+    textbook_lines,
+)
 from app.syllabus.extract import parse_answer
 
 PAGES = [
@@ -61,6 +66,15 @@ def test_dates_are_day_first_and_invalid_ones_are_skipped():
     assert parse_date("2026-09-07") == date(2026, 9, 7)
     assert parse_date("31/02/2026") is None
     assert parse_date(None) is None
+
+
+def test_textbook_section_ends_at_the_first_blank_line():
+    text = ("Week 1: Intro\nTextbooks:\n\n1. Introduction to Algorithms\n2. Clean Code\n\n"
+            "Assessment: Final 50%\nCalculus review")
+    assert textbook_lines(text) == ["1. Introduction to Algorithms", "2. Clean Code"]
+    assert textbook_lines("Giáo trình: Tư duy tính toán\nTuần 1") == [
+        "Tư duy tính toán", "Tuần 1"]
+    assert textbook_lines("Week 1: references are optional") == []
 
 
 def test_slide_text_is_not_a_syllabus_without_an_llm_call():

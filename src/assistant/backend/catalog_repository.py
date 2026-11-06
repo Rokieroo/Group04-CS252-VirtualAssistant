@@ -1,18 +1,18 @@
 """Owner-scoped node sources; shared catalog candidates must pass every hard check."""
 
 import json
-import re
 from collections import defaultdict
 
 from sqlalchemy import select
 
-from app.catalog.institutions import domain_of, matches_domain
+from app.catalog.institutions import domain_of, parent_domains
 from app.catalog.matching import match_sources
-from app.catalog.taxonomy import tag_records, tag_resource
+from app.catalog.taxonomy import tag_records
 from app.catalog.verification import is_current, latest_results
 from app.llm.embeddings import get_embedding_encoder
 from app.roadmap import decode_covers
 from app.search.service import canonical_url
+from app.syllabus.anchors import textbook_lines
 from app.vetting.policy import default_policy
 
 from .catalog_models import (
@@ -24,6 +24,7 @@ from .catalog_models import (
     NodeSubject,
     ResourceSubject,
     ResourceVerification,
+    SourceSubject,
 )
 from .models import (
     LearningOutcome,
@@ -33,6 +34,8 @@ from .models import (
     Source,
     Syllabus,
 )
+
+COVERED = 0.9  # a page teaches a subject this surely, so no catalog source repeats it
 
 
 def verified_resources(db, now):
@@ -57,7 +60,9 @@ def verified_resources(db, now):
         select(ResourceSubject).where(ResourceSubject.confidence >= 0.6)
     ):
         tags[row.resource_id].add(row.subject_id)
-    institutions = list(db.scalars(select(Institution)))
+    institutions = {}  # domain -> its best-tier institution
+    for org in db.scalars(select(Institution).order_by(Institution.tier, Institution.ror_id)):
+        institutions.setdefault(domain_of(org.domain), org)
     vectors = {
         r.id: (json.loads(r.vector), r.model)
         for r in db.scalars(
@@ -85,7 +90,9 @@ def verified_resources(db, now):
         ).value == 0 or resource.canonical_url != canonical_url(resource.url):
             continue
         matching = [
-            org for org in institutions if matches_domain(resource.url, org.domain)
+            institutions[domain]
+            for domain in parent_domains(resource.url)
+            if domain in institutions
         ]
         institution = min(matching, key=lambda org: org.tier) if matching else None
         tier = min(
@@ -135,25 +142,26 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5):
         )
     ):
         tags[row.node_id].add(row.subject_id)
+    attached = (
+        NodeMaterial.node_id.in_(identifiers),
+        Source.course_id == course.id,
+        NodeMaterial.confidence >= 0.6,
+    )
     materials = defaultdict(dict)  # node -> file name -> one item for all its pages
-    covered_subjects = defaultdict(set)
-    for attachment, source in db.execute(
-        select(NodeMaterial, Source)
+    for node_id, source_id, file_name, page in db.execute(
+        # Page text stays in the database: only the citation is needed here.
+        select(NodeMaterial.node_id, Source.id, Source.file_name, Source.page)
         .join(Source, NodeMaterial.source_id == Source.id)
-        .where(
-            NodeMaterial.node_id.in_(identifiers),
-            Source.course_id == course.id,
-            NodeMaterial.confidence >= 0.6,
-        )
+        .where(*attached)
         .order_by(Source.file_name, Source.page)
     ):
-        item = materials[attachment.node_id].setdefault(
-            source.file_name,
+        item = materials[node_id].setdefault(
+            file_name,
             {
                 "kind": "user_material",
-                "id": source.id,
-                "title": source.file_name,
-                "source_id": source.id,
+                "id": source_id,
+                "title": file_name,
+                "source_id": source_id,
                 "pages": [],
                 "url": None,
                 "provider": "user",
@@ -166,12 +174,15 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5):
                 "reason": "Tài liệu của bạn",
             },
         )
-        item["pages"].append(source.page)
-        covered_subjects[attachment.node_id].update(
-            t.subject_id
-            for t in tag_resource({"title": source.text[:12000]})
-            if t.confidence >= 0.9
-        )
+        item["pages"].append(page)
+    covered_subjects = defaultdict(set)  # what the learner's own pages already teach
+    for node_id, subject_id in db.execute(
+        select(NodeMaterial.node_id, SourceSubject.subject_id)
+        .join(Source, NodeMaterial.source_id == Source.id)
+        .join(SourceSubject, SourceSubject.source_id == Source.id)
+        .where(*attached, SourceSubject.confidence >= COVERED)
+    ):
+        covered_subjects[node_id].add(subject_id)
     syllabus = db.scalars(
         select(Syllabus)
         .where(Syllabus.course_id == course.id)
@@ -189,15 +200,7 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5):
         if syllabus
         else []
     )
-    references = (
-        re.search(
-            r"(?ims)^\s*(?:textbooks|references|giáo trình|tài liệu tham khảo)\s*[:\n](.*)",
-            syllabus.raw_text,
-        )
-        if syllabus
-        else None
-    )
-    textbooks = references.group(1).splitlines() if references else []
+    textbooks = textbook_lines(syllabus.raw_text) if syllabus else []
     rejected = defaultdict(set)
     for row in db.scalars(
         select(NodeResource).where(
@@ -227,8 +230,9 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5):
             and not set(r["subjects"]).issubset(covered_subjects[node.id])
         ]
         # A node with private material still gets up to 3 catalog sources for the
-        # subjects that material does not cover.
-        ranked = match_sources(context, remaining, limit=min(3, limit) if private else limit)
+        # subjects that material does not cover, within ``limit`` items in all.
+        room = min(3, limit - len(private)) if private else limit
+        ranked = match_sources(context, remaining, limit=room)
         public = [
             {
                 k: r.get(k)

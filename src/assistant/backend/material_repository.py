@@ -15,11 +15,12 @@ from datetime import datetime
 
 from sqlalchemy import delete, select
 
+from app.catalog.taxonomy import ensure_taxonomy, tag_resource
 from app.llm import get_client
 from app.llm.embeddings import get_embedding_encoder
 from app.materials import REVIEW, Node, map_pages
 
-from .catalog_models import NodeMaterial
+from .catalog_models import NodeMaterial, SourceSubject
 from .exercise_repository import import_private_exercises
 from .jobs import enqueue, handler
 from .models import Course, Job, Roadmap, RoadmapNode, Source
@@ -76,6 +77,7 @@ def map_materials(db, payload: dict, now: datetime) -> dict:
         # Vision notes carry what the text layer misses (diagrams, photos).
         pages = [f"{s.text}\n{s.visual_notes or ''}" for s in sources]
         matches = map_pages(pages, nodes, embedding=embedding, llm=llm)
+        tag_pages(db, sources)
         for match in _save(db, sources, matches):
             counts["attached" if match.confidence >= REVIEW else "suggested"] += 1
     return counts
@@ -149,8 +151,30 @@ def decide(db, node: RoadmapNode, source: Source, *, attached: bool, owner_id: s
     if attached:
         # Pages uploaded before exercise import (#115) still yield their exercises.
         import_private_exercises(db, source, owner_id)
+        tag_pages(db, [source])
     db.flush()
     return row
+
+
+def tag_pages(db, sources) -> None:
+    """Store the subjects each page teaches; reading a node's sources only looks them up.
+
+    Rule-based tagging of a long page is too slow for a request that reads a whole
+    roadmap (#102), so it happens here, on the mapping job and on an attach.
+    """
+    ensure_taxonomy(db)
+    db.execute(
+        delete(SourceSubject).where(SourceSubject.source_id.in_([s.id for s in sources]))
+    )
+    for source in sources:
+        best = {}
+        for tag in tag_resource({"title": source.text[:12000]}):
+            best[tag.subject_id] = max(tag.confidence, best.get(tag.subject_id, 0.0))
+        db.add_all(
+            SourceSubject(source_id=source.id, subject_id=subject, confidence=confidence)
+            for subject, confidence in best.items()
+        )
+    db.flush()
 
 
 def delete_material(db, course: Course, file_name: str) -> int:

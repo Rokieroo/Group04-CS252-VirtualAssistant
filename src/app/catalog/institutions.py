@@ -22,6 +22,16 @@ def matches_domain(host, domain):
     return bool(domain) and (host == domain or host.endswith("." + domain))
 
 
+def parent_domains(url):
+    """The host and every parent domain: exactly the domains ``matches_domain`` accepts.
+
+    Lets a caller look institutions up by domain instead of scanning all of them.
+    """
+    host = domain_of(url)
+    labels = host.split(".") if host else []
+    return [".".join(labels[i:]) for i in range(len(labels))]
+
+
 def authority_for(host, institutions):
     tiers = [
         int(row["tier"]) for row in institutions if matches_domain(host, row["domain"])

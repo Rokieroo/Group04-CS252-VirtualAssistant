@@ -68,31 +68,31 @@ def match_sources(node, resources, *, limit=5):
                     ),
                 }
             )
-    chosen, per_domain = [], Counter()
-    while ranked and len(chosen) < limit:
-        allowed = [r for r in ranked if per_domain[r["domain"]] < 2]
+    chosen, per_domain, formats = [], Counter(), set()
+    # Each candidate's highest similarity to a chosen source; only a new pick can raise
+    # it, so one pick costs one cosine per candidate instead of one per chosen source.
+    redundancy = dict.fromkeys(range(len(ranked)), 0.0)
+
+    def mmr(index):
+        resource = ranked[index]
+        diversity = 0.05 if resource["format"] not in formats else 0
+        return (
+            bool(resource["textbook"]),
+            0.7 * resource["score"] - 0.3 * redundancy[index] + diversity,
+            resource["id"],
+        )
+
+    while redundancy and len(chosen) < limit:
+        allowed = [i for i in redundancy if per_domain[ranked[i]["domain"]] < 2]
         if not allowed:
             break
-
-        def mmr(resource):
-            redundancy = max(
-                (
-                    max(0, cosine(resource["_match_vector"], other["_match_vector"]))
-                    for other in chosen
-                ),
-                default=0,
-            )
-            diversity = (
-                0.05 if resource["format"] not in {r["format"] for r in chosen} else 0
-            )
-            return (
-                bool(resource["textbook"]),
-                0.7 * resource["score"] - 0.3 * redundancy + diversity,
-                resource["id"],
-            )
-
-        best = max(allowed, key=mmr)
+        pick = max(allowed, key=mmr)
+        del redundancy[pick]
+        best = ranked[pick]
         chosen.append(best)
         per_domain[best["domain"]] += 1
-        ranked.remove(best)
+        formats.add(best["format"])
+        for i in redundancy:
+            similarity = cosine(ranked[i]["_match_vector"], best["_match_vector"])
+            redundancy[i] = max(redundancy[i], similarity)
     return chosen

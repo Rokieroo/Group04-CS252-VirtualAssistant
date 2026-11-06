@@ -145,6 +145,23 @@ class NodeMaterial(Base):
     method: Mapped[str] = mapped_column(Text, default="manual", server_default="manual")
 
 
+class SourceSubject(Base):
+    """A subject one page of the learner's own material teaches (#102).
+
+    Tagged when the page is mapped or attached, so reading a node's sources never
+    re-tags private text; a node's catalog sources skip the subjects it covers.
+    """
+
+    __tablename__ = "source_subjects"
+    source_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("sources.id", ondelete="CASCADE"), primary_key=True
+    )
+    subject_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("subjects.id", ondelete="CASCADE"), primary_key=True
+    )
+    confidence: Mapped[float] = mapped_column()
+
+
 class Exercise(Base):
     __tablename__ = "exercises"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
