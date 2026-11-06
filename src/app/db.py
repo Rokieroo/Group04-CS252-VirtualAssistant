@@ -79,6 +79,7 @@ _TABLES = (
     "roadmap_edges",
     "graph_layouts",
     "node_materials",
+    "source_subjects",
     "exercise_subjects",
     "node_exercises",
     "cards",

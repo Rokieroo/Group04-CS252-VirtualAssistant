@@ -15,6 +15,7 @@ _ISO = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
 _WEEK = re.compile(r"\b(?:week|tuần)\s*(\d{1,2})\b", re.IGNORECASE)
 _PERCENT = re.compile(r"(\d{1,3}(?:[.,]\d+)?)\s*%")
 _CLO = re.compile(r"\bCLO\s*(\d{1,2})\b", re.IGNORECASE)
+_TEXTBOOKS = re.compile(r"textbooks?|references|giáo trình|tài liệu tham khảo", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -58,6 +59,27 @@ def looks_like_syllabus(anchors: list[PageAnchors]) -> bool:
     """A syllabus names weeks, assessment weights or CLOs; dates alone (a slide's title
     page) do not count (issue #59 step 4)."""
     return any(a.weeks or a.percents or a.clos for a in anchors)
+
+
+def textbook_lines(text: str) -> list[str]:
+    """The lines of the textbook/reference section, which ends at the first blank line.
+
+    A heading may carry its first entry ("Textbooks: Introduction to Algorithms").
+    """
+    lines = text.splitlines()
+    for start, line in enumerate(lines):
+        heading, _, first = line.partition(":")
+        if not _TEXTBOOKS.fullmatch(heading.strip()):
+            continue
+        section = [first.strip()] if first.strip() else []
+        for entry in lines[start + 1:]:
+            if not entry.strip():
+                if section:
+                    break
+                continue
+            section.append(entry.strip())
+        return section
+    return []
 
 
 def parse_date(value: object) -> date | None:

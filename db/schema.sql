@@ -460,6 +460,15 @@ CREATE TABLE IF NOT EXISTS node_materials (
 	FOREIGN KEY(source_id) REFERENCES sources (id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS source_subjects (
+	source_id TEXT NOT NULL,
+	subject_id TEXT NOT NULL,
+	confidence FLOAT NOT NULL,
+	PRIMARY KEY (source_id, subject_id),
+	FOREIGN KEY(source_id) REFERENCES sources (id) ON DELETE CASCADE,
+	FOREIGN KEY(subject_id) REFERENCES subjects (id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS exercise_subjects (
 	exercise_id VARCHAR(36) NOT NULL,
 	subject_id TEXT NOT NULL,
@@ -624,7 +633,7 @@ CREATE INDEX IF NOT EXISTS ix_notifications_user_id ON notifications (user_id);
 CREATE INDEX IF NOT EXISTS ix_chat_messages_user_id ON chat_messages (user_id);
 
 INSERT INTO alembic_version (version_num)
-SELECT '0011_material_method'
+SELECT '0012_source_subjects'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);
 
 CREATE INDEX IF NOT EXISTS ix_roadmap_edges_roadmap_id ON roadmap_edges (roadmap_id);

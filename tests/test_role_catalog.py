@@ -14,6 +14,7 @@ from sqlalchemy import func, select
 from app.catalog.institutions import (
     authority_for,
     build_registry,
+    parent_domains,
     read_registry,
     seed_institutions,
     write_registry,
@@ -89,6 +90,9 @@ def test_registry_is_reproducible_and_domain_matching_is_not_substring(tmp_path)
     assert authority_for("https://learn.a.edu/x", first) == 1.0
     assert authority_for("https://a.edu.evil.example/x", first) == 0.4
     assert authority_for("https://nota.edu/x", first) == 0.4
+    assert parent_domains("https://www.learn.a.edu/x") == ["learn.a.edu", "a.edu", "edu"]
+    assert "a.edu" not in parent_domains("https://a.edu.evil.example/x")
+    assert parent_domains("") == []
     oa[0]["homepage_url"] = "https://b.edu.evil.example"
     assert len(build_registry(oa, ror, **options)) == 1
 
@@ -328,6 +332,44 @@ def test_sources_are_private_first_and_never_pending_stale_or_rejected(
     assert exercises["exercises"][0]["citation"]["source_id"] == source_id
     assert not exercises["exercises"][0]["auto_grade"]
     assert "answer" not in exercises["exercises"][0]
+
+
+def test_own_material_hides_what_it_teaches_and_five_sources_is_the_most(
+    app, client, headers, roadmap, clock, monkeypatch
+):
+    from app.catalog import taxonomy
+
+    node, course = roadmap["nodes"][0]["id"], roadmap["course_id"]
+    with app.state.database.sessions() as db:
+        for number in range(3):
+            add_resource(db, clock[0], number=number)  # verified, all on the ladder
+        ladder = Source(course_id=course, file_name="ladder.txt", page=1,
+                        text="Solution ladder: pick the lowest sufficient rung")
+        notes = [Source(course_id=course, file_name=f"notes{i}.txt", page=1,
+                        text="Use case diagrams and actors") for i in range(4)]
+        db.add_all([ladder, *notes])
+        db.commit()
+        ladder_id, note_ids = ladder.id, [note.id for note in notes]
+
+    def attach(source_id, attached=True):
+        response = client.put(f"/api/v1/roadmap-nodes/{node}/materials/{source_id}",
+                              headers=headers, json={"attached": attached})
+        assert response.status_code == 200, response.text
+
+    def kinds():
+        # Pages were tagged on attach; reading sources never tags private text again.
+        with monkeypatch.context() as patch:
+            patch.setattr(taxonomy, "_tags", lambda *a, **k: pytest.fail("tagged on read"))
+            response = client.get(f"/api/v1/concepts/{node}/sources", headers=headers)
+        assert response.status_code == 200, response.text
+        return [r["kind"] for r in response.json()["sources"]]
+
+    attach(ladder_id)
+    assert kinds() == ["user_material"]  # the learner's page already teaches the ladder
+    attach(ladder_id, attached=False)
+    for source_id in note_ids:
+        attach(source_id)
+    assert kinds() == ["user_material"] * 4 + ["web"]  # own files first, 5 in all
 
 
 def test_latest_failed_check_and_changed_source_invalidate_exercises(
@@ -661,7 +703,7 @@ def test_summary_40_nodes_uses_bounded_queries_without_writes(app, client, heade
         event.remove(app.state.database.engine, "before_cursor_execute", record)
     assert response.status_code == 200, response.text
     assert len(response.json()["nodes"]) == 40
-    assert len(statements) <= 16
+    assert len(statements) <= 17  # one more per data kind, never one per node
     assert all(statement == "SELECT" for statement in statements)
 
 

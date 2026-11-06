@@ -55,6 +55,7 @@ EXPECTED_TABLES = {
     "alembic_version",
     "catalog_embeddings", "roadmap_edges", "graph_layouts", "node_materials", "node_source_status",
     "exercises", "exercise_subjects", "node_exercises",
+    "source_subjects",
 }
 
 
