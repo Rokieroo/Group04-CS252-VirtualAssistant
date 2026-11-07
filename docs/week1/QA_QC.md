@@ -2,7 +2,7 @@
 
 Tài liệu này mô tả chi tiết nhiệm vụ QA/QC tuần 1 (Lê Hồng Đăng): quy trình kiểm thử hằng tuần, cách viết benchmark, checklist review PR và báo cáo thứ Sáu.
 
-> **Lưu ý cập nhật Spec 3.0:** Tài liệu này phản ánh nhiệm vụ Sprint Tuần 1. Kể từ Sprint 2, dự án áp dụng chuẩn **Spec 3.0** (`docs/roadmap/APP_SPECIFICATION.md`) với 18 use cases (UC-01 đến UC-18). Các use case Tuần 1 đã được chuẩn hóa lại trong `docs/qa/TEST_PLAN.md` và `eval/benchmark.jsonl`.
+> **Lưu ý cập nhật Spec 3.0:** Tài liệu này phản ánh nhiệm vụ Sprint Tuần 1. Kể từ Sprint 2, dự án áp dụng chuẩn **Spec 3.0** (`docs/APP_SPECIFICATION.md`) với 18 use cases (UC-01 đến UC-18). Các use case Tuần 1 đã được chuẩn hóa lại trong `docs/qa/TEST_PLAN.md` và `eval/benchmark.jsonl`.
 
 ## 🎯 Sứ mệnh tuần 1
 

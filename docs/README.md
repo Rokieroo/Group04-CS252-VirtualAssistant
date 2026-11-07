@@ -4,7 +4,8 @@ Thư mục tài liệu của dự án: kế hoạch, đặc tả, nhiệm vụ h
 
 | Thư mục | Nội dung |
 |---|---|
-| [roadmap/](roadmap/) | `PLAN.md` (kế hoạch 6 tuần), `APP_SPECIFICATION.md` (đặc tả chi tiết) |
+| [APP_SPECIFICATION.md](APP_SPECIFICATION.md) | Đặc tả chi tiết |
+| [roadmap/](roadmap/) | `PLAN.md` (kế hoạch 6 tuần) |
 | [week1/](week1/README.md) | Nhiệm vụ tuần 1 theo role (UI/UX, AI, DB & Security, QA/QC, DevOps) |
 | [phase2/](phase2/AI.md) | Kết quả phase 2 theo role: `AI.md` (parser syllabus, benchmark 10 syllabus) |
 | [phase2/minh-syllabus-preview.md](phase2/minh-syllabus-preview.md) | API preview, đọc offline và kiểm tra nguồn bổ sung cho parser #59 |

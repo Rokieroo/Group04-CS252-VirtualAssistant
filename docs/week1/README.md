@@ -57,5 +57,5 @@ Cuối tuần, trên staging, một sinh viên có thể: **upload file slide CS
 
 ## 📚 Tham khảo
 - Kế hoạch 6 tuần: [docs/roadmap/PLAN.md](../roadmap/PLAN.md)
-- Đặc tả: [docs/roadmap/APP_SPECIFICATION.md](../roadmap/APP_SPECIFICATION.md)
+- Đặc tả: [docs/APP_SPECIFICATION.md](../APP_SPECIFICATION.md)
 - Quy tắc Git: [docs/guidelines/](../guidelines/README.md)

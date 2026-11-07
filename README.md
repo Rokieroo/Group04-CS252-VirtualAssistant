@@ -32,7 +32,7 @@
 
 | Tài liệu | Nội dung |
 | --- | --- |
-| [docs/roadmap/APP_SPECIFICATION.md](docs/roadmap/APP_SPECIFICATION.md) | Đặc tả 3.1: tiêu chuẩn chất lượng, use case, màn hình, kiến trúc, dữ liệu, API, parser syllabus, knowledge graph, planner, bộ tìm nguồn, bảo mật, metric |
+| [docs/APP_SPECIFICATION.md](docs/APP_SPECIFICATION.md) | Đặc tả 3.1: tiêu chuẩn chất lượng, use case, màn hình, kiến trúc, dữ liệu, API, parser syllabus, knowledge graph, planner, bộ tìm nguồn, bảo mật, metric |
 | [docs/roadmap/PLAN.md](docs/roadmap/PLAN.md) | Kế hoạch 6 tuần theo từng mảng |
 | [docs/adr/](docs/adr/) | Quyết định kiến trúc (database, hosting, bố cục code, catalog nguồn và giấy phép) |
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Chạy bằng Docker Compose, staging, worker |
@@ -147,7 +147,8 @@ python dev.py devops ci
 ├── dev.py                # Điểm vào của Dev CLI
 ├── docker-compose.yml    # Postgres + API + worker
 ├── docs/
-│   ├── roadmap/          # APP_SPECIFICATION.md, PLAN.md
+│   ├── APP_SPECIFICATION.md  # Đặc tả chi tiết
+│   ├── roadmap/          # PLAN.md
 │   ├── adr/              # Quyết định kiến trúc
 │   ├── guidelines/       # Quy tắc Git, PR, commit
 │   ├── qa/               # Test plan, báo cáo QA hằng tuần

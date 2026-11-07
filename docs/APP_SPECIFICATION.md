@@ -1,6 +1,6 @@
 # Đặc tả Sản phẩm: Study Companion (Product Specification)
 
-Tài liệu này đặc tả toàn bộ ứng dụng của Group 04 đến từng chi tiết: người dùng, use case, màn hình, kiến trúc, dữ liệu, API, các thành phần AI, thuật toán lập roadmap, bộ tìm nguồn học, các tính năng bổ trợ, bảo mật và chỉ số đo. Kế hoạch triển khai theo tuần nằm ở [PLAN.md](PLAN.md). Mọi con số chưa được đo với người dùng thật đều ghi là **giả định (assumption)**.
+Tài liệu này đặc tả toàn bộ ứng dụng của Group 04 đến từng chi tiết: người dùng, use case, màn hình, kiến trúc, dữ liệu, API, các thành phần AI, thuật toán lập roadmap, bộ tìm nguồn học, các tính năng bổ trợ, bảo mật và chỉ số đo. Kế hoạch triển khai theo tuần nằm ở [PLAN.md](roadmap/PLAN.md). Mọi con số chưa được đo với người dùng thật đều ghi là **giả định (assumption)**.
 
 - **Phiên bản tài liệu**: 3.1 (thay cho bản 3.0; bỏ phần thương mại hóa, mobile, giáo viên và phụ huynh; đặt trọng tâm vào trải nghiệm của người học)
 - **Người dùng**: chỉ người học (sinh viên, học sinh lớp 10–12, người tự học)
@@ -260,7 +260,7 @@ Nguyên tắc "leo thang giải pháp vừa đủ" (Solution ladder): dùng bậ
 
 ## 7. Mô hình dữ liệu (Data model)
 
-Nguồn chuẩn: [`db/schema.sql`](../../db/schema.sql). Tạo DB local: `python dev.py db init`. Bảng ghi **(mới)** cần migration mới; các bảng còn lại đã có.
+Nguồn chuẩn: [`db/schema.sql`](../db/schema.sql). Tạo DB local: `python dev.py db init`. Bảng ghi **(mới)** cần migration mới; các bảng còn lại đã có.
 
 ### 7.1. Core loop
 
