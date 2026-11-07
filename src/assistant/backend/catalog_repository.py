@@ -1,14 +1,19 @@
-"""Owner-scoped node sources; shared catalog candidates must pass every hard check."""
+"""Owner-scoped node sources; shared catalog candidates must pass every hard check.
+
+Nodes left ``insufficient`` are the catalog's gaps (#105): ``rematch_sources``
+selects for them again once new sources are verified.
+"""
 
 import json
 from collections import defaultdict
 
-from sqlalchemy import select
+from sqlalchemy import exists, func, select
+from sqlalchemy.orm import aliased
 
 from app.catalog.institutions import domain_of, parent_domains
 from app.catalog.matching import match_sources
 from app.catalog.taxonomy import tag_records
-from app.catalog.verification import is_current, latest_results
+from app.catalog.verification import LABEL_CONFIDENCE, is_current, latest_results
 from app.llm.embeddings import get_embedding_encoder
 from app.roadmap import decode_covers
 from app.search.service import canonical_url
@@ -26,16 +31,20 @@ from .catalog_models import (
     ResourceVerification,
     SourceSubject,
 )
+from .jobs import handler
 from .models import (
+    Course,
     LearningOutcome,
     NodeResource,
     Resource,
+    Roadmap,
     RoadmapNode,
     Source,
     Syllabus,
 )
 
 COVERED = 0.9  # a page teaches a subject this surely, so no catalog source repeats it
+REMATCH = "rematch_sources"
 
 
 def verified_resources(db, now):
@@ -123,8 +132,12 @@ def verified_resources(db, now):
     return rows
 
 
-def node_sources(db, nodes, roadmap, course, now, *, limit=5):
-    """One bulk context for a full roadmap, avoiding a query per node (#102)."""
+def node_sources(db, nodes, roadmap, course, now, *, limit=5, catalog=None):
+    """One bulk context for a full roadmap, avoiding a query per node (#102).
+
+    ``catalog`` is ``verified_resources(db, now)``, passed by callers that match
+    several roadmaps so the catalog is read once.
+    """
     identifiers = [n.id for n in nodes]
     node_vectors = {
         r.id: (json.loads(r.vector), r.model)
@@ -208,7 +221,7 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5):
         )
     ):
         rejected[row.node_id].add(row.resource_id)
-    catalog = verified_resources(db, now)
+    catalog = verified_resources(db, now) if catalog is None else catalog
     result = {}
     for node in nodes:
         # The learner's own files come first (spec 12.1), one item per file.
@@ -307,7 +320,12 @@ def refresh_node_sources(db, nodes, roadmap, course, now):
         ],
         embedding=get_embedding_encoder(),
     )
-    result = node_sources(db, nodes, roadmap, course, now)
+    return save_node_sources(db, nodes, roadmap, course, now)
+
+
+def save_node_sources(db, nodes, roadmap, course, now, *, catalog=None):
+    """Select sources for already-tagged nodes and record each node's status."""
+    result = node_sources(db, nodes, roadmap, course, now, catalog=catalog)
     for node_id, value in result.items():
         signal = db.get(NodeSourceStatus, node_id)
         if signal is None:
@@ -342,3 +360,64 @@ def refresh_node_sources(db, nodes, roadmap, course, now):
             if link.resource_id not in selected:
                 link.status = "removed"
     return result
+
+
+# --- gaps (#105) ---------------------------------------------------------------------
+
+
+def current_nodes():
+    """Nodes of each course's newest roadmap, the one its learner follows."""
+    newer = aliased(Roadmap)
+    current = select(Roadmap.id).where(
+        ~exists().where(newer.course_id == Roadmap.course_id, newer.created_at > Roadmap.created_at)
+    )
+    return select(RoadmapNode.id).where(RoadmapNode.roadmap_id.in_(current))
+
+
+def insufficient_nodes():
+    """Ids of current nodes whose last selection found fewer than two sources."""
+    return select(NodeSourceStatus.node_id).where(
+        NodeSourceStatus.status == "insufficient",
+        NodeSourceStatus.node_id.in_(current_nodes()),
+    )
+
+
+def gap_subjects(db) -> dict[str, int]:
+    """Subject label -> insufficient nodes carrying it, the labels to ingest for."""
+    return dict(
+        db.execute(
+            select(NodeSubject.subject_id, func.count())
+            .where(
+                NodeSubject.node_id.in_(insufficient_nodes()),
+                NodeSubject.confidence >= LABEL_CONFIDENCE,
+            )
+            .group_by(NodeSubject.subject_id)
+            .order_by(NodeSubject.subject_id)
+        ).all()
+    )
+
+
+def rematch_insufficient(db, now) -> dict:
+    """Select again for insufficient nodes, e.g. after new sources were verified.
+
+    Labels stay as they are (no embedding calls) and the catalog is read once for
+    every roadmap, so the cost grows with the catalog, not with the learners.
+    """
+    # shortcut: one job re-matches every insufficient node; chain batches of roadmaps
+    # once that nears the 10-minute job lease (thousands of roadmaps with gaps).
+    nodes = list(db.scalars(select(RoadmapNode).where(RoadmapNode.id.in_(insufficient_nodes()))))
+    by_roadmap = defaultdict(list)
+    for node in nodes:
+        by_roadmap[node.roadmap_id].append(node)
+    catalog = verified_resources(db, now)
+    for roadmap_id, group in by_roadmap.items():
+        roadmap = db.get(Roadmap, roadmap_id)
+        save_node_sources(db, group, roadmap, db.get(Course, roadmap.course_id), now, catalog=catalog)
+    db.flush()
+    after = db.scalar(select(func.count()).select_from(insufficient_nodes().subquery()))
+    return {"insufficient_before": len(nodes), "insufficient_after": after}
+
+
+@handler(REMATCH)
+def rematch_sources(db, payload, now) -> dict:
+    return rematch_insufficient(db, now)

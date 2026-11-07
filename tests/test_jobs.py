@@ -105,9 +105,12 @@ def test_schedule_daily_enqueues_upkeep_once_per_day(sessions):
             db.commit()
     with sessions() as db:
         keys = sorted(db.scalars(select(Job.dedupe_key)))
-    assert keys == [
+    # The monthly catalog re-reads (#105) are tested in test_catalog_jobs.py.
+    assert [key for key in keys if not key.startswith("ingest_catalog:")] == [
         "check_links:2030-01-07",
         "check_links:2030-01-08",
+        "fill_gaps:2030-01-07",
+        "fill_gaps:2030-01-08",
         "prune:2030-01-07",
         "prune:2030-01-08",
         "verify_catalog:2030-01-07",
@@ -301,6 +304,8 @@ def test_only_the_owner_can_poll_a_job(
 
 def test_worker_schedules_upkeep_and_runs_jobs_until_stopped(app, client, monkeypatch):
     monkeypatch.setattr(vetting, "check_url", lambda url: 200)
+    # The nightly catalog jobs read providers over the network; test_catalog_jobs.py.
+    monkeypatch.setattr(maintenance.catalog_jobs, "schedule_nightly", lambda db, now: None)
     stop = threading.Event()
     ran = []
     real_run_once = jobs.run_once
