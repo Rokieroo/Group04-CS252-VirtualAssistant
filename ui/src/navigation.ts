@@ -11,7 +11,8 @@ export type Page =
   | "AI Reporter"
   | "Companion"
   | "Workspace"
-  | "Costs";
+  | "Costs"
+  | "Catalog";
 export const pages: Page[] = [
   "Home",
   "Library",
@@ -23,6 +24,7 @@ export const pages: Page[] = [
   "Companion",
   "Workspace",
   "Costs",
+  "Catalog",
 ];
 // Visible names. "Library" keeps the id it had when it held the course list.
 export const pageLabels: Record<Page, string> = {
@@ -36,6 +38,7 @@ export const pageLabels: Record<Page, string> = {
   Companion: "Companion",
   Workspace: "Workspace",
   Costs: "Costs",
+  Catalog: "Catalog",
 };
 /**
  * The core loop only (spec 1.2): course → roadmap → schedule → saved sources.
