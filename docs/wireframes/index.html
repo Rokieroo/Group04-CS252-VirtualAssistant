@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wireframes · Group04 Study Companion</title>
 <!--
-  Low-fidelity wireframes for issue #5 (spec docs/APP_SPECIFICATION.md sections 4, 5, 11).
-  Open this file in a browser. Sections mirror the planned Figma pages: Wireframes, States, Components, Flows.
+  Low-fidelity wireframes for core loop S3–S7 (issue #55, spec docs/APP_SPECIFICATION.md sections 4.1, 5, 11.4).
+  Open this file in a browser. Sections mirror the Figma pages: Wireframes, States, Components, Flows.
   ?frame=<id> renders one frame at 1:1 and ?section=<id> renders one section; capture.mjs uses both for screenshots.
 -->
 <style>
-  :root { --ink:#222; --muted:#666; --line:#c4c4c4; --fill:#e8e8e8; --soft:#f5f5f5; --page:#dcdcdc; --bad:#b3261e; }
+  :root { --ink:#222; --muted:#666; --line:#c4c4c4; --fill:#e8e8e8; --soft:#f5f5f5; --page:#dcdcdc; --bad:#b3261e; --ok:#137333; --warn:#b06000; }
   * { box-sizing:border-box; }
   body { margin:0; padding:24px; background:var(--page); color:var(--ink); font:16px/1.45 Inter, system-ui, "Segoe UI", sans-serif; }
   h1,h2,h3,p { margin:0; }
@@ -58,6 +58,7 @@
   .grow { flex:1; }
   .muted { color:var(--muted); }
   .sm { font-size:14px; }
+  .xs { font-size:12px; }
   .center { text-align:center; }
   .spacer { flex:1; }
   .content > *, .stack > *, .cols > * { flex-shrink:0; }
@@ -69,21 +70,24 @@
   /* Pieces */
   .ico { display:inline-block; width:20px; height:20px; border-radius:5px; background:var(--line); flex:none; }
   .ico.lg { width:48px; height:48px; border-radius:12px; }
-  .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; min-width:44px; padding:0 16px; border:1px solid #888; border-radius:10px; background:#fff; font:inherit; font-size:15px; font-weight:600; color:var(--ink); white-space:nowrap; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; min-width:44px; padding:0 16px; border:1px solid #888; border-radius:10px; background:#fff; font:inherit; font-size:15px; font-weight:600; color:var(--ink); white-space:nowrap; cursor:pointer; }
   .btn.primary { background:#333; border-color:#333; color:#fff; }
   .btn.ghost { border-color:transparent; background:transparent; }
   .btn.off { opacity:.45; }
   .btn.block { width:100%; }
+  .btn.sm { min-height:32px; padding:0 10px; font-size:13px; border-radius:8px; }
   .chip { display:inline-flex; align-items:center; gap:4px; min-height:28px; padding:0 10px; border:1px solid #888; border-radius:999px; font-size:13px; font-weight:600; color:var(--ink); text-decoration:underline; background:var(--soft); white-space:nowrap; }
   .chip.none { text-decoration:none; border-style:dashed; color:var(--muted); }
-  .tag { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius:999px; background:var(--fill); font-size:13px; }
+  .tag { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius:999px; background:var(--fill); font-size:13px; font-weight:500; }
   .tag.on { background:#333; color:#fff; }
+  .tag.ok { background:#e6f4ea; color:var(--ok); border:1px solid #ceead6; font-weight:600; }
+  .tag.warn { background:#fef7e0; color:var(--warn); border:1px solid #feefc3; font-weight:600; }
   .bar { height:8px; border-radius:99px; background:var(--fill); overflow:hidden; }
   .bar > i { display:block; height:100%; background:#555; }
   .skel { height:14px; border-radius:6px; background:var(--fill); }
   .skel.w60 { width:60%; } .skel.w80 { width:80%; } .skel.w40 { width:40%; }
   .skel.block { height:72px; border-radius:12px; }
-  .input { display:flex; align-items:center; min-height:44px; padding:0 14px; border:1px solid #888; border-radius:10px; color:var(--muted); background:#fff; }
+  .input { display:flex; align-items:center; min-height:44px; padding:0 14px; border:1px solid #888; border-radius:10px; color:var(--muted); background:#fff; font-size:14px; }
   .input.area { align-items:flex-start; min-height:96px; padding-top:10px; }
   .field { display:flex; flex-direction:column; gap:6px; font-size:14px; font-weight:600; }
   .check { width:20px; height:20px; border:1.5px solid #777; border-radius:4px; flex:none; display:inline-flex; align-items:center; justify-content:center; font-size:14px; }
@@ -91,58 +95,55 @@
   .lock { width:16px; height:16px; flex:none; }
   .note { border:1px dashed #8a8a8a; border-radius:8px; padding:8px 12px; font-size:13px; color:#444; background:#fafafa; }
   .alert { display:flex; gap:12px; align-items:flex-start; border:2px solid #333; border-radius:12px; padding:12px 16px; }
-  .alert.bad { border-color:var(--bad); }
+  .alert.bad { border-color:var(--bad); background:#fdf3f2; }
+  .alert.warn { border-color:var(--warn); background:#fef9ef; }
   .alert .ico { background:#333; }
   .alert.bad .ico { background:var(--bad); }
+  .alert.warn .ico { background:var(--warn); }
   .toast { position:absolute; left:50%; bottom:96px; transform:translateX(-50%); display:flex; align-items:center; gap:16px; padding:8px 8px 8px 16px; border-radius:12px; background:#333; color:#fff; font-size:14px; white-space:nowrap; }
   .toast .btn { min-height:36px; background:transparent; color:#fff; border-color:#fff; }
   .app.m .toast { bottom:144px; }
   .app.d .toast { bottom:84px; }
-  .drop { border:2px dashed #888; border-radius:16px; padding:28px; display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; background:var(--soft); }
-  .drop.big { padding:64px 28px; }
-  .app.m .drop:not(.big) { padding:16px; }
-  .app.m .drop:not(.big) > .ico, .app.m .drop:not(.big) > span:first-of-type { display:none; }
+  .drop { border:2px dashed #888; border-radius:16px; padding:24px; display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; background:var(--soft); }
+  .drop.big { padding:56px 24px; }
   .file { display:flex; align-items:center; gap:12px; border:1px solid var(--line); border-radius:12px; padding:12px 16px; }
   .file.err { border:2px solid var(--bad); }
   .file > .ico { width:28px; height:36px; border-radius:4px; }
   .file .meta { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
   .err-text { color:var(--bad); font-weight:600; font-size:14px; }
-  .concept { display:flex; gap:12px; align-items:flex-start; border:1px solid var(--line); border-radius:12px; padding:12px 16px; }
-  .concept .meta { flex:1; min-width:0; display:flex; flex-direction:column; gap:4px; }
-  .concept .acts { display:flex; gap:4px; }
   .one-line { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .edge { display:flex; align-items:center; gap:8px; font-size:14px; padding:6px 10px; border:1px solid var(--line); border-radius:8px; }
-  .edge.bad { border:2px dashed var(--bad); color:var(--bad); font-weight:600; }
-  .opt { display:flex; align-items:center; gap:12px; min-height:52px; padding:0 16px; border:1px solid #999; border-radius:12px; }
-  .opt.on { border:2px solid #333; background:var(--soft); font-weight:600; }
-  .opt .k { width:28px; height:28px; border-radius:50%; border:1px solid #777; display:inline-flex; align-items:center; justify-content:center; font-size:13px; flex:none; }
-  .rate { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
-  .rate .btn { flex-direction:column; gap:0; min-height:56px; padding:4px; }
-  .rate small { font-weight:400; font-size:12px; color:var(--muted); }
-  .seg { display:grid; grid-template-columns:repeat(3,1fr); border:1px solid #888; border-radius:10px; overflow:hidden; }
-  .seg > span { display:flex; align-items:center; justify-content:center; gap:6px; min-height:44px; font-size:14px; font-weight:600; border-left:1px solid #888; }
-  .seg > span:first-child { border-left:0; }
-  .seg > span.on { background:#333; color:#fff; }
-  .seg > span.locked { color:#999; background:var(--soft); }
-  .msg { max-width:80%; padding:10px 14px; border-radius:14px; background:var(--fill); font-size:15px; }
-  .msg.me { align-self:flex-end; background:#fff; border:1px solid #999; }
-  .portrait { width:100%; aspect-ratio:3/2; border-radius:12px; background:repeating-linear-gradient(45deg,var(--fill) 0 10px,#f0f0f0 10px 20px); display:flex; align-items:center; justify-content:center; text-align:center; padding:8px; color:var(--muted); font-size:14px; border:1px solid var(--line); flex:none; }
-  .app.d .portrait { aspect-ratio:auto; height:280px; }
-  .app.m .portrait { aspect-ratio:auto; height:96px; }
-  .scene { display:flex; align-items:center; gap:12px; font-size:14px; }
-  .scene .thumbnail { width:56px; height:40px; border-radius:6px; background:var(--fill); border:1px solid var(--line); flex:none; }
-  .switch { width:44px; height:26px; border-radius:99px; background:#333; position:relative; flex:none; }
-  .switch::after { content:""; position:absolute; right:3px; top:3px; width:20px; height:20px; border-radius:50%; background:#fff; }
-  .pageprev { flex:1; border:1px solid var(--line); border-radius:8px; padding:20px; display:flex; flex-direction:column; gap:10px; background:#fff; }
-  .hl { background:#d6d6d6; outline:2px solid #555; }
-  .stat { font-size:40px; font-weight:700; }
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); padding-bottom:2px; flex-wrap:wrap; }
+  .tab { padding:8px 16px; font-weight:600; font-size:14px; color:var(--muted); border-radius:8px 8px 0 0; cursor:pointer; }
+  .tab.on { color:var(--ink); border-bottom:2px solid #333; background:var(--soft); }
+  .source-card { border:1px solid var(--line); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:10px; background:#fff; }
+  .domain-link { font-family:monospace; font-size:13px; color:#1a0dab; text-decoration:underline; font-weight:600; }
+  .score-badge { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:8px; background:#e8f0fe; color:#174ea6; font-weight:700; font-size:14px; border:1px solid #d2e3fc; }
+  .rubric-table { width:100%; border-collapse:collapse; font-size:13px; margin-top:6px; }
+  .rubric-table th, .rubric-table td { padding:6px 8px; border-bottom:1px solid var(--line); text-align:left; }
+  .rubric-table th { background:var(--soft); font-weight:600; }
+  .quote-box { border-left:3px solid #666; padding-left:12px; font-style:italic; font-size:13px; color:#444; background:var(--soft); padding:8px 12px; border-radius:0 8px 8px 0; }
+  .timeline-week { border:1px solid var(--line); border-radius:12px; padding:14px; background:#fff; display:flex; flex-direction:column; gap:8px; }
+  .timeline-week.milestone { border:2px solid #333; background:#fafafa; }
+  .timeline-week.overload { border:2px solid var(--warn); background:#fffdf8; }
+  .node-chip { display:inline-flex; align-items:center; gap:8px; padding:6px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; background:#fff; }
+  .node-chip.done { border-color:#ceead6; background:#e6f4ea; }
+  .node-chip.in-prog { border-color:#feefc3; background:#fef7e0; }
+  .node-chip.avail { border-color:#d2e3fc; background:#e8f0fe; }
+  .node-chip.locked { opacity:.6; background:var(--soft); }
+  .cal-week { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; border:1px solid var(--line); border-radius:12px; padding:12px; background:#fff; }
+  .app.m .cal-week { grid-template-columns:1fr; }
+  .cal-day { display:flex; flex-direction:column; gap:6px; min-height:90px; border-radius:8px; padding:8px; background:var(--soft); font-size:12px; }
+  .cal-event { padding:6px 8px; border-radius:6px; background:#333; color:#fff; font-size:12px; font-weight:600; display:flex; flex-direction:column; gap:2px; }
+  .cal-event.moved { background:var(--ok); }
+  .cal-event.missed { background:var(--bad); }
+  .stat { font-size:36px; font-weight:700; }
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script>
 const SIZE = { d: [1440, 900], m: [390, 844] };
-const NAV = [["home", "Trang chủ"], ["courses", "Môn học"], ["review", "Ôn tập"], ["ask", "Hỏi đáp"], ["companion", "Companion"]];
+const NAV = [["home", "Trang chủ"], ["courses", "Môn học"], ["roadmap", "Roadmap"], ["schedule", "Lịch học"], ["review", "Ôn tập"], ["companion", "Companion"]];
 const LOCK = '<svg class="lock" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7" width="10" height="8" rx="1.5" fill="currentColor"/><path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
 
 const btn = (label, kind = "") => `<span class="btn ${kind}">${label}</span>`;
@@ -161,160 +162,393 @@ function shell(size, active, title, body) {
     : `<div class="app m">${top}<div class="content">${body}</div><nav class="bottom">${nav}</nav></div>`;
 }
 
-// ---------- S3 Upload ----------
-function file(name, meta, status, extra = "") {
-  const right = { done: '<span class="tag">✓ Xong</span>', wait: '<span class="tag">Đang chờ</span>', prog: "", err: btn("Xóa", "ghost") }[status];
+// ==========================================
+// S3: Tải syllabus (Upload Syllabus)
+// ==========================================
+function fileRow(name, meta, status, extra = "") {
+  const right = { done: '<span class="tag ok">✓ Trích xong</span>', prog: '<span class="tag">Đang xử lý</span>', err: btn("Xóa", "ghost sm") }[status];
   return `<div class="file ${status === "err" ? "err" : ""}"><i class="ico"></i><div class="meta"><b class="one-line">${name}</b><span class="muted sm">${meta}</span>${extra}</div>${right}</div>`;
 }
 const fileError = (text, action = "") => `<span class="err-text">${text}</span>${action}`;
 
 function s3(state) {
-  const drop = `<div class="drop ${state === "empty" ? "big" : ""}"><i class="ico lg"></i><b>Kéo thả file PDF vào đây</b><span class="muted sm">hoặc</span>${btn("Chọn file")}<span class="muted sm">Chỉ PDF · tối đa 20 MB mỗi file</span></div>`;
-  const steps = `<div class="panel soft d-only"><h3>Sau khi tải lên</h3>
-    <div class="inline"><span class="tag">1</span>Trích text theo trang (≈ 2 phút / 100 trang)</div>
-    <div class="inline"><span class="tag">2</span>Đề xuất 8–20 concept</div>
-    <div class="inline"><span class="tag">3</span>Bạn đổi tên, gộp, xóa rồi xác nhận</div>
-    <div class="note">Tài liệu chỉ dùng cho tài khoản của bạn.</div></div>`;
+  const isErr = state === "error";
+  const drop = `<div class="drop ${state === "empty" ? "big" : ""}"><i class="ico lg"></i><b>Kéo thả file Syllabus (PDF hoặc DOCX) vào đây</b>
+    <span class="muted sm">hoặc bấm để chọn file từ máy tính</span>
+    <div class="inline">${btn("Chọn file PDF/DOCX")}${btn("Dán văn bản syllabus", "ghost")}</div>
+    <span class="muted xs">Giới hạn tối đa 20 MB · File có cấu trúc tuần, chuẩn đầu ra & mốc kiểm tra</span></div>`;
+
+  const pasteBox = `<div class="panel soft d-only"><label class="field">Hoặc dán nội dung văn bản syllabus:
+    <div class="input area" style="font-family:monospace;font-size:13px">HỌC VIỆN CÔNG NGHỆ BƯU CHÍNH VIỄN THÔNG / ĐẠI HỌC KHOA HỌC TỰ NHIÊN\nĐỀ CƯƠNG CHI TIẾT HỌC PHẦN: CS252 - TƯ DUY TÍNH TOÁN\n1. Chuẩn đầu ra (CLO 1.1, CLO 1.2...)\n2. Phân bổ tuần học & nội dung chi tiết...</div></label>
+    <div class="between"><span class="muted xs">Hệ thống phân tích tự động chuẩn đầu ra & phân bổ tuần</span>${btn("Phân tích văn bản", "sm")}</div></div>`;
+
   const files = {
-    empty: `<p class="center muted">Chưa có tài liệu nào. Tải slide đầu tiên để hệ thống đề xuất concept.</p>`,
-    default: file("Week01.pdf", "84 trang · 6,2 MB", "done")
-      + file("Week02.pdf", "62 trang · 4,8 MB", "prog", progress(50, "Đang trích trang 31/62"))
-      + file("Week03.pdf", "Chưa bắt đầu · 3,1 MB", "wait"),
-    loading: file("Week01.pdf", "84 trang · 6,2 MB", "prog", progress(80, "Đang trích trang 67/84"))
-      + file("Week02.pdf", "62 trang · 4,8 MB", "prog", progress(10, "Đang trích trang 6/62"))
-      + `<p class="muted sm center">Đang xử lý… khoảng 2 phút cho 100 trang. Bạn có thể rời trang, tiến trình vẫn chạy.</p>`,
-    error: file("notes.docx", "1,2 MB", "err", fileError("Hiện chỉ hỗ trợ file PDF."))
-      + file("Lecture-full.pdf", "48,0 MB", "err", fileError("File lớn hơn 20 MB. Hãy tách file hoặc nén lại."))
-      + file("Scan-week4.pdf", "22 trang · 9,4 MB", "err", fileError("Không đọc được chữ trong file này. Bạn có thể dán nội dung trang cần học.", `<span>${btn("Dán nội dung")}</span>`))
-      + file("Week05.pdf", "2,0 MB", "err", fileError("File bị hỏng, không mở được. Hãy xuất lại PDF rồi tải lên.")),
+    empty: `<p class="center muted" style="margin-top:24px">Chưa có syllabus nào được tải lên. Tải đề cương môn học để hệ thống lập roadmap học tập.</p>`,
+    default: fileRow("CS252_Syllabus_2026.pdf", "8 trang · 2,4 MB · Đã trích 14 CLO & 15 tuần", "done")
+      + fileRow("GiaoTrinh_ThamKhao_Ch1-3.pdf", "45 trang · 5,1 MB", "done")
+      + `<div class="panel soft"><b>Mục tiêu học tập cá nhân (không bắt buộc):</b>
+          <div class="input">Đạt điểm A (≥ 8.5), nắm chắc tư duy giải thuật & vượt qua đồ án cuối kỳ.</div></div>`,
+    loading: `<div class="panel"><b>Đang phân tích cấu trúc đề cương syllabus…</b>${progress(65, "Trích xuất chuẩn đầu ra (CLO), các mốc thi giữa kỳ & phân bổ 15 tuần (khoảng 30 giây)")}</div>`
+      + fileRow("CS252_Syllabus_2026.pdf", "8 trang · 2,4 MB", "prog")
+      + `<p class="muted sm center">Bạn có thể rời trang, tiến trình phân tích vẫn chạy ngầm.</p>`,
+    error: fileRow("Lecture_Full_Recording.pdf", "48,5 MB", "err", fileError("File vượt quá 20 MB. Vui lòng nén hoặc chỉ tải tài liệu đề cương."))
+      + fileRow("Scan_Syllabus_ImageOnly.pdf", "14 trang · 9,2 MB", "err", fileError("File PDF chỉ chứa hình ảnh scan không có text. Hãy dùng tính năng dán văn bản.", `<div>${btn("Dán văn bản thay thế", "sm")}</div>`))
+      + fileRow("Notes_Random_Paper.docx", "850 KB", "err", fileError("Tài liệu không giống đề cương syllabus (thiếu chuẩn đầu ra, tuần học hoặc mốc đánh giá)."))
+      + fileRow("Damaged_File.pdf", "1,8 MB", "err", fileError("File bị lỗi định dạng hoặc hỏng, không thể đọc.")),
   }[state];
-  const hint = state === "error" ? "Xóa hoặc sửa các file lỗi để tiếp tục" : "Bấm được khi mọi file đã xử lý xong";
-  const cta = state === "empty" ? "" : `<div class="between"><span class="muted sm">${hint}</span>${btn("Đề xuất concept →", "primary off")}</div>`;
-  return { title: "Tải tài liệu · CS252", nav: "courses", body: `<div class="cols"><div class="stack">${drop}${files}<div class="spacer"></div>${cta}</div>${steps}</div>` };
+
+  const sideInfo = `<div class="panel soft d-only"><h3>Quy trình phân tích syllabus</h3>
+    <div class="inline"><span class="tag on">1</span>Trích chuẩn đầu ra (CLO) & mục tiêu</div>
+    <div class="inline"><span class="tag">2</span>Phân bổ 10–15 tuần với chủ đề tương ứng</div>
+    <div class="inline"><span class="tag">3</span>Trích xuất mốc kiểm tra (Giữa kỳ, Cuối kỳ) & trọng số</div>
+    <div class="inline"><span class="tag">4</span>Lập Knowledge Graph & Weekly Roadmap</div>
+    <div class="note">Mọi thông tin trích xuất đều có citation trỏ về số trang syllabus gốc để bạn kiểm tra.</div></div>`;
+
+  const bottomAction = state === "empty" ? "" : `<div class="between"><span class="muted sm">${isErr ? "Vui lòng xóa file lỗi để tiếp tục" : "Đã trích xuất xong 15 tuần học"}</span>
+    ${btn("Xem & Duyệt Syllabus (S4) →", isErr ? "primary off" : "primary")}</div>`;
+
+  return { title: "Tải syllabus · CS252", nav: "courses", body: `<div class="cols"><div class="stack">${drop}${files}${state === "empty" ? pasteBox : ""}<div class="spacer"></div>${bottomAction}</div>${sideInfo}</div>` };
 }
 
-// ---------- S4 Concept editor ----------
-const CONCEPTS = [
-  ["Decomposition", "Chia bài toán lớn thành các bài toán con độc lập", 3, "3, 4, 9", ""],
-  ["Pattern recognition", "Tìm điểm giống nhau giữa các bài toán đã gặp", 2, "11, 12", "Decomposition"],
-  ["Abstraction", "Giữ chi tiết quan trọng, bỏ chi tiết không cần", 4, "15–18", "Pattern recognition"],
-  ["Algorithm design", "Viết các bước giải rõ ràng, lặp lại được", 3, "21, 22, 30", "Abstraction"],
-  ["Evaluation", "Kiểm tra lời giải đúng và đủ hiệu quả", 2, "34, 35", ""],
-];
-function conceptRow([name, desc, count, pages, pre], i) {
-  return `<div class="concept"><span class="check ${i < 2 ? "on" : ""}">${i < 2 ? "✓" : ""}</span><div class="meta"><b>${name}</b><span class="muted sm one-line">${desc}</span>
-    <div class="inline sm"><span class="tag">${count} trang nguồn · tr. ${pages}</span>${pre ? `<span class="tag">Cần trước: ${pre}</span>` : ""}</div></div>
-    <div class="acts d-only">${btn("Đổi tên", "ghost")}${btn("+ Prerequisite", "ghost")}${btn("Xóa", "ghost")}</div><div class="acts m-only">${btn("⋯", "ghost")}</div></div>`;
-}
+// ==========================================
+// S4: Duyệt syllabus (Review Syllabus)
+// ==========================================
 function s4(state) {
-  const page = (body) => ({ title: "Concept · CS252", nav: "courses", body });
-  if (state === "empty") return page(empty("Chưa có concept nào", "Tải tài liệu ở bước trước để hệ thống đề xuất, hoặc tự thêm.", btn("+ Thêm concept thủ công", "primary") + btn("Quay lại tải tài liệu")));
-  if (state === "loading") return page(`<div class="panel"><b>Đang đề xuất concept từ 146 trang…</b>${bar(45)}<span class="muted sm">Khoảng 1 phút. Bạn sửa được danh sách ngay khi xong.</span></div>${skel("block", "block", "block", "block")}`);
-  const cycle = state === "error";
-  const toolbar = `<div class="between wrap"><span class="muted"><b>12 concept đề xuất</b> · đã chọn 2</span><div class="inline">${btn("Gộp")}${btn("+ Prerequisite")}<span class="d-only">${btn("+ Thêm concept")}</span></div></div>`;
-  const warn = cycle ? alert("Thêm cạnh này sẽ tạo vòng lặp. Hãy bỏ một cạnh trước.", `<span class="sm">Algorithm design → Decomposition → Pattern recognition → Abstraction → Algorithm design</span><div class="inline">${btn("Bỏ cạnh mới", "primary")}${btn("Chọn cạnh khác để bỏ")}</div>`, "bad") : "";
-  const graph = `<div class="panel soft d-only"><h3>Prerequisite</h3>
-    <div class="edge">Decomposition → Pattern recognition</div><div class="edge">Pattern recognition → Abstraction</div><div class="edge">Abstraction → Algorithm design</div>
-    ${cycle ? '<div class="edge bad">Algorithm design → Decomposition (cạnh mới)</div>' : ""}
-    <div class="note">Graph view 2D làm ở tuần 2. Tuần 1 hiện danh sách cạnh.</div></div>`;
-  const toast = state === "default" ? `<div class="toast">Đã xóa “Debugging”${btn("Hoàn tác (5 s)")}</div>` : "";
-  return page(`<div class="cols"><div class="stack">${toolbar}${warn}${CONCEPTS.map(conceptRow).join("")}<div class="spacer"></div>${btn("Xác nhận tất cả (12)", "primary block")}</div>${graph}</div>${toast}`);
+  const isErr = state === "error";
+  const tabs = `<div class="tabs">
+    <span class="tab on">Tuần & chủ đề (15)</span>
+    <span class="tab">Chuẩn đầu ra CLO (6)</span>
+    <span class="tab">Đánh giá & Mốc thi (3)</span>
+    <span class="tab">Giáo trình & Nguồn (2)</span>
+  </div>`;
+
+  const warnBanner = isErr ? alert("Cảnh báo phát hiện trong syllabus:",
+    `<div class="stack sm" style="gap:4px">
+      <span>• <b>Tổng trọng số đánh giá = 85%</b> (chưa đủ 100%: GK 30%, CK 55%).</span>
+      <span>• <b>Ngày thi cuối kỳ 20/07/2026</b> nằm ngoài thời gian học kỳ (kết thúc 30/06/2026).</span>
+      <span>• <b>Tuần 6 chưa có chủ đề</b> hoặc bị bỏ trống.</span>
+    </div><div class="inline" style="margin-top:6px">${btn("Tự động sửa lỗi", "primary sm")}${btn("Bỏ qua cảnh báo", "ghost sm")}</div>`, "warn") : "";
+
+  const weeksTable = `<div class="panel" style="padding:0;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <thead style="background:var(--soft);border-bottom:1px solid var(--line)">
+        <tr><th style="padding:10px 14px;text-align:left;width:70px">Tuần</th>
+            <th style="padding:10px 14px;text-align:left">Chủ đề bài học (Nhấp để sửa)</th>
+            <th style="padding:10px 14px;text-align:left;width:120px">CLO</th>
+            <th style="padding:10px 14px;text-align:left;width:140px">Trích dẫn trang</th>
+            <th style="padding:10px 14px;text-align:center;width:90px">Thao tác</th></tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid var(--line)">
+          <td style="padding:10px 14px"><b>Tuần 1</b></td>
+          <td style="padding:10px 14px">Giới thiệu Tư duy tính toán & Biểu diễn bài toán</td>
+          <td style="padding:10px 14px"><span class="tag">CLO 1.1</span></td>
+          <td style="padding:10px 14px">${chip("Syllabus.pdf", 2)}</td>
+          <td style="padding:10px 14px;text-align:center">${btn("Sửa", "ghost sm")}</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--line)">
+          <td style="padding:10px 14px"><b>Tuần 2</b></td>
+          <td style="padding:10px 14px">Decomposition (Phân rã) & Abstraction (Trừu tượng hóa)</td>
+          <td style="padding:10px 14px"><span class="tag">CLO 1.2</span></td>
+          <td style="padding:10px 14px">${chip("Syllabus.pdf", 3)}</td>
+          <td style="padding:10px 14px;text-align:center">${btn("Sửa", "ghost sm")}</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--line);background:#fafafa">
+          <td style="padding:10px 14px"><b>Tuần 8</b></td>
+          <td style="padding:10px 14px"><b>[Mốc kiểm tra] Thi giữa kỳ trắc nghiệm & tự luận (30%)</b></td>
+          <td style="padding:10px 14px"><span class="tag on">CLO 1-3</span></td>
+          <td style="padding:10px 14px">${chip("Syllabus.pdf", 5)}</td>
+          <td style="padding:10px 14px;text-align:center">${btn("Sửa", "ghost sm")}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 14px"><b>Tuần 15</b></td>
+          <td style="padding:10px 14px"><b>[Mốc kiểm tra] Thi cuối kỳ & Báo cáo đồ án (50%)</b></td>
+          <td style="padding:10px 14px"><span class="tag on">CLO 1-6</span></td>
+          <td style="padding:10px 14px">${chip("Syllabus.pdf", 6)}</td>
+          <td style="padding:10px 14px;text-align:center">${btn("Sửa", "ghost sm")}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>`;
+
+  const sideSummary = `<div class="panel soft d-only"><h3>Tóm tắt đề cương môn học</h3>
+    <div class="between"><span>Tổng số tuần:</span><b>15 tuần</b></div>
+    <div class="between"><span>Chuẩn đầu ra:</span><b>6 chuẩn (CLO 1-6)</b></div>
+    <div class="between"><span>Hình thức thi:</span><b>Giữa kỳ 30% · Cuối kỳ 50%</b></div>
+    <div class="between"><span>Chuyên cần & Quiz:</span><b>20%</b></div>
+    <hr style="border:0;border-top:1px solid var(--line);margin:4px 0">
+    <div class="note">Mọi thông số đều sửa trực tiếp được trước khi tạo Roadmap.</div></div>`;
+
+  const content = {
+    empty: empty("Chưa có dữ liệu syllabus để duyệt", "Hãy tải file syllabus hoặc dán nội dung ở bước trước.", btn("Quay lại S3 Tải syllabus", "primary")),
+    loading: `<div class="panel"><b>Đang trích xuất cấu trúc tuần và chuẩn đầu ra…</b>${skel("w80", "w60", "block", "block")}</div>`,
+    default: `<div class="cols"><div class="stack">${tabs}${weeksTable}<div class="spacer"></div>
+      <div class="between"><span class="muted sm">Mọi thông tin đã khớp với syllabus gốc</span>${btn("Xác nhận & Tạo Roadmap (S5) →", "primary")}</div></div>${sideSummary}</div>`,
+    error: `<div class="cols"><div class="stack">${tabs}${warnBanner}${weeksTable}<div class="spacer"></div>
+      <div class="between"><span class="err-text">Vui lòng điều chỉnh các cảnh báo trên</span>${btn("Sửa & Tiếp tục", "primary")}</div></div>${sideSummary}</div>`,
+  }[state];
+
+  return { title: "Duyệt syllabus · CS252", nav: "courses", body: content };
 }
 
-// ---------- S6 Review session ----------
-const OPTIONS = ["Decomposition", "Pattern recognition", "Abstraction", "Algorithm design"];
-const QUESTION = "Bản đồ tàu điện ngầm bỏ khoảng cách thật giữa các ga, chỉ giữ thứ tự ga và tuyến. Đây là ví dụ của kỹ năng nào?";
+// ==========================================
+// S5: Roadmap (Timeline & Graph)
+// ==========================================
+function s5(state) {
+  const isErr = state === "error";
+  const viewSwitcher = `<div class="between wrap">
+    <div class="inline"><span class="btn sm primary">📅 Timeline theo tuần (Mặc định)</span><span class="btn sm ghost">🕸️ Knowledge Graph</span></div>
+    <div class="inline sm"><span class="tag ok">● Hoàn thành</span><span class="tag warn">● Đang học</span><span class="tag">○ Chưa mở</span></div>
+  </div>`;
+
+  const overloadBanner = isErr ? alert("Cảnh báo quá tải học tập Tuần 7:",
+    `<span>18 giờ học dự kiến vượt quá thời gian rảnh bạn cài đặt (10 giờ/tuần).</span>
+     <div class="inline" style="margin-top:6px">${btn("Duyệt đề xuất dời 2 chặng sang tuần 5 & 6", "primary sm")}${btn("Tự chỉnh thủ công", "ghost sm")}</div>`, "warn") : "";
+
+  const cycleBanner = isErr ? alert("Lỗi phụ thuộc (Cycle Detected):",
+    `<span>Không thể thêm cạnh phụ thuộc: <b>Chặng 4 → Chặng 2</b> sẽ tạo vòng lặp (Chặng 2 → Chặng 3 → Chặng 4 → Chặng 2). Cạnh bị từ chối với mã 409 Conflict.</span>`, "bad") : "";
+
+  const timelineList = `<div class="stack" style="gap:12px">
+    <div class="timeline-week">
+      <div class="between"><b>Tuần 1: Nhập môn & Biểu diễn bài toán</b><span class="tag ok">✓ Đã hoàn thành</span></div>
+      <div class="inline">
+        <span class="node-chip done">Chặng 1: Khái niệm Computational Thinking (45p)</span>
+        <span class="node-chip done">Chặng 2: Biểu diễn thuật toán (60p)</span>
+      </div>
+    </div>
+    <div class="timeline-week">
+      <div class="between"><b>Tuần 2: Kỹ thuật Phân rã & Trừu tượng hóa</b><span class="tag warn">Đang học tuần này</span></div>
+      <div class="inline">
+        <span class="node-chip in-prog">Chặng 3: Decomposition & Kỹ thuật phân rã (90p)</span>
+        <span class="node-chip avail">Chặng 4: Abstraction & Mô hình hóa (75p)</span>
+      </div>
+    </div>
+    <div class="timeline-week milestone">
+      <div class="between"><b style="color:var(--bad)">🚩 Tuần 8: [Mốc kiểm tra] Thi giữa kỳ (Trọng số 30%)</b><span class="tag on">Còn 24 ngày</span></div>
+      <span class="muted sm">Bao phủ toàn bộ kiến thức từ Tuần 1 đến Tuần 7 (Chặng 1 – Chặng 14)</span>
+      <div class="inline">${btn("Xem tài liệu ôn thi giữa kỳ", "sm")}${btn("Luyện đề giữa kỳ có trích dẫn", "sm primary")}</div>
+    </div>
+  </div>`;
+
+  const rightPanel = `<div class="panel soft d-only"><h3>Tiến độ môn học</h3>
+    <div class="inline" style="gap:24px"><div><div class="stat">28%</div><span class="muted sm">tiến độ hoàn thành</span></div>
+    <div><div class="stat">4/14</div><span class="muted sm">chặng đã học</span></div></div>
+    <div class="note"><b>Mốc tiếp theo:</b> Thi giữa kỳ lúc 08:00 ngày 25/11/2026. Lịch học tự động phân bổ đều kiến thức.</div>
+    <hr style="border:0;border-top:1px solid var(--line);margin:4px 0">
+    <div class="stack" style="gap:6px"><b>Thao tác nhanh:</b>
+      ${btn("Xem trang chặng chi tiết (S6)", "block sm")}${btn("Mở Lịch học (S7)", "block sm ghost")}
+    </div></div>`;
+
+  const content = {
+    empty: empty("Chưa tạo roadmap môn học", "Xác nhận syllabus ở bước S4 để hệ thống tự động dựng roadmap theo tuần.", btn("Quay lại Duyệt Syllabus")),
+    loading: `<div class="panel"><b>Đang dựng Knowledge Graph và Roadmap theo tuần…</b>${skel("block", "block", "block")}</div>`,
+    default: `<div class="cols"><div class="stack">${viewSwitcher}${timelineList}</div>${rightPanel}</div>`,
+    error: `<div class="cols"><div class="stack">${viewSwitcher}${cycleBanner}${overloadBanner}${timelineList}</div>${rightPanel}</div>`,
+  }[state];
+
+  return { title: "Roadmap · CS252", nav: "roadmap", body: content };
+}
+
+// ==========================================
+// S6: Trang chặng (Stage / Topic Page)
+// ==========================================
 function s6(state) {
-  const page = (body) => ({ title: "Ôn tập", nav: "review", body });
-  const head = (n, pct) => `<div class="stack" style="gap:8px"><div class="between"><b>Câu ${n}/12</b><span class="tag on m-only">Core</span><div class="inline sm d-only"><span class="tag">Warm-up</span><span class="tag on">Core</span><span class="tag">Wrap</span></div><span class="muted sm d-only">≈ 7 phút còn lại</span>${btn("Kết thúc", "ghost")}</div>${bar(pct)}</div>`;
-  const question = `<div class="inline sm"><span class="tag">Abstraction</span><span class="tag">Trắc nghiệm</span></div><p class="h3">${QUESTION}</p>`;
-  const opts = (graded) => OPTIONS.map((o, i) => `<div class="opt ${i === 2 ? "on" : graded ? "m-hide" : ""}"><span class="k">${"ABCD"[i]}</span><span class="grow">${o}</span>${graded && i === 2 ? "<b>✓ Đúng</b>" : ""}</div>`).join("");
-  if (state === "empty") return page(empty("Không còn câu đến hạn hôm nay", "Câu tiếp theo quay lại ngày mai lúc 07:00. Nghỉ học không bị dồn bài.", btn("Học 2 concept mới", "primary") + btn("Về trang chủ")));
-  if (state === "loading") return page(`${head(0, 0)}<div class="panel"><b>Đang chuẩn bị buổi học 10 phút…</b>${skel("w80", "w60", "block", "block")}</div>`);
-  if (state === "submitted") return page(`${head(3, 25)}<div class="panel">${question}${opts(true)}
-    ${alert("Đúng rồi!", `<span class="sm">Abstraction giữ thông tin cần cho mục tiêu (thứ tự ga, tuyến) và bỏ chi tiết thừa (khoảng cách thật).</span><span>${chip("Week01.pdf", 16)}</span>`)}</div>
-    <div class="stack" style="gap:8px"><b>Câu này với bạn thế nào?</b><div class="rate">${[["Again", "< 1 phút"], ["Hard", "1 ngày"], ["Good", "3 ngày"], ["Easy", "7 ngày"]].map(([l, t]) => `<span class="btn">${l}<small>${t}</small></span>`).join("")}</div></div>`);
-  const offline = state === "error" ? alert("Mất kết nối. Thay đổi của bạn sẽ được lưu khi có mạng lại.", '<span class="sm">2 câu trả lời đang chờ đồng bộ. Bạn vẫn học tiếp được.</span>') : "";
-  const hint = state === "default" ? `<div class="note"><b>Gợi ý 1/2:</b> Bước nào giúp bỏ chi tiết không cần cho mục tiêu? Người đi tàu có cần biết khoảng cách thật không?</div>` : "";
-  return page(`${offline}${head(3, 25)}<div class="panel">${question}${opts(false)}${hint}</div><div class="spacer"></div><div class="between">${btn(hint ? "Gợi ý (còn 1)" : "Gợi ý")}${btn("Nộp", "primary")}</div>`);
-}
+  const isErr = state === "error";
+  const isSubmitted = state === "submitted";
 
-// ---------- S8 Ask panel ----------
-function s8(state) {
-  const q = (text) => `<div class="msg me">${text}</div>`;
-  const convo = {
-    empty: empty("Hỏi bất cứ điều gì trong tài liệu của bạn", "Mỗi ý trong câu trả lời đều có trích dẫn file và trang.", btn("Abstraction là gì?") + btn("So sánh decomposition và abstraction")),
-    loading: `${q("Abstraction khác decomposition thế nào?")}<div class="panel"><b>Đang tìm trong 146 trang…</b>${skel("w80", "w60", "w40")}</div>`,
-    error: `${q("Định lý Bayes là gì?")}<div class="panel"><div class="between"><b>Không tìm thấy trong tài liệu của bạn.</b><span class="chip none">không có nguồn</span></div><span class="sm">Trợ lý chỉ trả lời từ slide đã tải lên. Thử hỏi cách khác hoặc tải thêm tài liệu.</span><span>${btn("Tải thêm tài liệu")}</span></div>`,
-    default: `${q("Abstraction khác decomposition thế nào?")}<div class="panel">
-      <p>Decomposition chia bài toán thành các phần nhỏ để giải từng phần. ${chip("Week01.pdf", 77)}</p>
-      <p>Abstraction giữ lại chi tiết quan trọng và bỏ chi tiết không cần cho mục tiêu. ${chip("Week01.pdf", 81)} ${chip("Week02.pdf", 12)}</p>
-      <span class="muted sm">Bấm vào trích dẫn để mở đúng trang.</span></div>`,
+  const stageHeader = `<div class="panel soft">
+    <div class="between wrap">
+      <div><span class="tag on">Tuần 2 · Chặng 3</span><h2 style="font-size:22px;margin-top:4px">Decomposition & Abstraction</h2></div>
+      <div class="inline sm">${chip("CS252_Syllabus.pdf", 3)}<span class="tag ok">Thời lượng ước tính: 90 phút</span></div>
+    </div>
+    <p class="sm muted">Mục tiêu chuẩn đầu ra: <b>CLO 1.2</b> – Áp dụng kỹ thuật phân rã bài toán lớn và loại bỏ các chi tiết không cần thiết để thiết kế thuật toán.</p>
+  </div>`;
+
+  const formatFilters = `<div class="between wrap">
+    <div class="inline sm"><b class="sm">Nguồn học:</b>
+      <span class="tag on">Tất cả (3)</span><span class="tag">Video (1)</span><span class="tag">PDF / Slide (1)</span><span class="tag">Bài tập (1)</span>
+    </div>
+    <div class="inline">${btn("🔄 Tìm lại nguồn khác", "sm ghost")}</div>
+  </div>`;
+
+  const rubricModal = isSubmitted ? `<div class="panel" style="border:2px solid #1a73e8;background:#f8fafd">
+    <div class="between"><b style="color:#174ea6">Chi tiết chấm điểm 7 tiêu chí (Rubric Spec 11.4):</b><span class="score-badge">Tổng điểm: 0.88 / 1.0</span></div>
+    <table class="rubric-table">
+      <thead><tr><th>Tiêu chí đánh giá</th><th>Trọng số</th><th>Điểm thành phần</th><th>Căn cứ thẩm định</th></tr></thead>
+      <tbody>
+        <tr><td><b>relevance</b> (Độ khớp CLO)</td><td>30%</td><td>0.92</td><td>Khớp chính xác khái niệm phân rã bài toán và loại bỏ chi tiết thừa</td></tr>
+        <tr><td><b>authority</b> (Tier nguồn học)</td><td>20%</td><td>1.00</td><td>Nguồn OER chính thức từ MIT OpenCourseWare (Tier 1.0)</td></tr>
+        <tr><td><b>level_fit</b> (Trình độ đại học)</td><td>15%</td><td>0.85</td><td>Phù hợp sinh viên CNTT năm 2</td></tr>
+        <tr><td><b>pedagogy</b> (Phương pháp sư phạm)</td><td>10%</td><td>0.90</td><td>Có ví dụ trực quan từng bước & bài tập mẫu</td></tr>
+        <tr><td><b>freshness</b> (Tính cập nhật)</td><td>10%</td><td>0.80</td><td>Kiến thức nền tảng tư duy tính toán</td></tr>
+        <tr><td><b>accessibility</b> (Dễ tiếp cận)</td><td>10%</td><td>0.95</td><td>Miễn phí 100%, không cần tài khoản, có phụ đề tiếng Anh/Việt</td></tr>
+        <tr><td><b>community</b> (Tỷ lệ hữu ích)</td><td>5%</td><td>0.80</td><td>92% sinh viên đánh giá hữu ích</td></tr>
+      </tbody>
+    </table>
+    <div class="quote-box"><b>Đoạn trích minh chứng (Grounded Quote):</b> “Decomposition involves breaking down a complex problem or system into smaller, more manageable parts that can be examined and solved independently.”</div>
+  </div>` : "";
+
+  const sourceCard1 = `<div class="source-card">
+    <div class="between wrap">
+      <div class="inline"><span class="tag ok">✓ Đã xác minh</span><b style="font-size:16px">Introduction to Computational Thinking: Decomposition</b></div>
+      <div class="inline sm"><span class="score-badge" style="cursor:pointer">★ Điểm: 0.88 (Bấm xem 7 tiêu chí)</span></div>
+    </div>
+    <div class="inline sm muted">
+      <span class="domain-link">ocw.mit.edu/courses/6-0001</span>
+      <span>·</span><span>MIT OpenCourseWare</span><span>·</span><span>Video · 24 phút</span><span>·</span><span>Giấy phép: CC BY-NC-SA</span>
+    </div>
+    <div class="quote-box">“Decomposition involves breaking down a complex problem into smaller parts...”</div>
+    <div class="between wrap" style="margin-top:4px">
+      <div class="inline sm">
+        <span class="muted">Nguồn này có hữu ích không?</span>
+        ${btn("👍 Hữu ích (92%)", "sm ghost")}${btn("👎 Không", "sm ghost")}
+      </div>
+      <div class="inline">${btn("Báo cáo vi phạm / link lỗi", "ghost sm xs")}${btn("Mở tài liệu (tab mới) ↗", "primary sm")}</div>
+    </div>
+  </div>`;
+
+  const sourceCard2 = `<div class="source-card">
+    <div class="between wrap">
+      <div class="inline"><span class="tag ok">✓ Đã xác minh</span><b style="font-size:16px">Abstraction and Pattern Generalization in Computer Science</b></div>
+      <div class="inline sm"><span class="score-badge">★ Điểm: 0.82</span></div>
+    </div>
+    <div class="inline sm muted">
+      <span class="domain-link">cs.cmu.edu/academic/resources</span>
+      <span>·</span><span>Carnegie Mellon University</span><span>·</span><span>PDF · 12 trang</span>
+    </div>
+    <div class="between wrap">
+      <div class="inline sm">${btn("👍 Hữu ích", "sm ghost")}${btn("👎", "sm ghost")}</div>
+      ${btn("Mở tài liệu ↗", "sm")}
+    </div>
+  </div>`;
+
+  const sidePractice = `<div class="panel soft d-only"><h3>Luyện tập & Hỏi đáp</h3>
+    <div class="note">Nguồn bài tập trích dẫn từ đề thi và giáo trình chính thức, không do AI tự sinh.</div>
+    <div class="between"><span>Ngân hàng câu hỏi:</span><b>6 bài tập có trích dẫn</b></div>
+    ${btn("Bắt đầu ôn tập chặng này (S9) →", "primary block sm")}
+    <hr style="border:0;border-top:1px solid var(--line);margin:4px 0">
+    <div class="between"><span>Hỏi đáp chặng này:</span>${btn("Mở Ask Panel (S10)", "ghost sm")}</div>
+  </div>`;
+
+  const content = {
+    empty: empty("Chưa tìm được nguồn đủ tốt", "Hệ thống lọc theo ngưỡng chất lượng ≥ 0.65. Chưa tìm thấy nguồn miễn phí đạt chuẩn cho chặng này.", btn("Tìm lại với bộ lọc mở rộng", "primary") + btn("Tải tài liệu cá nhân lên")),
+    loading: `<div class="panel"><b>Đang tìm kiếm & thẩm định 7 tiêu chí nguồn học…</b>${skel("block", "block", "block")}</div>`,
+    default: `<div class="cols"><div class="stack">${stageHeader}${formatFilters}${sourceCard1}${sourceCard2}</div>${sidePractice}</div>`,
+    submitted: `<div class="cols"><div class="stack">${stageHeader}${rubricModal}${formatFilters}${sourceCard1}</div>${sidePractice}</div>`,
+    error: alert("Không thể tải nguồn học: liên kết ngoài bị gỡ hoặc mất mạng.",
+      `<span class="sm">Hệ thống đang đề xuất các nguồn thay thế từ kho offline đã lưu.</span><div class="inline" style="margin-top:6px">${btn("Tải lại nguồn dự phòng", "primary sm")}</div>`, "bad"),
   }[state];
-  const input = `<div class="inline"><div class="input grow">Hỏi về tài liệu của bạn…</div>${btn("Hỏi", "primary")}</div><span class="muted sm">Câu trả lời chỉ dựa trên tài liệu bạn đã tải lên.</span>`;
-  const preview = state === "default" ? `<div class="panel soft d-only"><div class="between"><b>Week01.pdf · trang 77</b>${btn("Mở file", "ghost")}</div><div class="pageprev">${skel("w60")}<div class="skel hl w80"></div>${skel("w80", "w40", "w60", "w80")}</div></div>` : "";
-  return { title: "Hỏi đáp · CS252", nav: "ask", body: `<div class="cols"><div class="stack">${convo}<div class="spacer"></div>${input}</div>${preview}</div>` };
+
+  return { title: "Trang chặng · CS252", nav: "roadmap", body: content };
 }
 
-// ---------- S10 Companion panel ----------
-function s10(state) {
-  const modes = `<div class="stack" style="gap:6px"><b class="sm">Chế độ</b><div class="seg"><span class="on">Buddy</span><span>Mentor</span><span class="locked">${LOCK}Girlfriend 18+</span></div>
-    <span class="inline muted sm" style="flex-wrap:nowrap;align-items:flex-start">${LOCK}Chỉ dành cho người dùng 18+ đã xác minh. Tài khoản K-12 chỉ có Buddy hoặc Mentor.</span></div>`;
-  const scene = (name, done, note = "") => `<div class="scene"><span class="thumbnail"></span><div class="grow stack" style="gap:4px"><b>${name}</b>${note}</div>${done ? '<span class="tag">✓ Đã mở</span>' : LOCK}</div>`;
-  const first = state === "empty";
-  const stable = first ? 0 : 6;
-  const scenes = `<div class="panel soft"><h3>Cảnh</h3>
-    ${first ? "" : scene("Quán cà phê học bài", true) + scene("Dã ngoại", true)}
-    ${scene(first ? "Quán cà phê học bài" : "Cổ vũ ngày thi", false, `<span class="muted sm">Còn ${10 - stable} concept ổn định nữa (${stable}/10)</span>${bar(stable * 10)}`)}
-    <span class="muted sm">Mở theo mức thành thạo, không theo thời gian. Nghỉ học không mất tiến độ.</span></div>`;
-  const toggle = `<div class="between"><span class="sm">Bật companion <span class="muted">(tắt vẫn học bình thường)</span></span><span class="switch"></span></div>`;
-  const ai = (t) => `<div class="msg">${t}</div>`;
-  const chat = {
-    default: ai("Mình là AI đồng hành của bạn.") + ai("Hôm nay bạn làm 12 câu, đúng 9. Abstraction tiến bộ rõ đó!") + ai("Đạt mục tiêu ngày rồi, nghỉ chút nhé. Mai gặp lại."),
-    empty: ai("Chào bạn! Mình là AI đồng hành, đang ở chế độ Buddy.") + ai("Mỗi khi 10 concept của bạn ổn định, mình mở một cảnh mới cùng nhau. Bắt đầu buổi ôn đầu tiên nhé?"),
-    loading: skel("block w60", "block w40"),
-    error: alert("Không tải được tin nhắn của companion.", `<span class="sm">Mọi tính năng học vẫn chạy bình thường.</span><span>${btn("Thử lại")}</span>`),
+// ==========================================
+// S7: Lịch học (Schedule & Replan)
+// ==========================================
+function s7(state) {
+  const isErr = state === "error";
+
+  const scheduleHeader = `<div class="between wrap">
+    <div class="inline"><span class="btn sm primary">Tuần này (09/11 – 15/11/2026)</span><span class="btn sm ghost">Xem theo tháng</span></div>
+    <div class="inline sm"><span class="tag ok">Đã phân bổ 8/10 giờ rảnh</span>${btn("⚙️ Cài đặt giờ rảnh", "ghost sm")}</div>
+  </div>`;
+
+  const replanBanner = `<div class="panel" style="border:2px solid #1a73e8;background:#f8fafd">
+    <div class="between wrap">
+      <div><b style="color:#174ea6">Đề xuất xếp lại lịch học (Replan Diff):</b>
+        <p class="sm" style="margin-top:2px">Do bạn lỡ buổi học Thứ Ba (Chặng 3: Decomposition 90p), hệ thống đề xuất chuyển sang Thứ Bảy để không trễ kỳ thi giữa kỳ.</p>
+      </div>
+      <div class="inline">${btn("Duyệt đề xuất đổi lịch", "primary sm")}${btn("Từ chối & giữ lịch cũ", "ghost sm")}</div>
+    </div>
+  </div>`;
+
+  const overdueBanner = isErr ? alert("Cảnh báo trễ hạn kế hoạch:",
+    `<span>Chặng 2 của bạn đã trễ 2 ngày so với kế hoạch học tập đề ra. Hãy sắp xếp học bù sớm.</span>`, "bad") : "";
+
+  const conflictBanner = isErr ? alert("Xung đột giờ học:",
+    `<span>14:00 – 15:30 Thứ Tư trùng lịch với buổi học môn Cấu trúc dữ liệu.</span><div class="inline">${btn("Tự động dời giờ", "primary sm")}</div>`, "warn") : "";
+
+  const calendarGrid = `<div class="cal-week">
+    <div class="cal-day"><b class="muted">T2 (09)</b><div class="cal-event"><span>19:00 - 20:00</span>CS252: Biểu diễn thuật toán (Done)</div></div>
+    <div class="cal-day"><b class="muted">T3 (10)</b><div class="cal-event missed"><span>19:30 - 21:00</span>CS252: Kỹ thuật phân rã (Bị lỡ)</div></div>
+    <div class="cal-day"><b class="muted">T4 (11)</b><span class="muted xs center" style="margin-top:16px">Nghỉ</span></div>
+    <div class="cal-day"><b class="muted">T5 (12)</b><div class="cal-event"><span>20:00 - 21:15</span>CS252: Trừu tượng hóa</div></div>
+    <div class="cal-day"><b class="muted">T6 (13)</b><span class="muted xs center" style="margin-top:16px">Nghỉ</span></div>
+    <div class="cal-day" style="background:#eef6ee"><b style="color:var(--ok)">T7 (14)</b><div class="cal-event moved"><span>14:00 - 15:30</span>CS252: Học bù Phân rã (Đề xuất)</div></div>
+    <div class="cal-day"><b class="muted">CN (15)</b><div class="cal-event"><span>09:00 - 10:00</span>Ôn tập tuần & Quiz</div></div>
+  </div>`;
+
+  const sideInfo = `<div class="panel soft d-only"><h3>Thống kê học tập</h3>
+    <div class="between"><span>Giờ học đã hoàn thành:</span><b>4.5 giờ</b></div>
+    <div class="between"><span>Giờ học còn lại tuần này:</span><b>3.5 giờ</b></div>
+    <div class="between"><span>Tỷ lệ hoàn thành lịch:</span><b>88%</b></div>
+    <hr style="border:0;border-top:1px solid var(--line);margin:4px 0">
+    <div class="note">Kéo thả các khối buổi học để đổi giờ linh hoạt.</div></div>`;
+
+  const content = {
+    empty: empty("Chưa có lịch học nào được xếp", "Cài đặt số giờ rảnh mỗi tuần để trợ lý tự động phân bổ buổi học tối ưu.", btn("Cài đặt giờ rảnh ngay", "primary")),
+    loading: `<div class="panel"><b>Đang tối ưu hóa lịch học theo giờ rảnh của bạn…</b>${skel("block", "block", "block")}</div>`,
+    default: `<div class="cols"><div class="stack">${scheduleHeader}${replanBanner}${calendarGrid}</div>${sideInfo}</div>`,
+    error: `<div class="cols"><div class="stack">${scheduleHeader}${overdueBanner}${conflictBanner}${calendarGrid}</div>${sideInfo}</div>`,
   }[state];
-  const input = `<div class="inline"><div class="input grow">Nhắn cho companion…</div>${btn("Gửi", "primary")}</div><span class="muted sm">Còn 11/15 phút trò chuyện hôm nay</span>`;
-  const summary = `<div class="panel soft m-only"><div class="between"><b class="sm">Cảnh: ${first ? "chưa mở cảnh nào" : "đã mở 2"}</b>${btn("Xem", "ghost")}</div><span class="muted sm">Tiếp theo: ${first ? "Quán cà phê học bài" : "Cổ vũ ngày thi"} (${stable}/10 concept ổn định)</span>${bar(stable * 10)}</div>`;
-  const left = `<div class="stack"><div class="portrait">Avatar nhân vật (không dùng hình lãng mạn khi chưa mở mode)</div><div class="m-only">${modes}</div>${chat}<div class="spacer"></div>${summary}${input}</div>`;
-  return { title: "Companion", nav: "companion", body: `<div class="cols">${left}<div class="stack d-only">${modes}${scenes}${toggle}</div></div>` };
+
+  return { title: "Lịch học · CS252", nav: "schedule", body: content };
 }
 
-// ---------- Screens only drawn to complete flow 4.1 (desktop) ----------
+// ---------- Secondary screens for flow completion ----------
 const FLOW_ONLY = {
-  s1: () => ({ raw: `<div style="display:grid;place-items:center;height:100%;background:var(--soft)"><div class="panel" style="width:420px"><b class="logo" style="margin:0;padding:0">Study Companion</b><h3>Tạo tài khoản</h3>
-    <label class="field">Email<div class="input">ban@student.example.edu</div></label><label class="field">Mật khẩu<div class="input">••••••••</div></label><label class="field">Năm sinh<div class="input">2005</div></label>
-    <div class="field">Cấp học<div class="inline"><span class="tag on">◉ Đại học</span><span class="tag">○ K-12</span></div></div>${btn("Tạo tài khoản", "primary block")}<span class="center muted sm">Đã có tài khoản? Đăng nhập</span></div></div>` }),
-  s2: () => ({ title: "Môn học", nav: "courses", body: `<div class="cols">${empty("Tạo môn đầu tiên", "Mỗi môn có tài liệu, concept và lịch ôn riêng.", "")}
-    <div class="panel"><h3>Môn mới</h3><label class="field">Tên môn<div class="input">CS252 – Tư duy tính toán</div></label><label class="field">Ngày thi (không bắt buộc)<div class="input">15/01/2027</div></label>${btn("Tạo môn và tải tài liệu →", "primary block")}</div></div>` }),
-  s5: () => ({ title: "Duyệt câu hỏi · CS252", nav: "courses", body: `<div class="between"><b>Còn 18 câu chờ duyệt</b>${btn("Giữ tất cả còn lại")}</div><div class="panel"><div class="inline sm"><span class="tag">Abstraction</span><span class="tag">Trắc nghiệm</span></div>
-    <p class="h3">${QUESTION}</p><span><b>Đáp án:</b> Abstraction</span><span>${chip("Week01.pdf", 16)}</span><div class="inline">${btn("Bỏ")}${btn("Sửa")}${btn("Giữ", "primary")}</div></div>` }),
-  s7: () => ({ title: "Kết quả buổi học", nav: "review", body: `<div class="inline" style="gap:48px"><div><div class="stat">9/12</div><span class="muted">câu đúng</span></div><div><div class="stat">9:40</div><span class="muted">thời gian</span></div></div>
-    <div class="panel"><h3>Khi nào câu hỏi quay lại</h3><div class="between"><span>Ngày mai</span><b>4 câu</b></div><div class="between"><span>3 ngày nữa</span><b>5 câu</b></div><div class="between"><span>7 ngày nữa</span><b>3 câu</b></div></div>
-    <div class="inline">${btn("Gặp companion", "primary")}${btn("Về trang chủ")}</div>` }),
+  s1: () => ({ raw: `<div style="display:grid;place-items:center;height:100%;background:var(--soft)"><div class="panel" style="width:420px"><b class="logo" style="margin:0;padding:0">Study Companion</b><h3>Tạo tài khoản sinh viên</h3>
+    <label class="field">Email sinh viên<div class="input">nguyen.thinh@student.university.edu.vn</div></label>
+    <label class="field">Mật khẩu<div class="input">••••••••</div></label>
+    <label class="field">Năm sinh<div class="input">2005</div></label>
+    <div class="field">Cấp học<div class="inline"><span class="tag on">◉ Đại học</span><span class="tag">○ K-12</span></div></div>
+    ${btn("Tạo tài khoản & Bắt đầu", "primary block")}<span class="center muted sm">Đã có tài khoản? Đăng nhập</span></div></div>` }),
+  s2: () => ({ title: "Môn học của bạn", nav: "courses", body: `<div class="cols">${empty("Tạo môn học đầu tiên", "Mỗi môn học sẽ có đề cương, roadmap và ngân hàng nguồn riêng biệt.", "")}
+    <div class="panel"><h3>Tạo môn học mới</h3>
+      <label class="field">Mã & Tên môn học<div class="input">CS252 – Tư duy tính toán (Computational Thinking)</div></label>
+      <label class="field">Ngày thi dự kiến<div class="input">15/01/2027</div></label>
+      ${btn("Tạo môn và Tải Syllabus (S3) →", "primary block")}</div></div>` }),
+  s8: () => ({ title: "Thư viện nguồn đã lưu", nav: "courses", body: `<div class="panel soft"><b>Các nguồn học đã lưu dấu trang từ các chặng:</b><div class="source-card"><div class="between"><b>MIT OCW 6.0001 Lecture Notes</b>${chip("Syllabus.pdf", 2)}</div><span class="domain-link">ocw.mit.edu</span></div></div>` }),
+  s10: () => ({ title: "Companion đồng hành", nav: "companion", body: `<div class="panel soft"><div class="between"><b>AI Đồng hành (Buddy Mode)</b><span class="tag ok">Đang hoạt động</span></div><p class="sm" style="margin-top:8px">Chào Thịnh! Chúc mừng bạn đã hoàn thành tuần 1 môn CS252. Tuần này chúng mình cùng chinh phục kỹ thuật Phân rã bài toán nhé!</p></div>` }),
 };
 
-const SCREENS = { s3: ["S3 Upload", s3], s4: ["S4 Concept editor", s4], s6: ["S6 Review session", s6], s8: ["S8 Ask panel", s8], s10: ["S10 Companion panel", s10] };
+// Registered 5 main core loop screens for Issue #55:
+const SCREENS = {
+  s3: ["S3 Tải syllabus", s3],
+  s4: ["S4 Duyệt syllabus", s4],
+  s5: ["S5 Roadmap", s5],
+  s6: ["S6 Trang chặng", s6],
+  s7: ["S7 Lịch học", s7],
+};
+
 const STATES = ["empty", "loading", "error"];
 const STATE_NOTE = {
-  s3: { empty: "chưa có file", loading: "đang trích text", error: "không phải PDF, > 20 MB, chỉ có ảnh, file hỏng" },
-  s4: { empty: "chưa có concept", loading: "đang đề xuất", error: "vòng lặp prerequisite" },
-  s6: { empty: "hết câu đến hạn", loading: "đang chuẩn bị", error: "mất mạng, lưu offline" },
-  s8: { empty: "chưa hỏi gì", loading: "đang tìm", error: "không tìm thấy trong tài liệu" },
-  s10: { empty: "chưa mở cảnh nào", loading: "đang tải tin nhắn", error: "không tải được" },
+  s3: { empty: "chưa có file", loading: "đang trích text & phân tích", error: "file hỏng, >20MB, chỉ có ảnh, không giống syllabus" },
+  s4: { empty: "chưa có dữ liệu syllabus", loading: "đang trích xuất cấu trúc", error: "trọng số ≠ 100%, ngày ngoài kỳ, tuần trống" },
+  s5: { empty: "chưa có roadmap", loading: "đang dựng roadmap & graph", error: "vòng lặp phụ thuộc (cycle), tuần 7 quá tải" },
+  s6: { empty: "chưa tìm được nguồn đủ tốt", loading: "đang tìm kiếm & thẩm định", error: "mất liên kết / lỗi mạng" },
+  s7: { empty: "chưa xếp lịch học", loading: "đang tối ưu hóa lịch", error: "trễ hạn kế hoạch, xung đột giờ học" },
 };
 
 // Every frame: [id, screen, state, size, label]
 const FRAMES = [];
 const add = (screen, state, size, label) => FRAMES.push([`${screen}-${state}-${size}`, screen, state, size, label]);
+
 for (const [k, [name]] of Object.entries(SCREENS)) {
   add(k, "default", "d", `${name} · desktop 1440×900`);
   add(k, "default", "m", `${name} · mobile 390×844`);
-  if (k === "s6") { add(k, "submitted", "d", `${name} · sau khi nộp · desktop`); add(k, "submitted", "m", `${name} · sau khi nộp · mobile`); }
-  for (const s of STATES) add(k, s, "m", `${name} · ${s}: ${STATE_NOTE[k][s]}`);
+  if (k === "s6") {
+    add(k, "submitted", "d", `${name} · bảng 7 tiêu chí (rubric) · desktop`);
+    add(k, "submitted", "m", `${name} · bảng 7 tiêu chí (rubric) · mobile`);
+  }
+  for (const s of STATES) {
+    add(k, s, "m", `${name} · ${s}: ${STATE_NOTE[k][s]}`);
+  }
 }
-for (const k of Object.keys(FLOW_ONLY)) add(k, "default", "d", k.toUpperCase());
+for (const k of Object.keys(FLOW_ONLY)) {
+  add(k, "default", "d", k.toUpperCase());
+}
+
 const byId = Object.fromEntries(FRAMES.map((f) => [f[0], f]));
 
 function frameHtml(id) {
@@ -323,47 +557,57 @@ function frameHtml(id) {
   const [w, h] = SIZE[size];
   return `<div class="frame" style="width:${w}px;height:${h}px">${view.raw || shell(size, view.nav, view.title, view.body)}</div>`;
 }
+
 const card = (id, label) => `<div class="card"><span class="label">${label}</span><div class="thumb">${frameHtml(id)}</div></div>`;
 
-// First-use journey, spec section 4.1
+// Core Loop Journey (Spec section 4.1)
 const FLOW = [
-  ["s1-default-d", "1. Đăng ký, chọn cấp học (S1)"],
-  ["s2-default-d", "2. Tạo môn (S2)"],
-  ["s3-empty-m", "2. Kéo thả PDF (S3)"],
-  ["s3-loading-m", "3. Trích text theo trang (S3)"],
-  ["s4-loading-m", "3. Đề xuất 8–20 concept (S4)"],
-  ["s4-default-m", "4. Đổi tên, gộp, xóa, xác nhận (S4)"],
-  ["s5-default-d", "5. Duyệt nhanh câu hỏi (S5)"],
-  ["s6-default-m", "6. Buổi ôn 10 phút (S6)"],
-  ["s6-submitted-m", "6. Chấm và tự đánh giá (S6)"],
-  ["s7-default-d", "6. Kết quả + lịch quay lại (S7)"],
-  ["s10-empty-m", "7. Companion chào, giải thích unlock (S10)"],
+  ["s1-default-d", "1. Đăng ký & chọn cấp học (S1)"],
+  ["s2-default-d", "2. Tạo môn học (S2)"],
+  ["s3-default-d", "3. Kéo thả Syllabus PDF/DOCX (S3)"],
+  ["s4-default-d", "4. Duyệt chuẩn đầu ra & tuần học (S4)"],
+  ["s5-default-d", "5. Xem Roadmap & mốc thi (S5)"],
+  ["s6-default-d", "6. Xem Trang chặng & nguồn học 7 tiêu chí (S6)"],
+  ["s7-default-d", "7. Xếp lịch học & duyệt Replan (S7)"],
+  ["s10-default-d", "8. Đồng hành cùng AI Companion (S10)"],
 ];
 
 const COMPONENTS = `<div class="row" style="background:#fff;padding:24px;border-radius:12px">
-  <div class="stack"><b>Nút (≥ 44×44 px)</b><div class="inline">${btn("Chính", "primary")}${btn("Phụ")}${btn("Không bấm được", "primary off")}${btn("Không viền", "ghost")}</div></div>
-  <div class="stack"><b>Trích dẫn</b><div class="inline">${chip("Week01.pdf", 77)}<span class="chip none">không có nguồn</span></div></div>
-  <div class="stack" style="width:360px"><b>Đánh giá sau khi nộp</b><div class="rate">${["Again", "Hard", "Good", "Easy"].map((l) => `<span class="btn">${l}<small>khoảng lặp</small></span>`).join("")}</div></div>
-  <div class="stack" style="width:320px"><b>Ô trả lời tự luận (thay cho MCQ)</b><div class="input area">Nhập câu trả lời của bạn…</div></div>
-  <div class="stack" style="width:320px"><b>Chọn mode companion</b><div class="seg"><span class="on">Buddy</span><span>Mentor</span><span class="locked">${LOCK}18+</span></div></div>
-  <div class="stack" style="width:280px"><b>Tiến trình theo trang</b>${progress(50, "Đang trích trang 31/62")}</div>
-  <div class="stack" style="width:420px"><b>Thông báo lỗi</b>${alert("Thêm cạnh này sẽ tạo vòng lặp. Hãy bỏ một cạnh trước.", "", "bad")}${alert("Mất kết nối. Thay đổi của bạn sẽ được lưu khi có mạng lại.", "")}</div>
-  <div class="stack" style="width:320px"><b>Đang tải (skeleton)</b>${skel("w80", "w60", "block")}</div>
+  <div class="stack"><b>Nút bấm chuẩn WCAG (≥ 44×44 px)</b>
+    <div class="inline">${btn("Nút chính", "primary")}${btn("Nút phụ")}${btn("Vô hiệu", "primary off")}${btn("Trong suốt", "ghost")}</div>
+  </div>
+  <div class="stack"><b>Thẻ trích dẫn trang</b>
+    <div class="inline">${chip("Syllabus_CS252.pdf", 3)}<span class="chip none">không có nguồn</span></div>
+  </div>
+  <div class="stack" style="width:360px"><b>Thẻ điểm chất lượng (7 tiêu chí)</b>
+    <div class="inline"><span class="score-badge">★ Điểm: 0.88 / 1.0</span><span class="tag ok">✓ Đã xác minh</span></div>
+  </div>
+  <div class="stack" style="width:340px"><b>Đoạn trích minh chứng</b>
+    <div class="quote-box">“Decomposition allows us to break complex problems into smaller subproblems...”</div>
+  </div>
+  <div class="stack" style="width:300px"><b>Phản hồi một chạm</b>
+    <div class="inline">${btn("👍 Hữu ích (92%)", "sm ghost")}${btn("👎 Không hữu ích", "sm ghost")}</div>
+  </div>
+  <div class="stack" style="width:420px"><b>Thông báo lỗi & Replan</b>
+    ${alert("Vòng lặp phụ thuộc (Cycle): Chặng 4 → Chặng 2 bị từ chối.", "", "bad")}
+    ${alert("Đề xuất xếp lại lịch (Replan): Dời buổi học sang Thứ Bảy.", "", "warn")}
+  </div>
 </div>`;
 
 const SECTIONS = {
-  wireframes: ["Wireframes", "5 màn hình chính, mỗi màn hình ở desktop 1440×900 và mobile 390×844 (spec mục 5).",
+  wireframes: ["Wireframes Core Loop (S3–S7)", "5 màn hình chính ở Desktop 1440×900 và Mobile 390×844 theo Spec 3.0 mục 5.",
     Object.keys(SCREENS).map((k) => `<div class="row">${FRAMES.filter((f) => f[1] === k && !STATES.includes(f[2])).map((f) => card(f[0], f[4])).join("")}</div>`).join("")],
-  states: ["States", "Empty, loading, error cho từng màn hình (vẽ ở mobile; desktop đặt cùng nội dung vào cột trái).",
+  states: ["Các trạng thái bắt buộc (States)", "Empty, loading, error cho từng màn hình S3–S7 ở kích thước Mobile.",
     Object.keys(SCREENS).map((k) => `<div class="row">${STATES.map((s) => card(`${k}-${s}-m`, byId[`${k}-${s}-m`][4])).join("")}</div>`).join("")],
-  components: ["Components", "Thành phần dùng lại trong các màn hình.", COMPONENTS],
-  flows: ["Flows", "Luồng “lần đầu sử dụng” (spec mục 4.1). Bấm vào một khung để sang bước tiếp theo.",
+  components: ["Components", "Các thành phần UI dùng lại trong toàn bộ Core Loop.", COMPONENTS],
+  flows: ["Core Loop Flow (Spec 4.1)", "Luồng trải nghiệm người học từ tải syllabus đến xếp lịch học và đồng hành.",
     `<div class="row">${FLOW.map(([id, label], i) => `<a class="thumb-link" id="flow-${i}" href="#flow-${(i + 1) % FLOW.length}">${card(id, label)}</a>${i < FLOW.length - 1 ? '<span class="arrow">→</span>' : ""}`).join("")}</div>`],
 };
 
 const params = new URLSearchParams(location.search);
 const root = document.getElementById("root");
 const section = (k) => { const [title, desc, html] = SECTIONS[k]; return `<section class="sec" id="${k}"><h2>${title}</h2><p>${desc}</p>${html}</section>`; };
+
 if (params.has("frame")) {
   document.body.classList.add("solo");
   root.innerHTML = `<div class="thumb">${frameHtml(params.get("frame"))}</div>`;
@@ -371,8 +615,11 @@ if (params.has("frame")) {
   root.innerHTML = section(params.get("section"));
 } else {
   const toc = Object.keys(SECTIONS).map((k) => `<a href="#${k}">${SECTIONS[k][0]}</a>`).join(" · ");
-  root.innerHTML = `<div class="board"><h1>Group04 · Study Companion · Wireframes</h1><p>Low-fidelity (xám trắng) cho issue #5. Bốn phần tương ứng bốn page dự kiến trên Figma: ${toc}.</p>${Object.keys(SECTIONS).map(section).join("")}</div>`;
+  root.innerHTML = `<div class="board"><h1>Group04 · Study Companion · Core Loop Wireframes (S3–S7)</h1>
+    <p>Wireframes chi tiết cho Issue #55 (Spec 3.0 mục 4.1, 5, 11.4). Bốn phần tương ứng Figma pages: ${toc}.</p>
+    ${Object.keys(SECTIONS).map(section).join("")}</div>`;
 }
+
 window.FRAMES = FRAMES;
 </script>
 </body>
