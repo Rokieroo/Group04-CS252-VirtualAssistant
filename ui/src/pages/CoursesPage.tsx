@@ -35,7 +35,7 @@ function Questions({
   return (
     <div className="questions">
       <button className="secondary-action" disabled={state.busy} onClick={onAsk}>
-        {state.busy ? "Writing questions…" : state.items ? "More questions" : "Generate questions"}
+        {state.busy ? "Finding questions…" : state.items ? "More questions" : "Find questions in my slides"}
       </button>
       {state.error && (
         <p role="alert" className="row-error">
