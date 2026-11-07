@@ -3,7 +3,7 @@
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import delete, select
 
 from .catalog_models import GraphLayout, RoadmapEdge
@@ -59,6 +59,13 @@ class ExerciseCitationOut(BaseModel):
     url: str | None
     institution: str | None
     license: str
+
+    @model_validator(mode="after")
+    def _cites_one_source(self):
+        # Last line of defence (#115): no question leaves the API without its source.
+        if (self.source_id is None) == (self.resource_id is None):
+            raise ValueError("an exercise cites exactly one source_id or resource_id")
+        return self
 
 
 class ExerciseOut(BaseModel):

@@ -17,7 +17,7 @@ from app.ingest import PDF, InvalidDocument, extract_pages
 from app.search import Candidate
 from app.vetting.fetch import FetchResult
 
-__all__ = ["Document", "collapse", "detect_language", "read_document"]
+__all__ = ["Document", "collapse", "detect_language", "read_document", "readable_pages"]
 
 WORDS_PER_MINUTE = 200
 _SPACE = re.compile(r"\s+")
@@ -109,6 +109,26 @@ def read_document(candidate: Candidate, fetched: FetchResult) -> Document:
         minutes=_minutes(text),
         adult=_is_adult(html),
     )
+
+
+def readable_pages(fetched: FetchResult) -> list[str]:
+    """The text of each page with its line breaks, where numbered exercises start.
+
+    Unlike ``read_document`` nothing is collapsed: "Exercise 2.3" is found at the
+    start of a line.
+    """
+    content_type = fetched.content_type.casefold()
+    if content_type.startswith(PDF):
+        try:
+            return extract_pages(fetched.body, PDF)
+        except InvalidDocument:
+            return []
+    if content_type.startswith("text/plain"):
+        return [fetched.text]
+    if "html" in content_type:
+        text = trafilatura.extract(fetched.text, url=fetched.final_url or fetched.url)
+        return [text] if text else []
+    return []
 
 
 def _date(value: str | None) -> date | None:

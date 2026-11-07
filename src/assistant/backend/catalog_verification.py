@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session, aliased
 
 from app.catalog import verification as rules
 from app.catalog.sources import Sources, load_sources
+from app.vetting.document import readable_pages
 from app.vetting.fetch import DomainThrottle, SafeFetcher
 from app.vetting.policy import default_policy
 
@@ -29,6 +30,7 @@ from .catalog_models import (
     ResourceSubject,
     ResourceVerification,
 )
+from .exercise_repository import harvest_catalog_exercises
 from .jobs import NetworkDown, enqueue, handler
 from .models import CatalogCourse, NodeResource, Resource, Roadmap, RoadmapNode
 
@@ -227,6 +229,11 @@ def verify_resource(
     status = rules.decide(checks)
     if status is not None:
         resource.verification_status = status
+        if status == "verified":
+            # The page just checked is the evidence its exercises are quoted from (#115).
+            harvest_catalog_exercises(
+                db, resource.id, readable_pages(fetched), fetched.content_hash, now
+            )
         return status
     return "retry" if any(c.result == rules.ERROR for c in checks) else "review"
 

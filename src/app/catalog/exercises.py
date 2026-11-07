@@ -14,10 +14,59 @@ NUMBER = re.compile(
 )
 ANSWER = re.compile(r"(?im)^\s*(?:answer|đáp án|solution|lời giải)\s*[:.]\s*")
 CHOICE = re.compile(r"(?m)^\s*[A-H][.)]\s+")
+PROOF = re.compile(r"(?i)\b(?:prove|show that|chứng minh)\b")
+CODE = re.compile(
+    r"(?i)\b(?:write|implement|viết|cài đặt)\b.{0,30}\b(?:program|function|code|"
+    r"algorithm|chương trình|hàm|thuật toán)\b"
+)
+NUMERIC = re.compile(r"[-+]?\d+(?:[.,]\d+)?\s*%?")
+# Highest level first: "explain and compare" asks for analysis.
+BLOOM_VERBS = (
+    ("create", r"design|construct|devise|thiết kế|xây dựng"),
+    ("evaluate", r"justify|evaluate|critique|assess|prove|đánh giá|biện luận|chứng minh"),
+    ("analyze", r"compare|contrast|analy[sz]e|distinguish|so sánh|phân tích|phân biệt"),
+    ("apply", r"compute|calculate|solve|apply|implement|trace|convert|write|tính|giải|áp dụng|cài đặt|viết"),
+    ("understand", r"explain|describe|summari[sz]e|interpret|why|giải thích|mô tả|trình bày|tại sao"),
+)
+BLOOM = [(level, re.compile(rf"(?i)\b(?:{verbs})\b")) for level, verbs in BLOOM_VERBS]
+BLOOM_RANK = {"remember": 1, "understand": 2, "apply": 3, "analyze": 4, "evaluate": 5, "create": 5}
 
 
 def collapse(value):
     return re.sub(r"\s+", " ", value).strip()
+
+
+def classify(prompt, choices=(), answer=None):
+    """Type, Bloom level and difficulty read off the source's own wording; no model.
+
+    shortcut: difficulty follows the Bloom level; calibrate it from learners'
+    review outcomes once exercises have enough FSRS history.
+    """
+    if choices:
+        kind = "mcq"
+    elif PROOF.search(prompt):
+        kind = "proof"
+    elif CODE.search(prompt):
+        kind = "code"
+    elif answer and NUMERIC.fullmatch(answer.strip()):
+        kind = "numeric"
+    else:
+        kind = "short"
+    bloom = next((level for level, verbs in BLOOM if verbs.search(prompt)), "remember")
+    return {"type": kind, "bloom_level": bloom, "difficulty": BLOOM_RANK[bloom]}
+
+
+def order_for(role, exercises):
+    """Practice climbs from easy to hard; a checkpoint takes turns across Bloom
+    levels so a short test still samples every kind of thinking the pool has."""
+    ranked = sorted(exercises, key=lambda e: (e["difficulty"], e["id"]))
+    if role != "checkpoint":
+        return ranked
+    levels = {}
+    for exercise in ranked:
+        levels.setdefault(exercise["bloom_level"], []).append(exercise)
+    queues = [levels[level] for level in sorted(levels, key=BLOOM_RANK.get)]
+    return [q[i] for i in range(max(map(len, queues), default=0)) for q in queues if i < len(q)]
 
 
 def quote_hash(prompt, choices=(), answer=None):
@@ -89,7 +138,7 @@ def extract_numbered(source_text):
         ]
         prompt = block[: choice_marks[0].start()].strip() if choice_marks else block
         item = {
-            "type": "mcq" if choices else "short",
+            **classify(prompt, choices, answer),
             "prompt": prompt,
             "choices": choices,
             "answer": answer,
@@ -131,7 +180,7 @@ def store_private(db, source, owner_id):
                     "INSERT INTO exercises (id,origin,source_id,page,owner_id,type,prompt,choices,answer,"
                     "location,quote_hash,source_hash,license,difficulty,bloom_level,verification_status) "
                     "VALUES (:id,'user_material',:source_id,:page,:owner_id,:type,:prompt,:choices,:answer,"
-                    ":location,:quote_hash,:source_hash,'private',1,'understand','verified')"
+                    ":location,:quote_hash,:source_hash,'private',:difficulty,:bloom_level,'verified')"
                 ),
                 values,
             )
