@@ -62,7 +62,7 @@
   font-size: 12px;
 }
 .study-companion .avatar {
-  background: var(--color-tint);
+  background: var(--color-avatar);
   box-shadow: none;
 }
 .study-companion .page-heading {
@@ -99,7 +99,7 @@
   font-size: 13px;
 }
 .study-companion .primary-action {
-  background: var(--color-primary);
+  background: var(--gradient-action, var(--color-primary));
   color: var(--color-on-primary);
   box-shadow: none;
   border: 0;
@@ -387,11 +387,11 @@
 .study-companion .core-journey {
   gap: 20px;
 }
-.study-companion .primary-action::before {
+.study-companion button.primary-action::before {
   content: none;
 }
 .study-companion .primary-action::after {
-  background: var(--color-primary);
+  background: var(--gradient-action, var(--color-primary));
 }
 .study-companion .core-setup-progress {
   gap: 24px;
@@ -432,9 +432,6 @@
     grid-template-columns: 1fr;
   }
 }
-/* Outrank the shared legacy button pseudo-elements loaded by styles.css. */
-.study-companion button.primary-action::before { content:none; }
-.study-companion button.primary-action::after { background:var(--color-primary); }
 
 .core-review-form { border:0; padding:0; margin:0; min-width:0; display:grid; gap:20px; }
 .study-companion input[type="checkbox"] { width:20px; min-height:20px; }

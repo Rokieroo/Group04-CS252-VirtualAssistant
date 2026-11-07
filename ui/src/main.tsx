@@ -9,6 +9,7 @@ import {
   localAppearanceStore,
 } from "./features/appearance/appearance";
 import "./styles.css";
+import "./features/appearance/appearance.css";
 // Before the first render, so a saved accent/theme never flashes the default.
 applyAppearance(localAppearanceStore.load());
 createRoot(document.getElementById("root")!).render(
