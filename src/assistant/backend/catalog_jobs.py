@@ -20,6 +20,7 @@ import time
 from datetime import datetime
 from datetime import time as clock
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.catalog.connectors import CONNECTORS, ConnectorError, build_connectors
@@ -30,6 +31,7 @@ from . import catalog_verification
 from .catalog_ingest import ingest
 from .catalog_repository import gap_subjects, rematch_insufficient
 from .jobs import LEASE, enqueue, handler
+from .models import Job
 
 FILL = "fill_gaps"
 INGEST = "ingest_catalog"
@@ -83,6 +85,13 @@ def queue_ingest(
     return job is not None
 
 
+def _verification_queued(db: Session) -> bool:
+    """A waiting ``verify_catalog`` reads what is due when it starts, so it covers
+    sources stored after it was queued; a second chain would only re-match twice."""
+    waiting = select(Job.id).where(Job.kind == catalog_verification.KIND, Job.status == "queued")
+    return db.scalar(waiting.limit(1)) is not None
+
+
 @handler(FILL)
 def fill_gaps(db: Session, payload: dict, now: datetime) -> dict:
     """Match the gap nodes again, then queue ingests for the labels they still lack."""
@@ -119,7 +128,7 @@ def ingest_catalog(db: Session, payload: dict, now: datetime) -> dict:
             sources=sources,
             deadline=time.monotonic() + RUN_BUDGET,
         )
-    if report.created["resources"]:
+    if report.created["resources"] and not _verification_queued(db):
         enqueue(db, catalog_verification.KIND, now=now)
     return {
         "connector": name,

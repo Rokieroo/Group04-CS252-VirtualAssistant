@@ -136,16 +136,21 @@ def test_ingest_job_stores_new_sources_queues_their_verification_and_reports_fai
     monkeypatch.setattr(catalog_verification, "open_fetcher", lambda sources: Pages())
     monkeypatch.setitem(CONNECTORS, "fake", lambda fetcher, sources: FakeConnector([record()]))
     monkeypatch.setitem(CONNECTORS, "broken", broken)
+    other = record(title="Use case", url="https://en.wikipedia.org/wiki/Use_case")
+    monkeypatch.setitem(CONNECTORS, "other", lambda fetcher, sources: FakeConnector([other]))
     run = {"subject": "ct.use-cases"}
     with app.state.database.sessions() as db:
         stored = catalog_jobs.ingest_catalog(db, {**run, "connector": "fake"}, clock[0])
         failed = catalog_jobs.ingest_catalog(db, {**run, "connector": "broken"}, clock[0])
         again = catalog_jobs.ingest_catalog(db, {**run, "connector": "fake"}, clock[0])
+        more = catalog_jobs.ingest_catalog(db, {**run, "connector": "other"}, clock[0])
         db.commit()
         verifications = kinds(db, catalog_verification.KIND)
     assert (stored["created"], stored["error"]) == ({"courses": 1, "resources": 1}, None)
     assert failed["error"] == "not_automatable_broken"  # reported; other connectors unaffected
-    assert again["created"] == {} and len(verifications) == 1  # only new sources are verified
+    assert again["created"] == {}  # nothing new, nothing to verify
+    # New sources while a verification waits: that one job reads them too.
+    assert more["created"]["resources"] == 1 and len(verifications) == 1
 
 
 def test_verified_sources_reach_the_gap_nodes_and_the_gap_count_drops(
