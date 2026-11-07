@@ -91,4 +91,4 @@ Phase 2 focuses on verifying the end-to-end **Core Loop**: Syllabus Ingestion $\
 
 1. **Monday**: Review sprint milestone issues, align use case acceptance criteria, and update test plan specifications.
 2. **Tuesday – Thursday**: Review peer pull requests, build independent integration and E2E regression tests, and execute daily CI checks.
-3. **Friday**: Gather automated test counts, benchmark metrics, and execution latency numbers; publish official report to `docs/qa/reports/week-N.md`.
+3. **Friday**: Gather automated test counts, benchmark metrics, and execution latency numbers; publish official report to `docs/notes/qa/reports/week-N.md`.

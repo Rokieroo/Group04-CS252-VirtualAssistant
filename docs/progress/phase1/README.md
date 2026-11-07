@@ -56,6 +56,6 @@ Cuối tuần, trên staging, một sinh viên có thể: **upload file slide CS
 5. QA trình bày: số case benchmark, số test, bug còn mở.
 
 ## 📚 Tham khảo
-- Kế hoạch 6 tuần: [docs/roadmap/PLAN.md](../roadmap/PLAN.md)
-- Đặc tả: [docs/APP_SPECIFICATION.md](../APP_SPECIFICATION.md)
-- Quy tắc Git: [docs/guidelines/](../guidelines/README.md)
+- Kế hoạch 6 tuần: [docs/roadmap/PLAN.md](../../roadmap/PLAN.md)
+- Đặc tả: [docs/APP_SPECIFICATION.md](../../APP_SPECIFICATION.md)
+- Quy tắc Git: [docs/guidelines/](../../guidelines/README.md)

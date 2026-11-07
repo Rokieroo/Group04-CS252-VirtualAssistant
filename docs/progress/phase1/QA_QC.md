@@ -2,7 +2,7 @@
 
 Tài liệu này mô tả chi tiết nhiệm vụ QA/QC tuần 1 (Lê Hồng Đăng): quy trình kiểm thử hằng tuần, cách viết benchmark, checklist review PR và báo cáo thứ Sáu.
 
-> **Lưu ý cập nhật Spec 3.0:** Tài liệu này phản ánh nhiệm vụ Sprint Tuần 1. Kể từ Sprint 2, dự án áp dụng chuẩn **Spec 3.0** (`docs/APP_SPECIFICATION.md`) với 18 use cases (UC-01 đến UC-18). Các use case Tuần 1 đã được chuẩn hóa lại trong `docs/qa/TEST_PLAN.md` và `eval/benchmark.jsonl`.
+> **Lưu ý cập nhật Spec 3.0:** Tài liệu này phản ánh nhiệm vụ Sprint Tuần 1. Kể từ Sprint 2, dự án áp dụng chuẩn **Spec 3.0** (`docs/APP_SPECIFICATION.md`) với 18 use cases (UC-01 đến UC-18). Các use case Tuần 1 đã được chuẩn hóa lại trong `docs/notes/qa/TEST_PLAN.md` và `eval/benchmark.jsonl`.
 
 ## 🎯 Sứ mệnh tuần 1
 
@@ -11,9 +11,9 @@ Tài liệu này mô tả chi tiết nhiệm vụ QA/QC tuần 1 (Lê Hồng Đ�
 Dưới đây là các hạng mục công việc cần hoàn thiện:
 
 - [X] **Task 1: Test plan + benchmark 20 case + báo cáo tuần (#15, 10 giờ)**
-  - **Test plan**: `docs/qa/TEST_PLAN.md`.
+  - **Test plan**: `docs/notes/qa/TEST_PLAN.md`.
   - **Benchmark**: `eval/benchmark.jsonl` từ 6 lên ≥ 20 case, đủ 4 kind.
-  - **Báo cáo**: `docs/qa/reports/week-1.md` (template đã tạo bằng `python dev.py qa report --week 1`).
+  - **Báo cáo**: `docs/notes/qa/reports/week-1.md` (template đã tạo bằng `python dev.py qa report --week 1`).
 - [X] **Task 2: Integration test ingest, retrieval, auth (#16, 10 giờ)**
   - **Fixture**: `client`, `user_a`, `user_b`, `sample_pdf` trong `tests/conftest.py`.
   - **Số lượng**: ≥ 12 test, chạy offline, không cần API key.
@@ -58,7 +58,7 @@ Mỗi dòng trong `eval/benchmark.jsonl`:
 - [X] CI xanh; tự chạy `python dev.py devops ci` ở máy mình
 - [X] Không secret, không dữ liệu cá nhân thật, không log nội dung nhạy cảm
 - [X] Code AI: output LLM được kiểm tra định dạng trước khi lưu
-- [X] Đã cập nhật tài liệu trong `docs/week1/`
+- [X] Đã cập nhật tài liệu trong `docs/progress/phase1/`
 
 ## 🐞 Mức độ bug
 

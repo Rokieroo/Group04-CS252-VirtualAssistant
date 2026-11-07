@@ -14,7 +14,7 @@
 | **API Dockerfile** | `Dockerfile` | Packages the FastAPI Backend (Python 3.11-slim), automatically executes Alembic migrations on startup, and enforces container security best practices by running as an unprivileged user `appuser` (non-root). |
 | **Docker Compose** | `docker-compose.yml` | Orchestrates the multi-container stack: PostgreSQL 16 (`study_db` with persistent `pgdata` volume and `pg_isready` health check) + Backend API (`study_api` exposed on port `8000`, waiting on DB healthy state). |
 | **Hosting ADR** | `docs/adr/002-hosting.md` | Architecture Decision Record detailing the selection of Vercel (Frontend SPA) + Render / Railway (Backend API Docker + Managed PostgreSQL 16), weighing alternatives, security, and zero-cost constraints. |
-| **Deployment Runbook** | `docs/DEPLOYMENT.md` | Comprehensive operational guide for team members with daily workflows (PowerShell & Git Bash), service/port lookup, real-time logging, troubleshooting, and a 4-step staging setup guide. |
+| **Deployment Runbook** | `docs/notes/devops/DEPLOYMENT.md` | Comprehensive operational guide for team members with daily workflows (PowerShell & Git Bash), service/port lookup, real-time logging, troubleshooting, and a 4-step staging setup guide. |
 
 ---
 
@@ -63,7 +63,7 @@ Throughout the implementation of Issue #18, AI pair programming was utilized res
 
 ### C. Technical Documentation & Quality Assurance
 
-- **AI Contribution:** Standardized software engineering terminology across `docs/adr/002-hosting.md` and `docs/DEPLOYMENT.md`.
+- **AI Contribution:** Standardized software engineering terminology across `docs/adr/002-hosting.md` and `docs/notes/devops/DEPLOYMENT.md`.
 - **Human Verification:** Executed the complete project automated test suite locally:
 
   ```powershell

@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 
 from devcli import ROOT, run
 
-REPORTS = ROOT / "docs" / "qa" / "reports"
+REPORTS = ROOT / "docs" / "notes" / "qa" / "reports"
 
 REPORT_TEMPLATE = """# Báo cáo QA tuần {week} (Weekly QA Report)
 
@@ -61,6 +61,6 @@ def register(sub: argparse._SubParsersAction) -> None:
 
     qa_sub.add_parser("lint", help="chạy ruff").set_defaults(func=_lint)
 
-    report = qa_sub.add_parser("report", help="tạo docs/qa/reports/week-N.md từ template")
+    report = qa_sub.add_parser("report", help="tạo docs/notes/qa/reports/week-N.md từ template")
     report.add_argument("--week", type=int, required=True)
     report.set_defaults(func=_report)

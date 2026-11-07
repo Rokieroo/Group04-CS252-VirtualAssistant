@@ -47,8 +47,8 @@ Lỗi: 401 chưa đăng nhập; 404 course/tài liệu không thuộc tài kho�
 ## Đánh giá tái lập
 
 ```powershell
-python eval/run_syllabus_preview.py --output docs/phase2/syllabus-results.json
-python eval/run_syllabus_preview.py --formats --output docs/phase2/syllabus-format-results.json
+python eval/run_syllabus_preview.py --output docs/progress/phase2/syllabus-results.json
+python eval/run_syllabus_preview.py --formats --output docs/progress/phase2/syllabus-format-results.json
 python eval/run_syllabus_preview.py --llm --limit 1
 python -m pytest tests/ -q
 python -m ruff check .

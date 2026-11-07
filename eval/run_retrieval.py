@@ -10,7 +10,7 @@ The script supports both the repository's sample benchmark shape
 (``query`` / ``category`` / ``expected_pages`` / ``expected_source_ids`` /
 ``sources``). For normal cases it reports top-5 hit rate; for
 ``missing_knowledge`` cases it reports the share of queries that correctly
-return no hits. It prints a table ready to paste into ``docs/week1/AI.md``.
+return no hits. It prints a table ready to paste into ``docs/progress/phase1/AI.md``.
 """
 
 from __future__ import annotations
@@ -286,7 +286,7 @@ def _percent(part: int, total: int) -> str:
 
 def print_table(results: list[ThresholdResult], default_threshold: float) -> None:
     print()
-    print("Bảng kết quả BM25 (top-5) — dán vào docs/week1/AI.md:")
+    print("Bảng kết quả BM25 (top-5) — dán vào docs/progress/phase1/AI.md:")
     print()
     header = (
         f"{'MIN_SCORE':>9} | {'Top-5 hit rate (normal)':>24} | "

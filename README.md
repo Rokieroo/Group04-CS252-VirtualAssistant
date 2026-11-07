@@ -35,7 +35,7 @@
 | [docs/APP_SPECIFICATION.md](docs/APP_SPECIFICATION.md) | Đặc tả 3.1: tiêu chuẩn chất lượng, use case, màn hình, kiến trúc, dữ liệu, API, parser syllabus, knowledge graph, planner, bộ tìm nguồn, bảo mật, metric |
 | [docs/roadmap/PLAN.md](docs/roadmap/PLAN.md) | Kế hoạch 6 tuần theo từng mảng |
 | [docs/adr/](docs/adr/) | Quyết định kiến trúc (database, hosting, bố cục code, catalog nguồn và giấy phép) |
-| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Chạy bằng Docker Compose, staging, worker |
+| [docs/notes/devops/DEPLOYMENT.md](docs/notes/devops/DEPLOYMENT.md) | Chạy bằng Docker Compose, staging, worker |
 | [docs/guidelines/](docs/guidelines/README.md) | Quy tắc nhánh, PR, commit |
 
 ## 👥 Team
@@ -99,7 +99,7 @@ Mọi lệnh chạy từ thư mục gốc repo, không cần cài thêm: `python
 | AI | `python dev.py ai tag-catalog` | Gắn taxonomy/vector cho nguồn đã nhập; embedding Gemini là tùy chọn, mặc định offline |
 | AI | `python dev.py ai concepts <file.pdf>` | Đề xuất concept/chủ đề từ một file PDF |
 | AI | `python dev.py ai items --concepts <file.json> <file.pdf>` | Trích bài tập có sẵn từ tài liệu, kèm trang; không gọi AI soạn đề (#115) |
-| AI | `python dev.py ai syllabus-preview <file.pdf/docx/txt> [--llm]` | Xem trước syllabus, kiểm tra trang nguồn; mặc định offline ([bàn giao](docs/phase2/minh-syllabus-preview.md)) |
+| AI | `python dev.py ai syllabus-preview <file.pdf/docx/txt> [--llm]` | Xem trước syllabus, kiểm tra trang nguồn; mặc định offline ([bàn giao](docs/progress/phase2/minh-syllabus-preview.md)) |
 | Database & Security | `python dev.py db init [--reset]` | Tạo database SQLite cục bộ từ `db/schema.sql` |
 | Database & Security | `python dev.py db seed-institutions` | Nạp registry ROR/OpenAlex tái lập (#96) |
 | Database & Security | `python dev.py db scan-secrets` | Tìm API key, token, private key trong repo |
@@ -128,7 +128,7 @@ python dev.py ui install
 python dev.py ui dev       # mở http://127.0.0.1:5173
 ```
 
-Chi tiết (chạy không cần Docker, staging, xem log worker): [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+Chi tiết (chạy không cần Docker, staging, xem log worker): [docs/notes/devops/DEPLOYMENT.md](docs/notes/devops/DEPLOYMENT.md).
 
 ## 🧪 Kiểm thử
 
@@ -151,9 +151,10 @@ python dev.py devops ci
 │   ├── roadmap/          # PLAN.md
 │   ├── adr/              # Quyết định kiến trúc
 │   ├── guidelines/       # Quy tắc Git, PR, commit
-│   ├── qa/               # Test plan, báo cáo QA hằng tuần
-│   ├── wireframes/       # Wireframe các màn hình
-│   └── week1/            # Nhiệm vụ Phase 1 theo role
+│   ├── progress/         # Nhiệm vụ và kết quả theo phase: phase1/, phase2/, phase3/
+│   ├── handoff-and-review/  # Tài liệu bàn giao và rà soát
+│   ├── notes/            # Ghi chú theo role: uiux/, ai/, db-security/, qa/, devops/
+│   └── wireframes/       # Wireframe các màn hình
 ├── eval/                 # Benchmark chất lượng
 ├── src/app/              # Logic thuần (không phụ thuộc HTTP):
 │   ├── syllabus/         #   đọc syllabus → CLO, tuần, mốc kiểm tra

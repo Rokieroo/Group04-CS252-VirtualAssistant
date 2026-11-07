@@ -1,4 +1,4 @@
-/* Design tokens (docs/week1/UIUX.md). New components use only these. */
+/* Design tokens (docs/progress/phase1/UIUX.md). New components use only these. */
 :root {
   /* User accent (src/appearance.ts sets data-accent). Both ends keep white text >= 4.5:1;
      every accent-dependent token below is derived from these two. */

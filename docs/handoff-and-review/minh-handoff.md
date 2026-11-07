@@ -1,6 +1,6 @@
 # Bàn giao phần việc của Minh
 
-Ngày thực hiện: 28/10/2026. Nguồn phân công: [slide kế hoạch 8 tuần](schedule/presentation_schedule_slide.svg), hai hàng **Backend & Scheduler** và **AI GF & LLM** ghi “Minh, Thắng”. Minh đã xác nhận thực hiện cả hai mảng.
+Ngày thực hiện: 28/10/2026. Nguồn phân công: [slide kế hoạch 8 tuần](../schedule/presentation_schedule_slide.svg), hai hàng **Backend & Scheduler** và **AI GF & LLM** ghi “Minh, Thắng”. Minh đã xác nhận thực hiện cả hai mảng.
 
 ## Phạm vi đã triển khai
 
@@ -108,7 +108,7 @@ Mọi API `/api/v1/*` ngoài register/login/health yêu cầu `Authorization: Be
 | AI | `POST /api/v1/ai/chat`; `GET/DELETE /api/v1/ai/messages` |
 | Health | `GET /api/v1/health` |
 
-Hợp đồng đầy đủ gồm request, response và lỗi: [openapi.json](openapi.json). Tạo lại bằng `python scripts/export_openapi.py`. Frontend đã có typed transport `ui/src/api.ts`, xử lý timeout, lỗi validation và session hết hạn.
+Hợp đồng đầy đủ gồm request, response và lỗi: [openapi.json](../openapi.json). Tạo lại bằng `python scripts/export_openapi.py`. Frontend đã có typed transport `ui/src/api.ts`, xử lý timeout, lỗi validation và session hết hạn.
 
 Ví dụ request preview:
 

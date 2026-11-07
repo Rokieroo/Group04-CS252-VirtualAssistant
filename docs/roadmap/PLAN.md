@@ -38,7 +38,7 @@ Tài liệu này là kế hoạch triển khai chính thức của Group 04: tro
 ## 📍 Tuần 1: Nền móng (Foundation) ✅
 
 * **Mục tiêu**: Upload một file tài liệu, nhận câu hỏi có trích dẫn đúng trang.
-* **Chi tiết từng role**: [docs/week1/](../week1/README.md) · Issue: #5 đến #18.
+* **Chi tiết từng role**: [docs/progress/phase1/](../progress/phase1/README.md) · Issue: #5 đến #18.
 * **Vai trò trong sản phẩm hiện tại**: ingest theo trang, module `llm`, schema, auth, CI và staging là nền cho cả luồng syllabus. Phần slide trở thành tính năng bổ trợ "tài liệu riêng của chặng" (UC-09).
 
 | Mảng | Đã làm |

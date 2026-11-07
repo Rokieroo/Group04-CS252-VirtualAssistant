@@ -2,7 +2,7 @@
 
 ## Căn cứ và cách kiểm tra
 
-Đối chiếu [slide phân công](schedule/presentation_schedule_slide.svg), README và [tài liệu bàn giao](minh-handoff.md). Phần của Minh/Thắng là Backend & Scheduler và AI GF & LLM; Minh đã xác nhận làm cả hai.
+Đối chiếu [slide phân công](../schedule/presentation_schedule_slide.svg), README và [tài liệu bàn giao](minh-handoff.md). Phần của Minh/Thắng là Backend & Scheduler và AI GF & LLM; Minh đã xác nhận làm cả hai.
 
 Áp dụng Superpowers: requesting-code-review, systematic-debugging, test-driven-development và verification-before-completion. Một reviewer độc lập chỉ đọc code; các lỗi nghiêm trọng được tái hiện bằng kiểm thử trên database tạm trước khi sửa. Không thay đổi quyền trong workspace đang dùng để phục vụ kiểm thử.
 

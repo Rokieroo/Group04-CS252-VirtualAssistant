@@ -81,4 +81,4 @@ The team has agreed on a decoupled staging infrastructure comprising three indep
   - Clear separation of concerns allowing the UI and API to be evolved and released independently.
 - **Negative (Free Tier Limitations)**:
   - Free-tier web services on Render spin down after 15 minutes of inactivity. Initial wake-up requests (Cold Start) can take 30–50 seconds.
-  - *Mitigation*: Acceptable for staging/evaluation purposes; `docs/DEPLOYMENT.md` documents procedures for pre-warming instances before grading presentations.
+  - *Mitigation*: Acceptable for staging/evaluation purposes; `docs/notes/devops/DEPLOYMENT.md` documents procedures for pre-warming instances before grading presentations.

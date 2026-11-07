@@ -16,7 +16,7 @@ Dưới đây là các hạng mục công việc cần hoàn thiện:
 - [X] **Task 2: Docker Compose + staging (#18, Lê Hồng Đăng, 10 giờ)**
   - **Local**: `docker compose up --build` chạy API + Postgres 16.
   - **Staging**: UI trên Vercel; API + DB trên dịch vụ free tier; auto-deploy từ `main`.
-  - **Tài liệu**: `docs/DEPLOYMENT.md`, ADR `docs/adr/002-hosting.md`.
+  - **Tài liệu**: `docs/notes/devops/DEPLOYMENT.md`, ADR `docs/adr/002-hosting.md`.
 
 ---
 

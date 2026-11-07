@@ -42,7 +42,7 @@ Nguồn kỹ thuật chính thức: [OpenAlex institutions](https://help.openale
 
 ## API để nhóm UI/AI ghép
 
-Mọi route dưới `/api/v1`, dùng bearer token. Contract đầy đủ: [openapi.json](../openapi.json).
+Mọi route dưới `/api/v1`, dùng bearer token. Contract đầy đủ: [openapi.json](../../openapi.json).
 
 | Route | Hành vi |
 | --- | --- |

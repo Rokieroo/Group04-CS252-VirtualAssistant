@@ -97,7 +97,7 @@ Open the URL Vite prints, register/sign in, and open Courses. Upload a PDF/DOCX 
 
 The parser returns synchronously, so processing shows an indeterminate indicator rather than invented percentages. Source citations open extracted text for that page. Confirmation saves all reviewed sections; automatic restoration of the setup screen after reload is not implemented.
 
-See [issue #56 verification](../docs/ISSUE_56.md) for acceptance checks and the isolated real-backend smoke test. The concept-extraction browser test (`e2e/concepts.spec.ts`) still runs in the `backend-ui` project.
+See [issue #56 verification](../docs/notes/uiux/ISSUE_56.md) for acceptance checks and the isolated real-backend smoke test. The concept-extraction browser test (`e2e/concepts.spec.ts`) still runs in the `backend-ui` project.
 
 ## Troubleshooting
 
@@ -166,7 +166,7 @@ tests use dedicated ports 5178/5179 and synthetic API responses. CI runs the sam
 checks and uploads browser screenshots/reports. The Python `devops ci` command remains a
 separate check and does not run the frontend suite.
 
-See [frontend integration handoff](../docs/frontend-integration-handoff.md) for API examples,
+See [frontend integration handoff](../docs/handoff-and-review/frontend-integration-handoff.md) for API examples,
 reviewer names and roles, limitations, and the PR preparation checklist.
 
 ## Design source
@@ -177,4 +177,4 @@ High-fidelity context was retrieved for Home, weekly Schedule, selected lesson, 
 
 ## Scheduling Workspace
 
-Open `/#workspace` for the optional account-backed task planner. Start `assistant.backend.main:app` on port 8000 first. Workspace has its own account/session flow, separate from the course demo login. `VITE_API_URL` selects this scheduling backend; the course check API keeps its existing configuration. See [the scheduling handoff](../docs/minh-handoff.md).
+Open `/#workspace` for the optional account-backed task planner. Start `assistant.backend.main:app` on port 8000 first. Workspace has its own account/session flow, separate from the course demo login. `VITE_API_URL` selects this scheduling backend; the course check API keeps its existing configuration. See [the scheduling handoff](../docs/handoff-and-review/minh-handoff.md).
