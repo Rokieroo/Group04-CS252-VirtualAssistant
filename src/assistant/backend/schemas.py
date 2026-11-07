@@ -580,6 +580,41 @@ class RoadmapOut(Output):
     nodes: list[RoadmapNodeOut] = Field(default_factory=list)
 
 
+
+# --- Roadmap Knowledge Graph (issue #103, spec 8, UC-03) ---------------------
+class GraphNodeOut(BaseModel):
+    id: str
+    type: str
+    kind: str | None = None
+    title: str
+    week: int | None = None
+    est_minutes: int | None = None
+    due_at: datetime | None = None
+    outcome_ids: list[str] = Field(default_factory=list)
+    source_pages: list[int] = Field(default_factory=list)
+    status: str = "pending"
+    source_count: int = 0
+    user_material_count: int = 0
+    sources_status: Literal["ready", "insufficient"] = "insufficient"
+    layer: int = 1
+
+
+class GraphEdgeOut(BaseModel):
+    parent: str
+    child: str
+    kind: str = "strict"
+    origin: str = "user"
+    confidence: float = 1.0
+    reason: str = ""
+    parent_id: str | None = None
+    child_id: str | None = None
+
+
+class RoadmapGraphOut(BaseModel):
+    nodes: list[GraphNodeOut] = Field(default_factory=list)
+    edges: list[GraphEdgeOut] = Field(default_factory=list)
+
+
 class RoadmapScheduleOut(Output):
     roadmap_id: str
     tasks: list[TaskOut] = Field(default_factory=list)

@@ -1,21 +1,56 @@
 """Node learning sources, quoted exercises and graph write contracts."""
 
+import json
+from collections import defaultdict
+from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import delete, select
 
-from .catalog_models import GraphLayout, RoadmapEdge
+from app.roadmap import (
+    layers,
+    local_graph,
+    prerequisites,
+    transitive_reduction,
+)
+
+from .catalog_models import Concept, GraphLayout, RoadmapEdge
 from .catalog_repository import node_sources
 from .dependencies import DB, CurrentUser
 from .exercise_repository import exercises_for_node
 from .material_repository import decide, node_materials
-from .models import RoadmapNode, Source
+from .models import (
+    Course,
+    LearningOutcome,
+    Notification,
+    Roadmap,
+    RoadmapNode,
+    Source,
+    Syllabus,
+    Task,
+)
 from .roadmap_repository import CycleError, add_roadmap_edge, owned_node, save_layout
 from .routes_core import _owned_roadmap
+from .schemas import GraphEdgeOut, GraphNodeOut, RoadmapGraphOut
 
 router = APIRouter(tags=["Node learning and graph"])
+
+_edge_edit_history: dict[str, list[float]] = defaultdict(list)
+
+
+def _check_edge_rate_limit(user_id: str, now_ts: float):
+    window_start = now_ts - 60.0
+    history = [t for t in _edge_edit_history[user_id] if t >= window_start]
+    if len(history) >= 120:
+        raise HTTPException(
+            429,
+            "Edge edit rate limit reached (120/min)",
+            headers={"Retry-After": "60"},
+        )
+    history.append(now_ts)
+    _edge_edit_history[user_id] = history
 
 
 class RankedSourceOut(BaseModel):
@@ -113,8 +148,6 @@ def sources(
 @router.get("/roadmaps/{roadmap_id}/sources:summary", response_model=SourceSummaryOut)
 def summary(roadmap_id: str, db: DB, user: CurrentUser, request: Request):
     roadmap = _owned_roadmap(db, roadmap_id, user.id)
-    from .models import Course
-
     nodes = list(
         db.scalars(select(RoadmapNode).where(RoadmapNode.roadmap_id == roadmap_id))
     )
@@ -215,12 +248,194 @@ def decide_material(
     }
 
 
+def _build_roadmap_graph(
+    db: DB, roadmap_id: str, user_id: str, now: datetime, *, reduce: bool = False
+) -> RoadmapGraphOut:
+    roadmap = _owned_roadmap(db, roadmap_id, user_id)
+    course = db.get(Course, roadmap.course_id)
+    nodes = list(
+        db.scalars(
+            select(RoadmapNode)
+            .where(RoadmapNode.roadmap_id == roadmap_id)
+            .order_by(RoadmapNode.week, RoadmapNode.id)
+        )
+    )
+    if not nodes:
+        return RoadmapGraphOut(nodes=[], edges=[])
+
+    node_ids = [n.id for n in nodes]
+    tasks = {
+        t.roadmap_node_id: t
+        for t in db.scalars(
+            select(Task).where(
+                Task.owner_id == user_id,
+                Task.roadmap_node_id.in_(node_ids),
+            )
+        )
+    }
+
+    concept_ids = [n.concept_id for n in nodes if n.concept_id]
+    concepts = (
+        {c.id: c for c in db.scalars(select(Concept).where(Concept.id.in_(concept_ids)))}
+        if concept_ids
+        else {}
+    )
+
+    syllabus = db.scalar(
+        select(Syllabus)
+        .where(Syllabus.course_id == course.id)
+        .order_by(Syllabus.created_at.desc())
+        .limit(1)
+    )
+    outcomes = (
+        list(db.scalars(select(LearningOutcome).where(LearningOutcome.syllabus_id == syllabus.id)))
+        if syllabus
+        else []
+    )
+
+    sources_by_node = node_sources(db, nodes, roadmap, course, now)
+
+    stored_edges = list(
+        db.scalars(select(RoadmapEdge).where(RoadmapEdge.roadmap_id == roadmap_id))
+    )
+
+    milestone_needs = prerequisites(nodes)
+    covers_edges: list[GraphEdgeOut] = []
+    for milestone_id, covered_topics in milestone_needs.items():
+        for parent_topic_id in covered_topics:
+            covers_edges.append(
+                GraphEdgeOut(
+                    parent=parent_topic_id,
+                    child=milestone_id,
+                    kind="covers",
+                    origin="milestone_covers",
+                    confidence=1.0,
+                    reason="Milestone covers topic",
+                    parent_id=parent_topic_id,
+                    child_id=milestone_id,
+                )
+            )
+
+    all_edge_models: list[GraphEdgeOut] = [
+        GraphEdgeOut(
+            parent=e.parent_id,
+            child=e.child_id,
+            kind=e.kind,
+            origin=e.origin,
+            confidence=e.confidence,
+            reason=e.reason,
+            parent_id=e.parent_id,
+            child_id=e.child_id,
+        )
+        for e in stored_edges
+    ] + covers_edges
+
+    layer_map = layers(nodes, all_edge_models)
+
+    if reduce:
+        final_edges = transitive_reduction(nodes, all_edge_models)
+    else:
+        final_edges = all_edge_models
+
+    node_outs: list[GraphNodeOut] = []
+    for node in nodes:
+        c = concepts.get(node.concept_id) if node.concept_id else None
+        sp: list[int] = []
+        if c and c.source_pages:
+            try:
+                sp = json.loads(c.source_pages) if isinstance(c.source_pages, str) else list(c.source_pages)
+            except (ValueError, TypeError):
+                sp = []
+
+        t = tasks.get(node.id)
+        user_status = t.status if t else "pending"
+
+        s_summary = sources_by_node.get(node.id, {})
+        s_count = s_summary.get("source_count", 0)
+        um_count = s_summary.get("user_material_count", 0)
+        s_status = s_summary.get("status", "insufficient")
+
+        matched_outcomes = [
+            o.id
+            for o in outcomes
+            if (o.code and o.code.lower() in node.title.lower())
+            or (o.description and o.description.lower() in node.title.lower())
+        ]
+
+        node_outs.append(
+            GraphNodeOut(
+                id=node.id,
+                type=node.type,
+                kind=node.type,
+                title=node.title,
+                week=node.week,
+                est_minutes=node.duration_minutes,
+                due_at=node.due_at,
+                outcome_ids=matched_outcomes,
+                source_pages=sp,
+                status=user_status,
+                source_count=s_count,
+                user_material_count=um_count,
+                sources_status=s_status,
+                layer=layer_map.get(node.id, node.week or 1),
+            )
+        )
+
+    return RoadmapGraphOut(nodes=node_outs, edges=final_edges)
+
+
+@router.get("/roadmaps/{roadmap_id}/graph", response_model=RoadmapGraphOut)
+def get_roadmap_graph(
+    roadmap_id: str,
+    db: DB,
+    user: CurrentUser,
+    request: Request,
+    reduce: bool = Query(False),
+):
+    """Retrieve full course roadmap graph (issue #103, spec 8, UC-03)."""
+    return _build_roadmap_graph(db, roadmap_id, user.id, request.app.state.now(), reduce=reduce)
+
+
+@router.get("/roadmap-nodes/{node_id}/graph", response_model=RoadmapGraphOut)
+def get_node_subgraph(
+    node_id: str,
+    db: DB,
+    user: CurrentUser,
+    request: Request,
+    depth: int = Query(2, ge=1, le=5),
+    direction: Literal["ancestors", "descendants", "both"] = Query("both"),
+):
+    """Retrieve local subgraph centered on a roadmap node (issue #97, #103)."""
+    _, roadmap, _ = _node(db, node_id, user.id)
+    full_graph = _build_roadmap_graph(db, roadmap.id, user.id, request.app.state.now(), reduce=False)
+    sub_node_ids, sub_edges = local_graph(
+        full_graph.nodes, full_graph.edges, node_id, depth=depth, direction=direction
+    )
+    sub_nodes_set = set(sub_node_ids)
+    sub_nodes = [n for n in full_graph.nodes if n.id in sub_nodes_set]
+    return RoadmapGraphOut(nodes=sub_nodes, edges=sub_edges)
+
+
 class EdgeIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    parent_id: str
-    child_id: str
+    parent_id: str | None = None
+    child_id: str | None = None
+    parent: str | None = None
+    child: str | None = None
     kind: Literal["soft", "strict"] = "strict"
     reason: str = Field("", max_length=300)
+
+    @model_validator(mode="after")
+    def _validate_endpoints(self):
+        p = self.parent or self.parent_id
+        c = self.child or self.child_id
+        if not p or not c:
+            raise ValueError("parent and child endpoints are required")
+        self.parent = p
+        self.child = c
+        self.parent_id = p
+        self.child_id = c
+        return self
 
 
 @router.get("/roadmaps/{roadmap_id}/edges")
@@ -241,13 +456,62 @@ def list_edges(roadmap_id: str, db: DB, user: CurrentUser):
     ]
 
 
-@router.post("/roadmaps/{roadmap_id}/edges", status_code=201)
-def add_edge(roadmap_id: str, data: EdgeIn, db: DB, user: CurrentUser):
+@router.post(
+    "/roadmaps/{roadmap_id}/graph/edges",
+    status_code=201,
+    responses={
+        409: {"description": "Dependency cycle detected"},
+        429: {"description": "Rate limit exceeded"},
+    },
+)
+@router.post(
+    "/roadmaps/{roadmap_id}/edges",
+    status_code=201,
+    responses={
+        409: {"description": "Dependency cycle detected"},
+        429: {"description": "Rate limit exceeded"},
+    },
+)
+def add_edge(
+    roadmap_id: str,
+    data: EdgeIn,
+    request: Request,
+    db: DB,
+    user: CurrentUser,
+):
+    """Add directed dependency edge to roadmap DAG (issue #103)."""
+    _check_edge_rate_limit(user.id, request.app.state.now().timestamp())
     _owned_roadmap(db, roadmap_id, user.id)
     try:
-        edge = add_roadmap_edge(db, roadmap_id, **data.model_dump(), created_by=user.id)
+        edge = add_roadmap_edge(
+            db,
+            roadmap_id,
+            parent_id=data.parent,
+            child_id=data.child,
+            kind=data.kind,
+            origin="user",
+            confidence=1.0,
+            reason=data.reason,
+            created_by=user.id,
+        )
+        existing_notif = db.scalar(
+            select(Notification).where(
+                Notification.user_id == user.id,
+                Notification.message.like(f"Roadmap {roadmap_id} edges updated%"),
+                Notification.read.is_(False),
+            )
+        )
+        if not existing_notif:
+            db.add(
+                Notification(
+                    user_id=user.id,
+                    message=f"Roadmap {roadmap_id} edges updated; schedule replan required.",
+                )
+            )
         db.commit()
         return {
+            "parent": edge.parent_id,
+            "child": edge.child_id,
             "parent_id": edge.parent_id,
             "child_id": edge.child_id,
             "kind": edge.kind,
@@ -258,22 +522,27 @@ def add_edge(roadmap_id: str, data: EdgeIn, db: DB, user: CurrentUser):
     except CycleError as exc:
         db.rollback()
         raise HTTPException(
-            409, {"code": "dependency_cycle", "path": exc.path}
+            409, detail={"error": "cycle", "code": "dependency_cycle", "path": exc.path}
         ) from None
     except (ValueError, LookupError) as exc:
         db.rollback()
         raise HTTPException(422, str(exc)) from None
 
 
+@router.delete("/roadmaps/{roadmap_id}/graph/edges/{parent_id}/{child_id}", status_code=204)
 @router.delete("/roadmaps/{roadmap_id}/edges/{parent_id}/{child_id}", status_code=204)
 def remove_edge(
-    roadmap_id: str, parent_id: str, child_id: str, db: DB, user: CurrentUser
+    roadmap_id: str,
+    parent_id: str,
+    child_id: str,
+    request: Request,
+    db: DB,
+    user: CurrentUser,
 ):
+    """Remove directed dependency edge from roadmap DAG (issue #103)."""
+    _check_edge_rate_limit(user.id, request.app.state.now().timestamp())
     _owned_roadmap(db, roadmap_id, user.id)
-    # Same roadmap row lock as additions; deletion cannot race a cycle check.
     from sqlalchemy import update
-
-    from .models import Roadmap
 
     db.execute(
         update(Roadmap).where(Roadmap.id == roadmap_id).values(title=Roadmap.title)
@@ -285,6 +554,20 @@ def remove_edge(
             RoadmapEdge.child_id == child_id,
         )
     )
+    existing_notif = db.scalar(
+        select(Notification).where(
+            Notification.user_id == user.id,
+            Notification.message.like(f"Roadmap {roadmap_id} edges updated%"),
+            Notification.read.is_(False),
+        )
+    )
+    if not existing_notif:
+        db.add(
+            Notification(
+                user_id=user.id,
+                message=f"Roadmap {roadmap_id} edges updated; schedule replan required.",
+            )
+        )
     db.commit()
 
 
@@ -300,20 +583,32 @@ class LayoutIn(BaseModel):
     positions: list[PositionIn] = Field(max_length=1000)
 
 
+@router.put("/roadmaps/{roadmap_id}/graph/layout")
 @router.put("/roadmaps/{roadmap_id}/layout")
-def put_layout(roadmap_id: str, data: LayoutIn, db: DB, user: CurrentUser):
+def put_layout(
+    roadmap_id: str,
+    data: list[PositionIn] | LayoutIn,
+    db: DB,
+    user: CurrentUser,
+):
+    """Save graph layout coordinates for user (issue #103)."""
     _owned_roadmap(db, roadmap_id, user.id)
-    for position in data.positions:
+    positions = data if isinstance(data, list) else data.positions
+    if len(positions) > 1000:
+        raise HTTPException(422, "at_most_1000_positions")
+    for position in positions:
         node, _, _ = _node(db, position.node_id, user.id)
         if node.roadmap_id != roadmap_id:
             raise HTTPException(422, "node_outside_roadmap")
         save_layout(db, user.id, **position.model_dump())
     db.commit()
-    return {"saved": len(data.positions)}
+    return {"saved": len(positions)}
 
 
+@router.get("/roadmaps/{roadmap_id}/graph/layout")
 @router.get("/roadmaps/{roadmap_id}/layout")
 def get_layout(roadmap_id: str, db: DB, user: CurrentUser):
+    """Get graph layout coordinates for user (issue #103)."""
     _owned_roadmap(db, roadmap_id, user.id)
     rows = db.scalars(
         select(GraphLayout)
