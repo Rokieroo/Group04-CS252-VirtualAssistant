@@ -1,3 +1,4 @@
+import { createsCycle } from "../concepts";
 import { uploadSyllabus, confirmSyllabus } from "./syllabus";
 import { courseId, currentCourse } from "./courses";
 import { call } from "./backend";
@@ -57,7 +58,8 @@ export type Edge = {
   child_id: string;
   kind: "strict" | "soft";
   confidence: number;
-  origin: "llm" | "user";
+  origin: "llm" | "user" | "week_order";
+  reason?: string;
 };
 export type NodeStatus =
   "locked" | "available" | "in_progress" | "done" | "needs_review";
@@ -73,29 +75,23 @@ export type CoreService = {
   upload(file: File | string, options?: UploadOptions): Promise<SyllabusDraft>;
   confirm(draft: SyllabusDraft): Promise<SyllabusDraft>;
   generate(syllabusId: string): Promise<RoadmapDraft>;
+  save(roadmap: RoadmapDraft): Promise<RoadmapDraft>;
   schedule(
     roadmapId: string,
     weeklyMinutes: number,
     maxDailyMinutes: number,
-  ): Promise<{ sessions: { id: string; title: string; starts_at: string }[] }>;
+  ): Promise<{
+    sessions: { id: string; title: string; starts_at: string }[];
+    unscheduled?: { task_id: string; reason: string }[];
+    overloaded_weeks?: string[];
+  }>;
 };
 export function createsRoadmapCycle(
   edges: Edge[],
   parent: string,
   child: string,
 ): boolean {
-  const stack = [child];
-  const visited = new Set<string>();
-  while (stack.length) {
-    const current = stack.pop()!;
-    if (current === parent) return true;
-    if (visited.has(current)) continue;
-    visited.add(current);
-    edges
-      .filter((e) => e.parent_id === current)
-      .forEach((e) => stack.push(e.child_id));
-  }
-  return false;
+  return createsCycle(edges, parent, child);
 }
 /** The live API persists on generate, so show a local proposal until the learner approves. */
 export function previewRoadmap(draft: SyllabusDraft): RoadmapDraft {
@@ -142,10 +138,46 @@ export const liveCoreService: CoreService = {
         body: JSON.stringify({ syllabus_id: id }),
       },
     );
-    return { id: r.id, nodes: r.nodes, edges: [], overloaded_weeks: [] };
+    const edges = await call<Edge[]>(`/roadmaps/${r.id}/edges`);
+    return { id: r.id, nodes: r.nodes, edges, overloaded_weeks: [] };
+  },
+  async save(roadmap) {
+    const stored = await call<Edge[]>(`/roadmaps/${roadmap.id}/edges`);
+    for (const edge of stored)
+      if (
+        !roadmap.edges.some(
+          (e) => e.parent_id === edge.parent_id && e.child_id === edge.child_id,
+        )
+      )
+        await call(
+          `/roadmaps/${roadmap.id}/edges/${edge.parent_id}/${edge.child_id}`,
+          { method: "DELETE" },
+        );
+    for (const edge of roadmap.edges)
+      if (
+        !stored.some(
+          (e) => e.parent_id === edge.parent_id && e.child_id === edge.child_id,
+        )
+      )
+        await call(`/roadmaps/${roadmap.id}/edges`, {
+          method: "POST",
+          body: JSON.stringify({
+            parent_id: edge.parent_id,
+            child_id: edge.child_id,
+            kind: edge.kind,
+            reason: edge.reason || "",
+          }),
+        });
+    return {
+      ...roadmap,
+      edges: await call<Edge[]>(`/roadmaps/${roadmap.id}/edges`),
+    };
   },
   async schedule(id, weekly, daily) {
     const p = await call<{
+      tasks: { id: string; title: string }[];
+      unscheduled: { task_id: string; reason: string }[];
+      overloaded_weeks: string[];
       sessions: { id: string; starts_at: string; task_id: string }[];
     }>(`/roadmaps/${id}:schedule`, {
       method: "POST",
@@ -155,9 +187,12 @@ export const liveCoreService: CoreService = {
       }),
     });
     return {
+      unscheduled: p.unscheduled,
+      overloaded_weeks: p.overloaded_weeks,
       sessions: p.sessions.map((s) => ({
         id: s.id,
-        title: s.task_id,
+        title:
+          p.tasks.find((t) => t.id === s.task_id)?.title || "Study session",
         starts_at: s.starts_at,
       })),
     };

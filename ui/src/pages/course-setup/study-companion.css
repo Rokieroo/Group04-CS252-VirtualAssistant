@@ -444,3 +444,5 @@
   align-items: center;
   gap: 8px;
 }
+
+.roadmap-status {font-weight:600;padding:6px 10px;border-radius:8px;background:#e5e7eb;color:#263244}.status-available{background:#dbeafe;color:#173e79}.status-in_progress{background:#ede9fe;color:#493195}.status-done{background:#d1fae5;color:#065f46}.status-needs_review{background:#fef3c7;color:#78350f}.status-locked{background:#e5e7eb;color:#374151}

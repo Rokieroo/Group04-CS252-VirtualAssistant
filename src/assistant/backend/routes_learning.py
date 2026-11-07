@@ -189,8 +189,12 @@ def attach_material(node_id: str, data: MaterialIn, db: DB, user: CurrentUser):
     return {"node_id": node_id, "source_id": source.id, "pages": [source.page]}
 
 
-@router.put("/roadmap-nodes/{node_id}/materials/{source_id}", response_model=MaterialPageOut)
-def decide_material(node_id: str, source_id: str, data: DecisionIn, db: DB, user: CurrentUser):
+@router.put(
+    "/roadmap-nodes/{node_id}/materials/{source_id}", response_model=MaterialPageOut
+)
+def decide_material(
+    node_id: str, source_id: str, data: DecisionIn, db: DB, user: CurrentUser
+):
     """One tap: confirm a suggested page for this node, or reject it for good."""
     node, _, course = _node(db, node_id, user.id)
     source = _course_page(db, course, source_id)
@@ -210,6 +214,24 @@ class EdgeIn(BaseModel):
     child_id: str
     kind: Literal["soft", "strict"] = "strict"
     reason: str = Field("", max_length=300)
+
+
+@router.get("/roadmaps/{roadmap_id}/edges")
+def list_edges(roadmap_id: str, db: DB, user: CurrentUser):
+    _owned_roadmap(db, roadmap_id, user.id)
+    return [
+        {
+            "parent_id": e.parent_id,
+            "child_id": e.child_id,
+            "kind": e.kind,
+            "origin": e.origin,
+            "confidence": e.confidence,
+            "reason": e.reason,
+        }
+        for e in db.scalars(
+            select(RoadmapEdge).where(RoadmapEdge.roadmap_id == roadmap_id)
+        )
+    ]
 
 
 @router.post("/roadmaps/{roadmap_id}/edges", status_code=201)

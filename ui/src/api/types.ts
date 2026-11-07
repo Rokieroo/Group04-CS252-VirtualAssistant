@@ -61,6 +61,7 @@ export type Syllabus = {
 };
 /** One step of a roadmap; a milestone ``covers`` the topic node ids it tests. */
 export type RoadmapNode = {
+  status?: "locked" | "available" | "in_progress" | "done" | "needs_review";
   id: string;
   roadmap_id: string;
   type: "topic" | "milestone";

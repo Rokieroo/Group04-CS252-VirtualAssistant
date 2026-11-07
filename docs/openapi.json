@@ -3347,6 +3347,49 @@
       }
     },
     "/api/v1/roadmaps/{roadmap_id}/edges": {
+      "get": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "List Edges",
+        "operationId": "list_edges_api_v1_roadmaps__roadmap_id__edges_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roadmap_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Roadmap Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
         "tags": [
           "Node learning and graph"
@@ -5700,6 +5743,13 @@
             "title": "Daily Limit Minutes",
             "default": 240
           },
+          "weekly_limit_minutes": {
+            "type": "integer",
+            "maximum": 10080.0,
+            "minimum": 25.0,
+            "title": "Weekly Limit Minutes",
+            "default": 10080
+          },
           "commit": {
             "type": "boolean",
             "title": "Commit",
@@ -6681,6 +6731,13 @@
       },
       "RoadmapScheduleIn": {
         "properties": {
+          "weekly_minutes": {
+            "type": "integer",
+            "maximum": 10080.0,
+            "minimum": 25.0,
+            "title": "Weekly Minutes",
+            "default": 10080
+          },
           "max_daily_minutes": {
             "type": "integer",
             "maximum": 1440.0,
@@ -6703,7 +6760,7 @@
         },
         "type": "object",
         "title": "RoadmapScheduleIn",
-        "description": "Sessions always fit availability minus busy blocks (spec 10.4); a weekly budget\nis not enforced yet, so ``weekly_minutes`` is ignored like any unknown field."
+        "description": "Sessions always fit availability minus busy blocks (spec 10.4); weekly and daily\nbudgets are enforced by the shared planner."
       },
       "RoadmapScheduleOut": {
         "properties": {

@@ -244,6 +244,7 @@ class PlanRequest(TimeRange):
     max_session_minutes: int = Field(default=60, ge=5, le=240)
     min_session_minutes: int = Field(default=15, ge=1, le=120)
     daily_limit_minutes: int = Field(default=240, ge=1, le=1440)
+    weekly_limit_minutes: int = Field(default=10080, ge=25, le=10080)
     commit: bool = False
 
     @model_validator(mode="after")
@@ -521,10 +522,11 @@ class RoadmapGenerateIn(FlexibleInput):
 
 
 class RoadmapScheduleIn(FlexibleInput):
-    """Sessions always fit availability minus busy blocks (spec 10.4); a weekly budget
-    is not enforced yet, so ``weekly_minutes`` is ignored like any unknown field."""
+    """Sessions always fit availability minus busy blocks (spec 10.4); weekly and daily
+    budgets are enforced by the shared planner."""
 
     # At least one 25-minute session a day (spec 10.3.4).
+    weekly_minutes: int = Field(default=10080, ge=25, le=10080)
     max_daily_minutes: int = Field(default=120, ge=25, le=1440)
     starts_at: Timestamp | None = None
 

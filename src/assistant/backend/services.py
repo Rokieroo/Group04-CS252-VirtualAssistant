@@ -261,6 +261,15 @@ def _roadmap_rules(db: Session, tasks: list[Task]) -> dict[str, dict]:
     ).all()
     weeks = {node.id: node.week for node in nodes}
     needs = prerequisites(nodes)
+    from .catalog_models import RoadmapEdge
+
+    for edge in db.scalars(
+        select(RoadmapEdge).where(
+            RoadmapEdge.roadmap_id.in_({n.roadmap_id for n in nodes}),
+            RoadmapEdge.kind == "strict",
+        )
+    ):
+        needs.setdefault(edge.child_id, []).append(edge.parent_id)
     rules = {}
     for task in tasks:
         node_id = task.roadmap_node_id
@@ -271,7 +280,10 @@ def _roadmap_rules(db: Session, tasks: list[Task]) -> dict[str, dict]:
         rules[task.id] = {
             "release_at": task_release_at(weeks[node_id], task.due_at),
             "depends_on": depends_on,
-            "buffer_days": MILESTONE_BUFFER_DAYS if depends_on else 0,
+            "buffer_days": MILESTONE_BUFFER_DAYS
+            if depends_on
+            and next(n for n in nodes if n.id == node_id).type == "milestone"
+            else 0,
         }
     return rules
 
@@ -284,6 +296,7 @@ def schedule_roadmap(
     max_daily_minutes: int,
     starts_at: datetime | None,
     now: datetime,
+    weekly_minutes: int = 10080,
 ) -> tuple[list[Task], list[ScheduleEntry], PlanOut]:
     """Give each node one task (reused on later calls), then plan through make_plan so
     sessions fit availability minus busy blocks and existing sessions (spec 10.4)."""
@@ -321,10 +334,13 @@ def schedule_roadmap(
     shortest, longest = ROADMAP_SESSION_MINUTES
     request = PlanRequest(
         starts_at=start,
-        ends_at=min(start + MAX_PLAN_HORIZON, max(latest_due, start + timedelta(days=1))),
+        ends_at=min(
+            start + MAX_PLAN_HORIZON, max(latest_due, start + timedelta(days=1))
+        ),
         min_session_minutes=shortest,
         max_session_minutes=longest,
         daily_limit_minutes=max_daily_minutes,
+        weekly_limit_minutes=weekly_minutes,
         commit=True,
     )
     plan = make_plan(db, user, request, now)
