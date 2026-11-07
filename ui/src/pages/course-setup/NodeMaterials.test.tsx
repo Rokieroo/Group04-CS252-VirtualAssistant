@@ -5,6 +5,16 @@ import { NodeMaterials } from "./NodeMaterials";
 import * as materialsApi from "../../api/materials";
 import * as resourcesApi from "../../api/resources";
 
+const fullBreakdown = {
+  relevance: 0.95,
+  authority: 1.0,
+  level_fit: 0.85,
+  pedagogy: 0.8,
+  freshness: 0.8,
+  accessibility: 0.9,
+  community: 0.8,
+};
+
 describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
   beforeEach(() => {
     vi.spyOn(materialsApi, "nodeMaterials").mockResolvedValue([]);
@@ -50,7 +60,7 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
           duration_min: 45,
           is_free: true,
           score: 0.91,
-          breakdown: { relevance: 0.95, authority: 1.0 },
+          breakdown: fullBreakdown,
           reason: "Matches CLO 1.2 decomposition",
           evidence_quote: "Algorithms break complex processes into steps",
           pinned: false,
@@ -87,7 +97,7 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
           duration_min: 20,
           is_free: true,
           score: 0.85,
-          breakdown: {},
+          breakdown: fullBreakdown,
           reason: "",
           evidence_quote: "",
           pinned: false,
@@ -103,7 +113,7 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
           duration_min: 15,
           is_free: true,
           score: 0.80,
-          breakdown: {},
+          breakdown: fullBreakdown,
           reason: "",
           evidence_quote: "",
           pinned: false,
@@ -142,7 +152,7 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
         duration_min: 30,
         is_free: true,
         score: 0.87,
-        breakdown: {},
+        breakdown: fullBreakdown,
         reason: "Higher relevance alternative",
         evidence_quote: "Stanford alternative quote",
         pinned: false,
@@ -163,7 +173,7 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
           duration_min: 10,
           is_free: true,
           score: 0.70,
-          breakdown: {},
+          breakdown: fullBreakdown,
           reason: "Initial candidate",
           evidence_quote: "",
           pinned: false,
