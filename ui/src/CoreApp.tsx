@@ -9,6 +9,7 @@ import { Shell } from "./components/Shell";
 import { AppearancePicker } from "./features/appearance/AppearancePicker";
 import { pageLabels, useHashPage, type Page } from "./navigation";
 import { CostsPage } from "./pages/CostsPage";
+import { AdminCatalogPage } from "./pages/AdminCatalogPage";
 import { CoreJourney } from "./pages/CoreJourney";
 import { CoursesPage } from "./pages/CoursesPage";
 import { SourcesPage } from "./pages/SourcesPage";
@@ -32,6 +33,11 @@ const headings: Partial<Record<Page, [string, string]>> = {
   Costs: [
     pageLabels.Costs,
     "What resource searches spend, per roadmap step and provider.",
+  ],
+  // Admin catalog review queue (Issue #104)
+  Catalog: [
+    pageLabels.Catalog,
+    "Hàng chờ duyệt nguồn catalog và nhãn chủ đề cho quản trị viên.",
   ],
 };
 const available = Object.keys(headings) as Page[];
@@ -88,6 +94,7 @@ export default function CoreApp({ mock = false }: { mock?: boolean }) {
       )}
       {page === "Sources" && <SourcesPage go={go} />}
       {page === "Costs" && <CostsPage />}
+      {page === "Catalog" && <AdminCatalogPage />}
     </Shell>
   );
 }
