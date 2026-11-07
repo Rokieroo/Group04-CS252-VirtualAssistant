@@ -12,6 +12,6 @@ Verification: frontend unit suite, production build, desktop/mobile graph edit/a
 
 Environment: main pins Pillow~=10.3, but this computer only has Python 3.15. Installing the declared dependency fails to build. Local verification uses Pillow 13's compatible wheel. requirements.txt remains unchanged; use a compatible Python for exact pinned-environment verification.
 
-Before closing #57: define/expose authoritative node statuses (the restored UI currently falls back to available), verify the completeness of the live syllabus-to-week timeline (the generator may derive topics from CLOs), and review approval draft/active persistence semantics. Current setup state still does not restore after browser reload. Edge saves are incremental API calls; a failure may leave part of the edit applied and retry reconciles against the server.
+Known backend/product boundaries: define/expose authoritative node statuses (the restored UI currently falls back to available), verify the completeness of the live syllabus-to-week timeline (the generator may derive topics from CLOs), and review approval draft/active persistence semantics. Current setup state still does not restore after browser reload. Edge saves are incremental API calls; a failure may leave part of the edit applied and retry reconciles against the server.
 
-Keep the Getting Started tutorial in a separate commit from #57. Its per-account enrollment and prepared-course editing rules are still backend/product gaps; see GETTING_STARTED_UI.md.
+The PR includes the requested Getting Started preview alongside the root-graph UI. Per-account enrollment and prepared-course editing rules remain backend/product gaps; see GETTING_STARTED_UI.md.
