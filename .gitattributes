@@ -1,0 +1,3 @@
+# The institution registry must rebuild byte for byte from its snapshot (#96),
+# so no checkout may rewrite its line endings.
+data/catalog/institutions.csv text eol=lf

@@ -1,12 +1,15 @@
 """Domain policy: blocklist, authority tiers, and known paywalls (spec 11.3-11.4).
 
 The lists live in ``data/policy/*.txt`` so the team edits policy without
-touching code.  Matching walks the host's labels against hash sets, so a check
-costs the same no matter how long the lists grow.
+touching code; the institution registry (#96, ``data/catalog/institutions.csv``)
+adds the domains of ranked institutions at their tier.  Matching walks the
+host's labels against hash sets, so a check costs the same no matter how long
+the lists grow.
 """
 
 from __future__ import annotations
 
+import csv
 from dataclasses import dataclass
 from enum import IntEnum
 from functools import lru_cache
@@ -16,6 +19,7 @@ from urllib.parse import urlsplit
 __all__ = ["DEFAULT_POLICY_DIR", "DomainPolicy", "DomainTier", "default_policy", "domain_tier"]
 
 DEFAULT_POLICY_DIR = Path(__file__).resolve().parents[3] / "data" / "policy"
+DEFAULT_REGISTRY = Path(__file__).resolve().parents[3] / "data" / "catalog" / "institutions.csv"
 
 
 class DomainTier(IntEnum):
@@ -49,6 +53,9 @@ class _Rules:
                     suffixes.add(entry)
         return cls(frozenset(suffixes), frozenset(any_tld))
 
+    def union(self, domains: frozenset[str]) -> _Rules:
+        return _Rules(self.suffixes | domains, self.any_tld)
+
     def match(self, labels: list[str]) -> bool:
         # Suffix entry: the host is the entry or one of its subdomains.
         if any(".".join(labels[i:]) in self.suffixes for i in range(len(labels))):
@@ -77,13 +84,20 @@ class DomainPolicy:
     paywalled: _Rules
 
     @classmethod
-    def load(cls, directory: str | Path = DEFAULT_POLICY_DIR) -> DomainPolicy:
-        """Read the four lists; a missing file is an empty list."""
+    def load(
+        cls, directory: str | Path = DEFAULT_POLICY_DIR, registry: str | Path | None = None
+    ) -> DomainPolicy:
+        """Read the four lists, plus the institution ``registry`` when given.
+
+        ADR 004 section 4: a source's authority is the best tier between the
+        institution owning its domain and the allowlists. A missing file is empty.
+        """
         directory = Path(directory)
+        institutions = _institution_domains(registry)
         return cls(
             blocked=_Rules.read(directory / "blocklist.txt"),
-            tier1=_Rules.read(directory / "allowlist_tier1.txt"),
-            tier2=_Rules.read(directory / "allowlist_tier2.txt"),
+            tier1=_Rules.read(directory / "allowlist_tier1.txt").union(institutions[1]),
+            tier2=_Rules.read(directory / "allowlist_tier2.txt").union(institutions[2]),
             paywalled=_Rules.read(directory / "paywall.txt"),
         )
 
@@ -103,10 +117,22 @@ class DomainPolicy:
         return bool(labels) and self.paywalled.match(labels)
 
 
+def _institution_domains(registry: str | Path | None) -> dict[int, frozenset[str]]:
+    """Domains of the registry's tier 1 and tier 2 institutions; tier 3 earns nothing."""
+    found: dict[int, set[str]] = {1: set(), 2: set()}
+    if registry is not None and Path(registry).is_file():
+        with Path(registry).open(encoding="utf-8", newline="") as stream:
+            for row in csv.DictReader(stream):
+                domain = row["domain"].casefold().strip(".")
+                if domain and int(row["tier"]) in found:
+                    found[int(row["tier"])].add(domain)
+    return {tier: frozenset(domains) for tier, domains in found.items()}
+
+
 @lru_cache(maxsize=1)
 def default_policy() -> DomainPolicy:
-    """The shipped lists, read once per process (restart to pick up edits)."""
-    return DomainPolicy.load()
+    """The shipped lists and registry, read once per process (restart to pick up edits)."""
+    return DomainPolicy.load(registry=DEFAULT_REGISTRY)
 
 
 def domain_tier(url: str) -> DomainTier:

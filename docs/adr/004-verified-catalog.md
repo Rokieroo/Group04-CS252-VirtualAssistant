@@ -153,7 +153,7 @@ Yêu cầu cho các issue sau, chưa có code trong ADR này:
 
 - #101: fetch bị `robots.txt` chặn (`FetchError("robots")`) đưa nguồn vào hàng chờ duyệt, không `rejected`; kiểm tra `license` chỉ chấp nhận mã trong `catalog_sources.yaml`. Đã làm: luật ở `src/app/catalog/verification.py`, job `verify_catalog` (chạy hằng ngày) và API admin ở `src/assistant/backend/catalog_verification.py`; provider `automated: false` không bị fetch mà vào hàng chờ duyệt.
 - #98: đọc `method`, `endpoint`, `rate_limit_per_sec` từ YAML; gửi request qua `SafeFetcher` (đã tôn trọng `robots.txt`); không chạy cho provider `automated: false`.
-- #96: dựng `institutions` theo mục 4 từ snapshot đã lưu.
+- #96: dựng `institutions` theo mục 4 từ snapshot đã lưu. Đã làm: `scripts/build_institutions.py` dựng `data/catalog/institutions.csv` từ `data/catalog/institution-snapshots/` (dựng lại cho file giống từng byte, `.gitattributes` giữ LF); `python dev.py db seed-institutions` nạp vào DB; `DomainPolicy` đọc registry nên `authority` của mọi nguồn (catalog lẫn web) là tier tốt nhất giữa trường và allowlist. Các dòng chọn tay trong `institutions-vn.json` chỉ vào registry khi có đủ 2 người duyệt; script in ra các dòng còn chờ.
 
 ### 10. Phương án đã cân nhắc
 

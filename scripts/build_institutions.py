@@ -123,17 +123,24 @@ def main():
         )
         return json.loads(content)
 
+    overrides = (
+        json.loads(args.overrides.read_text(encoding="utf-8"))
+        if args.overrides.exists()
+        else []
+    )
     rows = build_registry(
         read_snapshot("openalex"),
         read_snapshot("ror"),
         **{
             k: manifest[k] for k in ("snapshot_date", "openalex_version", "ror_version")
         },
-        overrides=json.loads(args.overrides.read_text(encoding="utf-8"))
-        if args.overrides.exists()
-        else [],
+        overrides=overrides,
         limit=args.limit,
     )
+    # ADR 004 section 4: a hand-picked row counts only once two people approved it.
+    pending = sorted(o["ror_id"] for o in overrides if len(o.get("reviewers", [])) < 2)
+    if pending:
+        print(f"{len(pending)} manual institutions wait for 2 reviewers: {', '.join(pending)}")
     write_registry(rows, args.output)
     if args.allowlist:
         previous = args.allowlist.read_text(encoding="utf-8")
