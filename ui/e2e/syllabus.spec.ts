@@ -355,6 +355,7 @@ test("roadmap edits survive approval and schedule opens S7", async ({
   await page
     .getByRole("button", { name: "Xác nhận roadmap", exact: true })
     .click();
+  await expect(page.getByRole("button", {name:"Xem roadmap →",exact:true})).toBeVisible();
   expect(generated).toBe(1);
   expect(edges).toHaveLength(1);
   await page
