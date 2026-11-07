@@ -52,7 +52,14 @@ export function RoadmapTimeline({
                       ? " · Milestone"
                       : ""}
                   </strong>
-                  <small>{items.map((n) => n.title).join(" · ")}</small>
+                  <small>
+                    {items
+                      .map(
+                        (n) =>
+                          `${n.title} · ${n.est_minutes ?? n.duration_minutes ?? 0} min · ${n.status || "available"}`,
+                      )
+                      .join(" · ")}
+                  </small>
                 </span>
               </button>
             );
@@ -67,6 +74,19 @@ export function RoadmapTimeline({
             {nodes.map((node) => (
               <div key={node.id}>
                 <strong>{node.title}</strong>
+                <p
+                  className={`roadmap-status status-${node.status || "available"}`}
+                >
+                  {
+                    {
+                      locked: "Locked",
+                      available: "Available",
+                      in_progress: "In progress",
+                      done: "Done",
+                      needs_review: "Needs review",
+                    }[node.status || "available"]
+                  }
+                </p>
                 <p>{node.est_minutes ?? node.duration_minutes ?? 0} minutes</p>
                 <p>
                   Prerequisites:{" "}

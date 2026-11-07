@@ -127,6 +127,7 @@ export const mockCoreService: CoreService = {
       overloaded_weeks: [],
     };
   },
+  async save(roadmap) { return structuredClone(roadmap); },
   async schedule() {
     return {
       sessions: [

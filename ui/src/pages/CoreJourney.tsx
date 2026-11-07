@@ -1,5 +1,9 @@
+import { RootRoadmap, type RootCourse } from "./course-setup/RootRoadmap";
+import { tutorial } from "./TutorialCourses";
 import { syllabusError, validateDraft } from "../api/syllabus";
 import { mockCoreService } from "../api/mockCore";
+import { TutorialCourses } from "./TutorialCourses";
+
 import { RoadmapTimeline } from "./course-setup/RoadmapTimeline";
 import { SyllabusUpload } from "./course-setup/SyllabusUpload";
 import { SyllabusReview } from "./course-setup/SyllabusReview";
@@ -11,7 +15,6 @@ import type { RoadmapNode } from "../api/types";
 import {
   createsRoadmapCycle,
   liveCoreService,
-  previewRoadmap,
   type CoreService,
   type Edge,
   type SyllabusDraft,
@@ -40,6 +43,8 @@ export function CoreJourney({
     "upload",
   );
   const [roadmapApproved, setRoadmapApproved] = useState(false);
+  const [tutorialEnrolled, setTutorialEnrolled] = useState(false);
+  const [removeCourse, setRemoveCourse] = useState(false);
   const [roadmapTab, setRoadmapTab] = useState<"timeline" | "graph">(
     "timeline",
   );
@@ -51,9 +56,9 @@ export function CoreJourney({
   const [weekly, setWeekly] = useState(300);
   const [daily, setDaily] = useState(120);
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [plan, setPlan] = useState<{
-    sessions: { id: string; title: string; starts_at: string }[];
-  } | null>(null);
+  const [plan, setPlan] = useState<Awaited<
+    ReturnType<CoreService["schedule"]>
+  > | null>(null);
   const [sourcePage, setSourcePage] = useState<number | null>(null);
   useEffect(() => {
     headingRef.current?.focus();
@@ -99,16 +104,15 @@ export function CoreJourney({
   const generate = () => {
     if (!draft || draft.status !== "confirmed") return;
     void run(async () => {
-      setRoadmap(
-        mock ? await service.generate(draft.id) : previewRoadmap(draft),
-      );
+      setRoadmap(await service.generate(draft.id));
       setStage("plan");
     });
   };
   const approveRoadmap = () => {
     if (!draft || weekly < 25 || weekly > 10080) return;
     void run(async () => {
-      if (!mock) setRoadmap(await service.generate(draft.id));
+      if (!roadmap) return;
+      setRoadmap(await service.save(roadmap));
       setRoadmapApproved(true);
       setStage("complete");
     });
@@ -141,8 +145,19 @@ export function CoreJourney({
     roadmap &&
     setRoadmap({ ...roadmap, edges: roadmap.edges.filter((e) => e !== edge) });
   const schedule = () => {
-    if (!roadmap) return;
+    if (
+      !roadmap ||
+      busy ||
+      !Number.isInteger(weekly) ||
+      weekly < 25 ||
+      weekly > 10080 ||
+      !Number.isInteger(daily) ||
+      daily < 25 ||
+      daily > 1440
+    )
+      return;
     void run(async () => {
+      await service.save(roadmap);
       setPlan(await service.schedule(roadmap.id, weekly, daily));
       setScheduleOpen(false);
       go("Schedule");
@@ -166,6 +181,109 @@ export function CoreJourney({
     (page === "Roadmap" && roadmapApproved);
   return (
     <div className="core-journey">
+      {page === "Roadmap" && (
+        <RootRoadmap
+          courses={
+            [
+              ...(tutorialEnrolled
+                ? [
+                    {
+                      id: tutorial.id,
+                      title: tutorial.title,
+                      nodes: tutorial.lessons.map((lesson, i) => ({
+                        id: `tutorial-${i}`,
+                        title: lesson.title,
+                        description: lesson.text,
+                        minutes: 2,
+                      })),
+                    },
+                  ]
+                : []),
+              ...(roadmapApproved && roadmap
+                ? [
+                    {
+                      id: roadmap.id,
+                      title:
+                        draft?.course?.title?.value?.toString() ||
+                        draft?.file_name ||
+                        "Your course",
+                      nodes: roadmap.nodes.map((n) => ({
+                        id: n.id,
+                        title: n.title,
+                        minutes:
+                          n.est_minutes ?? n.duration_minutes ?? undefined,
+                        status: n.status,
+                        description: `${n.title}${n.week ? ` · Week ${n.week}` : ""}. ${n.type === "milestone" ? "Assessment milestone." : "A learning checkpoint from your reviewed syllabus."}`,
+                      })),
+                    },
+                  ]
+                : []),
+            ] satisfies RootCourse[]
+          }
+        />
+      )}
+      {(page === "Sources" || page === "Roadmap") && (
+        <TutorialCourses
+          key={mock ? "preview" : "live"}
+          location={page === "Sources" ? "library" : "roadmap"}
+          mock={mock}
+          onEnrollmentChange={setTutorialEnrolled}
+        />
+      )}
+      {page === "Roadmap" && roadmapApproved && (
+        <section className="card core-panel">
+          <h2>{draft?.file_name || "Your course"}</h2>
+          <p>User-created · Personal syllabus and roadmap</p>
+          <div className="core-actions">
+            <button
+              onClick={() => {
+                setStage("review");
+                go("Library");
+              }}
+            >
+              Edit course syllabus
+            </button>
+            <button disabled={!mock} onClick={() => setRemoveCourse(true)}>
+              Remove course
+            </button>
+          </div>
+          {!mock && (
+            <p>
+              The API does not support removing roadmap membership while
+              retaining personal course data.
+            </p>
+          )}
+        </section>
+      )}
+      {removeCourse && (
+        <Modal
+          title={`Remove ${draft?.file_name || "your course"}?`}
+          onClose={() => setRemoveCourse(false)}
+        >
+          <p>
+            This removes this user-created course from the preview Roadmap. Its
+            syllabus remains available in Courses for editing. It will not be
+            added to the prepared Library catalog. No underlying course data is
+            deleted.
+          </p>
+          <div className="core-actions">
+            <button autoFocus onClick={() => setRemoveCourse(false)}>
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                setRoadmapApproved(false);
+                setStage("review");
+                setRemoveCourse(false);
+                setPlan(null);
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {page === "Library" && (
         <div className="page-heading">
           <h1 ref={headingRef} tabIndex={-1}>
@@ -267,7 +385,7 @@ export function CoreJourney({
             </div>
           </section>
         ) : null)}
-      {page === "Roadmap" && !roadmapApproved && (
+      {page === "Roadmap" && !roadmapApproved && !tutorialEnrolled && (
         <section className="card core-panel">
           <h2>Chưa có roadmap được duyệt</h2>
           <p>Hoàn thành ba bước thiết lập trong tab Môn học.</p>
@@ -298,19 +416,51 @@ export function CoreJourney({
             </section>
           ) : (
             <>
-              {roadmap.overloaded_weeks.length > 0 && (
+              {(roadmap.overloaded_weeks.length > 0 ||
+                roadmap.nodes.some(
+                  (n) =>
+                    roadmap.nodes
+                      .filter((x) => x.week === n.week)
+                      .reduce(
+                        (sum, x) =>
+                          sum + (x.est_minutes ?? x.duration_minutes ?? 0),
+                        0,
+                      ) > weekly,
+                )) && (
                 <p className="card core-warning" role="alert">
-                  Tuần {roadmap.overloaded_weeks.join(", ")} quá tải. Hãy xem
-                  lại thời lượng trước khi xếp lịch.
+                  Một số tuần vượt quỹ thời gian học. Hãy xem lại thời lượng
+                  trước khi xếp lịch.
                 </p>
               )}
               <div
                 className="core-tabs"
                 role="tablist"
                 aria-label="Cách xem roadmap"
+                onKeyDown={(e) => {
+                  if (
+                    ["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)
+                  ) {
+                    e.preventDefault();
+                    const next =
+                      e.key === "Home"
+                        ? "timeline"
+                        : e.key === "End"
+                          ? "graph"
+                          : roadmapTab === "timeline"
+                            ? "graph"
+                            : "timeline";
+                    setRoadmapTab(next);
+                    (
+                      e.currentTarget.querySelectorAll("button")[
+                        next === "timeline" ? 0 : 1
+                      ] as HTMLButtonElement
+                    ).focus();
+                  }
+                }}
               >
                 <button
                   role="tab"
+                  tabIndex={roadmapTab === "timeline" ? 0 : -1}
                   aria-selected={roadmapTab === "timeline"}
                   onClick={() => setRoadmapTab("timeline")}
                 >
@@ -318,6 +468,7 @@ export function CoreJourney({
                 </button>
                 <button
                   role="tab"
+                  tabIndex={roadmapTab === "graph" ? 0 : -1}
                   aria-selected={roadmapTab === "graph"}
                   onClick={() => setRoadmapTab("graph")}
                 >
@@ -362,6 +513,7 @@ export function CoreJourney({
                     <label>
                       Học trước
                       <select
+                        aria-label="Học trước"
                         value={parent}
                         onChange={(e) => setParent(e.target.value)}
                       >
@@ -376,6 +528,7 @@ export function CoreJourney({
                     <label>
                       Học sau
                       <select
+                        aria-label="Học sau"
                         value={child}
                         onChange={(e) => setChild(e.target.value)}
                       >
@@ -394,12 +547,6 @@ export function CoreJourney({
                       {graphError}
                     </p>
                   )}
-                  {!mock && (
-                    <p className="hint">
-                      Máy chủ chưa lưu cạnh prerequisite; thay đổi graph chỉ có
-                      hiệu lực trong phiên này.
-                    </p>
-                  )}
                 </section>
               )}
               {page === "Library" ? (
@@ -413,7 +560,12 @@ export function CoreJourney({
                     </button>
                     <button
                       className="primary-action"
-                      disabled={busy || weekly < 25 || weekly > 10080}
+                      disabled={
+                        busy ||
+                        !Number.isInteger(weekly) ||
+                        weekly < 25 ||
+                        weekly > 10080
+                      }
                       onClick={approveRoadmap}
                     >
                       Xác nhận roadmap
@@ -465,7 +617,15 @@ export function CoreJourney({
                   <button onClick={() => setScheduleOpen(false)}>Hủy</button>
                   <button
                     className="primary-action"
-                    disabled={busy || weekly < 25 || daily < 25 || daily > 1440}
+                    disabled={
+                      busy ||
+                      !Number.isInteger(weekly) ||
+                      weekly < 25 ||
+                      weekly > 10080 ||
+                      !Number.isInteger(daily) ||
+                      daily < 25 ||
+                      daily > 1440
+                    }
                     onClick={schedule}
                   >
                     Tạo lịch học
@@ -477,9 +637,16 @@ export function CoreJourney({
         </>
       )}
       {/* Live mode shows the real calendar (Workspace) instead. */}
-      {mock && page === "Schedule" && (
+      {page === "Schedule" && plan && (
         <section className="card core-panel">
-          <h2>S7 · Lịch học</h2>
+          <h2>{mock ? "S7 · Lịch học" : "New roadmap sessions"}</h2>
+          {!!plan?.unscheduled?.length && (
+            <p role="alert">
+              {plan.unscheduled.length} chặng chưa xếp được. Tuần quá tải:{" "}
+              {plan.overloaded_weeks?.join(", ") ||
+                "Hãy tăng thời gian học hoặc kiểm tra giờ rảnh."}
+            </p>
+          )}
           {plan?.sessions.length ? (
             <ul className="core-sessions">
               {plan.sessions.map((s) => (

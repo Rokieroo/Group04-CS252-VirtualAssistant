@@ -169,8 +169,12 @@ class Planner:
         for slot_start, slot_end in free:
             start, end = max(slot_start, not_before), min(slot_end, deadline)
             day = self._day(slot_start)
+            week_start = day - timedelta(days=day.weekday())
+            weekly_used = sum(value for used_day, value in daily_used.items()
+                              if used_day - timedelta(days=used_day.weekday()) == week_start)
             capacity = min(
-                minutes(start, end), limits.daily_limit_minutes - daily_used[day]
+                minutes(start, end), limits.daily_limit_minutes - daily_used[day],
+                getattr(limits, "weekly_limit_minutes", 10080) - weekly_used,
             )
             cursor = start
             while capacity > 0 and remaining > 0:

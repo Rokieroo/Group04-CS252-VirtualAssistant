@@ -21,10 +21,7 @@ const schedule: [string, string] = [
 // Pages the backend serves; Home, Mastery, Ask and Companion open Courses until they exist.
 const headings: Partial<Record<Page, [string, string]>> = {
   Library: ["", ""],
-  Roadmap: [
-    pageLabels.Roadmap,
-    "Weekly steps from your syllabus, with exam milestones.",
-  ],
+  Roadmap: ["", ""],
   Schedule: schedule,
   Sources: [
     pageLabels.Sources,

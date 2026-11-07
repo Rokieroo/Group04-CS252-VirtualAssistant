@@ -275,3 +275,102 @@ test("processing is indeterminate and prevents duplicate submission", async ({
     page.getByRole("heading", { name: "Review your syllabus", exact: true }),
   ).toBeVisible();
 });
+
+test("roadmap edits survive approval and schedule opens S7", async ({
+  page,
+}) => {
+  await backend(page);
+  const nodes = [
+    {
+      id: "a",
+      title: "Problem framing",
+      type: "topic",
+      week: 1,
+      est_minutes: 90,
+      status: "available",
+    },
+    {
+      id: "b",
+      title: "Retrieval",
+      type: "topic",
+      week: 2,
+      est_minutes: 90,
+      status: "locked",
+    },
+  ];
+  let edges: any[] = [];
+  let generated = 0;
+  let saved = 0;
+  await page.route("**/api/v1/**/roadmap:generate", (route) => {
+    generated++;
+    return route.fulfill({ json: { id: "rm1", nodes, edges: [] } });
+  });
+  await page.route("**/api/v1/roadmaps/rm1/edges", (route) => {
+    if (route.request().method() === "POST") {
+      const edge = {
+        ...route.request().postDataJSON(),
+        origin: "user",
+        confidence: 1,
+      };
+      edges.push(edge);
+      saved++;
+      return route.fulfill({ status: 201, json: edge });
+    }
+    return route.fulfill({ json: edges });
+  });
+  await page.route("**/api/v1/roadmaps/rm1:schedule", (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      weekly_minutes: 300,
+      max_daily_minutes: 120,
+    });
+    return route.fulfill({
+      json: {
+        tasks: [{ id: "task-a", title: "Problem framing" }],
+        sessions: [
+          { id: "s1", task_id: "task-a", starts_at: "2030-01-07T09:00:00Z" },
+        ],
+        unscheduled: [],
+        overloaded_weeks: [],
+      },
+    });
+  });
+  await page.goto("/");
+  await paste(page);
+  await page.getByRole("tab", { name: "Đánh giá", exact: true }).click();
+  await page.getByLabel("Trọng số %", { exact: true }).fill("100");
+  await page
+    .getByRole("button", { name: "Xác nhận đề cương", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Tạo roadmap →", exact: true })
+    .click();
+  await page.getByRole("tab", { name: "Graph tiên quyết" }).click();
+  await page.getByLabel("Học trước", { exact: true }).selectOption("a");
+  await page.getByLabel("Học sau", { exact: true }).selectOption("b");
+  await page.getByRole("button", { name: "Thêm cạnh" }).click();
+  await page.getByLabel("Học trước", { exact: true }).selectOption("b");
+  await page.getByLabel("Học sau", { exact: true }).selectOption("a");
+  await page.getByRole("button", { name: "Thêm cạnh" }).click();
+  await expect(page.getByRole("alert")).toContainText("vòng lặp");
+  await page
+    .getByRole("button", { name: "Xác nhận roadmap", exact: true })
+    .click();
+  await expect(page.getByRole("button", {name:"Xem roadmap →",exact:true})).toBeVisible();
+  expect(generated).toBe(1);
+  expect(edges).toHaveLength(1);
+  await page
+    .getByRole("button", { name: "Xem roadmap →", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Xếp vào lịch", exact: true }).click();
+  await page.getByRole("button", { name: "Tạo lịch học", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "New roadmap sessions" }),
+  ).toBeVisible();
+  await expect(page.locator(".core-sessions")).toContainText("Problem framing");
+  expect(saved).toBe(1);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});

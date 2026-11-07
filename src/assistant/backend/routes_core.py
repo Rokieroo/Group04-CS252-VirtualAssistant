@@ -93,10 +93,15 @@ def preview_syllabus(course_id: str, data: SyllabusParseIn, db: DB, user: Curren
         except (InvalidDocument, NotASyllabus):
             raise HTTPException(422, "not_a_syllabus") from None
     else:
-        sources = db.scalars(select(Source).where(
-            Source.course_id == course_id, Source.file_name == data.file_name,
-            Source.kind == "syllabus",
-        ).order_by(Source.page)).all()
+        sources = db.scalars(
+            select(Source)
+            .where(
+                Source.course_id == course_id,
+                Source.file_name == data.file_name,
+                Source.kind == "syllabus",
+            )
+            .order_by(Source.page)
+        ).all()
         if not sources:
             raise HTTPException(404, "no_syllabus_sources")
         if [s.page for s in sources] != list(range(1, len(sources) + 1)):
@@ -114,10 +119,14 @@ def preview_syllabus(course_id: str, data: SyllabusParseIn, db: DB, user: Curren
         raise HTTPException(422, "invalid_syllabus") from None
     result = draft.to_dict()
     if data.kind == "goals":
-        result["warnings"].append(asdict(Warning(
-            "estimated_schedule",
-            "Lịch tuần được chia đều từ mục tiêu của bạn; hãy chỉnh lại cho vừa sức.",
-        )))
+        result["warnings"].append(
+            asdict(
+                Warning(
+                    "estimated_schedule",
+                    "Lịch tuần được chia đều từ mục tiêu của bạn; hãy chỉnh lại cho vừa sức.",
+                )
+            )
+        )
     return {
         **result,
         "file_name": data.file_name,
@@ -229,9 +238,7 @@ def update_syllabus(
     return _save_syllabus(db, course_id, data, syllabus)
 
 
-@router.put(
-    "/courses/{course_id}/syllabus/{syllabus_id}", response_model=SyllabusOut
-)
+@router.put("/courses/{course_id}/syllabus/{syllabus_id}", response_model=SyllabusOut)
 def update_syllabus_by_id(
     course_id: str,
     syllabus_id: str,
@@ -251,8 +258,11 @@ def update_syllabus_by_id(
 def _owned_roadmap(db, roadmap_id: str, user_id: str) -> Roadmap:
     roadmap = db.get(Roadmap, roadmap_id)
     course = roadmap and db.get(Course, roadmap.course_id)
-    if roadmap is None or roadmap.user_id != user_id or course is None or (
-        course.owner_id != user_id
+    if (
+        roadmap is None
+        or roadmap.user_id != user_id
+        or course is None
+        or (course.owner_id != user_id)
     ):
         raise HTTPException(404, "Roadmap not found")
     return roadmap
@@ -380,8 +390,14 @@ def schedule_roadmap(
         return {"roadmap_id": roadmap.id}
     data = data or RoadmapScheduleIn()
     tasks, sessions, plan = plan_roadmap(
-        db, user, roadmap, nodes, data.max_daily_minutes, data.starts_at,
+        db,
+        user,
+        roadmap,
+        nodes,
+        data.max_daily_minutes,
+        data.starts_at,
         request.app.state.now(),
+        weekly_minutes=data.weekly_minutes,
     )
     return {
         "roadmap_id": roadmap.id,
@@ -391,7 +407,6 @@ def schedule_roadmap(
         "unscheduled": plan.unscheduled,
         "overloaded_weeks": plan.overloaded_weeks,
     }
-
 
 
 @router.post("/roadmaps/{roadmap_id}:replan", response_model=RoadmapReplanOut)
@@ -411,14 +426,21 @@ def replan_roadmap(
     roadmap = _owned_roadmap(db, roadmap_id, user.id)
     nodes = _roadmap_nodes(db, roadmap.id)
     if not nodes:
-        return {"roadmap_id": roadmap.id, "diff": {}, "committed": False, "sessions": []}
+        return {
+            "roadmap_id": roadmap.id,
+            "diff": {},
+            "committed": False,
+            "sessions": [],
+        }
 
     now = request.app.state.now()
     should_commit = bool(data and (data.approve or data.commit))
 
     if not should_commit:
         zone = ZoneInfo(user.timezone)
-        user_today_start = now.astimezone(zone).replace(hour=0, minute=0, second=0, microsecond=0)
+        user_today_start = now.astimezone(zone).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
         recent_proposal = db.scalar(
             select(Notification).where(
                 Notification.user_id == user.id,
@@ -484,7 +506,9 @@ def replan_roadmap(
 
     plan_request = PlanRequest(
         starts_at=start,
-        ends_at=min(start + MAX_PLAN_HORIZON, max(latest_due, start + timedelta(days=1))),
+        ends_at=min(
+            start + MAX_PLAN_HORIZON, max(latest_due, start + timedelta(days=1))
+        ),
         min_session_minutes=shortest,
         max_session_minutes=longest,
         daily_limit_minutes=max_daily,
