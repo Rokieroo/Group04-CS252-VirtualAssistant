@@ -16,6 +16,7 @@ import re
 import socket
 import ssl
 import time
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from hashlib import sha256
@@ -31,6 +32,7 @@ __all__ = [
     "DomainThrottle",
     "FetchError",
     "FetchResult",
+    "RateBudgetExceeded",
     "SafeFetcher",
     "pinned_client",
     "public_address",
@@ -141,12 +143,23 @@ def send_pinned(
     return client.send(request, stream=True)
 
 
+class RateBudgetExceeded(Exception):
+    """A domain used up its hourly request budget. It says nothing about any page,
+    so ``SafeFetcher.fetch`` lets it reach the caller instead of returning it."""
+
+    def __init__(self, domain: str):
+        super().__init__(domain)
+        self.domain = domain
+
+
 class DomainThrottle:
     """Spaces requests to each host by the rate of the domain that owns it.
 
     ``rates`` maps a domain to requests per second (``rate_limit_per_sec`` in
     ADR 004); hosts under no listed domain get ``default`` (1 req/s when a
-    provider publishes no limit). Waits count toward a page's timeout.
+    provider publishes no limit). Waits count toward a page's timeout. With
+    ``per_hour``, a request that would make more than that many on one domain
+    within an hour raises :class:`RateBudgetExceeded` instead of waiting.
     """
 
     def __init__(
@@ -154,25 +167,36 @@ class DomainThrottle:
         rates: dict[str, float] | None = None,
         *,
         default: float = 1.0,
+        per_hour: int | None = None,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], None] = time.sleep,
     ):
         self.rates = {d.lower().strip("."): r for d, r in (rates or {}).items()}
         self.default = default
+        self.per_hour = per_hour
         self.clock = clock
         self.sleep = sleep
         self._next: dict[str, float] = {}
+        self._sent: dict[str, deque[float]] = {}  # domain -> request times, oldest first
+
+    def _domain(self, host: str) -> str:
+        """The listed domain that owns ``host``, else the host itself."""
+        host = host.lower().rstrip(".")
+        return next((d for d in self.rates if host == d or host.endswith("." + d)), host)
 
     def interval(self, host: str) -> float:
-        host = host.lower().rstrip(".")
-        rate = next(
-            (r for d, r in self.rates.items() if host == d or host.endswith("." + d)),
-            self.default,
-        )
-        return 1.0 / rate
+        return 1.0 / self.rates.get(self._domain(host), self.default)
 
     def wait(self, host: str) -> None:
         now = self.clock()
+        if self.per_hour is not None:
+            domain = self._domain(host)
+            sent = self._sent.setdefault(domain, deque())
+            while sent and sent[0] <= now - 3600:
+                sent.popleft()
+            if len(sent) >= self.per_hour:
+                raise RateBudgetExceeded(domain)
+            sent.append(now)
         start = max(now, self._next.get(host, now))
         if start > now:
             self.sleep(start - now)

@@ -96,6 +96,25 @@ def register(sub: argparse._SubParsersAction) -> None:
     seed.add_argument("--file", default=str(ROOT / "data/catalog/institutions.csv"))
     seed.set_defaults(func=_seed_institutions)
 
+    snapshot = db_sub.add_parser(
+        "snapshot-catalog",
+        help="xuất catalog dùng chung (không có dữ liệu người dùng) ra một file JSON",
+    )
+    snapshot.add_argument("--out", required=True, help="file JSON sẽ ghi")
+    snapshot.set_defaults(func=_snapshot_catalog)
+
+    catalog = db_sub.add_parser(
+        "seed-catalog", help="nạp một snapshot catalog vào DB (idempotent, gộp theo khóa tự nhiên)"
+    )
+    source = catalog.add_mutually_exclusive_group(required=True)
+    source.add_argument("--file", help="snapshot do `db snapshot-catalog` xuất")
+    source.add_argument(
+        "--sample",
+        action="store_true",
+        help="mẫu đi kèm repo, đủ nguồn cho roadmap CSC10014; chỉ dùng cho máy dev và CI",
+    )
+    catalog.set_defaults(func=_seed_catalog)
+
     init = db_sub.add_parser(
         "init", help="tạo database từ db/schema.sql (mặc định theo DATABASE_URL)"
     )
@@ -109,6 +128,51 @@ def register(sub: argparse._SubParsersAction) -> None:
         "scan-secrets", help="tìm API key, token, private key trong repo"
     )
     scan.set_defaults(func=_scan)
+
+
+def _backend_database():
+    """The backend database of DATABASE_URL (or .env), migrated to head."""
+    from dotenv import load_dotenv
+
+    from assistant.backend.config import Settings
+    from assistant.backend.database import Database
+
+    load_dotenv(ROOT / ".env")
+    database = Database(Settings.from_env().database_url)
+    database.create_schema()
+    return database
+
+
+def _snapshot_catalog(args: argparse.Namespace) -> int:
+    from assistant.backend.catalog_snapshot import export_snapshot, write_snapshot
+    from assistant.backend.models import utcnow
+
+    database = _backend_database()
+    with database.sessions() as db:
+        snapshot = export_snapshot(db, utcnow())
+    write_snapshot(Path(args.out), snapshot)
+    counts = {name: len(rows) for name, rows in snapshot["tables"].items()}
+    print(f"[ OK ] {args.out}: {counts}")
+    return 0
+
+
+def _seed_catalog(args: argparse.Namespace) -> int:
+    from assistant.backend.catalog_snapshot import SAMPLE, load_snapshot, read_snapshot
+    from assistant.backend.models import utcnow
+
+    path = SAMPLE if args.sample else Path(args.file)
+    database = _backend_database()
+    with database.sessions() as db:
+        try:
+            added = load_snapshot(
+                db, read_snapshot(path), utcnow(), restamp_by="seed:sample" if args.sample else None
+            )
+        except ValueError as exc:
+            print(f"[FAIL] {path}: {exc}")
+            return 2
+        db.commit()
+    print(f"[ OK ] {path.name}: thêm {dict(added) or 'không có dòng mới'}")
+    return 0
 
 
 def _seed_institutions(args):

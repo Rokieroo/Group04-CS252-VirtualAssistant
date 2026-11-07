@@ -14,6 +14,7 @@ current roadmap nodes need first, and chains a job for the rest.
 import json
 from collections import Counter
 from datetime import datetime, timedelta
+from functools import lru_cache
 
 from sqlalchemy import and_, case, exists, func, or_, select, update
 from sqlalchemy.orm import Session, aliased
@@ -21,7 +22,7 @@ from sqlalchemy.orm import Session, aliased
 from app.catalog import verification as rules
 from app.catalog.sources import Sources, load_sources
 from app.vetting.document import readable_pages
-from app.vetting.fetch import DomainThrottle, SafeFetcher
+from app.vetting.fetch import DomainThrottle, RateBudgetExceeded, SafeFetcher
 from app.vetting.policy import default_policy
 
 from .catalog_models import (
@@ -30,14 +31,17 @@ from .catalog_models import (
     ResourceSubject,
     ResourceVerification,
 )
+from .catalog_repository import REMATCH, current_nodes
 from .exercise_repository import harvest_catalog_exercises
 from .jobs import NetworkDown, enqueue, handler
-from .models import CatalogCourse, NodeResource, Resource, Roadmap, RoadmapNode
+from .models import CatalogCourse, NodeResource, Resource
 
 KIND = "verify_catalog"
 CHECKED_BY = "job:" + KIND
 BATCH = 20  # worst case 20 x 10 s fetches stays inside the 10-minute job lease
 RETRY_AFTER = timedelta(hours=24)  # after a fetch nobody answered
+REQUESTS_PER_HOUR = 1200  # per domain and worker, for every catalog job (#105)
+BUDGET_WAIT = timedelta(hours=1)  # a domain's spent budget is whole again after this
 OPEN = ("pending", "stale")  # statuses the job (re)verifies
 ADMIN = "admin"  # check name of a reviewer's rejection
 
@@ -76,24 +80,15 @@ def _awaiting_review():
     )
 
 
-def _current_nodes():
-    """Nodes of each course's newest roadmap, the one its learner follows."""
-    newer = aliased(Roadmap)
-    current = select(Roadmap.id).where(
-        ~exists().where(newer.course_id == Roadmap.course_id, newer.created_at > Roadmap.created_at)
-    )
-    return select(RoadmapNode.id).where(RoadmapNode.roadmap_id.in_(current))
-
-
 def _demand():
     """0: shown on a current node; 1: shares a label with one; 2: no node needs it."""
     shown = exists().where(
         NodeResource.resource_id == Resource.id,
         NodeResource.status == "shown",
-        NodeResource.node_id.in_(_current_nodes()),
+        NodeResource.node_id.in_(current_nodes()),
     )
     wanted = select(NodeSubject.subject_id).where(
-        NodeSubject.node_id.in_(_current_nodes()),
+        NodeSubject.node_id.in_(current_nodes()),
         NodeSubject.confidence >= rules.LABEL_CONFIDENCE,
     )
     needed = exists().where(
@@ -238,28 +233,51 @@ def verify_resource(
     return "retry" if any(c.result == rules.ERROR for c in checks) else "review"
 
 
+@lru_cache(maxsize=4)
+def _shared_throttle(rates: tuple[tuple[str, float], ...]) -> DomainThrottle:
+    """One per worker process, so spacing and the hourly budget hold across the
+    catalog jobs a worker runs back to back, not only within one of them."""
+    return DomainThrottle(dict(rates), per_hour=REQUESTS_PER_HOUR)
+
+
 def open_fetcher(sources: Sources) -> SafeFetcher:
     """Robots-aware, SSRF-safe, spaced per domain at the registry's rates."""
-    return SafeFetcher(throttle=DomainThrottle(sources.rate_limits()))
+    return SafeFetcher(throttle=_shared_throttle(tuple(sorted(sources.rate_limits().items()))))
 
 
 @handler(KIND)
 def verify_catalog(db: Session, payload: dict, now: datetime) -> dict:
-    """Mark expired passes stale, then verify one batch; chain a job for the rest."""
+    """Mark expired passes stale, then verify one batch; chain a job for the rest.
+
+    The chain counts what it verified, and its last job has the nodes still short
+    of sources matched again (#105), so new sources reach learners without a wait.
+    """
     stale = mark_stale(db, now)
     batch = due(db, now)
     sources = load_sources()
     domains = known_domains(db, sources)
+    outcomes, deferred = Counter(), False
     with open_fetcher(sources) as fetcher:
-        outcomes = Counter(
-            verify_resource(db, r.id, now, fetcher=fetcher, sources=sources, domains=domains)
-            for r in batch
-        )
-    if len(batch) >= 3 and outcomes["retry"] == len(batch):
+        for resource in batch:
+            try:
+                outcomes[
+                    verify_resource(
+                        db, resource.id, now, fetcher=fetcher, sources=sources, domains=domains
+                    )
+                ] += 1
+            except RateBudgetExceeded:
+                deferred = True  # raised before the resource was touched
+                break
+    checked = sum(outcomes.values())
+    if checked >= 3 and outcomes["retry"] == checked:
         raise NetworkDown  # rolled back, so nothing is recorded; retried with backoff
-    if len(batch) == BATCH:
-        enqueue(db, KIND, now=now)
-    return {"stale": stale, "checked": len(batch), **outcomes}
+    verified = payload.get("verified", 0) + outcomes["verified"]
+    if deferred or len(batch) == BATCH:
+        later = now + BUDGET_WAIT if deferred else None
+        enqueue(db, KIND, {"verified": verified}, now=now, run_after=later)
+    elif verified:
+        enqueue(db, REMATCH, now=now)
+    return {"stale": stale, "checked": checked, "deferred": deferred, **outcomes}
 
 
 # --- people ------------------------------------------------------------------------
