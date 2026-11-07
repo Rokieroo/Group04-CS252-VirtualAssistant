@@ -13,6 +13,7 @@
   --color-bg: light-dark(#f6f8fc, #0f1626);
   --color-surface: light-dark(#ffffff, #182238);
   --color-surface-alt: light-dark(#f8fafd, #1e2a44);
+  --color-avatar: light-dark(#8993a5, #a3b0c7);
   --color-text: light-dark(#182439, #e8edf7);
   --color-muted: light-dark(#66748a, #a3b0c7);
   --color-line: light-dark(#e6eaf2, #2c3956);
@@ -395,7 +396,7 @@ main {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--gradient-glow);
+  background: var(--color-avatar);
   flex-shrink: 0;
 }
 .icon-button .avatar {
@@ -453,7 +454,7 @@ main {
     var(--gradient-brand) border-box;
 }
 .hero .ai-symbol {
-  background: var(--gradient-brand);
+  background: var(--gradient-action, var(--gradient-brand));
   color: var(--color-on-primary);
   box-shadow: var(--shadow-glow);
 }
@@ -506,7 +507,7 @@ main {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: var(--gradient-brand);
+  background: var(--gradient-action, var(--gradient-brand));
   pointer-events: none;
 }
 :is(.button.primary, .primary-action, .auth-submit)::after {
@@ -574,7 +575,7 @@ main {
   top: 21px;
   bottom: 21px;
   width: 5px;
-  background: var(--gradient-brand);
+  background: var(--gradient-vertical, var(--gradient-brand));
   border-radius: 3px;
 }
 .session.amber:before {

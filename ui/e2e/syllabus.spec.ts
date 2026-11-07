@@ -355,7 +355,9 @@ test("roadmap edits survive approval and schedule opens S7", async ({
   await page
     .getByRole("button", { name: "Xác nhận roadmap", exact: true })
     .click();
-  await expect(page.getByRole("button", {name:"Xem roadmap →",exact:true})).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Xem roadmap →", exact: true }),
+  ).toBeVisible();
   expect(generated).toBe(1);
   expect(edges).toHaveLength(1);
   await page
@@ -373,4 +375,59 @@ test("roadmap edits survive approval and schedule opens S7", async ({
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+});
+
+test("gradient fills survive scoped styles while account circles stay neutral", async ({
+  page,
+}) => {
+  await backend(page);
+  await page.goto("/");
+  const settings = page.getByRole("button", {
+    name: "Account settings",
+    exact: true,
+  });
+  const avatars = page.locator(".avatar");
+  const avatarBackgrounds = () =>
+    avatars.evaluateAll((elements) =>
+      elements.map((element) => getComputedStyle(element).background),
+    );
+  await settings.click();
+  await page.getByText("Light", { exact: true }).click();
+  await page.getByText("Violet", { exact: true }).click();
+  const neutralLight = await avatarBackgrounds();
+  await page.getByText("Visible Spectrum", { exact: true }).click();
+  expect(await avatarBackgrounds()).toEqual(neutralLight);
+  await page.getByRole("button", { name: "Close dialog" }).click();
+  const action = page.locator(".core-drop .primary-action");
+  const face = await action.evaluate(
+    (element) => getComputedStyle(element, "::after").backgroundImage,
+  );
+  expect(face).toContain("rgb(0, 255, 118)");
+  expect(face).toContain("rgb(255, 242, 0)");
+  expect(
+    await page
+      .locator(".core-upload")
+      .evaluate((element) => getComputedStyle(element).backgroundImage),
+  ).toContain("linear-gradient");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-accent",
+    "visible-spectrum",
+  );
+  await settings.click();
+  await page.getByText("Dark", { exact: true }).click();
+  const neutralDark = await avatarBackgrounds();
+  await page.getByText("Neon Aura", { exact: true }).click();
+  expect(await avatarBackgrounds()).toEqual(neutralDark);
+  await page.getByText("Ocean", { exact: true }).click();
+  await expect(page.locator("html")).not.toHaveAttribute(
+    "data-gradient",
+    "true",
+  );
+  await page.getByRole("button", { name: "Close dialog" }).click();
+  expect(
+    await page
+      .locator(".core-upload")
+      .evaluate((element) => getComputedStyle(element).backgroundImage),
+  ).toBe("none");
 });

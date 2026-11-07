@@ -14,7 +14,8 @@ export const THEMES = [
   { id: "dark", label: "Dark" },
 ] as const;
 
-export type Accent = (typeof ACCENTS)[number]["id"] | (typeof GRADIENTS)[number]["id"];
+export type Accent =
+  (typeof ACCENTS)[number]["id"] | (typeof GRADIENTS)[number]["id"];
 export type Theme = (typeof THEMES)[number]["id"];
 export type Appearance = { accent: Accent; theme: Theme };
 
@@ -82,14 +83,57 @@ export function applyAppearance(
   root: HTMLElement = document.documentElement,
 ) {
   root.dataset.accent = appearance.accent;
-  const gradient = GRADIENTS.find((g) => g.id === appearance.accent);
+  const gradient = GRADIENTS.find((item) => item.id === appearance.accent);
   if (gradient) {
-    const colors = gradient.colors as readonly string[];
-    root.style.setProperty("--gradient-brand", `linear-gradient(90deg, ${colors.join(", ")})`);
-    root.style.setProperty("--accent-a", `color-mix(in oklab, ${colors[0]} 40%, #101828)`);
-    root.style.setProperty("--accent-b", `color-mix(in oklab, ${colors[colors.length - 1]} 40%, #101828)`);
+    const colors: readonly string[] = gradient.colors;
+    const fullGradient = `linear-gradient(90deg, ${colors.join(", ")})`;
+    const surfaceColors = colors.map(
+      (color) =>
+        `light-dark(color-mix(in oklab, ${color} 10%, white), color-mix(in oklab, ${color} 14%, #182238))`,
+    );
+    const textColors = colors.map(
+      (color) =>
+        `light-dark(color-mix(in oklab, ${color} 35%, #101828), color-mix(in oklab, ${color} 45%, white))`,
+    );
+    root.dataset.gradient = "true";
+    root.style.setProperty("--gradient-brand", fullGradient);
+    root.style.setProperty(
+      "--gradient-vertical",
+      `linear-gradient(180deg, ${colors.join(", ")})`,
+    );
+    // The veil keeps white button text readable even over yellow and cyan stops.
+    root.style.setProperty(
+      "--gradient-action",
+      `linear-gradient(#0009, #0009), ${fullGradient}`,
+    );
+    root.style.setProperty(
+      "--gradient-wash",
+      `linear-gradient(90deg, ${surfaceColors.join(", ")})`,
+    );
+    root.style.setProperty(
+      "--gradient-text",
+      `linear-gradient(90deg, ${textColors.join(", ")})`,
+    );
+    root.style.setProperty(
+      "--accent-a",
+      `color-mix(in oklab, ${colors[0]} 40%, #101828)`,
+    );
+    root.style.setProperty(
+      "--accent-b",
+      `color-mix(in oklab, ${colors[colors.length - 1]} 40%, #101828)`,
+    );
   } else {
-    for (const token of ["--gradient-brand", "--accent-a", "--accent-b"]) root.style.removeProperty(token);
+    delete root.dataset.gradient;
+    for (const token of [
+      "--gradient-brand",
+      "--gradient-vertical",
+      "--gradient-action",
+      "--gradient-wash",
+      "--gradient-text",
+      "--accent-a",
+      "--accent-b",
+    ])
+      root.style.removeProperty(token);
   }
   if (appearance.theme === "system") delete root.dataset.theme;
   else root.dataset.theme = appearance.theme;
