@@ -102,6 +102,8 @@ Mọi lệnh chạy từ thư mục gốc repo, không cần cài thêm: `python
 | AI | `python dev.py ai syllabus-preview <file.pdf/docx/txt> [--llm]` | Xem trước syllabus, kiểm tra trang nguồn; mặc định offline ([bàn giao](docs/progress/phase2/minh-syllabus-preview.md)) |
 | Database & Security | `python dev.py db init [--reset]` | Tạo database SQLite cục bộ từ `db/schema.sql` |
 | Database & Security | `python dev.py db seed-institutions` | Nạp registry ROR/OpenAlex tái lập (#96) |
+| Database & Security | `python dev.py db seed-catalog --sample` | Nạp catalog mẫu đủ nguồn cho roadmap CSC10014 (máy dev, CI); chạy lại không tạo dòng mới (#105) |
+| Database & Security | `python dev.py db snapshot-catalog --out <file.json>` / `seed-catalog --file <file.json>` | Xuất / nạp snapshot catalog dùng chung, không có dữ liệu người dùng (#105) |
 | Database & Security | `python dev.py db scan-secrets` | Tìm API key, token, private key trong repo |
 | QA/QC | `python dev.py qa test [-k từ_khóa]` | Chạy pytest |
 | QA/QC | `python dev.py qa lint` | Chạy ruff |
@@ -121,7 +123,7 @@ cp .env.example .env       # điền LLM_API_KEY, YOUTUBE_API_KEY, SEARCH_API_KE
 docker compose up --build -d
 ```
 
-Không có API key thì để `LLM_PROVIDER=fake`: luồng vẫn chạy với dữ liệu giả lập để phát triển và test. Frontend:
+Service `catalog-seed` nạp catalog mẫu một lần, nên tải syllabus CSC10014 là roadmap có nguồn catalog ngay. Không có API key thì để `LLM_PROVIDER=fake`: luồng vẫn chạy với dữ liệu giả lập để phát triển và test. Frontend:
 
 ```bash
 python dev.py ui install
