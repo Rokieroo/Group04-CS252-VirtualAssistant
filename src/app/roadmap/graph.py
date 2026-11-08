@@ -244,6 +244,7 @@ def would_create_cycle(edges: Iterable[Any], parent: str, child: str) -> list[st
                 stack.append(target)
     return None
 
+
 def transitive_reduction(
     nodes: Iterable[Any], edges: Iterable[Any]
 ) -> list[Any]:
@@ -351,20 +352,6 @@ def local_graph(
     if center_id not in ordered_nodes:
         ordered_nodes.append(center_id)
     return ordered_nodes, subgraph_edges
-
-
-def learning_path(
-    nodes: Iterable[Any], edges: Iterable[Any], target_id: str
-) -> list[str]:
-    """All ancestors of `target_id` in topological order (#97)."""
-    ids, _, _ = _adjacency(nodes, edges)
-    known = set(ids)
-    if target_id not in known:
-        return []
-    ancestors, _ = local_graph(ids, edges, target_id, depth=len(ids) + 1, direction="ancestors")
-    ancestor_set = set(ancestors)
-    full_order = topological_sort(ids, edges)
-    return [nid for nid in full_order if nid in ancestor_set]
 
 
 def layers(

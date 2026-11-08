@@ -3522,66 +3522,6 @@
             }
           }
         }
-      },
-      "post": {
-        "tags": [
-          "Node learning and graph"
-        ],
-        "summary": "Add Edge",
-        "description": "Add directed dependency edge to roadmap DAG (issue #103).",
-        "operationId": "add_edge_api_v1_roadmaps__roadmap_id__edges_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "roadmap_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Roadmap Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EdgeIn"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "409": {
-            "description": "Dependency cycle detected"
-          },
-          "429": {
-            "description": "Rate limit exceeded"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
       }
     },
     "/api/v1/roadmaps/{roadmap_id}/graph/edges": {
@@ -3590,7 +3530,7 @@
           "Node learning and graph"
         ],
         "summary": "Add Edge",
-        "description": "Add directed dependency edge to roadmap DAG (issue #103).",
+        "description": "Add a prerequisite edge; one that would close a cycle is a 409 with its path.",
         "operationId": "add_edge_api_v1_roadmaps__roadmap_id__graph_edges_post",
         "security": [
           {
@@ -3646,72 +3586,12 @@
         }
       }
     },
-    "/api/v1/roadmaps/{roadmap_id}/edges/{parent_id}/{child_id}": {
-      "delete": {
-        "tags": [
-          "Node learning and graph"
-        ],
-        "summary": "Remove Edge",
-        "description": "Remove directed dependency edge from roadmap DAG (issue #103).",
-        "operationId": "remove_edge_api_v1_roadmaps__roadmap_id__edges__parent_id___child_id__delete",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "roadmap_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Roadmap Id"
-            }
-          },
-          {
-            "name": "parent_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Parent Id"
-            }
-          },
-          {
-            "name": "child_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Child Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/roadmaps/{roadmap_id}/graph/edges/{parent_id}/{child_id}": {
       "delete": {
         "tags": [
           "Node learning and graph"
         ],
         "summary": "Remove Edge",
-        "description": "Remove directed dependency edge from roadmap DAG (issue #103).",
         "operationId": "remove_edge_api_v1_roadmaps__roadmap_id__graph_edges__parent_id___child_id__delete",
         "security": [
           {
@@ -3751,116 +3631,8 @@
           "204": {
             "description": "Successful Response"
           },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/roadmaps/{roadmap_id}/layout": {
-      "put": {
-        "tags": [
-          "Node learning and graph"
-        ],
-        "summary": "Put Layout",
-        "description": "Save graph layout coordinates for user (issue #103).",
-        "operationId": "put_layout_api_v1_roadmaps__roadmap_id__layout_put",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "roadmap_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Roadmap Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "anyOf": [
-                  {
-                    "type": "array",
-                    "items": {
-                      "$ref": "#/components/schemas/PositionIn"
-                    }
-                  },
-                  {
-                    "$ref": "#/components/schemas/LayoutIn"
-                  }
-                ],
-                "title": "Data"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "tags": [
-          "Node learning and graph"
-        ],
-        "summary": "Get Layout",
-        "description": "Get graph layout coordinates for user (issue #103).",
-        "operationId": "get_layout_api_v1_roadmaps__roadmap_id__layout_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "roadmap_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Roadmap Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
+          "429": {
+            "description": "Rate limit exceeded"
           },
           "422": {
             "description": "Validation Error",
@@ -3881,7 +3653,7 @@
           "Node learning and graph"
         ],
         "summary": "Put Layout",
-        "description": "Save graph layout coordinates for user (issue #103).",
+        "description": "Save this user's node positions: a bare list (spec 8) or the older {positions}.",
         "operationId": "put_layout_api_v1_roadmaps__roadmap_id__graph_layout_put",
         "security": [
           {
@@ -3909,7 +3681,8 @@
                     "type": "array",
                     "items": {
                       "$ref": "#/components/schemas/PositionIn"
-                    }
+                    },
+                    "maxItems": 1000
                   },
                   {
                     "$ref": "#/components/schemas/LayoutIn"
@@ -3946,7 +3719,6 @@
           "Node learning and graph"
         ],
         "summary": "Get Layout",
-        "description": "Get graph layout coordinates for user (issue #103).",
         "operationId": "get_layout_api_v1_roadmaps__roadmap_id__graph_layout_get",
         "security": [
           {
@@ -5136,48 +4908,12 @@
       },
       "EdgeIn": {
         "properties": {
-          "parent_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parent Id"
-          },
-          "child_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Child Id"
-          },
           "parent": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Parent"
           },
           "child": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Child"
           },
           "kind": {
@@ -5198,7 +4934,12 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "EdgeIn"
+        "required": [
+          "parent",
+          "child"
+        ],
+        "title": "EdgeIn",
+        "description": "``parent``/``child`` as in spec 8; the older ``parent_id``/``child_id`` still parse."
       },
       "EntryOut": {
         "properties": {
@@ -5623,28 +5364,6 @@
             "type": "string",
             "title": "Reason",
             "default": ""
-          },
-          "parent_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Parent Id"
-          },
-          "child_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Child Id"
           }
         },
         "type": "object",
@@ -5662,18 +5381,11 @@
           },
           "type": {
             "type": "string",
-            "title": "Type"
-          },
-          "kind": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
+            "enum": [
+              "topic",
+              "milestone"
             ],
-            "title": "Kind"
+            "title": "Type"
           },
           "title": {
             "type": "string",

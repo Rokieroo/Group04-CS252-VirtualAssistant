@@ -257,7 +257,7 @@ def test_edge_modifications_trigger_replan_notification(app, client, headers, co
 
 
 def test_rate_limiting_edge_edits(app, client, headers, course_and_roadmap):
-    from assistant.backend.routes_learning import _edge_edit_history
+    from assistant.backend.routes_learning import _edge_edits
 
     _, roadmap = course_and_roadmap
     roadmap_id = roadmap["id"]
@@ -274,8 +274,8 @@ def test_rate_limiting_edge_edits(app, client, headers, course_and_roadmap):
 
     # Fill rate limiter to 120 with app.state.now() timestamp
     now_ts = app.state.now().timestamp()
-    for uid in list(_edge_edit_history.keys()):
-        _edge_edit_history[uid] = [now_ts] * 120
+    for uid in list(_edge_edits.keys()):
+        _edge_edits[uid] = [now_ts] * 120
 
     # 121st request must trigger 429
     res_blocked = client.post(
@@ -286,7 +286,7 @@ def test_rate_limiting_edge_edits(app, client, headers, course_and_roadmap):
     assert res_blocked.status_code == 429
 
     # Clean up history for remaining tests
-    _edge_edit_history.clear()
+    _edge_edits.clear()
 
 
 def test_graph_and_layout_user_isolation(client, headers, headers_b, course_and_roadmap):

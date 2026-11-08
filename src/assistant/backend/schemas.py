@@ -580,12 +580,10 @@ class RoadmapOut(Output):
     nodes: list[RoadmapNodeOut] = Field(default_factory=list)
 
 
-
-# --- Roadmap Knowledge Graph (issue #103, spec 8, UC-03) ---------------------
+# --- Roadmap knowledge graph (issue #103, spec 8, UC-03) ---------------------
 class GraphNodeOut(BaseModel):
     id: str
-    type: str
-    kind: str | None = None
+    type: Literal["topic", "milestone"]
     title: str
     week: int | None = None
     est_minutes: int | None = None
@@ -606,8 +604,6 @@ class GraphEdgeOut(BaseModel):
     origin: str = "user"
     confidence: float = 1.0
     reason: str = ""
-    parent_id: str | None = None
-    child_id: str | None = None
 
 
 class RoadmapGraphOut(BaseModel):
