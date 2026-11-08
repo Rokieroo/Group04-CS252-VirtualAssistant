@@ -310,3 +310,9 @@ def test_admin_reviews_the_queue_with_a_reason(app, client, headers, account, cl
             ("admin", "fail"), *((c, "pass") for c in sorted(rules.CHECKS))]
         assert all('"reason"' in r.details for r in admin_rows)
     assert client.get(f"{base}/review-queue", headers=headers).json()["resources"] == []
+
+
+def test_review_queue_empty_optimization(app, client):
+    with app.state.database.sessions() as db:
+        # With no open review resources, review_queue returns empty list directly
+        assert catalog_verification.review_queue(db) == []

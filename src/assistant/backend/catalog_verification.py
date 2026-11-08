@@ -293,6 +293,8 @@ def review_queue(db: Session, limit: int = 100) -> list[dict]:
             .limit(limit)
         )
     )
+    if not resources:
+        return []
     last = {}
     for row in db.scalars(
         select(ResourceVerification)

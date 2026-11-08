@@ -188,7 +188,7 @@ def propose_concepts(
         raise HTTPException(404, "no_sources")
     # A re-run revises what was proposed before rather than starting over.
     previous = [{**row, "source_pages": json.loads(row["source_pages"] or "[]"),
-                 "source_refs": json.loads(row["source_refs"])}
+                 "source_refs": json.loads(row["source_refs"] or "[]")}
                 for row in db.execute(text(
                     "SELECT slug, title, summary, source_pages, source_refs FROM concepts "
                     "WHERE course_id = :course_id"), {"course_id": course_id}).mappings()]
@@ -222,7 +222,7 @@ def course_concept(db, course_id: str, concept_id: str) -> dict:
     if row is None:
         raise HTTPException(404, "Concept not found")
     return {**row, "source_pages": json.loads(row["source_pages"] or "[]"),
-            "source_refs": json.loads(row["source_refs"])}
+            "source_refs": json.loads(row["source_refs"] or "[]")}
 
 
 def concept_items(db, concept_id: str) -> list[dict]:
