@@ -181,3 +181,20 @@ Every resource search the worker runs (job `search_resources`) is logged: one `r
    ```
 2. Sign in as that user and open `#costs`. Other users get `403 admin_only`.
 3. Watch `LLM calls today` against the Gemini free tier (about 20 requests per model per day) and each provider's `Today` column against its quota.
+
+### Step 6: Catalog Jobs and Snapshots (#105)
+
+The worker grows the shared catalog where roadmaps lack sources; nothing runs inside an API request.
+
+| Job | When | What it does |
+| --- | --- | --- |
+| `fill_gaps` | nightly, 19:00 UTC (02:00 in Vietnam) | Re-matches `insufficient` nodes, then queues `ingest_catalog` per connector and subject they still lack (dedupe: connector + subject + day) |
+| `ingest_catalog` | from `fill_gaps`; monthly for every connector and subject | Reads one connector for one subject, at most ~8 minutes; a failing connector only fails its own jobs; queues `verify_catalog` for new sources |
+| `verify_catalog` | daily and after an ingest | Marks verified sources older than 30 days `stale` and re-checks them; its last batch queues `rematch_sources` |
+| `rematch_sources` | after verification | Selects sources again for `insufficient` nodes and records the gap count before and after |
+
+Requests are spaced per domain at `rate_limit_per_sec` and capped at 1,200 per domain per hour for each worker; a job that hits the cap stops and the rest waits for the next run.
+
+- **Health**: `GET /api/v1/admin/catalog/health?days=7` (also under `#costs`): insufficient nodes per subject, sources per status, connector failures, dead links and each gap run's before/after count.
+- **Copy the catalog to staging**: `python dev.py db snapshot-catalog --out catalog.json` on a machine with a verified catalog, then `python -m devcli db seed-catalog --file catalog.json` on staging (`docker compose exec api ...` locally). Only shared rows travel; a load merges by natural key and is safe to repeat. Sources whose checks are older than 30 days arrive as they are and the worker re-verifies them.
+- **Dev and CI**: `python dev.py db seed-catalog --sample` (Compose service `catalog-seed` runs it) loads `data/catalog/snapshots/csc10014-sample.json`, re-stamped as freshly checked by `seed:sample`. Never use `--sample` on staging.

@@ -6,6 +6,7 @@ from uuid import uuid4
 from sqlalchemy import text
 
 from app.catalog.exercises import exact, extract_numbered, from_offsets
+from app.concepts.normalize import pages_in
 from app.retrieval import retrieve_top_k
 
 TOP_K = 3
@@ -13,13 +14,13 @@ MAX_ITEMS = 5
 
 
 def pick_pages(concept: dict, sources: list[dict]) -> list[dict]:
-    """Top-3 BM25 pages for the concept, ranked among the pages it cites (``source_pages``)
-    when it has any, else among all pages; its other cited pages fill the rest."""
-    cited = set(concept.get("source_pages") or [])
+    """Top-3 BM25 pages for the concept, ranked among the pages it cites in their own file
+    (``source_refs``, see pages_in) when it has any, else among all pages; its other cited
+    pages fill the rest."""
     own = [
         {"id": str(s["id"]), "page": s["page"], "text": s["text"]}
         for s in sources
-        if s["page"] in cited
+        if s["page"] in pages_in(concept, s.get("file_name"))
     ]
     hits = retrieve_top_k(
         f"{concept['title']} {concept['summary']}", own or sources, top_k=TOP_K

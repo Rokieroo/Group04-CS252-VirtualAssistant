@@ -683,6 +683,51 @@ class CostReport(Output):
     daily: list[DailyCost]
 
 
+# --- Catalog health (issue #105) ---------------------------------------------
+
+
+class SubjectGap(Output):
+    subject_id: str
+    name: str
+    nodes: int  # insufficient nodes carrying this label
+
+
+class ConnectorHealth(Output):
+    connector: str
+    runs: int
+    errors: int  # provider failures and runs cut short by a budget
+    created: int  # new resources
+    last_run_at: datetime | None
+    last_error: str | None
+
+
+class DeadLink(Output):
+    id: str
+    title: str
+    url: str
+    http_status: int | None
+    last_checked_at: datetime | None
+
+
+class GapRun(Output):
+    kind: Literal["fill_gaps", "rematch_sources"]
+    at: datetime
+    insufficient_before: int
+    insufficient_after: int
+    ingest_jobs: int
+
+
+class CatalogHealth(Output):
+    days: int
+    insufficient_nodes: int
+    gaps: list[SubjectGap]  # most nodes first
+    resources: dict[str, int]  # verification status -> catalog resources
+    connectors: list[ConnectorHealth]
+    dead_links: int
+    dead: list[DeadLink]  # most recently checked first
+    gap_runs: list[GapRun]  # newest first
+
+
 # --- Resources & Feedback (issue #65, spec 8.5-8.7) -------------------------
 
 

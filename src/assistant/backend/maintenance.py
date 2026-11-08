@@ -1,5 +1,6 @@
 """Daily upkeep jobs: re-check the links learners see (spec 11.7), verify the shared
-catalog (#101, ``catalog_verification``) and prune old rows."""
+catalog (#101, ``catalog_verification``), grow it where nodes lack sources (#105,
+``catalog_jobs``) and prune old rows."""
 
 from datetime import datetime, timedelta
 
@@ -8,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app import vetting
 
-from . import catalog_verification  # registers verify_catalog
+from . import catalog_jobs, catalog_verification  # register their job handlers
 from .jobs import NetworkDown, enqueue, handler
 from .models import Job, NodeResource, Resource, SearchCacheEntry
 
@@ -24,6 +25,7 @@ def schedule_daily(db: Session, now: datetime) -> None:
     today = now.date().isoformat()
     for kind in DAILY:
         enqueue(db, kind, now=now, dedupe_key=f"{kind}:{today}")
+    catalog_jobs.schedule_nightly(db, now)
 
 
 @handler("check_links")

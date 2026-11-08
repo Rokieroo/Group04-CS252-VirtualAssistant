@@ -20,7 +20,7 @@ from sqlalchemy import text
 from app.llm import LLMClient, RetryableError
 from app.llm.blocks import BLOCKS
 
-from .normalize import merge, normalize, slugify
+from .normalize import merge, normalize, slugify, source_refs
 
 log = logging.getLogger("app.concepts")
 
@@ -191,19 +191,24 @@ def consolidate(llm: LLMClient, candidates: list[dict]) -> list[dict]:
     return kept[:MAX_CONCEPTS]
 
 
-def save_concepts(db, course_id: str, concepts: list[dict]) -> list[dict]:
+def save_concepts(db, course_id: str, concepts: list[dict],
+                  file_name: str | None = None) -> list[dict]:
     """Store proposals as unconfirmed; an existing concept gains pages, and when a proposal
     revises it (same slug) while still unconfirmed, also its title, summary and bloom level.
     A confirmed concept keeps the user's wording.
 
+    ``file_name`` is the deck the proposals were read from: their pages are recorded in
+    ``source_refs`` too, since two decks of one course share page numbers.
     ``db`` is a SQLAlchemy Session or Connection; the caller commits.
-    shortcut: source_pages has no file name, so two decks of one course share page numbers;
-    add a source_file column when a course holds more than one deck.
     """
     rows = db.execute(text(
-        "SELECT id, slug, title, summary, bloom_level, source_pages, confirmed FROM concepts "
-        "WHERE course_id = :course_id"), {"course_id": course_id}).mappings()
-    stored = [{**row, "source_pages": json.loads(row["source_pages"] or "[]")} for row in rows]
+        "SELECT id, slug, title, summary, bloom_level, source_pages, source_refs, confirmed "
+        "FROM concepts WHERE course_id = :course_id"), {"course_id": course_id}).mappings()
+    stored = [{**row, "source_pages": json.loads(row["source_pages"] or "[]"),
+               "source_refs": json.loads(row["source_refs"])} for row in rows]
+    if file_name is not None:
+        concepts = [{**c, "source_refs": source_refs(file_name, c["source_pages"])}
+                    for c in concepts]
     revised = {c["slug"]: c for c in concepts}
     result = merge(concepts, stored)
     for concept in result:
@@ -212,18 +217,20 @@ def save_concepts(db, course_id: str, concepts: list[dict]) -> list[dict]:
             concept.update(title=new["title"], summary=new["summary"],
                            bloom_level=new["bloom_level"])
         params = {**concept, "course_id": course_id,
-                  "source_pages": json.dumps(concept["source_pages"])}
+                  "source_pages": json.dumps(concept["source_pages"]),
+                  "source_refs": json.dumps(concept.get("source_refs", []), ensure_ascii=False)}
         if "id" in concept:
             db.execute(text(
                 "UPDATE concepts SET title = :title, summary = :summary, "
-                "bloom_level = :bloom_level, source_pages = :source_pages WHERE id = :id"),
+                "bloom_level = :bloom_level, source_pages = :source_pages, "
+                "source_refs = :source_refs WHERE id = :id"),
                 params)
         else:
             concept["id"] = params["id"] = str(uuid4())
             db.execute(text(
                 "INSERT INTO concepts (id, course_id, slug, title, summary, bloom_level, "
-                "source_pages, confirmed) VALUES (:id, :course_id, :slug, :title, :summary, "
-                ":bloom_level, :source_pages, 0)"), params)
+                "source_pages, source_refs, confirmed) VALUES (:id, :course_id, :slug, :title, "
+                ":summary, :bloom_level, :source_pages, :source_refs, 0)"), params)
     return result
 
 

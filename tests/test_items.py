@@ -43,6 +43,15 @@ def test_extraction_never_invokes_a_model_and_uses_cited_pages():
     )
 
 
+def test_cited_pages_are_matched_in_their_own_file():
+    decks = [{**SOURCES[0], "file_name": "week01.pdf"},
+             {"id": "s2", "file_name": "week02.pdf", "page": 1, "text": TEXT}]
+    cited = {**CONCEPT, "source_refs": [{"file_name": "week02.pdf", "page": 1}]}
+    assert [p["id"] for p in pick_pages(cited, decks)] == ["s2"]
+    # Concepts saved before files were recorded still cite page 1 of every file.
+    assert {p["id"] for p in pick_pages(CONCEPT, decks)} == {"s1", "s2"}
+
+
 @pytest.mark.parametrize("index", range(10))
 def test_ten_fabricated_questions_are_rejected(index):
     proposal = {
