@@ -5,11 +5,11 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 from sqlalchemy import delete, select
-from sqlalchemy.exc import IntegrityError
+
+from app.planner import merge, minutes
 
 from .dependencies import DB, CurrentUser
 from .models import Availability, BusyBlock, Notification, ScheduleEntry, Task, User
-from .scheduler import merge, minutes
 from .schemas import (
     AvailabilityPut,
     BusyCreate,
@@ -29,7 +29,7 @@ from .services import (
     serialize_schedule_changes,
 )
 
-router = APIRouter(prefix="/api", tags=["Schedule"])
+router = APIRouter(tags=["Schedule"])
 
 
 @router.put("/availability", response_model=list[WindowOut])
@@ -201,7 +201,6 @@ def weekly_report(
 
 
 @router.get("/notifications", response_model=list[NotificationOut], tags=["Reminders"])
-@serialize_schedule_changes
 def notifications(
     request: Request,
     db: DB,
@@ -209,38 +208,10 @@ def notifications(
     unread_only: bool = False,
     limit: int = Query(default=100, ge=1, le=500),
 ):
-    now = request.app.state.now()
-    upcoming = db.scalars(
-        select(ScheduleEntry).where(
-            ScheduleEntry.user_id == user.id,
-            ScheduleEntry.status == "planned",
-            ScheduleEntry.starts_at >= now,
-            ScheduleEntry.starts_at <= now + timedelta(minutes=15),
-        )
-    ).all()
-    for entry in upcoming:
-        if not db.scalar(
-            select(Notification.id).where(Notification.entry_id == entry.id)
-        ):
-            task = db.get(Task, entry.task_id)
-            local = entry.starts_at.astimezone(ZoneInfo(user.timezone))
-            # The uniqueness constraint also prevents duplicates from simultaneous polling.
-            try:
-                with db.begin_nested():
-                    db.add(
-                        Notification(
-                            user_id=user.id,
-                            entry_id=entry.id,
-                            message=f"{task.title} starts at {local:%H:%M} ({user.timezone}).",
-                        )
-                    )
-                    db.flush()
-            except IntegrityError:
-                pass
-    db.commit()
     valid_entries = select(ScheduleEntry.id).where(ScheduleEntry.status == "planned")
     query = select(Notification).where(
         Notification.user_id == user.id,
+        Notification.created_at <= request.app.state.now(),
         (Notification.entry_id.is_(None)) | (Notification.entry_id.in_(valid_entries)),
     )
     if unread_only:

@@ -22,10 +22,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    # Windows consoles may not be UTF-8; never crash on Vietnamese output.
+    # Piped/redirected output on Windows defaults to cp1252, which turns Vietnamese into "?".
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
-            stream.reconfigure(errors="replace")
+            stream.reconfigure(encoding="utf-8", errors="replace")
     parser = build_parser()
     args, extra = parser.parse_known_args(argv)
     if extra and not getattr(args, "pass_extra", False):

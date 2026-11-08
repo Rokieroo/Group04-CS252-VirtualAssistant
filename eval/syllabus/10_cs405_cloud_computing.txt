@@ -1,0 +1,31 @@
+ACADEMIC SYLLABUS
+Course: Cloud Computing and DevOps Architecture
+Course Code: CS405
+Credits: 3 (Lecture: 2, Lab: 1)
+Information Systems Department
+
+1. COURSE DESCRIPTION
+Covers cloud native architectures, virtualization, containerization with Docker, orchestration with Kubernetes, Infrastructure as Code (Terraform), continuous integration/deployment (CI/CD), and observability.
+
+2. LEARNING OUTCOMES
+- CLO1: Compare cloud service models (IaaS, PaaS, Serverless) and architect high-availability cloud deployments.
+- CLO2: Containerize multi-tier applications and orchestrate microservices with Docker Compose and Kubernetes.
+- CLO3: Implement automated CI/CD deployment pipelines with automated linting, testing, and secret scanning.
+
+3. SCHEDULE OF TOPICS
+Week 1: Cloud Architecture Fundamentals, Virtualization, and Hyperscaler Concepts.
+Week 2: Cloud Storage and Compute Services (Virtual Machines, Object Storage, Block Storage).
+Week 3: Containerization Foundations, Dockerfile Optimization, and Multi-stage Builds.
+Week 4: Microservices Architecture and Multi-container Systems with Docker Compose.
+Week 5: Container Orchestration with Kubernetes: Pods, Services, Deployments, and Ingress.
+Week 6: Midterm Milestone Defense (Containerized Staging Architecture).
+Week 7: Infrastructure as Code (IaC) with Terraform and Declarative Provisioning.
+Week 8: CI/CD Pipelines: GitHub Actions, Automated Testing, and Artifact Packaging.
+Week 9: Cloud Observability: Structured Logging, Distributed Tracing, and Prometheus/Grafana Metrics.
+Week 10: Final Project Defense and Cloud Native Production Audit.
+
+4. ASSESSMENT WEIGHTS
+- Practical DevOps Labs: 25% (due week 8).
+- Midterm Milestone Defense: 25% (due week 6).
+- Final Cloud Architecture Project: 50% (due week 10).
+

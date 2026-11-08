@@ -1,11 +1,17 @@
 """One session per request; foreign keys are enabled for SQLite as well."""
 
+from pathlib import Path
+
+from alembic.config import Config
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from alembic import command
+
 from .cache import ReportCache
-from .models import Base
+
+ROOT = Path(__file__).resolve().parents[3]
 
 
 class Database:
@@ -36,4 +42,9 @@ class Database:
             self.report_cache.clear()
 
     def create_schema(self):
-        Base.metadata.create_all(self.engine)
+        """Apply Alembic migrations; the same history the CLI and staging use."""
+        config = Config(str(ROOT / "alembic.ini"))
+        config.set_main_option("script_location", str(ROOT / "alembic"))
+        with self.engine.begin() as connection:
+            config.attributes["connection"] = connection
+            command.upgrade(config, "head")

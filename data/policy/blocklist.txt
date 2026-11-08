@@ -1,0 +1,36 @@
+# Domains never shown to learners (spec 11.3 step 2, safeguard 4):
+# pirated books and papers, homework/exam answer dumps, piracy indexes.
+# One entry per line; an entry also covers its subdomains.
+# "name.*" covers the name under any suffix, for mirrors that hop TLDs.
+
+# Shadow libraries
+libgen.*
+library.lol
+z-lib.*
+z-library.*
+zlibrary.*
+singlelogin.*
+1lib.*
+b-ok.*
+booksc.*
+sci-hub.*
+annas-archive.*
+pdfdrive.*
+ebookee.*
+dokumen.pub
+ebin.pub
+epdf.pub
+vdoc.pub
+pdfcoffee.com
+idoc.pub
+dokumen.tips
+
+# Homework and exam answer dumps
+chegg.com
+coursehero.com
+
+# Piracy indexes
+thepiratebay.*
+1337x.*
+rarbg.*
+kickass.*

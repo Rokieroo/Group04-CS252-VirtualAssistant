@@ -1,9 +1,12 @@
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from io import BytesIO
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from pypdf import PdfWriter
+from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.schema import CreateSchema, DropSchema
@@ -11,10 +14,13 @@ from sqlalchemy.schema import CreateSchema, DropSchema
 from assistant.backend.config import Settings
 from assistant.backend.main import create_app
 
+# Offline even when a test loads .env: load_dotenv never overrides a variable already set.
+os.environ["LLM_PROVIDER"] = "fake"
+
 
 @pytest.fixture
 def clock():
-    return [datetime(2030, 1, 7, 0, 0, tzinfo=timezone.utc)]
+    return [datetime(2030, 1, 7, 0, 0, tzinfo=UTC)]
 
 
 @pytest.fixture(
@@ -44,7 +50,11 @@ def database_url(request):
 
 @pytest.fixture
 def app(clock, database_url):
-    return create_app(Settings(database_url=database_url), now=lambda: clock[0])
+    return create_app(
+        # Scheduling tests move the clock by days; expiry is tested in test_auth.py.
+        Settings(database_url=database_url, session_minutes=43200),
+        now=lambda: clock[0],
+    )
 
 
 @pytest.fixture
@@ -55,11 +65,12 @@ def client(app):
 
 def register(client, name="Minh", email="minh@example.com"):
     response = client.post(
-        "/api/auth/register",
+        "/api/v1/auth/register",
         json={
             "name": name,
             "email": email,
             "password": "correct-horse-123",
+            "birth_year": 2004,
         },
     )
     assert response.status_code == 201, response.text
@@ -75,10 +86,30 @@ def account(client):
 def headers(account):
     return {"Authorization": "Bearer " + account["access_token"]}
 
+# Fixtures for Issue #16 integration tests: two isolated accounts for access-control tests.
+@pytest.fixture
+def user_a(client):
+    return register(client, name="Lan", email="lan@example.com")
+
+
+@pytest.fixture
+def headers_a(user_a):
+    return {"Authorization": "Bearer " + user_a["access_token"]}
+
+
+@pytest.fixture
+def user_b(client):
+    return register(client, name="Han", email="han@example.com")
+
+
+@pytest.fixture
+def headers_b(user_b):
+    return {"Authorization": "Bearer " + user_b["access_token"]}
+
 
 def task(client, headers, **changes):
     response = client.post(
-        "/api/tasks",
+        "/api/v1/tasks",
         headers=headers,
         json={
             "title": "Review algebra",
@@ -96,7 +127,7 @@ def availability(
     client, headers, start="2030-01-07T09:00:00+07:00", end="2030-01-07T12:00:00+07:00"
 ):
     response = client.put(
-        "/api/availability",
+        "/api/v1/availability",
         headers=headers,
         json={
             "windows": [{"starts_at": start, "ends_at": end}],
@@ -108,7 +139,7 @@ def availability(
 
 def plan(client, headers, **changes):
     response = client.post(
-        "/api/schedule/plan",
+        "/api/v1/schedule/plan",
         headers=headers,
         json={
             "starts_at": "2030-01-07T08:00:00+07:00",
@@ -119,3 +150,32 @@ def plan(client, headers, **changes):
     )
     assert response.status_code == 200, response.text
     return response.json()
+
+
+def make_pdf(*page_texts):
+    """A real PDF with one page per text; "" gives an empty (scanned-like) page."""
+    writer = PdfWriter()
+    font = DictionaryObject(
+        {
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/Helvetica"),
+        }
+    )
+    for text in page_texts:
+        page = writer.add_blank_page(612, 792)
+        if text:
+            page[NameObject("/Resources")] = DictionaryObject(
+                {NameObject("/Font"): DictionaryObject({NameObject("/F1"): font})}
+            )
+            stream = DecodedStreamObject()
+            stream.set_data(f"BT /F1 24 Tf 72 700 Td ({text}) Tj ET".encode())
+            page.replace_contents(stream)
+    buffer = BytesIO()
+    writer.write(buffer)
+    return buffer.getvalue()
+
+
+@pytest.fixture
+def sample_pdf():
+    return make_pdf("alpha   lecture", "beta lecture", "gamma lecture")

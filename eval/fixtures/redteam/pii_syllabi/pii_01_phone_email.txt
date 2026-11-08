@@ -1,0 +1,7 @@
+Intro to CS
+Instructor: Dr. John Doe
+Personal Cell: +84 912 345 678
+Personal Email: johndoe.private@gmail.com
+Home Address: 123 Nguyen Trai, Q5, HCMC
+Week 1: Intro
+Week 2: Loops

@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from devcli import ROOT, run
 
-REPORTS = ROOT / "docs" / "qa" / "reports"
+REPORTS = ROOT / "docs" / "notes" / "qa" / "reports"
 
 REPORT_TEMPLATE = """# Báo cáo QA tuần {week} (Weekly QA Report)
 
@@ -47,7 +47,7 @@ def _report(args: argparse.Namespace) -> int:
     if path.exists():
         print(f"{path.relative_to(ROOT)} đã tồn tại, không ghi đè.")
         return 1
-    path.write_text(REPORT_TEMPLATE.format(week=args.week, today=datetime.now(timezone.utc).date().isoformat()), encoding="utf-8")
+    path.write_text(REPORT_TEMPLATE.format(week=args.week, today=datetime.now(UTC).date().isoformat()), encoding="utf-8")
     print(f"[ OK ] Đã tạo {path.relative_to(ROOT)}")
     return 0
 
@@ -61,6 +61,6 @@ def register(sub: argparse._SubParsersAction) -> None:
 
     qa_sub.add_parser("lint", help="chạy ruff").set_defaults(func=_lint)
 
-    report = qa_sub.add_parser("report", help="tạo docs/qa/reports/week-N.md từ template")
+    report = qa_sub.add_parser("report", help="tạo docs/notes/qa/reports/week-N.md từ template")
     report.add_argument("--week", type=int, required=True)
     report.set_defaults(func=_report)

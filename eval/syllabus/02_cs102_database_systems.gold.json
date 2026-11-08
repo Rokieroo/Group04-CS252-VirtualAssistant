@@ -1,0 +1,40 @@
+{
+  "id": "SYL-02",
+  "course_code": "CS102",
+  "course_name": "Database Systems and Architecture",
+  "learning_outcomes": [
+    {
+      "code": "CLO1",
+      "description": "Design entity-relationship (ER) models and map them to normalized relational schemas.",
+      "bloom_level": "create"
+    },
+    {
+      "code": "CLO2",
+      "description": "Formulate complex SQL queries including joins, nested subqueries, and window functions.",
+      "bloom_level": "apply"
+    },
+    {
+      "code": "CLO3",
+      "description": "Explain transaction management, serializability, two-phase locking (2PL), and crash recovery (ARIES).",
+      "bloom_level": "understand"
+    }
+  ],
+  "weeks": [
+    { "week": 1, "topic": "Introduction to Data Models and Relational Databases." },
+    { "week": 2, "topic": "Relational Algebra and Tuple Relational Calculus." },
+    { "week": 3, "topic": "Basic SQL: Data Definition Language (DDL) and Queries (DML)." },
+    { "week": 4, "topic": "Advanced SQL: Grouping, Aggregations, and Correlated Subqueries." },
+    { "week": 5, "topic": "Functional Dependencies and Normalization Theory (1NF, 2NF, 3NF, BCNF)." },
+    { "week": 6, "topic": "Midterm Exam (Relational Design & SQL Proficiency)." },
+    { "week": 7, "topic": "Storage Architecture and B+ Tree Indexing Structures." },
+    { "week": 8, "topic": "Query Execution, Cost Estimation, and Relational Optimization." },
+    { "week": 9, "topic": "Transactions, Concurrency Control, and Isolation Levels." },
+    { "week": 10, "topic": "Database Recovery Mechanisms and Distributed Datastores." }
+  ],
+  "assessments": [
+    { "name": "Practical Lab Exercises", "weight": 25.0, "due_week": 8 },
+    { "name": "Midterm Written Exam", "weight": 25.0, "due_week": 6 },
+    { "name": "Final Exam", "weight": 50.0, "due_week": 10 }
+  ]
+}
+

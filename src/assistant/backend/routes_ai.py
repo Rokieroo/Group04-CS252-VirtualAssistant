@@ -1,26 +1,48 @@
 """Companion chat with private, persisted per-user history."""
 
-from fastapi import APIRouter, Query, Request, Response
-from sqlalchemy import delete, select
+from datetime import timedelta
 
-from .companion import respond
+from fastapi import APIRouter, HTTPException, Query, Request, Response
+from sqlalchemy import delete, func, select
+
+from app.companion import companion_mode
+
 from .dependencies import DB, CurrentUser
 from .models import ChatMessage
 from .schemas import ChatOut, ChatRequest, MessageOut
+from .services import companion_reply
 
-router = APIRouter(prefix="/api/ai", tags=["AI companion"])
+router = APIRouter(prefix="/ai", tags=["AI companion"])
 
 
-@router.post("/chat", response_model=ChatOut)
+CHAT_PER_MINUTE = 10
+
+
+@router.post(
+    "/chat",
+    response_model=ChatOut,
+    responses={429: {"description": "Chat rate limit reached"}},
+)
 def chat(data: ChatRequest, request: Request, db: DB, user: CurrentUser):
-    return respond(
-        db,
-        user,
-        data,
-        request.app.state.settings,
-        request.app.state.now(),
-        request.app.state.ai_transport,
+    now = request.app.state.now()
+    if companion_mode(user, now.date()) == "off":
+        raise HTTPException(403, "The companion is turned off in your profile")
+    # Counted from stored messages, so the limit holds across workers; each call may
+    # hit the paid LLM. Concurrent bursts can overshoot by a few requests.
+    recent = db.scalar(
+        select(func.count())
+        .select_from(ChatMessage)
+        .where(
+            ChatMessage.user_id == user.id,
+            ChatMessage.role == "user",
+            ChatMessage.created_at > now - timedelta(minutes=1),
+        )
     )
+    if recent >= CHAT_PER_MINUTE:
+        raise HTTPException(
+            429, "You are sending messages too fast", headers={"Retry-After": "60"}
+        )
+    return companion_reply(db, user, data, request.app.state.companion, now)
 
 
 @router.get("/messages", response_model=list[MessageOut])

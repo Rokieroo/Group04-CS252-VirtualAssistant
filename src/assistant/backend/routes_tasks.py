@@ -19,7 +19,7 @@ from .services import (
     visible_task,
 )
 
-router = APIRouter(prefix="/api", tags=["Goals and tasks"])
+router = APIRouter(tags=["Goals and tasks"])
 
 
 @router.post("/goals", response_model=GoalOut, status_code=201)

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { navigate, signIn } from "./helpers";
+import { navigate, openGoal, signIn } from "./helpers";
 
 test("quiz credit persists and retakes cannot inflate it", async ({
   page,
@@ -35,11 +35,11 @@ test("quiz credit persists and retakes cannot inflate it", async ({
   await page.keyboard.press("Escape");
   await page.reload();
   await signIn(page);
-  await expect(page.locator(".overview .metric-line")).toContainText("50%");
+  await expect(page.locator(".overview .metric-line")).toContainText("53%");
   await expect(
-    page.getByRole("button", { name: "Review result", exact: true }),
+    page.getByRole("button", { name: "Retake quiz", exact: true }),
   ).toBeVisible();
-  await navigate(page, "Mastery");
+  await openGoal(page, "English foundations");
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
     "Mastery",
   );
@@ -47,6 +47,43 @@ test("quiz credit persists and retakes cannot inflate it", async ({
     page.getByRole("heading", { name: "Assessment summary" }),
   ).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test("Mastery cards open their own session and update after a check", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await signIn(page);
+  await openGoal(page, "English foundations");
+
+  const vocabulary = page
+    .locator(".milestone")
+    .filter({ hasText: "Vocabulary" });
+  await expect(vocabulary).toContainText("Planned");
+  await vocabulary.getByRole("button", { name: "Open lesson" }).click();
+  await expect(page.getByRole("dialog", { name: "Vocabulary" })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  const quiz = page
+    .locator(".milestone")
+    .filter({ hasText: "Practice & short knowledge check" });
+  await expect(quiz).toContainText("Planned");
+  await quiz.getByRole("button", { name: "Take check" }).click();
+  const dialog = page.getByRole("dialog", { name: "Knowledge check" });
+  for (const answer of ["went", "was", "They were playing.", "saw"])
+    await dialog.getByRole("radio", { name: answer, exact: true }).check();
+  await dialog.getByRole("button", { name: "Submit answers" }).click();
+  await expect(dialog.getByRole("status")).toContainText("100% · Passed");
+  await page.keyboard.press("Escape");
+
+  await expect(quiz).toContainText("Verified");
+  await expect(
+    quiz.getByRole("button", { name: "Retake check" }),
+  ).toBeVisible();
+  await expect(page.locator(".progress-summary").first()).toContainText("53%");
+  await expect(page.locator(".progress-summary").first()).toContainText(
+    "7 / 13",
+  );
 });
 
 test("search, empty state, enrollment, navigation and calendar still work", async ({
@@ -67,8 +104,8 @@ test("search, empty state, enrollment, navigation and calendar still work", asyn
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Ask");
   await page.getByRole("button", { name: "I meet the prerequisite" }).click();
   await page.getByRole("button", { name: "Approve plan" }).click();
-  await navigate(page, "Review");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Review");
+  await navigate(page, "Schedule");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Schedule");
   await page.getByLabel("Calendar view").selectOption("Month");
   await expect(page.locator(".calendar.month")).toBeVisible();
   await expect(
@@ -93,7 +130,7 @@ test("search, empty state, enrollment, navigation and calendar still work", asyn
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
-  await navigate(page, "Review");
+  await navigate(page, "Schedule");
   await expect(page.getByLabel("Calendar view")).toHaveValue("Month");
   await page.screenshot({ path: testInfo.outputPath("review.png") });
   await page.emulateMedia({ colorScheme: "dark" });
@@ -114,7 +151,7 @@ test("mock login, upload and concept edits work across navigation", async ({
   await page.screenshot({ path: testInfo.outputPath("sign-in.png") });
   await signIn(page);
   await navigate(page, "Courses");
-  const picker = page.getByLabel("Choose PDF files to upload");
+  const picker = page.getByLabel("Choose files to upload");
   await picker.setInputFiles({
     name: "notes.txt",
     mimeType: "text/plain",
@@ -144,9 +181,9 @@ test("mock login, upload and concept edits work across navigation", async ({
   await expect(
     page.getByRole("button", { name: "All confirmed" }),
   ).toBeDisabled();
-  await navigate(page, "Companion");
+  await navigate(page, "Roadmap");
   await expect(
-    page.getByRole("heading", { name: "Choose a mode" }),
+    page.getByRole("heading", { name: "No roadmap yet" }),
   ).toBeVisible();
   await navigate(page, "Courses");
   await expect(

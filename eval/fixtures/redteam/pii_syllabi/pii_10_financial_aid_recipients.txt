@@ -1,0 +1,5 @@
+Data Mining
+Scholarship Recipients List:
+Nguyen H (Poor household certificate #482/QD)
+Financial aid received: 15,000,000 VND
+Week 1: Preprocessing

@@ -1,0 +1,40 @@
+{
+  "id": "SYL-07",
+  "course_code": "AI101",
+  "course_name": "Introduction to Artificial Intelligence",
+  "learning_outcomes": [
+    {
+      "code": "CLO1",
+      "description": "Formulate problem spaces and apply heuristic search (A*, Greedy Best-First) and Minimax with Alpha-Beta pruning.",
+      "bloom_level": "apply"
+    },
+    {
+      "code": "CLO2",
+      "description": "Model constraint satisfaction problems (CSP) and solve them using backtracking and arc consistency (AC-3).",
+      "bloom_level": "apply"
+    },
+    {
+      "code": "CLO3",
+      "description": "Perform probabilistic inference using Bayesian networks and construct naive Bayes classifiers.",
+      "bloom_level": "analyze"
+    }
+  ],
+  "weeks": [
+    { "week": 1, "topic": "Intelligent Agents, Environments, and Uninformed State Space Search (BFS, DFS, UCS)." },
+    { "week": 2, "topic": "Heuristic Search, Greedy Search, A* Optimality, and Admissible Heuristics." },
+    { "week": 3, "topic": "Adversarial Search, Minimax Algorithm, Alpha-Beta Pruning, and Evaluation Functions." },
+    { "week": 4, "topic": "Constraint Satisfaction Problems (CSP), Backtracking, and Forward Checking." },
+    { "week": 5, "topic": "Knowledge Representation and Propositional Logic Inference." },
+    { "week": 6, "topic": "Midterm Exam (State Search & Game Playing)." },
+    { "week": 7, "topic": "Uncertainty, Probability Axioms, and Conditional Independence." },
+    { "week": 8, "topic": "Bayesian Networks, Exact Inference by Enumeration, and Variable Elimination." },
+    { "week": 9, "topic": "Supervised Learning Foundations, Decision Trees, and Overfitting." },
+    { "week": 10, "topic": "Linear Classification, Perceptron, and Introduction to Deep Learning." }
+  ],
+  "assessments": [
+    { "name": "Programming Labs", "weight": 25.0, "due_week": 8 },
+    { "name": "Midterm In-class Exam", "weight": 25.0, "due_week": 6 },
+    { "name": "Final Exam", "weight": 50.0, "due_week": 10 }
+  ]
+}
+

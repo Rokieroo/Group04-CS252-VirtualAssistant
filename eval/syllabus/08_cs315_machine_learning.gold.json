@@ -1,0 +1,40 @@
+{
+  "id": "SYL-08",
+  "course_code": "CS315",
+  "course_name": "Applied Machine Learning and Data Mining",
+  "learning_outcomes": [
+    {
+      "code": "CLO1",
+      "description": "Preprocess raw feature matrices, handle class imbalance, and design cross-validation protocols.",
+      "bloom_level": "apply"
+    },
+    {
+      "code": "CLO2",
+      "description": "Train and fine-tune classical supervised and unsupervised ML algorithms using Scikit-Learn.",
+      "bloom_level": "apply"
+    },
+    {
+      "code": "CLO3",
+      "description": "Evaluate models using ROC-AUC, precision-recall curves, and feature importance interpretations (SHAP).",
+      "bloom_level": "evaluate"
+    }
+  ],
+  "weeks": [
+    { "week": 1, "topic": "Machine Learning Foundations, Data Preprocessing, and Train/Val/Test Splits." },
+    { "week": 2, "topic": "Linear Regression, Cost Functions, Gradient Descent, and Regularization (L1/L2)." },
+    { "week": 3, "topic": "Logistic Regression, Binary/Multiclass Classification, and Metric Selection." },
+    { "week": 4, "topic": "Support Vector Machines (SVM) and Kernel Methods." },
+    { "week": 5, "topic": "Decision Trees, Bagging, and Random Forest Ensembles." },
+    { "week": 6, "topic": "Midterm Benchmark Evaluation and Model Checkpoint." },
+    { "week": 7, "topic": "Gradient Boosting Machines (XGBoost, LightGBM) and Hyperparameter Tuning." },
+    { "week": 8, "topic": "Unsupervised Learning: K-Means Clustering, PCA, and Dimensionality Reduction." },
+    { "week": 9, "topic": "Recommender Systems and Matrix Factorization Techniques." },
+    { "week": 10, "topic": "Final Model Deployment, Serving, and Production Monitoring." }
+  ],
+  "assessments": [
+    { "name": "Homework & Kaggle Mini-competitions", "weight": 25.0, "due_week": 8 },
+    { "name": "Midterm Benchmark Evaluation", "weight": 25.0, "due_week": 6 },
+    { "name": "Final Capstone ML Project", "weight": 50.0, "due_week": 10 }
+  ]
+}
+

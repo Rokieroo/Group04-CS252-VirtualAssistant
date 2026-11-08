@@ -36,8 +36,13 @@ describe("checkFile", () => {
   it("accepts a PDF up to 20 MB", () => {
     expect(checkFile({ name: "w1.pdf", size: MAX_UPLOAD_BYTES, type: "application/pdf" })).toBeNull();
   });
+  it("accepts Word, slides and photos of material (#114)", () => {
+    for (const name of ["notes.docx", "week2.PPTX", "board.jpg", "board.jpeg", "board.png"])
+      expect(checkFile({ name, size: 10, type: "" })).toBeNull();
+  });
   it("rejects other formats", () => {
-    expect(checkFile({ name: "notes.docx", size: 10, type: "application/msword" })).toBe("not_pdf");
+    for (const name of ["notes.txt", "sheet.xlsx", "anim.gif", "pdf"])
+      expect(checkFile({ name, size: 10, type: "application/pdf" })).toBe("not_pdf");
   });
   it("rejects files over 20 MB", () => {
     expect(checkFile({ name: "w1.pdf", size: MAX_UPLOAD_BYTES + 1, type: "application/pdf" })).toBe(

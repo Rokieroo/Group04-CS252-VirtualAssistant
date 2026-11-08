@@ -1,8 +1,13 @@
 """Invitation-based workspaces, task sharing and common free time (UC-09..11)."""
 
-from fastapi import APIRouter, HTTPException, Request
-from sqlalchemy import delete, select
+import hmac
+import secrets
+
+from fastapi import APIRouter, HTTPException, Request, Response
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
+
+from app.planner import intersect, minutes, subtract
 
 from .dependencies import DB, CurrentUser
 from .models import (
@@ -11,13 +16,15 @@ from .models import (
     Invitation,
     Membership,
     ScheduleEntry,
+    Task,
     Team,
     User,
 )
-from .scheduler import intersect, minutes, subtract
 from .schemas import (
     CommonSlot,
     CoordinateRequest,
+    InvitationAccept,
+    InvitationCreated,
     InvitationOut,
     InviteCreate,
     MemberOut,
@@ -26,6 +33,7 @@ from .schemas import (
     TeamCreate,
     TeamOut,
 )
+from .security import token_hash
 from .services import (
     lock_task_for_edit,
     serialize_schedule_changes,
@@ -33,7 +41,7 @@ from .services import (
     visible_task,
 )
 
-router = APIRouter(prefix="/api", tags=["Team workspaces"])
+router = APIRouter(tags=["Team workspaces"])
 
 
 @router.post("/teams", response_model=TeamOut, status_code=201)
@@ -68,7 +76,7 @@ def members(team_id: str, db: DB, user: CurrentUser):
 
 
 @router.post(
-    "/teams/{team_id}/invitations", response_model=InvitationOut, status_code=201
+    "/teams/{team_id}/invitations", response_model=InvitationCreated, status_code=201
 )
 def invite(team_id: str, data: InviteCreate, db: DB, user: CurrentUser):
     team = team_member(db, team_id, user.id)
@@ -77,21 +85,25 @@ def invite(team_id: str, data: InviteCreate, db: DB, user: CurrentUser):
     existing_user = db.scalar(select(User).where(User.email == data.email))
     if existing_user is not None and db.get(Membership, (team_id, existing_user.id)):
         raise HTTPException(409, "This account is already a member")
-    existing = db.scalar(
+    code = secrets.token_urlsafe(12)
+    invitation = db.scalar(
         select(Invitation).where(
             Invitation.team_id == team_id, Invitation.email == data.email
         )
     )
-    if existing is not None:
-        return existing
-    invitation = Invitation(team_id=team_id, email=data.email)
-    db.add(invitation)
+    if invitation is None:
+        invitation = Invitation(team_id=team_id, email=data.email)
+        db.add(invitation)
+    # Re-inviting rotates the code, so the owner can always resend a working one.
+    invitation.token_hash = token_hash(code)
     try:
         db.commit()
     except IntegrityError:
         db.rollback()
         raise HTTPException(409, "An invitation already exists") from None
-    return invitation
+    return InvitationCreated(
+        **InvitationOut.model_validate(invitation).model_dump(), code=code
+    )
 
 
 @router.get("/invitations", response_model=list[InvitationOut])
@@ -104,17 +116,58 @@ def invitations(db: DB, user: CurrentUser):
 
 
 @router.post("/invitations/{invitation_id}/accept", response_model=TeamOut)
-def accept(invitation_id: str, db: DB, user: CurrentUser):
+def accept(
+    invitation_id: str, data: InvitationAccept, db: DB, user: CurrentUser
+):
     invitation = db.scalar(
         select(Invitation).where(Invitation.id == invitation_id).with_for_update()
     )
-    if invitation is None or invitation.email != user.email:
+    # Emails are not verified, so the matching email alone proves nothing: anyone
+    # could register an invitee's address first. The out-of-band code is required.
+    if (
+        invitation is None
+        or invitation.email != user.email
+        or not hmac.compare_digest(invitation.token_hash, token_hash(data.code))
+    ):
         raise HTTPException(404, "Invitation not found")
     if not db.get(Membership, (invitation.team_id, user.id)):
         db.add(Membership(team_id=invitation.team_id, user_id=user.id))
     invitation.accepted = True
     db.commit()
     return db.get(Team, invitation.team_id)
+
+
+@router.delete("/teams/{team_id}/members/{member_id}", status_code=204)
+@serialize_schedule_changes
+def remove_member(
+    team_id: str, member_id: str, request: Request, db: DB, user: CurrentUser
+):
+    team = team_member(db, team_id, user.id)
+    if user.id not in {member_id, team.owner_id}:
+        raise HTTPException(403, "Only the owner can remove other members")
+    if member_id == team.owner_id:
+        raise HTTPException(409, "The owner cannot leave their own workspace")
+    membership = db.get(Membership, (team_id, member_id))
+    if membership is None:
+        raise HTTPException(404, "Member not found")
+    for locked_id in sorted({member_id, team.owner_id}):
+        db.execute(select(User).where(User.id == locked_id).with_for_update()).one()
+    # Their open team work moves to the owner; unchecked sessions leave their calendar.
+    pending = (
+        Task.team_id == team_id,
+        Task.assignee_id == member_id,
+        Task.status == "pending",
+    )
+    db.execute(
+        delete(ScheduleEntry).where(
+            ScheduleEntry.task_id.in_(select(Task.id).where(*pending)),
+            ScheduleEntry.status == "planned",
+        )
+    )
+    db.execute(update(Task).where(*pending).values(assignee_id=team.owner_id))
+    db.delete(membership)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.post("/tasks/{task_id}/share", response_model=TaskOut)

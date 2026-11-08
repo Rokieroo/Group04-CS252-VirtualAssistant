@@ -1,0 +1,55 @@
+# Internal resource catalog (spec 11.2).
+#
+# CatalogSearch accepts a top-level list, a single resource mapping, or a
+# mapping with one of: resources, items, entries, catalog. Every resource needs
+# at least `title` and `url`; `kind`, `lang`, `provider`, `snippet`, and `tags`
+# are optional. `tags`/`topics`/`keywords`/`course` are all used for matching.
+#
+# The manual_yaml catalog connector (#98) also stores every entry as a pending
+# catalog resource; it needs `license`, an id of data/policy/catalog_sources.yaml
+# (ADR 004). Format: src/app/catalog/connectors/manual_yaml.py.
+resources:
+  - title: "Problem framing and the solution ladder"
+    url: "https://ocw.mit.edu/courses/6-100l-introduction-to-cs-and-programming-in-python-fall-2022/"
+    license: CC-BY-NC-SA-4.0
+    kind: article
+    lang: en
+    provider: catalog
+    snippet: "Lecture notes and worked examples for breaking a problem into steps and choosing a solution approach."
+    tags: [problem framing, solution ladder, computational thinking, CSC10014, lecture notes]
+
+  - title: "Introduction to Computer Science and Programming in Python"
+    url: "https://ocw.mit.edu/courses/6-0001-introduction-to-computer-science-and-programming-in-python-fall-2016/"
+    license: CC-BY-NC-SA-4.0
+    kind: video
+    lang: en
+    provider: catalog
+    snippet: "Full lecture series with slides and exercises for first-year programming courses."
+    tags: [python, programming, lecture video, CSC10014, algorithms, exercises]
+
+  - title: "CS50x: Introduction to Computer Science"
+    url: "https://cs50.harvard.edu/x/"
+    license: CC-BY-NC-SA-4.0
+    kind: course
+    lang: en
+    provider: catalog
+    snippet: "Open course materials, problem sets, and short lecture videos covering algorithms and data structures."
+    tags: [computer science, algorithms, data structures, problem sets, lecture video]
+
+  - title: "Khan Academy: Computer science"
+    url: "https://www.khanacademy.org/computing/computer-science"
+    license: CC-BY-NC-SA-4.0
+    kind: article
+    lang: en
+    provider: catalog
+    snippet: "Short lessons and practice exercises on algorithms, cryptography, and information theory."
+    tags: [algorithms, data structures, practice exercises, tutorial, computer science]
+
+  - title: "Python for Everybody"
+    url: "https://www.py4e.com/"
+    license: CC-BY-4.0
+    kind: course
+    lang: en
+    provider: catalog
+    snippet: "Free textbook, video lectures, and auto-graded exercises for learning Python."
+    tags: [python, programming, textbook, lecture video, exercises, beginner]

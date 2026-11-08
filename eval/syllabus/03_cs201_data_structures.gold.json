@@ -1,0 +1,40 @@
+{
+  "id": "SYL-03",
+  "course_code": "CS201",
+  "course_name": "Data Structures and Algorithms",
+  "learning_outcomes": [
+    {
+      "code": "CLO1",
+      "description": "Analyze algorithmic time and space complexity using recurrence relations and Master Theorem.",
+      "bloom_level": "analyze"
+    },
+    {
+      "code": "CLO2",
+      "description": "Implement linear data structures (arrays, linked lists, stacks, queues) and non-linear data structures (binary search trees, AVL trees, heaps).",
+      "bloom_level": "apply"
+    },
+    {
+      "code": "CLO3",
+      "description": "Apply graph algorithms (BFS, DFS, Dijkstra, Bellman-Ford, Kruskal) to solve real-world routing and optimization problems.",
+      "bloom_level": "apply"
+    }
+  ],
+  "weeks": [
+    { "week": 1, "topic": "Algorithmic Analysis, Asymptotic Notation, and Recursion." },
+    { "week": 2, "topic": "Arrays, Dynamic Vectors, and Singly/Doubly Linked Lists." },
+    { "week": 3, "topic": "Stacks, Queues, and Applications in Parsing and State Exploration." },
+    { "week": 4, "topic": "Comparison Sorts (MergeSort, QuickSort) and Non-Comparison Sorts (Radix, Counting)." },
+    { "week": 5, "topic": "Binary Search Trees, Tree Balancing, and AVL Rotations." },
+    { "week": 6, "topic": "Midterm Exam (Complexity Analysis & Data Structures)." },
+    { "week": 7, "topic": "Priority Queues, Binary Heaps, and Huffman Coding." },
+    { "week": 8, "topic": "Hash Tables, Collision Resolution Strategies, and Universal Hashing." },
+    { "week": 9, "topic": "Graph Representation, Breadth-First Search (BFS), and Depth-First Search (DFS)." },
+    { "week": 10, "topic": "Minimum Spanning Trees (Prim, Kruskal) and Single-Source Shortest Paths (Dijkstra)." }
+  ],
+  "assessments": [
+    { "name": "Programming Assignments", "weight": 30.0, "due_week": 9 },
+    { "name": "Midterm In-class Exam", "weight": 20.0, "due_week": 6 },
+    { "name": "Final Comprehensive Exam", "weight": 50.0, "due_week": 10 }
+  ]
+}
+

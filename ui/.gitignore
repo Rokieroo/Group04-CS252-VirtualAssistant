@@ -3,3 +3,5 @@ dist/
 *.local
 playwright-report/
 test-results/
+.tmp/
+vite-preview*.log

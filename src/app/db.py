@@ -3,7 +3,7 @@
 The connection URL comes from ``DATABASE_URL`` (default: ``sqlite:///./local.db``).
 SQLite is used for local development and tests; PostgreSQL 16 is used in
 staging/production. The canonical schema lives in ``db/schema.sql`` and is kept
-in sync with Alembic migration ``0001_initial``.
+in sync with the Alembic migrations (enforced by ``tests/test_schema_sync.py``).
 """
 
 from __future__ import annotations
@@ -40,14 +40,53 @@ _LOCK = RLock()
 # Tables in dependency order. Used for a portable reset on non-file databases.
 _TABLES = (
     "users",
+    "search_cache",
+    "institutions",
+    "subjects",
     "courses",
+    "companion_events",
+    "auth_sessions",
+    "goals",
+    "teams",
+    "jobs",
+    "catalog_courses",
+    "availability",
+    "busy_blocks",
+    "chat_messages",
     "sources",
     "concepts",
+    "memberships",
+    "invitations",
+    "syllabi",
+    "roadmaps",
+    "resources",
     "prereqs",
+    "learning_outcomes",
+    "assessments",
+    "roadmap_nodes",
+    "resource_feedback",
+    "catalog_units",
+    "resource_subjects",
+    "resource_verifications",
+    "exercises",
     "items",
+    "node_resources",
+    "resource_searches",
+    "node_subjects",
+    "tasks",
+    "catalog_embeddings",
+    "node_source_status",
+    "roadmap_edges",
+    "graph_layouts",
+    "node_materials",
+    "source_subjects",
+    "exercise_subjects",
+    "node_exercises",
     "cards",
     "reviews",
-    "companion_events",
+    "search_runs",
+    "schedule_entries",
+    "notifications",
 )
 
 

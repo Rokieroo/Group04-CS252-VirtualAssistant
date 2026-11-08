@@ -17,6 +17,45 @@ EXPECTED_TABLES = {
     "cards",
     "reviews",
     "companion_events",
+    # Scheduling workspace (migration 0002).
+    "auth_sessions",
+    "goals",
+    "teams",
+    "memberships",
+    "invitations",
+    # Core loop (migration 0004).
+    "syllabi",
+    "learning_outcomes",
+    "assessments",
+    "roadmaps",
+    "roadmap_nodes",
+    "resources",
+    "node_resources",
+    "resource_feedback",
+    "search_runs",
+    # Background jobs and the shared search cache (migration 0006).
+    "jobs",
+    "search_cache",
+    # Cost and latency of resource searches (migration 0007).
+    "resource_searches",
+    # Verified catalog (migration 0008).
+    "institutions",
+    "catalog_courses",
+    "catalog_units",
+    "subjects",
+    "resource_subjects",
+    "node_subjects",
+    "resource_verifications",
+    "tasks",
+    "availability",
+    "busy_blocks",
+    "schedule_entries",
+    "notifications",
+    "chat_messages",
+    "alembic_version",
+    "catalog_embeddings", "roadmap_edges", "graph_layouts", "node_materials", "node_source_status",
+    "exercises", "exercise_subjects", "node_exercises",
+    "source_subjects",
 }
 
 
@@ -90,11 +129,11 @@ def insert_concept(
     )
 
 
-def test_init_db_creates_all_nine_tables(database_url):
+def test_init_db_creates_all_tables(database_url):
     tables = init_db(database_url=database_url, reset=True)
 
     assert set(tables) == EXPECTED_TABLES
-    assert len(tables) == 9
+    assert len(tables) == len(EXPECTED_TABLES)
     assert set(inspect(get_engine(database_url)).get_table_names()) == EXPECTED_TABLES
 
 

@@ -58,3 +58,38 @@ describe("applyAppearance", () => {
     expect(root.dataset.theme).toBeUndefined();
   });
 });
+
+describe("gradient appearance", () => {
+  it("reads saved gradients and preserves middle stops in each treatment", () => {
+    expect(
+      parseAppearance('{"accent":"neon-aura","theme":"light"}').accent,
+    ).toBe("neon-aura");
+    const root = document.createElement("html");
+    applyAppearance({ accent: "visible-spectrum", theme: "light" }, root);
+    for (const token of [
+      "--gradient-brand",
+      "--gradient-vertical",
+      "--gradient-action",
+      "--gradient-wash",
+      "--gradient-text",
+    ]) {
+      expect(root.style.getPropertyValue(token)).toContain("#00ff76");
+      expect(root.style.getPropertyValue(token)).toContain("#fff200");
+    }
+    expect(root.style.getPropertyValue("--gradient-vertical")).toContain(
+      "180deg",
+    );
+    expect(root.dataset.gradient).toBe("true");
+    applyAppearance({ accent: "violet", theme: "system" }, root);
+    expect(root.dataset.gradient).toBeUndefined();
+    for (const token of [
+      "--gradient-brand",
+      "--gradient-vertical",
+      "--gradient-action",
+      "--gradient-wash",
+      "--gradient-text",
+    ]) {
+      expect(root.style.getPropertyValue(token)).toBe("");
+    }
+  });
+});

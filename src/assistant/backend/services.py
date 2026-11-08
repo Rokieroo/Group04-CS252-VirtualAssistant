@@ -1,4 +1,8 @@
-"""Scheduling transactions and ownership rules shared by the API routes."""
+"""Database transactions and ownership rules shared by the API routes.
+
+Each function loads rows, hands plain values to the pure parts in app/ and writes
+the result back; the decisions themselves live in app/ (ADR 003).
+"""
 
 from datetime import datetime, time, timedelta
 from functools import wraps
@@ -9,19 +13,40 @@ from fastapi import HTTPException
 from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
+from app.companion import (
+    Companion,
+    CompanionContext,
+    NextSession,
+    PendingTask,
+    companion_mode,
+)
+from app.planner import WorkItem, build_plan, minutes
+from app.roadmap import (
+    MILESTONE_BUFFER_DAYS,
+    prerequisites,
+    task_due_at,
+    task_release_at,
+)
+
 from .models import (
     Availability,
     BusyBlock,
+    ChatMessage,
     Goal,
     Membership,
     Notification,
+    Roadmap,
+    RoadmapNode,
     ScheduleEntry,
     Task,
     Team,
     User,
 )
-from .scheduler import WorkItem, build_plan, minutes
-from .schemas import PlanRequest, ReportOut
+from .schemas import ChatOut, ChatRequest, PlanOut, PlanRequest, ReportOut
+
+REMINDER_LEAD = timedelta(minutes=15)
+ROADMAP_SESSION_MINUTES = (25, 50)  # spec 10.3.4
+MAX_PLAN_HORIZON = timedelta(days=90)  # PlanRequest's limit
 
 
 def serialize_schedule_changes(handler):
@@ -139,7 +164,8 @@ def make_plan(db: Session, user: User, data: PlanRequest, now: datetime):
     tasks = db.scalars(
         select(Task).where(Task.assignee_id == user.id, Task.status == "pending")
     ).all()
-    plan = build_plan(
+    rules = _roadmap_rules(db, tasks)
+    proposal = build_plan(
         [
             WorkItem(
                 task.id,
@@ -151,6 +177,7 @@ def make_plan(db: Session, user: User, data: PlanRequest, now: datetime):
                 ),
                 task.priority,
                 task.due_at,
+                **rules.get(task.id, {}),
             )
             for task in tasks
         ],
@@ -161,7 +188,16 @@ def make_plan(db: Session, user: User, data: PlanRequest, now: datetime):
         data,
         user.timezone,
     )
-    plan.expired_sessions = len(expired_ids)
+    plan = PlanOut.model_validate(
+        {
+            "committed": False,
+            "expired_sessions": len(expired_ids),
+            "entries": proposal.entries,
+            "unscheduled": proposal.unscheduled,
+            "overloaded_weeks": proposal.overloaded_weeks,
+        },
+        from_attributes=True,
+    )
     if data.commit:
         if expired_ids:
             db.execute(
@@ -173,7 +209,7 @@ def make_plan(db: Session, user: User, data: PlanRequest, now: datetime):
             db.execute(
                 delete(ScheduleEntry).where(ScheduleEntry.id.in_(replaceable_ids))
             )
-        db.add_all(
+        rows = [
             ScheduleEntry(
                 user_id=user.id,
                 task_id=entry.task_id,
@@ -181,16 +217,142 @@ def make_plan(db: Session, user: User, data: PlanRequest, now: datetime):
                 ends_at=entry.ends_at,
             )
             for entry in plan.entries
+        ]
+        db.add_all(rows)
+        db.flush()
+        titles = {task.id: task.title for task in tasks}
+        zone = ZoneInfo(user.timezone)
+        # Reminders are written now and become visible (created_at) 15 minutes before
+        # the session, so reading notifications never writes. Deleting or replanning
+        # a session removes its reminder through the ON DELETE CASCADE foreign key.
+        db.add_all(
+            Notification(
+                user_id=user.id,
+                entry_id=row.id,
+                created_at=row.starts_at - REMINDER_LEAD,
+                message=f"{titles[row.task_id]} starts at "
+                f"{row.starts_at.astimezone(zone):%H:%M} ({user.timezone}).",
+            )
+            for row in rows
         )
         db.add(
             Notification(
                 user_id=user.id,
+                created_at=now,
                 message="Your schedule has been updated. Review the new plan.",
             )
         )
         db.commit()
         plan.committed = True
     return plan
+
+
+def _roadmap_rules(db: Session, tasks: list[Task]) -> dict[str, dict]:
+    """WorkItem constraints for tasks that study a roadmap node (spec 10.3): a node
+    waits for its week, and a milestone waits for the pending topics it covers, which
+    must finish MILESTONE_BUFFER_DAYS before it."""
+    task_of = {task.roadmap_node_id: task.id for task in tasks if task.roadmap_node_id}
+    if not task_of:
+        return {}
+    node_ids = list(task_of)
+    roadmap_ids = select(RoadmapNode.roadmap_id).where(RoadmapNode.id.in_(node_ids))
+    nodes = db.scalars(
+        select(RoadmapNode).where(RoadmapNode.roadmap_id.in_(roadmap_ids))
+    ).all()
+    weeks = {node.id: node.week for node in nodes}
+    needs = prerequisites(nodes)
+    from .catalog_models import RoadmapEdge
+
+    for edge in db.scalars(
+        select(RoadmapEdge).where(
+            RoadmapEdge.roadmap_id.in_({n.roadmap_id for n in nodes}),
+            RoadmapEdge.kind == "strict",
+        )
+    ):
+        needs.setdefault(edge.child_id, []).append(edge.parent_id)
+    rules = {}
+    for task in tasks:
+        node_id = task.roadmap_node_id
+        if node_id not in weeks:
+            continue
+        # Topics already done have no pending task, so they never block.
+        depends_on = tuple(task_of[t] for t in needs.get(node_id, []) if t in task_of)
+        rules[task.id] = {
+            "release_at": task_release_at(weeks[node_id], task.due_at),
+            "depends_on": depends_on,
+            "buffer_days": MILESTONE_BUFFER_DAYS
+            if depends_on
+            and next(n for n in nodes if n.id == node_id).type == "milestone"
+            else 0,
+        }
+    return rules
+
+
+def schedule_roadmap(
+    db: Session,
+    user: User,
+    roadmap: Roadmap,
+    nodes: list[RoadmapNode],
+    max_daily_minutes: int,
+    starts_at: datetime | None,
+    now: datetime,
+    weekly_minutes: int = 10080,
+) -> tuple[list[Task], list[ScheduleEntry], PlanOut]:
+    """Give each node one task (reused on later calls), then plan through make_plan so
+    sessions fit availability minus busy blocks and existing sessions (spec 10.4)."""
+    existing = {
+        task.roadmap_node_id: task
+        for task in db.scalars(
+            select(Task).where(
+                Task.owner_id == user.id,
+                Task.roadmap_node_id.in_([node.id for node in nodes]),
+            )
+        )
+    }
+    tasks = []
+    for node in nodes:
+        task = existing.get(node.id)
+        if task is None:
+            task = Task(
+                owner_id=user.id,
+                assignee_id=user.id,
+                title=node.title,
+                description=f"Roadmap: {roadmap.title}",
+                duration_minutes=max(1, node.duration_minutes or 60),
+                priority=2,
+                due_at=task_due_at(node.due_at, node.week, now),
+                roadmap_node_id=node.id,
+            )
+            db.add(task)
+        tasks.append(task)
+    db.flush()
+
+    start = max(starts_at or now, now)
+    if start.second or start.microsecond:
+        start = start.replace(second=0, microsecond=0) + timedelta(minutes=1)
+    latest_due = max(task.due_at for task in tasks).replace(second=0, microsecond=0)
+    shortest, longest = ROADMAP_SESSION_MINUTES
+    request = PlanRequest(
+        starts_at=start,
+        ends_at=min(
+            start + MAX_PLAN_HORIZON, max(latest_due, start + timedelta(days=1))
+        ),
+        min_session_minutes=shortest,
+        max_session_minutes=longest,
+        daily_limit_minutes=max_daily_minutes,
+        weekly_limit_minutes=weekly_minutes,
+        commit=True,
+    )
+    plan = make_plan(db, user, request, now)
+    task_ids = {task.id for task in tasks}
+    sessions = db.scalars(
+        select(ScheduleEntry)
+        .where(ScheduleEntry.task_id.in_(task_ids), ScheduleEntry.status == "planned")
+        .order_by(ScheduleEntry.starts_at)
+    ).all()
+    # Overloaded weeks stay plan-wide: other work shares the same week's hours.
+    plan.unscheduled = [i for i in plan.unscheduled if i.task_id in task_ids]
+    return tasks, list(sessions), plan
 
 
 def progress_report(db: Session, user: User, start_date):
@@ -219,9 +381,12 @@ def progress_report(db: Session, user: User, start_date):
             ScheduleEntry.ends_at > start,
         )
     ).all()
+    # Missed sessions are counted in missed_sessions; their replanned copies would
+    # otherwise count the same work twice.
     planned = sum(
         minutes(max(entry.starts_at, start), min(entry.ends_at, end))
         for entry in entries
+        if entry.status != "missed"
     )
     completed = sum(
         entry.actual_minutes
@@ -243,3 +408,77 @@ def progress_report(db: Session, user: User, start_date):
     if cache is not None:
         cache.put(cache_key, report, generation)
     return report
+
+
+def companion_reply(
+    db: Session,
+    user: User,
+    data: ChatRequest,
+    companion: Companion,
+    now: datetime,
+) -> ChatOut:
+    """One chat turn: gather read-only facts, ask the companion, store both messages."""
+    local_date = now.astimezone(ZoneInfo(user.timezone)).date()
+    report = progress_report(
+        db, user, local_date - timedelta(days=local_date.weekday())
+    )
+    tasks = db.scalars(
+        select(Task)
+        .where(Task.assignee_id == user.id, Task.status == "pending")
+        .order_by(Task.priority, Task.due_at, Task.id)
+        .limit(5)
+    ).all()
+    next_entry = db.scalar(
+        select(ScheduleEntry)
+        .where(
+            ScheduleEntry.user_id == user.id,
+            ScheduleEntry.status == "planned",
+            ScheduleEntry.ends_at > now,
+        )
+        .order_by(ScheduleEntry.starts_at)
+        .limit(1)
+    )
+    history = db.scalars(
+        select(ChatMessage)
+        .where(ChatMessage.user_id == user.id)
+        .order_by(ChatMessage.created_at.desc(), ChatMessage.id.desc())
+        .limit(10)
+    ).all()
+    context = CompanionContext(
+        name=user.name,
+        timezone=user.timezone,
+        mood=data.mood,
+        mode=companion_mode(user, now.date()),
+        personality=user.personality,
+        weekly_progress=report.model_dump(mode="json"),
+        pending_tasks=[
+            PendingTask(
+                task.title, task.due_at, task.duration_minutes - task.completed_minutes
+            )
+            for task in tasks
+        ],
+        next_session=NextSession(
+            db.get(Task, next_entry.task_id).title, next_entry.starts_at
+        )
+        if next_entry
+        else None,
+        history=[(row.role, row.content) for row in reversed(history)],
+    )
+    reply = companion.reply(context, data.message)
+    db.add(
+        ChatMessage(user_id=user.id, role="user", content=data.message, created_at=now)
+    )
+    db.add(
+        ChatMessage(
+            user_id=user.id,
+            role="assistant",
+            content=reply.text,
+            created_at=now + timedelta(microseconds=1),
+        )
+    )
+    db.commit()
+    return ChatOut(
+        reply=reply.text,
+        provider=reply.provider,
+        fallback_reason=reply.fallback_reason,
+    )

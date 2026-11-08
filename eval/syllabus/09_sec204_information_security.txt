@@ -1,0 +1,31 @@
+COURSE SYLLABUS
+Course: Principles of Information Security and Cryptography
+Course Code: SEC204
+Credits: 3 (Lecture: 2, Lab: 1)
+Information Security Division
+
+1. COURSE DESCRIPTION
+Covers foundational cybersecurity principles, classical and modern cryptography (AES, RSA, ECC), message authentication, digital signatures, web security (OWASP Top 10), and network defense.
+
+2. LEARNING OBJECTIVES
+- CLO1: Explain symmetric and asymmetric encryption principles, key exchange protocols (Diffie-Hellman), and cryptographic hashing.
+- CLO2: Identify and mitigate common application vulnerabilities including SQL injection, XSS, CSRF, and SSRF.
+- CLO3: Assess authentication security mechanisms, multi-factor authentication (MFA), and public-key infrastructure (PKI).
+
+3. TOPIC OUTLINE
+Week 1: Introduction to Security Concepts: Confidentiality, Integrity, Availability (CIA Triad).
+Week 2: Classical Ciphers, Block Ciphers, and Data Encryption Standard (DES/AES).
+Week 3: Asymmetric Cryptography: Number Theory Foundations, RSA, and Elliptic Curves.
+Week 4: Hash Functions (SHA-256), HMAC, and Digital Signature Schemes.
+Week 5: Public Key Infrastructure (PKI), Certificates, and TLS Handshake Architecture.
+Week 6: Midterm Exam (Cryptographic Foundations).
+Week 7: Web Application Security: OWASP Top 10, Injection Attacks, and Cross-Site Scripting.
+Week 8: Authentication Mechanisms: Passwords, Password Hashing (Argon2), and OAuth 2.0.
+Week 9: Network Security: Firewalls, Intrusion Detection Systems (IDS), and VPN Protocols.
+Week 10: Threat Modeling, Incident Response, and Secure Software Development Lifecycle.
+
+4. ASSESSMENT GRADING
+- Hands-on Security Labs: 20% (due week 8).
+- Midterm Written Exam: 30% (due week 6).
+- Final Security Assessment: 50% (due week 10).
+

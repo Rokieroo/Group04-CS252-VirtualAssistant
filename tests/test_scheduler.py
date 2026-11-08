@@ -1,11 +1,14 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
+from graphlib import CycleError
 
 import pytest
 from pydantic import ValidationError
 
-from assistant.backend.scheduler import (
+from app.planner import (
+    PlannedSession,
     WorkItem,
     build_plan,
+    diff,
     intersect,
     merge,
     minutes,
@@ -13,7 +16,7 @@ from assistant.backend.scheduler import (
 )
 from assistant.backend.schemas import PlanRequest
 
-START = datetime(2030, 1, 7, 2, tzinfo=timezone.utc)
+START = datetime(2030, 1, 7, 2, tzinfo=UTC)
 
 
 def at(offset):
@@ -138,3 +141,116 @@ def test_scheduling_invariants_for_varied_capacity():
         assert all(
             x.starts_at >= START and x.ends_at <= at(capacity) for x in result.entries
         )
+
+
+DAY = timedelta(days=1)
+
+
+def days(count, **changes):
+    """A plan over ``count`` days with one 09:00-11:00 UTC window each day."""
+    data = PlanRequest(starts_at=START, ends_at=START + count * DAY, **changes)
+    windows = [
+        (START + i * DAY + timedelta(hours=7), START + i * DAY + timedelta(hours=9))
+        for i in range(count)
+    ]
+    return data, windows
+
+
+def sessions_of(result, task_id):
+    return [x for x in result.entries if x.task_id == task_id]
+
+
+def test_dependent_never_starts_before_its_dependency_finishes():
+    # The child is more urgent, yet it has to wait for its parent.
+    tasks = [
+        WorkItem("parent", 90, 3, at(180)),
+        WorkItem("child", 30, 1, at(170), depends_on=("parent",)),
+    ]
+    result = build_plan(tasks, [(at(0), at(180))], [], [], request(), "UTC")
+    parent_end = max(x.ends_at for x in sessions_of(result, "parent"))
+    assert all(x.starts_at >= parent_end for x in sessions_of(result, "child"))
+    assert result.unscheduled == []
+
+
+def test_unknown_dependencies_count_as_done():
+    tasks = [WorkItem("a", 30, 1, at(180), depends_on=("finished-last-week",))]
+    result = build_plan(tasks, [(at(0), at(180))], [], [], request(), "UTC")
+    assert sessions_of(result, "a")[0].starts_at == at(0)
+
+
+def test_work_never_starts_before_its_release():
+    tasks = [WorkItem("later", 60, 1, at(180), release_at=at(90)),
+             WorkItem("now", 30, 2, at(180))]
+    result = build_plan(tasks, [(at(0), at(180))], [], [], request(), "UTC")
+    assert all(x.starts_at >= at(90) for x in sessions_of(result, "later"))
+    # The time before the release stays free for other work.
+    assert sessions_of(result, "now")[0].starts_at == at(0)
+
+
+def test_buffer_makes_dependencies_finish_days_before_the_milestone():
+    data, windows = days(10)
+    tasks = [
+        WorkItem("topic", 100, 2, START + 10 * DAY),
+        WorkItem("exam", 30, 2, START + 6 * DAY, depends_on=("topic",), buffer_days=3),
+    ]
+    result = build_plan(tasks, windows, [], [], data, "UTC")
+    assert max(x.ends_at for x in sessions_of(result, "topic")) <= START + 3 * DAY
+    assert result.unscheduled == []
+
+
+def test_failed_dependency_blocks_its_dependents_and_marks_its_week():
+    # Only 60 minutes a day: the topic cannot finish 3 days before the exam.
+    data, windows = days(10, daily_limit_minutes=60)
+    tasks = [
+        WorkItem("topic", 420, 2, START + 10 * DAY),
+        WorkItem("exam", 30, 2, START + 9 * DAY, depends_on=("topic",), buffer_days=3),
+    ]
+    result = build_plan(tasks, windows, [], [], data, "UTC")
+    reasons = {x.task_id: (x.minutes, x.reason) for x in result.unscheduled}
+    assert reasons == {
+        "topic": (420 - 6 * 60, "insufficient_capacity"),
+        "exam": (30, "blocked_by_dependency"),
+    }
+    assert sessions_of(result, "exam") == []
+    # The topic had to finish by Sunday 13 January, so the first week is overloaded.
+    assert result.overloaded_weeks == [date(2030, 1, 7)]
+
+
+def test_overload_is_reported_in_the_week_of_the_missed_deadline():
+    data, windows = days(14, daily_limit_minutes=30)
+    tasks = [
+        WorkItem("fits", 30, 1, START + 2 * DAY),
+        WorkItem("too-big", 400, 2, START + 9 * DAY),  # due Wednesday of week 2
+        WorkItem("overdue", 30, 1, START - DAY),
+    ]
+    result = build_plan(tasks, windows, [], [], data, "UTC")
+    assert {x.task_id: x.reason for x in result.unscheduled} == {
+        "too-big": "insufficient_capacity",
+        "overdue": "deadline_passed",
+    }
+    assert result.overloaded_weeks == [date(2030, 1, 14)]
+
+
+def test_dependency_cycles_are_rejected():
+    tasks = [WorkItem("a", 30, 1, at(180), depends_on=("b",)),
+             WorkItem("b", 30, 1, at(180), depends_on=("a",))]
+    with pytest.raises(CycleError):
+        build_plan(tasks, [(at(0), at(180))], [], [], request(), "UTC")
+
+
+def test_diff_reports_moved_added_and_dropped_tasks():
+    old = [
+        PlannedSession("kept", at(0), at(30)),
+        PlannedSession("moved", at(30), at(60)),
+        PlannedSession("dropped", at(60), at(90)),
+    ]
+    new = [
+        PlannedSession("kept", at(0), at(30)),
+        PlannedSession("moved", at(90), at(120)),
+        PlannedSession("added", at(120), at(150)),
+    ]
+    change = diff(old, new)
+    assert change.moved == ["moved"]
+    assert change.added == ["added"]
+    assert change.dropped == ["dropped"]
+    assert diff(new, list(reversed(new))) == diff([], [])

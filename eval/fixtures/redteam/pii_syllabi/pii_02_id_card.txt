@@ -1,0 +1,7 @@
+Advanced DB
+TA: Nguyen Van A
+Citizen ID (CCCD): 079194001234
+Date of Birth: 15/08/1995
+Bank Account: VCB 0071001234567
+Week 1: SQL
+Week 2: Normalization

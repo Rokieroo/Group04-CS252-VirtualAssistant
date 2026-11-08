@@ -1,0 +1,17 @@
+# -*- coding: utf-8 -*-  (để pip trên Windows đọc được tiếng Việt)
+# LLM chạy local (Qwen GGUF qua llama.cpp), không cần API key, không quota.
+# Cài: pip install -r requirements-local.txt (đã gồm requirements.txt).
+# Chưa dùng được: adapter LLM_PROVIDER=local (src/app/llm/local.py) chưa viết.
+# Lần chạy đầu sẽ tải model (~2 GB) từ Hugging Face vào ~/.cache/huggingface, sau đó chạy offline.
+# Wheel CUDA 12.1 dựng sẵn; --only-binary để pip không tự build từ source (cần Visual Studio).
+# Máy không có GPU NVIDIA: đổi URL dưới thành .../whl/cpu và bỏ 2 dòng nvidia-* (chạy chậm hơn).
+-r requirements.txt
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
+--only-binary=llama-cpp-python
+llama-cpp-python==0.3.4
+huggingface_hub~=2.3      # tải model GGUF lần đầu
+hf-xet~=1.7               # backend tải file lớn của huggingface_hub
+diskcache~=5.6            # cache của llama-cpp-python
+# CUDA runtime dạng pip (không cần cài CUDA Toolkit); không có bản cho macOS.
+nvidia-cuda-runtime-cu12==12.1.*; sys_platform != "darwin"
+nvidia-cublas-cu12==12.1.*; sys_platform != "darwin"

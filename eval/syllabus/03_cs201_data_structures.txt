@@ -1,0 +1,31 @@
+SYLLABUS OF INSTRUCTION
+Course: Data Structures and Algorithms
+Course Code: CS201
+Credits: 4 (Lecture: 3, Lab: 1)
+Faculty of Information Technology
+
+1. COURSE OBJECTIVES
+Students master abstract data types, asymptotic computational complexity (Big-O, Omega, Theta), fundamental data structures, sorting algorithms, and graph traversal techniques.
+
+2. LEARNING OUTCOMES
+- CLO1: Analyze algorithmic time and space complexity using recurrence relations and Master Theorem.
+- CLO2: Implement linear data structures (arrays, linked lists, stacks, queues) and non-linear data structures (binary search trees, AVL trees, heaps).
+- CLO3: Apply graph algorithms (BFS, DFS, Dijkstra, Bellman-Ford, Kruskal) to solve real-world routing and optimization problems.
+
+3. COURSE OUTLINE
+Week 1: Algorithmic Analysis, Asymptotic Notation, and Recursion.
+Week 2: Arrays, Dynamic Vectors, and Singly/Doubly Linked Lists.
+Week 3: Stacks, Queues, and Applications in Parsing and State Exploration.
+Week 4: Comparison Sorts (MergeSort, QuickSort) and Non-Comparison Sorts (Radix, Counting).
+Week 5: Binary Search Trees, Tree Balancing, and AVL Rotations.
+Week 6: Midterm Exam (Complexity Analysis & Data Structures).
+Week 7: Priority Queues, Binary Heaps, and Huffman Coding.
+Week 8: Hash Tables, Collision Resolution Strategies, and Universal Hashing.
+Week 9: Graph Representation, Breadth-First Search (BFS), and Depth-First Search (DFS).
+Week 10: Minimum Spanning Trees (Prim, Kruskal) and Single-Source Shortest Paths (Dijkstra).
+
+4. EVALUATION CRITERIA
+- Programming Assignments: 30% (due week 9).
+- Midterm In-class Exam: 20% (due week 6).
+- Final Comprehensive Exam: 50% (due week 10).
+

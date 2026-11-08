@@ -1,4 +1,4 @@
-/* Design tokens (docs/week1/UIUX.md). New components use only these. */
+/* Design tokens (docs/progress/phase1/UIUX.md). New components use only these. */
 :root {
   /* User accent (src/appearance.ts sets data-accent). Both ends keep white text >= 4.5:1;
      every accent-dependent token below is derived from these two. */
@@ -13,6 +13,7 @@
   --color-bg: light-dark(#f6f8fc, #0f1626);
   --color-surface: light-dark(#ffffff, #182238);
   --color-surface-alt: light-dark(#f8fafd, #1e2a44);
+  --color-avatar: light-dark(#8993a5, #a3b0c7);
   --color-text: light-dark(#182439, #e8edf7);
   --color-muted: light-dark(#66748a, #a3b0c7);
   --color-line: light-dark(#e6eaf2, #2c3956);
@@ -395,7 +396,7 @@ main {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--gradient-glow);
+  background: var(--color-avatar);
   flex-shrink: 0;
 }
 .icon-button .avatar {
@@ -453,7 +454,7 @@ main {
     var(--gradient-brand) border-box;
 }
 .hero .ai-symbol {
-  background: var(--gradient-brand);
+  background: var(--gradient-action, var(--gradient-brand));
   color: var(--color-on-primary);
   box-shadow: var(--shadow-glow);
 }
@@ -506,7 +507,7 @@ main {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: var(--gradient-brand);
+  background: var(--gradient-action, var(--gradient-brand));
   pointer-events: none;
 }
 :is(.button.primary, .primary-action, .auth-submit)::after {
@@ -574,7 +575,7 @@ main {
   top: 21px;
   bottom: 21px;
   width: 5px;
-  background: var(--gradient-brand);
+  background: var(--gradient-vertical, var(--gradient-brand));
   border-radius: 3px;
 }
 .session.amber:before {
@@ -1748,6 +1749,24 @@ legend {
   font-size: var(--text-md);
   font-weight: 600;
 }
+.questions {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+.question-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding-left: var(--space-4);
+}
+.question-list > li {
+  display: grid;
+  gap: var(--space-1);
+}
+.question-list p {
+  margin: 0;
+}
 .citation {
   justify-self: start;
   padding: var(--space-1) var(--space-2);
@@ -1782,4 +1801,42 @@ legend {
     grid-column: 2;
     justify-self: start;
   }
+}
+
+/* Admin cost dashboard (#costs): plain data tables. */
+.costs {
+  display: grid;
+  gap: 18px;
+}
+.cost-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.cost-table :is(th, td) {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+}
+.cost-table :is(th, td):first-child {
+  text-align: left;
+}
+/* Navigation follows the shorter screen side: left in landscape, top in portrait. */
+@media (orientation: portrait) {
+  .study-companion main { margin-left:0; padding:90px 20px 30px; }
+  .study-companion .sidebar { width:100%; height:auto; min-height:64px; inset:0 0 auto 0; border-radius:0; padding:8px 16px; overflow:visible; transform:none; visibility:visible; pointer-events:auto; }
+  .study-companion .sidebar .brand { display:none; }
+  .study-companion .sidebar .workspace-label,.study-companion .sidebar .sidebar-bottom,.study-companion .sidebar > .goals { display:none; }
+  .study-companion .sidebar nav { display:flex; gap:4px; justify-content:space-around; }
+  .study-companion .sidebar nav button { width:auto; height:48px; min-width:44px; padding:4px 8px; font-size:12px; gap:4px; }
+  .study-companion .sidebar nav button span { width:auto; font-size:16px; }
+  .study-companion .bottom-nav,.study-companion .mobile-menu { display:none; }
+}
+@media (orientation: landscape) {
+  .study-companion .sidebar { width:246px; height:100vh; inset:0 auto 0 0; transform:none; visibility:visible; pointer-events:auto; }
+  .study-companion main { margin-left:246px; padding:26px 42px 46px; }
+  .study-companion .bottom-nav,.study-companion .mobile-menu { display:none; }
+}
+@media (orientation: portrait) and (max-width:430px) {
+  .study-companion .sidebar nav button { font-size:10px; flex-direction:column; }
 }

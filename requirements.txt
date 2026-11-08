@@ -1,4 +1,6 @@
+# -*- coding: utf-8 -*-  (để pip trên Windows đọc được tiếng Việt)
 # Thư viện của dự án. Cài: pip install -r requirements.txt (trong venv)
+# LLM chạy local thay cho API key (chưa dùng được): xem requirements-local.txt.
 # Phiên bản dùng "~=" (cho phép bản vá và bản nhỏ, không nhảy major).
 
 # --- Backend API (#13, #14) ---
@@ -8,14 +10,17 @@ pydantic~=2.14
 email-validator~=2.3      # kiểm tra email khi đăng ký (pydantic EmailStr)
 python-multipart~=0.0.32  # nhận file upload (UploadFile)
 python-dotenv~=1.2        # đọc .env (LLM_API_KEY, JWT_SECRET, DATABASE_URL)
+pyyaml~=6.0               # catalog nội bộ data/catalog/*.yaml (Issue #61)
 
 # --- Database & migration (#12) ---
 sqlalchemy~=2.1
 alembic~=1.20
 psycopg[binary]~=3.3      # driver Postgres cho Docker Compose và staging
 
-# --- Ingest PDF (#13) ---
+# --- Ingest PDF, DOCX, text (#13, #49) ---
 pypdf~=6.21
+python-docx~=1.2          # đọc syllabus DOCX theo trang
+pillow~=10.3              # ảnh chụp tài liệu → PDF một trang cho vision (#114)
 
 # --- Security (#14) ---
 argon2-cffi~=25.1         # hash mật khẩu
@@ -24,12 +29,14 @@ pyjwt~=2.15               # JWT đăng nhập
 # --- AI: retrieval và ôn tập (#11, tuần 2) ---
 rank-bm25~=0.2
 fsrs~=6.3                 # scheduler spaced repetition cho tuần 2
+trafilatura~=2.3          # trích text đọc được từ trang web để chấm nguồn (#62)
 
 # --- AI: LLM vendor (#8) ---
 # #8 chọn Gemini. Đổi vendor: viết adapter mới trong src/app/llm/ và đổi dòng dưới.
 # openai~=3.37
 # anthropic~=2.3
 google-genai~=2.33
+truststore~=0.10          # Gemini dùng kho chứng chỉ của OS (máy có antivirus chặn TLS)
 
 # --- Test & lint (QA, DevOps) ---
 pytest~=9.1

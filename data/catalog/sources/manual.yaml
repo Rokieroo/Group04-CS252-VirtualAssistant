@@ -1,0 +1,218 @@
+# Hand-added catalog sources (ADR 004, issue #98), read by the manual_yaml
+# connector. Entries reach learners only after verification (#101); unlike
+# ../computer_science.yaml, the internal catalog search does not read this file.
+#
+# CSC10014 (Problem Framing and Solution Architecture) teaches course-specific
+# topics no provider sitemap labels, so its sources are listed here with the
+# taxonomy labels (data/catalog/subjects.yaml) a reviewer checked. Each URL
+# answered 200 with the given title on 2026-11-05. Licenses: Wikipedia text is
+# CC BY-SA 4.0; MIT OCW and OpenStax pages are CC BY-NC-SA 4.0 (per book, from
+# the OpenStax API); vendor guides state no open license, so link only.
+# Format: src/app/catalog/connectors/manual_yaml.py.
+resources:
+  # --- ct.framing: problem framing --------------------------------------------
+  - title: "Problem statement"
+    url: https://en.wikipedia.org/wiki/Problem_statement
+    license: CC-BY-SA-4.0
+    subjects: [ct.framing]
+
+  - title: "Problem solving"
+    url: https://en.wikipedia.org/wiki/Problem_solving
+    license: CC-BY-SA-4.0
+    subjects: [ct.framing]
+
+  - title: "6.1 Problem Solving to Find Entrepreneurial Solutions"
+    url: https://openstax.org/books/entrepreneurship/pages/6-1-problem-solving-to-find-entrepreneurial-solutions
+    license: CC-BY-NC-SA-4.0
+    kind: book
+    course: Entrepreneurship
+    subjects: [ct.framing]
+
+  - title: "Fundamentals of Systems Engineering"
+    url: https://ocw.mit.edu/courses/16-842-fundamentals-of-systems-engineering-fall-2015/
+    license: CC-BY-NC-SA-4.0
+    kind: course
+    code: "16.842"
+    year: 2015
+    level: grad
+    course: Aeronautics and Astronautics
+    subjects: [ct.framing, ct.requirements]
+
+  - title: "Product Design and Development"
+    url: https://ocw.mit.edu/courses/15-783j-product-design-and-development-spring-2006/
+    license: CC-BY-NC-SA-4.0
+    kind: course
+    code: "15.783J"
+    year: 2006
+    level: grad
+    course: Sloan School of Management
+    subjects: [ct.framing, ct.project]
+
+  # --- ct.requirements: functional and non-functional requirements, MoSCoW -----
+  - title: "Requirements engineering"
+    url: https://en.wikipedia.org/wiki/Requirements_engineering
+    license: CC-BY-SA-4.0
+    subjects: [ct.requirements]
+
+  - title: "Functional requirement"
+    url: https://en.wikipedia.org/wiki/Functional_requirement
+    license: CC-BY-SA-4.0
+    subjects: [ct.requirements]
+
+  - title: "Non-functional requirement"
+    url: https://en.wikipedia.org/wiki/Non-functional_requirement
+    license: CC-BY-SA-4.0
+    subjects: [ct.requirements]
+
+  - title: "MoSCoW method"
+    url: https://en.wikipedia.org/wiki/MoSCoW_method
+    license: CC-BY-SA-4.0
+    subjects: [ct.requirements]
+
+  - title: "Requirements elicitation"
+    url: https://en.wikipedia.org/wiki/Requirements_elicitation
+    license: CC-BY-SA-4.0
+    subjects: [ct.requirements]
+
+  - title: "Software requirements specification"
+    url: https://en.wikipedia.org/wiki/Software_requirements_specification
+    license: CC-BY-SA-4.0
+    subjects: [ct.requirements]
+
+  - title: "9.2 Software Engineering Process"
+    url: https://openstax.org/books/introduction-computer-science/pages/9-2-software-engineering-process
+    license: CC-BY-NC-SA-4.0
+    kind: book
+    course: Introduction to Computer Science
+    subjects: [ct.requirements, ct.use-cases]
+
+  - title: "Software Engineering Concepts"
+    url: https://ocw.mit.edu/courses/16-355j-software-engineering-concepts-fall-2005/
+    license: CC-BY-NC-SA-4.0
+    kind: course
+    code: "16.355J"
+    year: 2005
+    level: grad
+    course: Aeronautics and Astronautics
+    subjects: [ct.requirements]
+
+  # --- ct.ladder: manual work, automation and AI as solution tiers -------------
+  - title: "Automation"
+    url: https://en.wikipedia.org/wiki/Automation
+    license: CC-BY-SA-4.0
+    subjects: [ct.ladder]
+
+  - title: "Low-code development platform"
+    url: https://en.wikipedia.org/wiki/Low-code_development_platform
+    license: CC-BY-SA-4.0
+    subjects: [ct.ladder]
+
+  - title: "Robotic process automation"
+    url: https://en.wikipedia.org/wiki/Robotic_process_automation
+    license: CC-BY-SA-4.0
+    subjects: [ct.ladder]
+
+  - title: "Business process automation"
+    url: https://en.wikipedia.org/wiki/Business_process_automation
+    license: CC-BY-SA-4.0
+    subjects: [ct.ladder]
+
+  - title: "Human Supervisory Control of Automated Systems"
+    url: https://ocw.mit.edu/courses/16-422-human-supervisory-control-of-automated-systems-spring-2004/
+    license: CC-BY-NC-SA-4.0
+    kind: course
+    code: "16.422"
+    year: 2004
+    level: grad
+    course: Aeronautics and Astronautics
+    subjects: [ct.ladder, ct.pipelines]
+
+  # --- ct.use-cases: use case diagrams, include vs extend ----------------------
+  - title: "Use case"
+    url: https://en.wikipedia.org/wiki/Use_case
+    license: CC-BY-SA-4.0
+    subjects: [ct.use-cases]
+
+  - title: "Use case diagram"
+    url: https://en.wikipedia.org/wiki/Use_case_diagram
+    license: CC-BY-SA-4.0
+    subjects: [ct.use-cases]
+
+  - title: "Unified Modeling Language"
+    url: https://en.wikipedia.org/wiki/Unified_Modeling_Language
+    license: CC-BY-SA-4.0
+    subjects: [ct.use-cases]
+
+  - title: "UML Use Case Diagrams"
+    url: https://www.uml-diagrams.org/use-case-diagrams.html
+    license: ALL-RIGHTS-RESERVED
+    subjects: [ct.use-cases]
+
+  - title: "What is Use Case Diagram?"
+    url: https://www.visual-paradigm.com/guide/uml-unified-modeling-language/what-is-use-case-diagram/
+    license: ALL-RIGHTS-RESERVED
+    subjects: [ct.use-cases]
+
+  # --- ct.pipelines: success pipelines, human-in-the-loop, checkpoints ---------
+  - title: "Human-in-the-loop"
+    url: https://en.wikipedia.org/wiki/Human-in-the-loop
+    license: CC-BY-SA-4.0
+    subjects: [ct.pipelines]
+
+  - title: "Pipeline (software)"
+    url: https://en.wikipedia.org/wiki/Pipeline_(software)
+    license: CC-BY-SA-4.0
+    subjects: [ct.pipelines]
+
+  - title: "Workflow"
+    url: https://en.wikipedia.org/wiki/Workflow
+    license: CC-BY-SA-4.0
+    subjects: [ct.pipelines]
+
+  - title: "People + AI Guidebook"
+    url: https://pair.withgoogle.com/guidebook/
+    license: ALL-RIGHTS-RESERVED
+    subjects: [ct.pipelines]
+
+  - title: "Guidelines for Human-AI Interaction"
+    url: https://www.microsoft.com/en-us/research/project/guidelines-for-human-ai-interaction/
+    license: ALL-RIGHTS-RESERVED
+    subjects: [ct.pipelines]
+
+  # --- ct.project: milestone report, capstone, project defense -----------------
+  - title: "Capstone course"
+    url: https://en.wikipedia.org/wiki/Capstone_course
+    license: CC-BY-SA-4.0
+    subjects: [ct.project]
+
+  - title: "Project-based learning"
+    url: https://en.wikipedia.org/wiki/Project-based_learning
+    license: CC-BY-SA-4.0
+    subjects: [ct.project]
+
+  - title: "Space Systems Engineering"
+    url: https://ocw.mit.edu/courses/16-83x-space-systems-engineering-spring-2002-spring-2003/
+    license: CC-BY-NC-SA-4.0
+    kind: course
+    code: "16.83X"
+    year: 2003
+    course: Aeronautics and Astronautics
+    subjects: [ct.project]
+
+  - title: "Product Engineering Process"
+    url: https://ocw.mit.edu/courses/2-009-product-engineering-process-fall-2021/
+    license: CC-BY-NC-SA-4.0
+    kind: course
+    code: "2.009"
+    year: 2021
+    course: Mechanical Engineering
+    subjects: [ct.project, ct.framing]
+
+  - title: "Nuclear Systems Design Project"
+    url: https://ocw.mit.edu/courses/22-033-nuclear-systems-design-project-fall-2011/
+    license: CC-BY-NC-SA-4.0
+    kind: course
+    code: "22.033"
+    year: 2011
+    course: Nuclear Science and Engineering
+    subjects: [ct.project]
