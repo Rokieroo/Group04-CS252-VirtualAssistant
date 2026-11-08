@@ -82,30 +82,34 @@ export function CatalogHealthPanel({
 
       <section className="card">
         <h3>Connectors (last {health.days} days)</h3>
-        <table className="cost-table">
-          <thead>
-            <tr>
-              <th scope="col">Connector</th>
-              <th scope="col">Runs</th>
-              <th scope="col">New sources</th>
-              <th scope="col">Errors</th>
-              <th scope="col">Last error</th>
-              <th scope="col">Last run</th>
-            </tr>
-          </thead>
-          <tbody>
-            {health.connectors.map((row) => (
-              <tr key={row.connector}>
-                <th scope="row">{row.connector}</th>
-                <td>{row.runs}</td>
-                <td>{row.created}</td>
-                <td>{row.errors}</td>
-                <td>{row.last_error ?? "—"}</td>
-                <td>{when(row.last_run_at)}</td>
+        {health.connectors.length === 0 ? (
+          <p>No connector runs in this window.</p>
+        ) : (
+          <table className="cost-table">
+            <thead>
+              <tr>
+                <th scope="col">Connector</th>
+                <th scope="col">Runs</th>
+                <th scope="col">New sources</th>
+                <th scope="col">Errors</th>
+                <th scope="col">Last error</th>
+                <th scope="col">Last run</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {health.connectors.map((row) => (
+                <tr key={row.connector}>
+                  <th scope="row">{row.connector}</th>
+                  <td>{row.runs}</td>
+                  <td>{row.created}</td>
+                  <td>{row.errors}</td>
+                  <td>{row.last_error ?? "—"}</td>
+                  <td>{when(row.last_run_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
 
       <section className="card">
