@@ -422,3 +422,14 @@ def test_reupload_revises_kept_visual_notes_and_failure_keeps_them():
     assert llm.last_prompt.endswith("<previous_notes>\n[Page 1]\n- old note\n</previous_notes>")
     assert read_visuals(FakeLLM({"": "not json"}), make_pdf("a", "b"), 2,
                         previous=["- old note", ""]) == ["- old note", ""]
+
+
+def test_save_concepts_handles_empty_or_null_source_refs(app, course):
+    with app.state.database.sessions() as db:
+        save_concepts(db, course, [concept("legacy-concept", [1])])
+        db.execute(text("UPDATE concepts SET source_refs = '' WHERE slug = 'legacy-concept'"))
+        db.commit()
+
+        updated = save_concepts(db, course, [concept("legacy-concept", [1, 2])])
+        db.commit()
+    assert [c["source_pages"] for c in updated if c["slug"] == "legacy-concept"] == [[1, 2]]

@@ -20,6 +20,7 @@ from .from_pages import (  # noqa: F401
     WINDOW,
     _prompt,
     consolidate,
+    decode_concept,
     extract_concepts,
     log,
     parse_concepts,
