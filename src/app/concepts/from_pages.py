@@ -205,7 +205,7 @@ def save_concepts(db, course_id: str, concepts: list[dict],
         "SELECT id, slug, title, summary, bloom_level, source_pages, source_refs, confirmed "
         "FROM concepts WHERE course_id = :course_id"), {"course_id": course_id}).mappings()
     stored = [{**row, "source_pages": json.loads(row["source_pages"] or "[]"),
-               "source_refs": json.loads(row["source_refs"])} for row in rows]
+               "source_refs": json.loads(row["source_refs"] or "[]")} for row in rows]
     if file_name is not None:
         concepts = [{**c, "source_refs": source_refs(file_name, c["source_pages"])}
                     for c in concepts]
