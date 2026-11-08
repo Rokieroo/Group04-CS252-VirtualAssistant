@@ -17,10 +17,12 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy Alembic migration config and source code
+# Copy Alembic migration config, source code and the data it reads at run time
+# (source registry, domain policy, taxonomy, hand-listed sources, catalog sample)
 COPY alembic.ini .
 COPY alembic/ ./alembic/
 COPY src/ ./src/
+COPY data/ ./data/
 
 # Security best practice: run container as non-root user
 RUN useradd -m -u 1000 appuser && \

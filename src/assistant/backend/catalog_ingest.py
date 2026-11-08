@@ -7,7 +7,9 @@ an existing one keeps its verification status, so a ``rejected`` (taken down)
 source is never brought back.
 """
 
+import time
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -24,6 +26,7 @@ from app.catalog.institutions import domain_of
 from app.catalog.sources import Sources, load_sources
 from app.catalog.taxonomy import Tag, save_tags, tag_records
 from app.search.service import canonical_url
+from app.vetting.fetch import RateBudgetExceeded
 
 from .catalog_models import CatalogCourse, CatalogUnit, ResourceSubject
 from .models import Assessment, Course, LearningOutcome, Resource, Syllabus
@@ -210,6 +213,15 @@ def _store(run: _Upsert, record: CatalogRecord) -> None:
         run.unit(course, unit.position, unit.title, resource)
 
 
+def _until(records: Iterable[CatalogRecord], deadline: float, report: IngestReport):
+    """Stop reading records, and so sending requests, once ``deadline`` passes."""
+    for record in records:
+        if time.monotonic() > deadline:
+            report.error = "time_budget"
+            return
+        yield record
+
+
 def ingest(
     db,
     connector: CatalogConnector,
@@ -218,17 +230,20 @@ def ingest(
     now: datetime,
     since: datetime | None = None,
     sources: Sources | None = None,
+    deadline: float | None = None,
 ) -> IngestReport:
     """Run one connector; a provider that cannot be read is reported, not raised.
 
     Records read before the failure stay staged: the upsert is idempotent, so the
-    next run simply goes over them again.
+    next run simply goes over them again. So do the records left unread when the
+    ``time.monotonic()`` ``deadline`` or a domain's hourly budget runs out.
     """
     report = IngestReport(connector.name)
+    records = connector.fetch(subjects, since)
     try:
         upsert_records(
             db,
-            connector.fetch(subjects, since),
+            records if deadline is None else _until(records, deadline, report),
             connector=connector.name,
             now=now,
             sources=sources,
@@ -236,6 +251,8 @@ def ingest(
         )
     except ConnectorError as exc:
         report.error = exc.reason
+    except RateBudgetExceeded:
+        report.error = "rate_budget"
     return report
 
 

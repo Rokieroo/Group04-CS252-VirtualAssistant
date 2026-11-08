@@ -160,3 +160,42 @@ export type CostReport = {
   providers: ProviderUsage[];
   daily: DailyCost[];
 };
+
+/** GET /admin/catalog/health (issue #105): where the shared catalog lacks sources. */
+export type SubjectGap = { subject_id: string; name: string; nodes: number };
+
+export type ConnectorHealth = {
+  connector: string;
+  runs: number;
+  errors: number;
+  created: number;
+  last_run_at: string | null;
+  last_error: string | null;
+};
+
+export type DeadLink = {
+  id: string;
+  title: string;
+  url: string;
+  http_status: number | null;
+  last_checked_at: string | null;
+};
+
+export type GapRun = {
+  kind: "fill_gaps" | "rematch_sources";
+  at: string;
+  insufficient_before: number;
+  insufficient_after: number;
+  ingest_jobs: number;
+};
+
+export type CatalogHealth = {
+  days: number;
+  insufficient_nodes: number;
+  gaps: SubjectGap[];
+  resources: Record<string, number>;
+  connectors: ConnectorHealth[];
+  dead_links: number;
+  dead: DeadLink[];
+  gap_runs: GapRun[];
+};

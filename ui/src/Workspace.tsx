@@ -250,33 +250,39 @@ export default function Workspace() {
               <button className="button">Preview plan</button>
             </form>
             {preview && <div className="workspace-proposal">
-              <h4>Proposed sessions</h4>
+              <h4>Proposed changes</h4>
               {preview.plan.expired_sessions > 0 && <p className="workspace-warning">
                 Saving marks {preview.plan.expired_sessions} past unchecked session(s) as missed.
                 If you studied them, record your check-in before replanning.
               </p>}
               {!preview.plan.entries.length && <p>No new sessions fit. Add availability or review your task deadlines.</p>}
-              <ul className="workspace-list">{preview.plan.entries.map((entry, index) => <li key={index}>{taskName(entry.task_id)} · {format(entry.starts_at)} – {format(entry.ends_at)}</li>)}</ul>
+              <div>
+                <h5>{preview.plan.entries.length} new session(s)</h5>
+                <ul className="workspace-list">{preview.plan.entries.map((entry, index) => <li key={index}><strong>+ {taskName(entry.task_id)}</strong> · {format(entry.starts_at)} – {format(entry.ends_at)}</li>)}</ul>
+              </div>
               {preview.plan.unscheduled.map(item => <p className="workspace-warning" key={item.task_id}>
                 {taskName(item.task_id)}: {item.minutes} min unscheduled ({item.reason.replaceAll("_", " ")}).
               </p>)}
-              <button className="button primary" onClick={() => {
-                const currentMinute = Math.floor(Date.now() / 60000) * 60000;
-                const needsRefresh = Date.parse(preview.request.starts_at) < currentMinute;
-                void run(async () => {
-                  if (needsRefresh) {
-                    if (Date.parse(preview.request.ends_at) <= currentMinute)
-                      throw new Error("The planning window has ended. Choose a later end and preview again.");
-                    const request = { ...preview.request, starts_at: new Date(currentMinute).toISOString() };
-                    const plan = await api.request<Plan>("/api/v1/schedule/replan", "POST", request);
-                    setPreview({ request, plan });
-                  } else {
-                    await api.request("/api/v1/schedule/replan", "POST", { ...preview.request, commit: true });
-                    setPreview(null);
-                  }
-                }, needsRefresh ? "Time has advanced. Review the refreshed plan before saving."
-                  : "Plan saved to your calendar.", true);
-              }}>Save this plan</button>
+              <div className="workspace-row">
+                <button className="button primary" onClick={() => {
+                  const currentMinute = Math.floor(Date.now() / 60000) * 60000;
+                  const needsRefresh = Date.parse(preview.request.starts_at) < currentMinute;
+                  void run(async () => {
+                    if (needsRefresh) {
+                      if (Date.parse(preview.request.ends_at) <= currentMinute)
+                        throw new Error("The planning window has ended. Choose a later end and preview again.");
+                      const request = { ...preview.request, starts_at: new Date(currentMinute).toISOString() };
+                      const plan = await api.request<Plan>("/api/v1/schedule/replan", "POST", request);
+                      setPreview({ request, plan });
+                    } else {
+                      await api.request("/api/v1/schedule/replan", "POST", { ...preview.request, commit: true });
+                      setPreview(null);
+                    }
+                  }, needsRefresh ? "Time has advanced. Review the refreshed plan before saving."
+                    : "Plan saved to your calendar.", true);
+                }}>Save this plan</button>
+                <button type="button" className="button" onClick={() => setPreview(null)}>Discard</button>
+              </div>
             </div>}
           </section>
           <section className="card"><h3>Your tasks</h3>
