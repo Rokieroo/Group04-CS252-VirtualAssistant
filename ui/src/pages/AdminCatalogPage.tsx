@@ -21,13 +21,16 @@ const PRESET_REJECT_REASONS = [
   "broken link / 404",
 ];
 
+// Must match `licenses` in data/policy/catalog_sources.yaml: verify rejects any other.
 const LICENSES = [
+  "CC-BY-3.0",
   "CC-BY-4.0",
   "CC-BY-SA-4.0",
-  "CC-BY-NC-4.0",
+  "CC-BY-NC-SA-3.0",
   "CC-BY-NC-SA-4.0",
-  "MIT",
-  "Public Domain",
+  "CC0-1.0",
+  "VN-LEGAL-TEXT",
+  "ALL-RIGHTS-RESERVED",
 ];
 
 export function AdminCatalogPage() {
@@ -42,8 +45,8 @@ export function AdminCatalogPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   // Review inspector state
-  const [license, setLicense] = useState("CC-BY-4.0");
-  const [subjectTag, setSubjectTag] = useState("");
+  // Licenses the admin picked, per resource; otherwise the one the checks found.
+  const [licenseChoice, setLicenseChoice] = useState<Record<string, string>>({});
   const [customReason, setCustomReason] = useState(PRESET_VERIFY_REASONS[0]);
   const [rejectReason, setRejectReason] = useState(PRESET_REJECT_REASONS[0]);
   const [busy, setBusy] = useState(false);
@@ -69,45 +72,8 @@ export function AdminCatalogPage() {
     try {
       const data = await fetchCatalogReviewQueue(100);
       setItems(data);
-    } catch {
-      // Offline fallback mock data for testing and demo
-      const mockItems: CatalogReviewItem[] = Array.from({ length: 25 }, (_, i) => ({
-        id: `cat-res-${i + 1}`,
-        title: `Course Material ${i + 1}: Data Structures & Algorithms - MIT OCW`,
-        url: `https://ocw.mit.edu/courses/6-006/lecture-${i + 1}`,
-        domain: "ocw.mit.edu",
-        provider: i % 2 === 0 ? "MIT OCW" : "Stanford Online",
-        license: i % 3 === 0 ? "CC-BY-4.0" : null,
-        verification_status: "pending",
-        subject: "algorithms",
-        checks: [
-          {
-            check: "robots_and_domain",
-            result: "pass",
-            reason: "Allowed by robots.txt",
-            checked_at: "2026-11-01",
-          },
-          {
-            check: "open_license",
-            result: i % 3 === 0 ? "pass" : "review",
-            reason: i % 3 === 0 ? "license_found" : "license_unknown",
-            checked_at: "2026-11-01",
-          },
-          {
-            check: "extractable_text",
-            result: "pass",
-            reason: "Parsed 4200 words",
-            checked_at: "2026-11-01",
-          },
-          {
-            check: "format_and_duration",
-            result: "pass",
-            reason: "Video lecture (45 min)",
-            checked_at: "2026-11-01",
-          },
-        ],
-      }));
-      setItems(mockItems);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load the review queue.");
     } finally {
       setLoading(false);
     }
@@ -140,6 +106,8 @@ export function AdminCatalogPage() {
       ? filteredItems[Math.min(selectedIndex, filteredItems.length - 1)]
       : null;
 
+  const license = selectedItem ? (licenseChoice[selectedItem.id] ?? selectedItem.license ?? "") : "";
+
   // Refs for keyboard handlers to access current state without recreating listeners
   const selectedItemRef = useRef(selectedItem);
   selectedItemRef.current = selectedItem;
@@ -154,51 +122,50 @@ export function AdminCatalogPage() {
   const busyRef = useRef(busy);
   busyRef.current = busy;
 
-  // Sync item fields into editor when selection changes
-  useEffect(() => {
-    if (selectedItem) {
-      setLicense(selectedItem.license || "CC-BY-4.0");
-      setSubjectTag(selectedItem.subject || "cs-intro");
-    }
-  }, [selectedItem]);
-
   // Actions
-  const handleVerify = async (itemToVerify = selectedItemRef.current) => {
-    if (!itemToVerify || busyRef.current) return;
+  const decide = async (item: CatalogReviewItem, request: () => Promise<unknown>, done: string) => {
+    if (busyRef.current) return;
     setBusy(true);
     busyRef.current = true;
-    const finalLicense = licenseRef.current || itemToVerify.license || "CC-BY-4.0";
     try {
-      await verifyCatalogResource(itemToVerify.id, customReasonRef.current, finalLicense);
-    } catch {
-      // In offline/mock mode, proceed
-    } finally {
-      setItems((prev) => prev.filter((i) => i.id !== itemToVerify.id));
+      await request();
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
       setReviewedCount((c) => c + 1);
-      setToast(`✓ Đã duyệt: "${itemToVerify.title}" (${finalLicense})`);
+      setToast(done);
+      setError("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The decision was not saved.");
+    } finally {
       setBusy(false);
       busyRef.current = false;
-      setTimeout(() => setToast(null), 3000);
     }
   };
 
-  const handleReject = async (itemToReject = selectedItemRef.current) => {
-    if (!itemToReject || busyRef.current) return;
-    setBusy(true);
-    busyRef.current = true;
-    try {
-      await rejectCatalogResource(itemToReject.id, rejectReasonRef.current);
-    } catch {
-      // In offline/mock mode, proceed
-    } finally {
-      setItems((prev) => prev.filter((i) => i.id !== itemToReject.id));
-      setReviewedCount((c) => c + 1);
-      setToast(`✗ Đã loại: "${itemToReject.title}" (Lý do: ${rejectReasonRef.current})`);
-      setBusy(false);
-      busyRef.current = false;
-      setTimeout(() => setToast(null), 3000);
-    }
+  const handleVerify = async (item = selectedItemRef.current) => {
+    if (!item) return;
+    const chosen = licenseRef.current || null;
+    await decide(
+      item,
+      () => verifyCatalogResource(item.id, customReasonRef.current, chosen),
+      `✓ Đã duyệt: "${item.title}"${chosen ? ` (${chosen})` : ""}`,
+    );
   };
+
+  const handleReject = async (item = selectedItemRef.current) => {
+    if (!item) return;
+    const reason = rejectReasonRef.current;
+    await decide(
+      item,
+      () => rejectCatalogResource(item.id, reason),
+      `✗ Đã loại: "${item.title}" (Lý do: ${reason})`,
+    );
+  };
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 3000);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   // Keyboard navigation & shortcuts
   useEffect(() => {
@@ -236,7 +203,7 @@ export function AdminCatalogPage() {
   const providers = Array.from(new Set(items.map((i) => i.provider))).filter(Boolean);
 
   return (
-    <div className="admin-catalog-page" role="main" aria-label="Admin Catalog Review Queue">
+    <div className="admin-catalog-page" aria-label="Admin Catalog Review Queue">
       {/* Header */}
       <header className="acp-header">
         <div className="acp-title-area">
@@ -340,7 +307,7 @@ export function AdminCatalogPage() {
       {error && <p role="alert" className="row-error">{error}</p>}
 
       {/* Main Review Workspace */}
-      {!loading && filteredItems.length === 0 && (
+      {!loading && !error && filteredItems.length === 0 && (
         <div className="card" style={{ padding: "2rem", textAlign: "center" }}>
           <h3>🎉 Hàng chờ rỗng</h3>
           <p>Tất cả tài nguyên catalog đã được thẩm định xong!</p>
@@ -437,7 +404,7 @@ export function AdminCatalogPage() {
               </div>
             </div>
 
-            {/* Editable License and Subject Tag */}
+            {/* License the admin confirms */}
             <div className="acp-edit-grid">
               <div className="acp-form-field">
                 <label htmlFor="edit-license">Giấy phép (License):</label>
@@ -445,8 +412,9 @@ export function AdminCatalogPage() {
                   id="edit-license"
                   className="acp-select"
                   value={license}
-                  onChange={(e) => setLicense(e.target.value)}
+                  onChange={(e) => setLicenseChoice((prev) => ({ ...prev, [selectedItem.id]: e.target.value }))}
                 >
+                  <option value="">— Giữ giấy phép đã nhận diện —</option>
                   {LICENSES.map((lic) => (
                     <option key={lic} value={lic}>
                       {lic}
@@ -455,16 +423,6 @@ export function AdminCatalogPage() {
                 </select>
               </div>
 
-              <div className="acp-form-field">
-                <label htmlFor="edit-subject">Chủ đề (Subject tag):</label>
-                <input
-                  id="edit-subject"
-                  type="text"
-                  className="acp-input"
-                  value={subjectTag}
-                  onChange={(e) => setSubjectTag(e.target.value)}
-                />
-              </div>
             </div>
 
             {/* Decision Controls */}

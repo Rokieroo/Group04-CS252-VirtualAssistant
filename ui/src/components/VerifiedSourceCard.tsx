@@ -89,7 +89,8 @@ export function VerifiedSourceCard({
       : "");
 
   const institutionOrProvider = source.institution || source.provider;
-  const isVerified = source.verification_status === "verified" || !source.verification_status;
+  // Only a resource the catalog checks passed carries the badge; web results do not.
+  const isVerified = source.verification_status === "verified";
 
   return (
     <article
@@ -138,19 +139,20 @@ export function VerifiedSourceCard({
                   role="tooltip"
                   aria-label="Tiêu chí thẩm định nguồn"
                 >
+                  {/* The four checks of app/catalog/verification.py CHECKS (#101). */}
                   <h4>Tiêu chí thẩm định nguồn uy tín</h4>
                   <ul>
                     <li>
-                      <strong>Tên trường / uy tín:</strong> Nguồn từ các trường đại học hàng đầu hoặc tổ chức giáo dục chính thống.
+                      <strong>Tải được:</strong> trang mở được, robots.txt cho phép và có nội dung đọc được.
                     </li>
                     <li>
-                      <strong>Giấy phép mở:</strong> Nội dung có bản quyền OER/Creative Commons rõ ràng.
+                      <strong>Tên miền:</strong> thuộc trường hoặc tổ chức giáo dục trong danh sách tin cậy.
                     </li>
                     <li>
-                      <strong>Độ tươi mới & sư phạm:</strong> Khớp mục tiêu bài học, giải thích sư phạm chuẩn xác.
+                      <strong>Giấy phép:</strong> giấy phép mở được nhận diện rõ ràng.
                     </li>
                     <li>
-                      <strong>Tuân thủ robots:</strong> Đảm bảo tôn trọng chính sách thu thập và quyền tác giả.
+                      <strong>Thông tin mô tả:</strong> có tiêu đề, định dạng và ngôn ngữ hợp lệ.
                     </li>
                   </ul>
                 </div>
@@ -164,11 +166,9 @@ export function VerifiedSourceCard({
             </span>
           )}
 
-          {source.duration_min && (
-            <span className="vsc-badge vsc-badge-duration">
-              ⏱ {source.duration_min} phút
-            </span>
-          )}
+          {source.duration_min ? (
+            <span className="vsc-badge vsc-badge-duration">⏱ {source.duration_min} phút</span>
+          ) : null}
 
           {source.license && (
             <span className="vsc-badge vsc-badge-license" title="Giấy phép nội dung">
@@ -176,13 +176,8 @@ export function VerifiedSourceCard({
             </span>
           )}
 
-          {source.score !== undefined && (
-            <span
-              className="vsc-badge vsc-badge-score"
-              title={`Điểm chất lượng: ${(source.score * 100).toFixed(0)}%`}
-            >
-              ★ {(source.score * 100).toFixed(0)}%
-            </span>
+          {source.score !== undefined && !source.breakdown && (
+            <span className="vsc-badge vsc-badge-score">★ {Math.round(source.score * 100)}%</span>
           )}
         </div>
       </div>
@@ -202,6 +197,22 @@ export function VerifiedSourceCard({
         </p>
       )}
 
+      {source.score !== undefined && source.breakdown && (
+        <details className="vsc-breakdown">
+          <summary className="vsc-badge vsc-badge-score">
+            ★ {Math.round(source.score * 100)}% (7 tiêu chí)
+          </summary>
+          <dl className="vsc-breakdown-grid">
+            {Object.entries(source.breakdown).map(([criterion, value]) => (
+              <div key={criterion}>
+                <dt>{criterion}</dt>
+                <dd>{Math.round(value * 100)}%</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      )}
+
       {source.evidence_quote && (
         <blockquote className="vsc-quote-box" title="Đoạn trích minh chứng">
           "{source.evidence_quote}"
@@ -214,7 +225,6 @@ export function VerifiedSourceCard({
             type="button"
             className="vsc-feedback-btn"
             onClick={() => onFeedback(true)}
-            aria-label="Đánh giá nguồn này hữu ích"
           >
             👍 Hữu ích
           </button>
@@ -222,7 +232,6 @@ export function VerifiedSourceCard({
             type="button"
             className="vsc-feedback-btn"
             onClick={() => onFeedback(false)}
-            aria-label="Đánh giá nguồn này không phù hợp"
           >
             👎 Không phù hợp
           </button>

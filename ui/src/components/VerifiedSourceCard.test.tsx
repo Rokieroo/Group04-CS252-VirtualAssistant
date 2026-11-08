@@ -27,6 +27,13 @@ describe("VerifiedSourceCard component (Issue #104, #58, #94)", () => {
     evidence_quote: "Algorithms break complex problems into atomic steps.",
   };
 
+  it("shows the verified badge only for a verified source", () => {
+    const { rerender } = render(<VerifiedSourceCard source={sampleSource} />);
+    expect(screen.getByRole("button", { name: /tiêu chí thẩm định/ })).toBeTruthy();
+    rerender(<VerifiedSourceCard source={{ ...sampleSource, verification_status: undefined }} />);
+    expect(screen.queryByRole("button", { name: /tiêu chí thẩm định/ })).toBeNull();
+  });
+
   it("renders verified source card with all fields and safe external link", () => {
     render(<VerifiedSourceCard source={sampleSource} />);
 
@@ -67,10 +74,10 @@ describe("VerifiedSourceCard component (Issue #104, #58, #94)", () => {
     const feedbackSpy = vi.fn();
     render(<VerifiedSourceCard source={sampleSource} onFeedback={feedbackSpy} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Đánh giá nguồn này hữu ích/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Hữu ích/ }));
     expect(feedbackSpy).toHaveBeenCalledWith(true);
 
-    fireEvent.click(screen.getByRole("button", { name: /Đánh giá nguồn này không phù hợp/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Không phù hợp/ }));
     expect(feedbackSpy).toHaveBeenCalledWith(false);
   });
 

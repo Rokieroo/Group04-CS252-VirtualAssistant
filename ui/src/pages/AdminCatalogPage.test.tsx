@@ -9,11 +9,9 @@ describe("AdminCatalogPage (Issue #104, Spec 8.6, ADR 004)", () => {
     id: `res-${i + 1}`,
     title: `Verified Course Item ${i + 1} - MIT OCW`,
     url: `https://ocw.mit.edu/courses/6-006/item-${i + 1}`,
-    domain: "ocw.mit.edu",
     provider: i % 2 === 0 ? "MIT OCW" : "Stanford Online",
     license: i % 3 === 0 ? "CC-BY-4.0" : null,
     verification_status: "pending",
-    subject: "algorithms",
     checks: [
       {
         check: "robots_and_domain",
@@ -90,6 +88,24 @@ describe("AdminCatalogPage (Issue #104, Spec 8.6, ADR 004)", () => {
     expect(screen.getAllByText(/Verified Course Item 2 - MIT OCW/).length).toBeGreaterThan(0);
   });
 
+  it("keeps a resource in the queue and shows why when the API refuses the decision", async () => {
+    vi.spyOn(catalogApi, "verifyCatalogResource").mockRejectedValue(new Error("license_required"));
+    render(<AdminCatalogPage />);
+    await screen.findAllByText(/Verified Course Item 1 - MIT OCW/);
+
+    fireEvent.click(screen.getByRole("button", { name: /Xác nhận duyệt nguồn này/i }));
+
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "license_required");
+    expect(screen.queryByText(/✓ Đã duyệt/)).toBeNull();
+    expect(screen.getAllByText(/Verified Course Item 1 - MIT OCW/).length).toBeGreaterThan(0);
+  });
+
+  it("shows the load error instead of sample data", async () => {
+    vi.spyOn(catalogApi, "fetchCatalogReviewQueue").mockRejectedValue(new Error("forbidden"));
+    render(<AdminCatalogPage />);
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "forbidden");
+  });
+
   it("verifies a catalog resource and removes it from queue", async () => {
     const verifySpy = vi.spyOn(catalogApi, "verifyCatalogResource");
     render(<AdminCatalogPage />);
@@ -124,7 +140,8 @@ describe("AdminCatalogPage (Issue #104, Spec 8.6, ADR 004)", () => {
     // Press 'V' to verify res-2
     fireEvent.keyDown(window, { key: "v" });
     await waitFor(() => {
-      expect(verifySpy).toHaveBeenCalledWith("res-2", expect.any(String), expect.any(String));
+      // res-2 has no license and none was chosen: nothing is invented for it.
+      expect(verifySpy).toHaveBeenCalledWith("res-2", expect.any(String), null);
     });
 
     await screen.findByText(/✓ Đã duyệt/);

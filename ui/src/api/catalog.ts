@@ -11,12 +11,10 @@ export type CatalogReviewItem = {
   id: string;
   title: string;
   url: string;
-  domain?: string;
   provider: string;
   license: string | null;
   verification_status: "pending" | "verified" | "rejected" | string;
   checks: VerificationCheck[];
-  subject?: string;
 };
 
 export type SubjectReviewLabel = {
