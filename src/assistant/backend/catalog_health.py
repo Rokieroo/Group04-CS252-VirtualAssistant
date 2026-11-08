@@ -32,7 +32,7 @@ def _connectors(db: Session, since: datetime) -> list[dict]:
         .where(Job.kind == INGEST, Job.status.in_(("done", "failed")), Job.updated_at >= since)
         .order_by(Job.updated_at)
     ):
-        name = json.loads(job.payload or "{}").get("connector", "?")
+        name = json.loads(job.payload).get("connector", "?")
         outcome = _result(job)
         error = job.error if job.status == "failed" else outcome.get("error")
         row = summary.setdefault(
