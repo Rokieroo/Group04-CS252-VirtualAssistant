@@ -15,7 +15,7 @@ from fastapi import (
 from sqlalchemy import delete, select, text
 from sqlalchemy.exc import IntegrityError
 
-from app.concepts.extract import extract_concepts, save_concepts
+from app.concepts.extract import decode_concept, extract_concepts, save_concepts
 from app.concepts.normalize import pages_in
 from app.concepts.visual import read_visuals
 from app.ingest import (
@@ -187,9 +187,7 @@ def propose_concepts(
     if not decks:
         raise HTTPException(404, "no_sources")
     # A re-run revises what was proposed before rather than starting over.
-    previous = [{**row, "source_pages": json.loads(row["source_pages"] or "[]"),
-                 "source_refs": json.loads(row["source_refs"])}
-                for row in db.execute(text(
+    previous = [decode_concept(row) for row in db.execute(text(
                     "SELECT slug, title, summary, source_pages, source_refs FROM concepts "
                     "WHERE course_id = :course_id"), {"course_id": course_id}).mappings()]
     for name, (pages, notes) in decks.items():
@@ -221,8 +219,7 @@ def course_concept(db, course_id: str, concept_id: str) -> dict:
         {"id": concept_id, "course_id": course_id}).mappings().first()
     if row is None:
         raise HTTPException(404, "Concept not found")
-    return {**row, "source_pages": json.loads(row["source_pages"] or "[]"),
-            "source_refs": json.loads(row["source_refs"])}
+    return decode_concept(row)
 
 
 def concept_items(db, concept_id: str) -> list[dict]:

@@ -191,6 +191,12 @@ def consolidate(llm: LLMClient, candidates: list[dict]) -> list[dict]:
     return kept[:MAX_CONCEPTS]
 
 
+def decode_concept(row) -> dict:
+    """A concepts row as a dict, its JSON page columns decoded; an empty one reads as []."""
+    return {**row, "source_pages": json.loads(row["source_pages"] or "[]"),
+            "source_refs": json.loads(row["source_refs"] or "[]")}
+
+
 def save_concepts(db, course_id: str, concepts: list[dict],
                   file_name: str | None = None) -> list[dict]:
     """Store proposals as unconfirmed; an existing concept gains pages, and when a proposal
@@ -204,8 +210,7 @@ def save_concepts(db, course_id: str, concepts: list[dict],
     rows = db.execute(text(
         "SELECT id, slug, title, summary, bloom_level, source_pages, source_refs, confirmed "
         "FROM concepts WHERE course_id = :course_id"), {"course_id": course_id}).mappings()
-    stored = [{**row, "source_pages": json.loads(row["source_pages"] or "[]"),
-               "source_refs": json.loads(row["source_refs"] or "[]")} for row in rows]
+    stored = [decode_concept(row) for row in rows]
     if file_name is not None:
         concepts = [{**c, "source_refs": source_refs(file_name, c["source_pages"])}
                     for c in concepts]

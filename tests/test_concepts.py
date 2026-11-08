@@ -432,4 +432,4 @@ def test_save_concepts_handles_empty_or_null_source_refs(app, course):
 
         updated = save_concepts(db, course, [concept("legacy-concept", [1, 2])])
         db.commit()
-    assert any(c["slug"] == "legacy-concept" for c in updated)
+    assert [c["source_pages"] for c in updated if c["slug"] == "legacy-concept"] == [[1, 2]]
