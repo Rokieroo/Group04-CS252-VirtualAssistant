@@ -1,21 +1,63 @@
 """Node learning sources, quoted exercises and graph write contracts."""
 
-from typing import Literal
+import json
+from collections import defaultdict
+from datetime import datetime
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from pydantic import BaseModel, ConfigDict, Field, model_validator
-from sqlalchemy import delete, select
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
+from sqlalchemy import delete, select, update
 
-from .catalog_models import GraphLayout, RoadmapEdge
+from app.roadmap import layers, local_graph, prerequisites, transitive_reduction
+
+from .catalog_models import Concept, GraphLayout, RoadmapEdge
 from .catalog_repository import node_sources
 from .dependencies import DB, CurrentUser
 from .exercise_repository import exercises_for_node
 from .material_repository import decide, node_materials
-from .models import RoadmapNode, Source
+from .models import (
+    Course,
+    LearningOutcome,
+    Notification,
+    Roadmap,
+    RoadmapNode,
+    Source,
+    Task,
+)
 from .roadmap_repository import CycleError, add_roadmap_edge, owned_node, save_layout
-from .routes_core import _owned_roadmap
+from .routes_core import _latest_syllabus, _owned_roadmap
+from .schemas import RoadmapGraphOut
 
 router = APIRouter(tags=["Node learning and graph"])
+
+EDGE_EDITS_PER_MINUTE = 120  # issue #103
+# shortcut: counted per worker process, so N workers allow N x 120/min and a restart
+# forgets; move to a shared store (an edge-edit log table or Redis) if edits get abused.
+_edge_edits: dict[str, list[float]] = defaultdict(list)
+
+
+def _check_edge_rate_limit(user_id: str, now_ts: float):
+    recent = [t for t in _edge_edits[user_id] if t > now_ts - 60]
+    if len(recent) >= EDGE_EDITS_PER_MINUTE:
+        raise HTTPException(
+            429, "Edge edit rate limit reached (120/min)", headers={"Retry-After": "60"}
+        )
+    _edge_edits[user_id] = [*recent, now_ts]
+
+
+def _mark_replan_needed(db, user_id: str, roadmap_id: str) -> None:
+    """Edge edits change what can be studied when: one unread nudge to replan (#65)."""
+    message = f"Roadmap {roadmap_id} edges updated; schedule replan required."
+    unread = db.scalar(
+        select(Notification.id).where(
+            Notification.user_id == user_id,
+            Notification.message == message,
+            Notification.read.is_(False),
+        )
+    )
+    if unread is None:
+        db.add(Notification(user_id=user_id, message=message))
 
 
 class RankedSourceOut(BaseModel):
@@ -113,8 +155,6 @@ def sources(
 @router.get("/roadmaps/{roadmap_id}/sources:summary", response_model=SourceSummaryOut)
 def summary(roadmap_id: str, db: DB, user: CurrentUser, request: Request):
     roadmap = _owned_roadmap(db, roadmap_id, user.id)
-    from .models import Course
-
     nodes = list(
         db.scalars(select(RoadmapNode).where(RoadmapNode.roadmap_id == roadmap_id))
     )
@@ -215,10 +255,149 @@ def decide_material(
     }
 
 
+def _build_roadmap_graph(
+    db: DB, roadmap_id: str, user_id: str, now: datetime, *, reduce: bool = False
+) -> dict:
+    roadmap = _owned_roadmap(db, roadmap_id, user_id)
+    course = db.get(Course, roadmap.course_id)
+    nodes = list(
+        db.scalars(
+            select(RoadmapNode)
+            .where(RoadmapNode.roadmap_id == roadmap_id)
+            .order_by(RoadmapNode.week, RoadmapNode.id)
+        )
+    )
+    if not nodes:
+        return {"nodes": [], "edges": []}
+
+    node_ids = [n.id for n in nodes]
+    tasks = {
+        t.roadmap_node_id: t
+        for t in db.scalars(
+            select(Task).where(
+                Task.owner_id == user_id,
+                Task.roadmap_node_id.in_(node_ids),
+            )
+        )
+    }
+
+    concept_ids = [n.concept_id for n in nodes if n.concept_id]
+    concepts = (
+        {c.id: c for c in db.scalars(select(Concept).where(Concept.id.in_(concept_ids)))}
+        if concept_ids
+        else {}
+    )
+
+    syllabus = _latest_syllabus(db, course.id)
+    # A topic node is titled after its outcome (routes_core.generate_roadmap), so match
+    # the title exactly; a substring test would tie "CLO1" to "CLO10".
+    outcome_by_title = (
+        {
+            (o.description or o.code): o.id
+            for o in db.scalars(
+                select(LearningOutcome).where(LearningOutcome.syllabus_id == syllabus.id)
+            )
+        }
+        if syllabus
+        else {}
+    )
+
+    # One bulk read for every node, the same one GET sources:summary makes (#102).
+    sources_by_node = node_sources(db, nodes, roadmap, course, now)
+
+    # Plain dicts: the route's response_model validates them once (300 nodes and ~1.4k
+    # edges validated twice took most of the p95 budget, issue #103).
+    edges = [
+        dict(row)
+        for row in db.execute(
+            select(
+                RoadmapEdge.parent_id.label("parent"),
+                RoadmapEdge.child_id.label("child"),
+                RoadmapEdge.kind,
+                RoadmapEdge.origin,
+                RoadmapEdge.confidence,
+                RoadmapEdge.reason,
+            ).where(RoadmapEdge.roadmap_id == roadmap_id)
+        ).mappings()
+    ] + [
+        {
+            "parent": topic_id,
+            "child": milestone_id,
+            "kind": "covers",
+            "origin": "milestone_covers",
+            "confidence": 1.0,
+            "reason": "Milestone covers topic",
+        }
+        for milestone_id, topic_ids in prerequisites(nodes).items()
+        for topic_id in topic_ids
+    ]
+    layer_of = layers(nodes, edges)
+
+    graph_nodes = []
+    for node in nodes:
+        concept = concepts.get(node.concept_id)
+        task = tasks.get(node.id)
+        summary = sources_by_node.get(node.id, {})
+        outcome_id = outcome_by_title.get(node.title)
+        graph_nodes.append({
+            "id": node.id,
+            "type": node.type,
+            "title": node.title,
+            "week": node.week,
+            "est_minutes": node.duration_minutes,
+            "due_at": node.due_at,
+            "outcome_ids": [outcome_id] if outcome_id else [],
+            "source_pages": json.loads(concept.source_pages or "[]") if concept else [],
+            "status": task.status if task else "pending",
+            "source_count": summary.get("source_count", 0),
+            "user_material_count": summary.get("user_material_count", 0),
+            "sources_status": summary.get("status", "insufficient"),
+            "layer": layer_of[node.id],
+        })
+
+    return {
+        "nodes": graph_nodes,
+        "edges": transitive_reduction(nodes, edges) if reduce else edges,
+    }
+
+
+@router.get("/roadmaps/{roadmap_id}/graph", response_model=RoadmapGraphOut)
+def get_roadmap_graph(
+    roadmap_id: str,
+    db: DB,
+    user: CurrentUser,
+    request: Request,
+    reduce: bool = Query(False),
+):
+    """Retrieve full course roadmap graph (issue #103, spec 8, UC-03)."""
+    return _build_roadmap_graph(db, roadmap_id, user.id, request.app.state.now(), reduce=reduce)
+
+
+@router.get("/roadmap-nodes/{node_id}/graph", response_model=RoadmapGraphOut)
+def get_node_subgraph(
+    node_id: str,
+    db: DB,
+    user: CurrentUser,
+    request: Request,
+    depth: int = Query(2, ge=1, le=5),
+    direction: Literal["ancestors", "descendants", "both"] = Query("both"),
+):
+    """Retrieve local subgraph centered on a roadmap node (issue #97, #103)."""
+    _, roadmap, _ = _node(db, node_id, user.id)
+    graph = _build_roadmap_graph(db, roadmap.id, user.id, request.app.state.now())
+    kept, edges = local_graph(
+        graph["nodes"], graph["edges"], node_id, depth=depth, direction=direction
+    )
+    kept = set(kept)
+    return {"nodes": [n for n in graph["nodes"] if n["id"] in kept], "edges": edges}
+
+
 class EdgeIn(BaseModel):
+    """``parent``/``child`` as in spec 8; the older ``parent_id``/``child_id`` still parse."""
+
     model_config = ConfigDict(extra="forbid")
-    parent_id: str
-    child_id: str
+    parent_id: str = Field(validation_alias=AliasChoices("parent", "parent_id"))
+    child_id: str = Field(validation_alias=AliasChoices("child", "child_id"))
     kind: Literal["soft", "strict"] = "strict"
     reason: str = Field("", max_length=300)
 
@@ -241,11 +420,23 @@ def list_edges(roadmap_id: str, db: DB, user: CurrentUser):
     ]
 
 
-@router.post("/roadmaps/{roadmap_id}/edges", status_code=201)
-def add_edge(roadmap_id: str, data: EdgeIn, db: DB, user: CurrentUser):
+EDGE_ERRORS = {
+    409: {"description": "Dependency cycle detected"},
+    429: {"description": "Rate limit exceeded"},
+}
+
+
+# The /edges and /layout paths predate the spec 8 /graph/... ones; ui/src/api/core.ts
+# still calls them, so they stay as undocumented aliases.
+@router.post("/roadmaps/{roadmap_id}/graph/edges", status_code=201, responses=EDGE_ERRORS)
+@router.post("/roadmaps/{roadmap_id}/edges", status_code=201, include_in_schema=False)
+def add_edge(roadmap_id: str, data: EdgeIn, request: Request, db: DB, user: CurrentUser):
+    """Add a prerequisite edge; one that would close a cycle is a 409 with its path."""
+    _check_edge_rate_limit(user.id, request.app.state.now().timestamp())
     _owned_roadmap(db, roadmap_id, user.id)
     try:
         edge = add_roadmap_edge(db, roadmap_id, **data.model_dump(), created_by=user.id)
+        _mark_replan_needed(db, user.id, roadmap_id)
         db.commit()
         return {
             "parent_id": edge.parent_id,
@@ -257,27 +448,29 @@ def add_edge(roadmap_id: str, data: EdgeIn, db: DB, user: CurrentUser):
         }
     except CycleError as exc:
         db.rollback()
-        raise HTTPException(
-            409, {"code": "dependency_cycle", "path": exc.path}
-        ) from None
+        raise HTTPException(409, {"error": "cycle", "path": exc.path}) from None
     except (ValueError, LookupError) as exc:
         db.rollback()
         raise HTTPException(422, str(exc)) from None
 
 
-@router.delete("/roadmaps/{roadmap_id}/edges/{parent_id}/{child_id}", status_code=204)
+@router.delete(
+    "/roadmaps/{roadmap_id}/graph/edges/{parent_id}/{child_id}",
+    status_code=204,
+    responses={429: EDGE_ERRORS[429]},
+)
+@router.delete(
+    "/roadmaps/{roadmap_id}/edges/{parent_id}/{child_id}",
+    status_code=204,
+    include_in_schema=False,
+)
 def remove_edge(
-    roadmap_id: str, parent_id: str, child_id: str, db: DB, user: CurrentUser
+    roadmap_id: str, parent_id: str, child_id: str, request: Request, db: DB, user: CurrentUser
 ):
+    _check_edge_rate_limit(user.id, request.app.state.now().timestamp())
     _owned_roadmap(db, roadmap_id, user.id)
     # Same roadmap row lock as additions; deletion cannot race a cycle check.
-    from sqlalchemy import update
-
-    from .models import Roadmap
-
-    db.execute(
-        update(Roadmap).where(Roadmap.id == roadmap_id).values(title=Roadmap.title)
-    )
+    db.execute(update(Roadmap).where(Roadmap.id == roadmap_id).values(title=Roadmap.title))
     db.execute(
         delete(RoadmapEdge).where(
             RoadmapEdge.roadmap_id == roadmap_id,
@@ -285,6 +478,7 @@ def remove_edge(
             RoadmapEdge.child_id == child_id,
         )
     )
+    _mark_replan_needed(db, user.id, roadmap_id)
     db.commit()
 
 
@@ -296,23 +490,30 @@ class PositionIn(BaseModel):
     pinned: bool = False
 
 
+Positions = Annotated[list[PositionIn], Field(max_length=1000)]
+
+
 class LayoutIn(BaseModel):
-    positions: list[PositionIn] = Field(max_length=1000)
+    positions: Positions
 
 
-@router.put("/roadmaps/{roadmap_id}/layout")
-def put_layout(roadmap_id: str, data: LayoutIn, db: DB, user: CurrentUser):
+@router.put("/roadmaps/{roadmap_id}/graph/layout")
+@router.put("/roadmaps/{roadmap_id}/layout", include_in_schema=False)
+def put_layout(roadmap_id: str, data: Positions | LayoutIn, db: DB, user: CurrentUser):
+    """Save this user's node positions: a bare list (spec 8) or the older {positions}."""
     _owned_roadmap(db, roadmap_id, user.id)
-    for position in data.positions:
+    positions = data if isinstance(data, list) else data.positions
+    for position in positions:
         node, _, _ = _node(db, position.node_id, user.id)
         if node.roadmap_id != roadmap_id:
             raise HTTPException(422, "node_outside_roadmap")
         save_layout(db, user.id, **position.model_dump())
     db.commit()
-    return {"saved": len(data.positions)}
+    return {"saved": len(positions)}
 
 
-@router.get("/roadmaps/{roadmap_id}/layout")
+@router.get("/roadmaps/{roadmap_id}/graph/layout")
+@router.get("/roadmaps/{roadmap_id}/layout", include_in_schema=False)
 def get_layout(roadmap_id: str, db: DB, user: CurrentUser):
     _owned_roadmap(db, roadmap_id, user.id)
     rows = db.scalars(

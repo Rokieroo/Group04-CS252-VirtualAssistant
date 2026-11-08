@@ -29,10 +29,14 @@ from app.roadmap.graph import (
     Edge,
     edge_pair,
     find_cycles,
+    layers,
+    local_graph,
     node_key,
     strongly_connected_components,
     topological_sort,
     topological_sort_or_raise,
+    transitive_reduction,
+    would_create_cycle,
 )
 from app.roadmap.nodes import (
     MILESTONE_BUFFER_DAYS,
@@ -66,7 +70,9 @@ __all__ = [
     "edge_pair",
     "estimate_durations",
     "find_cycles",
+    "layers",
     "link",
+    "local_graph",
     "node_key",
     "node_spec",
     "node_weight",
@@ -79,6 +85,8 @@ __all__ = [
     "task_release_at",
     "topological_sort",
     "topological_sort_or_raise",
+    "transitive_reduction",
     "week_topics",
     "weekly_minutes",
+    "would_create_cycle",
 ]

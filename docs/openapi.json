@@ -3346,6 +3346,139 @@
         }
       }
     },
+    "/api/v1/roadmaps/{roadmap_id}/graph": {
+      "get": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Get Roadmap Graph",
+        "description": "Retrieve full course roadmap graph (issue #103, spec 8, UC-03).",
+        "operationId": "get_roadmap_graph_api_v1_roadmaps__roadmap_id__graph_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roadmap_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Roadmap Id"
+            }
+          },
+          {
+            "name": "reduce",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Reduce"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoadmapGraphOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmap-nodes/{node_id}/graph": {
+      "get": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Get Node Subgraph",
+        "description": "Retrieve local subgraph centered on a roadmap node (issue #97, #103).",
+        "operationId": "get_node_subgraph_api_v1_roadmap_nodes__node_id__graph_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Node Id"
+            }
+          },
+          {
+            "name": "depth",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 5,
+              "minimum": 1,
+              "default": 2,
+              "title": "Depth"
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "ancestors",
+                "descendants",
+                "both"
+              ],
+              "type": "string",
+              "default": "both",
+              "title": "Direction"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoadmapGraphOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/roadmaps/{roadmap_id}/edges": {
       "get": {
         "tags": [
@@ -3389,13 +3522,16 @@
             }
           }
         }
-      },
+      }
+    },
+    "/api/v1/roadmaps/{roadmap_id}/graph/edges": {
       "post": {
         "tags": [
           "Node learning and graph"
         ],
         "summary": "Add Edge",
-        "operationId": "add_edge_api_v1_roadmaps__roadmap_id__edges_post",
+        "description": "Add a prerequisite edge; one that would close a cycle is a 409 with its path.",
+        "operationId": "add_edge_api_v1_roadmaps__roadmap_id__graph_edges_post",
         "security": [
           {
             "HTTPBearer": []
@@ -3431,6 +3567,12 @@
               }
             }
           },
+          "409": {
+            "description": "Dependency cycle detected"
+          },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -3444,13 +3586,13 @@
         }
       }
     },
-    "/api/v1/roadmaps/{roadmap_id}/edges/{parent_id}/{child_id}": {
+    "/api/v1/roadmaps/{roadmap_id}/graph/edges/{parent_id}/{child_id}": {
       "delete": {
         "tags": [
           "Node learning and graph"
         ],
         "summary": "Remove Edge",
-        "operationId": "remove_edge_api_v1_roadmaps__roadmap_id__edges__parent_id___child_id__delete",
+        "operationId": "remove_edge_api_v1_roadmaps__roadmap_id__graph_edges__parent_id___child_id__delete",
         "security": [
           {
             "HTTPBearer": []
@@ -3489,6 +3631,9 @@
           "204": {
             "description": "Successful Response"
           },
+          "429": {
+            "description": "Rate limit exceeded"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -3502,13 +3647,14 @@
         }
       }
     },
-    "/api/v1/roadmaps/{roadmap_id}/layout": {
+    "/api/v1/roadmaps/{roadmap_id}/graph/layout": {
       "put": {
         "tags": [
           "Node learning and graph"
         ],
         "summary": "Put Layout",
-        "operationId": "put_layout_api_v1_roadmaps__roadmap_id__layout_put",
+        "description": "Save this user's node positions: a bare list (spec 8) or the older {positions}.",
+        "operationId": "put_layout_api_v1_roadmaps__roadmap_id__graph_layout_put",
         "security": [
           {
             "HTTPBearer": []
@@ -3530,7 +3676,19 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/LayoutIn"
+                "anyOf": [
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/PositionIn"
+                    },
+                    "maxItems": 1000
+                  },
+                  {
+                    "$ref": "#/components/schemas/LayoutIn"
+                  }
+                ],
+                "title": "Data"
               }
             }
           }
@@ -3561,7 +3719,7 @@
           "Node learning and graph"
         ],
         "summary": "Get Layout",
-        "operationId": "get_layout_api_v1_roadmaps__roadmap_id__layout_get",
+        "operationId": "get_layout_api_v1_roadmaps__roadmap_id__graph_layout_get",
         "security": [
           {
             "HTTPBearer": []
@@ -4750,13 +4908,13 @@
       },
       "EdgeIn": {
         "properties": {
-          "parent_id": {
+          "parent": {
             "type": "string",
-            "title": "Parent Id"
+            "title": "Parent"
           },
-          "child_id": {
+          "child": {
             "type": "string",
-            "title": "Child Id"
+            "title": "Child"
           },
           "kind": {
             "type": "string",
@@ -4777,10 +4935,11 @@
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "parent_id",
-          "child_id"
+          "parent",
+          "child"
         ],
-        "title": "EdgeIn"
+        "title": "EdgeIn",
+        "description": "``parent``/``child`` as in spec 8; the older ``parent_id``/``child_id`` still parse."
       },
       "EntryOut": {
         "properties": {
@@ -5175,6 +5334,148 @@
         "additionalProperties": false,
         "type": "object",
         "title": "GoalPatch"
+      },
+      "GraphEdgeOut": {
+        "properties": {
+          "parent": {
+            "type": "string",
+            "title": "Parent"
+          },
+          "child": {
+            "type": "string",
+            "title": "Child"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "strict"
+          },
+          "origin": {
+            "type": "string",
+            "title": "Origin",
+            "default": "user"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence",
+            "default": 1.0
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "parent",
+          "child"
+        ],
+        "title": "GraphEdgeOut"
+      },
+      "GraphNodeOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "topic",
+              "milestone"
+            ],
+            "title": "Type"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "week": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Week"
+          },
+          "est_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Est Minutes"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
+          },
+          "outcome_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Outcome Ids"
+          },
+          "source_pages": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Source Pages"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "pending"
+          },
+          "source_count": {
+            "type": "integer",
+            "title": "Source Count",
+            "default": 0
+          },
+          "user_material_count": {
+            "type": "integer",
+            "title": "User Material Count",
+            "default": 0
+          },
+          "sources_status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "insufficient"
+            ],
+            "title": "Sources Status",
+            "default": "insufficient"
+          },
+          "layer": {
+            "type": "integer",
+            "title": "Layer",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "title"
+        ],
+        "title": "GraphNodeOut"
       },
       "HTTPValidationError": {
         "properties": {
@@ -6622,6 +6923,26 @@
         },
         "type": "object",
         "title": "RoadmapGenerateIn"
+      },
+      "RoadmapGraphOut": {
+        "properties": {
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/GraphNodeOut"
+            },
+            "type": "array",
+            "title": "Nodes"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/GraphEdgeOut"
+            },
+            "type": "array",
+            "title": "Edges"
+          }
+        },
+        "type": "object",
+        "title": "RoadmapGraphOut"
       },
       "RoadmapNodeIn": {
         "properties": {
