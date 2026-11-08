@@ -250,19 +250,20 @@ export default function Workspace() {
               <button className="button">Preview plan</button>
             </form>
             {preview && <div className="workspace-proposal">
-              <h4>Đề xuất xếp lại lịch (Replan Diff)</h4>
+              <h4>Proposed changes</h4>
               {preview.plan.expired_sessions > 0 && <p className="workspace-warning">
-                Có {preview.plan.expired_sessions} buổi học quá khứ bị lỡ sẽ được dời sang khung giờ mới.
+                Saving marks {preview.plan.expired_sessions} past unchecked session(s) as missed.
+                If you studied them, record your check-in before replanning.
               </p>}
-              {!preview.plan.entries.length && <p>Không có buổi học mới nào được xếp. Hãy thêm giờ rảnh hoặc kiểm tra hạn chót nhiệm vụ.</p>}
-              <div className="workspace-diff-box">
-                <h5>Lịch mới được phân bổ ({preview.plan.entries.length} buổi):</h5>
+              {!preview.plan.entries.length && <p>No new sessions fit. Add availability or review your task deadlines.</p>}
+              <div>
+                <h5>{preview.plan.entries.length} new session(s)</h5>
                 <ul className="workspace-list">{preview.plan.entries.map((entry, index) => <li key={index}><strong>+ {taskName(entry.task_id)}</strong> · {format(entry.starts_at)} – {format(entry.ends_at)}</li>)}</ul>
               </div>
               {preview.plan.unscheduled.map(item => <p className="workspace-warning" key={item.task_id}>
                 {taskName(item.task_id)}: {item.minutes} min unscheduled ({item.reason.replaceAll("_", " ")}).
               </p>)}
-              <div className="workspace-row" style={{ marginTop: "12px", gap: "8px" }}>
+              <div className="workspace-row">
                 <button className="button primary" onClick={() => {
                   const currentMinute = Math.floor(Date.now() / 60000) * 60000;
                   const needsRefresh = Date.parse(preview.request.starts_at) < currentMinute;
@@ -279,8 +280,8 @@ export default function Workspace() {
                     }
                   }, needsRefresh ? "Time has advanced. Review the refreshed plan before saving."
                     : "Plan saved to your calendar.", true);
-                }}>Duyệt đề xuất (Save plan)</button>
-                <button type="button" className="button ghost" onClick={() => setPreview(null)}>Từ chối (Reject)</button>
+                }}>Save this plan</button>
+                <button type="button" className="button" onClick={() => setPreview(null)}>Discard</button>
               </div>
             </div>}
           </section>
@@ -307,7 +308,7 @@ export default function Workspace() {
           <section className="card"><h3>Calendar &amp; check-in</h3>
             {!data.entries.length && <p>Save a plan to add sessions to your calendar.</p>}
             <ul className="workspace-list">{data.entries.map(entry => <li key={entry.id}>
-              <div><strong>Chặng: {taskName(entry.task_id)}</strong><p>{format(entry.starts_at)} – {format(entry.ends_at)} · {entry.status}
+              <div><strong>{taskName(entry.task_id)}</strong><p>{format(entry.starts_at)} – {format(entry.ends_at)} · {entry.status}
                 {entry.status === "completed" ? ` · ${entry.actual_minutes} min recorded` : ""}</p></div>
               {entry.status === "planned" && <form className="workspace-checkin" onSubmit={event => submit(event, values => api.request(`/api/v1/schedule/${entry.id}/check-in`, "POST", {
                 status: "completed", actual_minutes: number(values, "minutes"),

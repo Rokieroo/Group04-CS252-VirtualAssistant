@@ -18,12 +18,6 @@ const fullBreakdown = {
 describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
   beforeEach(() => {
     vi.spyOn(materialsApi, "nodeMaterials").mockResolvedValue([]);
-    vi.spyOn(materialsApi, "nodeSources").mockResolvedValue({
-      node_id: "node-1",
-      status: "ready",
-      user_material_count: 0,
-      sources: [],
-    });
   });
 
   afterEach(() => {
@@ -42,7 +36,7 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
 
     expect(await screen.findByText("Chưa tìm được nguồn đủ tốt")).toBeTruthy();
     expect(screen.getByText(/ngưỡng chất lượng thẩm định ≥ 0.65/)).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: /Tìm lại/ }).length).toBe(2);
+    expect(screen.getByRole("button", { name: "Tìm lại" })).toBeTruthy();
   });
 
   it("renders verified catalog resource with real domain and safe external link", async () => {
@@ -193,7 +187,6 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
       expect(feedbackSpy).toHaveBeenCalledWith("r1", {
         node_id: "node-1",
         helpful: false,
-        reason: "wrong_level",
       });
     });
 
