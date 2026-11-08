@@ -50,6 +50,8 @@ class Concept(Base):
         Text, default="understand", server_default="understand"
     )
     source_pages: Mapped[str | None] = mapped_column(Text)
+    # JSON [{"file_name", "page"}]: source_pages alone cannot tell two decks apart.
+    source_refs: Mapped[str] = mapped_column(Text, default="[]", server_default="[]")
     confirmed: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     __table_args__ = (UniqueConstraint("course_id", "slug"),)
 
