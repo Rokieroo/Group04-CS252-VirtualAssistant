@@ -1,72 +1,47 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "../../components/Button";
+import { InsufficientSourcesNotice, VerifiedSourceCard } from "../../components/VerifiedSourceCard";
+import { decideMaterial, nodeMaterials, pageRanges, type MaterialFile } from "../../api/materials";
 import {
-  InsufficientSourcesNotice,
-  VerifiedSourceCard,
-  type VerifiedSource,
-} from "../../components/VerifiedSourceCard";
-import {
-  decideMaterial,
-  nodeMaterials,
-  nodeSources,
-  pageRanges,
-  type MaterialFile,
-  type RankedSource,
-} from "../../api/materials";
-import { fetchNodeResources, searchNodeResources, sendResourceFeedback } from "../../api/resources";
+  fetchNodeResources,
+  searchNodeResources,
+  sendResourceFeedback,
+} from "../../api/resources";
+import type { NodeResources, Resource } from "../../api/types";
+
+// Spec 8.6 format filters; "read" groups every text format.
+const FILTERS: { id: string; label: string; formats?: Resource["format"][] }[] = [
+  { id: "all", label: "Tất cả" },
+  { id: "video", label: "Video", formats: ["video"] },
+  { id: "read", label: "Bài viết / Đọc", formats: ["article", "book", "paper"] },
+  { id: "exercise", label: "Bài tập", formats: ["exercise"] },
+];
+const POLL_MS = 3000;
 
 /**
- * S6 sources of one roadmap node (spec 12.1, #114, #58, #104):
- * 1. The learner's own pages first (with one-tap attachment for suggestions).
- * 2. Shared VerifiedSourceCard for verified catalog/web sources with domain names, format filters, and one-tap feedback.
- * 3. Exact spec message "Chưa tìm được nguồn đủ tốt" when insufficient.
+ * S6 sources of one roadmap node (spec 8.6, 8.7, 12.1; #58, #114): the learner's own
+ * pages first, then verified resources with filters, one-tap feedback and "Tìm lại".
+ * Each resource uses the VerifiedSourceCard the graph node panel shares (#104).
  */
 export function NodeMaterials({ nodeId }: { nodeId: string }) {
-  const [sources, setSources] = useState<RankedSource[] | null>(null);
-  const [catalogResources, setCatalogResources] = useState<VerifiedSource[]>([]);
-  const [suggested, setSuggested] = useState<MaterialFile[]>([]);
-  const [status, setStatus] = useState<"searching" | "ready" | "insufficient">("ready");
-  const [formatFilter, setFormatFilter] = useState<string>("all");
+  const [files, setFiles] = useState<MaterialFile[]>([]);
+  const [found, setFound] = useState<NodeResources | null>(null);
+  const [filter, setFilter] = useState("all");
+  const [feedback, setFeedback] = useState<Record<string, boolean>>({});
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [searching, setSearching] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const [ranked, files] = await Promise.all([nodeSources(nodeId), nodeMaterials(nodeId)]);
-      setSources(ranked.sources);
-      setSuggested(files.filter((f) => f.status === "suggested"));
-      if (ranked.status === "insufficient") {
-        setStatus("insufficient");
-      } else {
-        setStatus("ready");
-      }
+      const [materials, resources] = await Promise.all([
+        nodeMaterials(nodeId),
+        fetchNodeResources(nodeId),
+      ]);
+      setFiles(materials);
+      setFound(resources);
       setError("");
-    } catch {
-      // Fallback to fetchNodeResources if available
-      try {
-        const res = await fetchNodeResources(nodeId);
-        setStatus(res.status);
-        setCatalogResources(
-          res.resources.map((r) => ({
-            id: r.id,
-            title: r.title,
-            url: r.url,
-            domain: r.domain,
-            provider: r.domain,
-            format: r.format,
-            duration_min: r.duration_min,
-            verification_status: "verified",
-            score: r.score,
-            breakdown: r.breakdown,
-            reason: r.reason,
-            evidence_quote: r.evidence_quote,
-          }))
-        );
-        setError("");
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Could not load sources.");
-      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load learning sources.");
     }
   }, [nodeId]);
 
@@ -74,176 +49,142 @@ export function NodeMaterials({ nodeId }: { nodeId: string }) {
     void load();
   }, [load]);
 
-  const handleRetrySearch = async () => {
-    setSearching(true);
-    setStatus("searching");
-    try {
-      await searchNodeResources(nodeId);
-      await load();
-    } catch {
-      setError("Không thể tìm lại nguồn.");
-    } finally {
-      setSearching(false);
-    }
-  };
+  // The search runs as a background job; the server answers "searching" until it ends.
+  useEffect(() => {
+    if (found?.status !== "searching") return;
+    const timer = setInterval(() => void load(), POLL_MS);
+    return () => clearInterval(timer);
+  }, [found?.status, load]);
 
-  const handleFeedback = async (sourceId: string, helpful: boolean) => {
-    try {
-      const res = await sendResourceFeedback(sourceId, {
-        node_id: nodeId,
-        helpful,
-        reason: helpful ? "helpful" : "wrong_level",
-      });
-      if (!helpful && res.replacement) {
-        const rep = res.replacement;
-        setCatalogResources((prev) =>
-          prev.map((item) =>
-            item.id === sourceId
-              ? {
-                  id: rep.id,
-                  title: rep.title,
-                  url: rep.url,
-                  domain: rep.domain,
-                  provider: rep.domain,
-                  format: rep.format,
-                  duration_min: rep.duration_min,
-                  verification_status: "verified",
-                  score: rep.score,
-                  breakdown: rep.breakdown,
-                  reason: rep.reason,
-                  evidence_quote: rep.evidence_quote,
-                }
-              : item
-          )
-        );
-      }
-    } catch {
-      // Feedback saved or logged
-    }
-  };
-
-  const decide = async (file: MaterialFile, attached: boolean) => {
+  const act = async (work: () => Promise<void>, failure: string) => {
     setBusy(true);
     try {
-      await decideMaterial(nodeId, file, attached);
-      await load();
+      await work();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save your answer.");
+      setError(err instanceof Error ? err.message : failure);
     } finally {
       setBusy(false);
     }
   };
 
+  const decide = (file: MaterialFile, attached: boolean) =>
+    act(async () => {
+      await decideMaterial(nodeId, file, attached);
+      await load();
+    }, "Could not save your answer.");
+
+  const searchAgain = () =>
+    act(async () => {
+      await searchNodeResources(nodeId);
+      await load();
+    }, "Could not start a new search.");
+
+  const rate = (resource: Resource, helpful: boolean) =>
+    act(async () => {
+      const { replacement } = await sendResourceFeedback(resource.id, { node_id: nodeId, helpful });
+      setFeedback((prev) => ({ ...prev, [resource.id]: helpful }));
+      if (!helpful && replacement)
+        setFound((prev) =>
+          prev && {
+            ...prev,
+            resources: prev.resources.map((r) => (r.id === resource.id ? replacement : r)),
+          },
+        );
+    }, "Could not save feedback.");
+
   if (error) return <p role="alert" className="row-error">{error}</p>;
-  if (status === "searching" || searching) {
-    return (
-      <div className="core-node-sources" aria-label="Đang tìm kiếm">
-        <p className="core-field-label">Đang tìm kiếm nguồn học chất lượng cao…</p>
-      </div>
-    );
-  }
-  if (sources === null && catalogResources.length === 0 && status !== "insufficient") {
-    return <p className="core-field-label">Loading sources…</p>;
-  }
+  if (!found) return <p className="core-field-label">Loading sources…</p>;
 
-  const own = sources?.filter((s) => s.kind === "user_material") || [];
-  const rawCatalog = (sources?.filter((s) => s.kind !== "user_material") || []).map((s) => ({
-    id: s.id,
-    title: s.title,
-    url: s.url,
-    domain: s.url ? new URL(s.url).hostname : undefined,
-    provider: s.provider,
-    format: s.format,
-    reason: s.reason,
-    verification_status: "verified",
-  }));
-
-  const allCatalog: VerifiedSource[] =
-    catalogResources.length > 0 ? catalogResources : rawCatalog;
-
-  const filteredCatalog =
-    formatFilter === "all"
-      ? allCatalog
-      : allCatalog.filter((item) => item.format?.toLowerCase() === formatFilter.toLowerCase());
+  const attached = files.filter((f) => f.status === "attached");
+  const suggested = files.filter((f) => f.status === "suggested");
+  const formats = FILTERS.find((f) => f.id === filter)?.formats;
+  const shown = found.resources.filter((r) => !formats || formats.includes(r.format));
 
   return (
     <div className="core-node-sources" aria-label="Learning sources">
-      {/* 1. Learner's own files first (Spec 12.1, #114) */}
-      {own.length > 0 && (
-        <section aria-label="Tài liệu riêng của bạn">
+      {attached.length > 0 && (
+        <div className="core-own-material-section">
+          <h4 className="core-sources-heading">Tài liệu cá nhân của bạn</h4>
           <ul className="core-own-material">
-            {own.map((s) => (
-              <li key={s.id}>
-                <span className="core-own-badge">{s.reason}</span>
-                <strong>{s.title}</strong>
-                <span> · trang {pageRanges(s.pages)}</span>
+            {attached.map((f) => (
+              <li key={f.file_name}>
+                <span className="core-own-badge">Tài liệu của bạn</span>
+                <strong>{f.file_name}</strong>
+                <span> · trang {pageRanges(f.pages.map((p) => p.page))}</span>
               </li>
             ))}
           </ul>
-        </section>
+        </div>
       )}
 
-      {/* Suggested files awaiting one tap */}
       {suggested.map((file) => (
         <div className="core-material-suggestion" key={file.file_name}>
           <p>
-            Tài liệu <strong>{file.file_name}</strong>, các trang{" "}
-            {pageRanges(file.pages.map((p) => p.page))} có thuộc về chặng này không?
+            Có phải <strong>{file.file_name}</strong> (trang{" "}
+            {pageRanges(file.pages.map((p) => p.page))}) thuộc nội dung chặng này?
           </p>
           <Button primary disabled={busy} onClick={() => void decide(file, true)}>
-            Đồng ý, gắn vào chặng
+            Đính kèm chặng này
           </Button>
           <Button disabled={busy} onClick={() => void decide(file, false)}>
-            Không
+            Bỏ qua
           </Button>
         </div>
       ))}
 
-      {/* Insufficient status banner (Spec 8.6, Issue #58, #104) */}
-      {status === "insufficient" && (
-        <InsufficientSourcesNotice onRetry={handleRetrySearch} busy={searching} />
-      )}
-
-      {/* Format filters toolbar */}
-      {allCatalog.length > 0 && (
+      <div className="core-source-toolbar">
         <div className="core-format-filters" role="group" aria-label="Lọc theo định dạng">
-          {[
-            { id: "all", label: "Tất cả" },
-            { id: "video", label: "Video" },
-            { id: "article", label: "Bài viết / Đọc" },
-            { id: "exercise", label: "Bài tập" },
-          ].map((tab) => (
+          {FILTERS.map((f) => (
             <button
-              key={tab.id}
+              key={f.id}
               type="button"
-              className={`core-format-tab ${formatFilter === tab.id ? "active" : ""}`}
-              onClick={() => setFormatFilter(tab.id)}
+              className={`core-filter-btn ${filter === f.id ? "active" : ""}`}
+              aria-pressed={filter === f.id}
+              onClick={() => setFilter(f.id)}
             >
-              {tab.label}
+              {f.id === "all" ? `${f.label} (${found.resources.length})` : f.label}
             </button>
           ))}
-          <Button disabled={searching} onClick={handleRetrySearch}>
-            Tìm lại
-          </Button>
+        </div>
+        <Button disabled={busy || found.status === "searching"} onClick={() => void searchAgain()}>
+          Tìm lại
+        </Button>
+      </div>
+
+      {found.status === "searching" && (
+        <div className="core-searching-box" role="status">
+          <p className="core-field-label">Đang tìm kiếm nguồn học chất lượng cao…</p>
         </div>
       )}
 
-      {/* 2. Verified catalog sources rendered with shared VerifiedSourceCard (#104) */}
-      {filteredCatalog.length > 0 && (
-        <div className="core-catalog-cards" role="list">
-          {filteredCatalog.map((source) => (
-            <div role="listitem" key={source.id}>
+      {found.status === "insufficient" && (
+        <>
+          <InsufficientSourcesNotice />
+          {found.gaps.length > 0 && <p className="sm muted">{found.gaps.join("; ")}</p>}
+        </>
+      )}
+
+      {found.status === "ready" && shown.length > 0 && (
+        <ul className="core-catalog-sources-list">
+          {shown.map((s) => (
+            <li key={s.id}>
+              {/* /resources returns only sources that passed vetting (spec 8.6). */}
               <VerifiedSourceCard
-                source={source}
-                onFeedback={(helpful) => void handleFeedback(source.id, helpful)}
+                source={{ ...s, verification_status: "verified" }}
+                onFeedback={(helpful) => void rate(s, helpful)}
+                actions={
+                  s.id in feedback ? (
+                    <span className="core-feedback-ack">✓ Cảm ơn đánh giá!</span>
+                  ) : undefined
+                }
               />
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
-      {allCatalog.length === 0 && own.length === 0 && suggested.length === 0 && status !== "insufficient" && (
-        <p className="core-field-label">Chưa có nguồn nào cho chặng này.</p>
+      {found.status === "ready" && found.resources.length === 0 && (
+        <p className="core-field-label">Chưa có nguồn cho chặng này.</p>
       )}
     </div>
   );

@@ -1,4 +1,5 @@
-"""Admin-only views: the cost and quota dashboard (issue #69) and catalog review (#101)."""
+"""Admin-only views: the cost and quota dashboard (issue #69), catalog review (#101)
+and catalog health (#105)."""
 
 from typing import Annotated
 
@@ -7,9 +8,10 @@ from pydantic import BaseModel, StringConstraints
 from sqlalchemy import select
 
 from . import catalog_verification
+from .catalog_health import catalog_health
 from .costs import cost_report
 from .dependencies import DB, AdminUser
-from .schemas import CostReport
+from .schemas import CatalogHealth, CostReport
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -88,6 +90,17 @@ def subject_review_queue(db: DB, admin: AdminUser, limit: int = Query(100, ge=1,
     return {"labels": [{"resource_id": r.resource_id, "title": title,
                         "subject_id": r.subject_id, "confidence": r.confidence, "method": r.method}
                        for r, title in rows]}
+
+
+@router.get("/catalog/health", response_model=CatalogHealth)
+def get_catalog_health(
+    request: Request,
+    db: DB,
+    admin: AdminUser,
+    days: Annotated[int, Query(ge=1, le=30)] = 7,
+):
+    """Gaps per subject, resources per status, failing connectors and dead links (#105)."""
+    return catalog_health(db, now=request.app.state.now(), days=days)
 
 
 @router.get("/costs", response_model=CostReport)

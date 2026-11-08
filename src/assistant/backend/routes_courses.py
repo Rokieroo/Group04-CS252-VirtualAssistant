@@ -16,6 +16,7 @@ from sqlalchemy import delete, select, text
 from sqlalchemy.exc import IntegrityError
 
 from app.concepts.extract import extract_concepts, save_concepts
+from app.concepts.normalize import pages_in
 from app.concepts.visual import read_visuals
 from app.ingest import (
     MAX_UPLOAD_BYTES,
@@ -186,17 +187,20 @@ def propose_concepts(
     if not decks:
         raise HTTPException(404, "no_sources")
     # A re-run revises what was proposed before rather than starting over.
-    previous = [{**row, "source_pages": json.loads(row["source_pages"] or "[]")}
+    previous = [{**row, "source_pages": json.loads(row["source_pages"] or "[]"),
+                 "source_refs": json.loads(row["source_refs"])}
                 for row in db.execute(text(
-                    "SELECT slug, title, summary, source_pages FROM concepts "
+                    "SELECT slug, title, summary, source_pages, source_refs FROM concepts "
                     "WHERE course_id = :course_id"), {"course_id": course_id}).mappings()]
-    for pages, notes in decks.values():
-        concepts = extract_concepts(llm, pages, notes, previous)
+    for name, (pages, notes) in decks.items():
+        # Each deck revises only what it cites; other decks' concepts stay known by name.
+        deck_previous = [{**c, "source_pages": pages_in(c, name)} for c in previous]
+        concepts = extract_concepts(llm, pages, notes, deck_previous)
         # shortcut: a deck with text but no concepts means every LLM call failed (quota,
         # network, bad JSON); report it rather than look like an empty deck.
         if not concepts and (any(pages) or any(notes)):
             raise HTTPException(503, "concepts_unavailable")
-        save_concepts(db, course_id, concepts)
+        save_concepts(db, course_id, concepts, name)
     try:
         db.commit()
     except IntegrityError:  # a concurrent proposal inserted the same slug
@@ -212,12 +216,13 @@ def propose_concepts(
 
 def course_concept(db, course_id: str, concept_id: str) -> dict:
     row = db.execute(text(
-        "SELECT id, title, summary, source_pages FROM concepts "
+        "SELECT id, title, summary, source_pages, source_refs FROM concepts "
         "WHERE id = :id AND course_id = :course_id"),
         {"id": concept_id, "course_id": course_id}).mappings().first()
     if row is None:
         raise HTTPException(404, "Concept not found")
-    return {**row, "source_pages": json.loads(row["source_pages"] or "[]")}
+    return {**row, "source_pages": json.loads(row["source_pages"] or "[]"),
+            "source_refs": json.loads(row["source_refs"])}
 
 
 def concept_items(db, concept_id: str) -> list[dict]:
@@ -264,7 +269,8 @@ def generate_concept_items(
     owned_course(db, course_id, user.id)
     concept = course_concept(db, course_id, concept_id)
     sources = [dict(row) for row in db.execute(
-        select(Source.id, Source.page, Source.text).where(Source.course_id == course_id)
+        select(Source.id, Source.file_name, Source.page, Source.text)
+        .where(Source.course_id == course_id)
         .order_by(Source.file_name, Source.page)).mappings()]
     if not sources:
         raise HTTPException(404, "no_sources")

@@ -277,6 +277,51 @@ def test_propose_needs_uploaded_pages(app, client, headers, course):
     assert (response.status_code, response.json()["detail"]) == (404, "no_sources")
 
 
+def refs(app, course):
+    with app.state.database.sessions() as db:
+        return {slug: json.loads(value) for slug, value in db.execute(text(
+            "SELECT slug, source_refs FROM concepts WHERE course_id = :c"), {"c": course})}
+
+
+def test_one_concept_in_two_decks_cites_each_file(app, course):
+    with app.state.database.sessions() as db:
+        save_concepts(db, course, [concept("solution-ladder", [3])], "week01.pdf")
+        save_concepts(db, course, [concept("solution-ladder", [3, 4])], "week02.pdf")
+        db.commit()
+    assert stored(app, course) == [("solution-ladder", "[3, 4]", 0)]
+    assert refs(app, course) == {"solution-ladder": [
+        {"file_name": "week01.pdf", "page": 3}, {"file_name": "week02.pdf", "page": 3},
+        {"file_name": "week02.pdf", "page": 4}]}
+
+
+class Recording(FakeLLM):
+    def __init__(self, responses):
+        super().__init__(responses)
+        self.prompts = []
+
+    def complete(self, prompt, **kwargs):
+        self.prompts.append(prompt)
+        return super().complete(prompt, **kwargs)
+
+
+def test_decks_sharing_page_numbers_keep_their_own_citations(app, client, headers, course):
+    for name, body in (("week01.pdf", "Solution ladder rungs"), ("week02.pdf", "Search trees")):
+        files = {"file": (name, make_pdf(body), "application/pdf")}
+        assert client.post(f"/api/v1/courses/{course}/sources", headers=headers,
+                           files=files).status_code == 201
+    llm = Recording({"[Page 1] Solution ladder rungs": answer(concept("solution-ladder", [1])),
+                     "[Page 1] Search trees": answer(concept("search-tree", [1]))})
+    assert propose(app, client, headers, course, llm).status_code == 200
+    assert refs(app, course) == {"solution-ladder": [{"file_name": "week01.pdf", "page": 1}],
+                                 "search-tree": [{"file_name": "week02.pdf", "page": 1}]}
+    llm.prompts.clear()
+    assert propose(app, client, headers, course, llm, file_name="week02.pdf").status_code == 200
+    # week01's concept is known by name but never handed to week02's page 1 to revise.
+    (prompt,) = llm.prompts
+    assert "solution-ladder" in prompt
+    assert "solution-ladder" not in prompt.split("<previous_concepts>")[-1]
+
+
 class Vision(FakeLLM):
     """Answers every visual call with a note on its first page; records each attached PDF."""
 

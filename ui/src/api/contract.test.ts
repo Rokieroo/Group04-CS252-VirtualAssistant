@@ -1,7 +1,12 @@
 import { expect, it } from "vitest";
 import type {
   Assessment,
+  CatalogHealth,
+  ConnectorHealth,
+  DeadLink,
+  GapRun,
   LearningOutcome,
+  SubjectGap,
   Roadmap,
   CostReport,
   CostTotals,
@@ -103,6 +108,39 @@ const samples = {
     cost_usd: 0,
   } satisfies ProviderUsage,
   DailyCost: { day: "", searches: 0, cost_usd: 0 } satisfies DailyCost,
+  CatalogHealth: {
+    days: 7,
+    insufficient_nodes: 0,
+    gaps: [],
+    resources: {},
+    connectors: [],
+    dead_links: 0,
+    dead: [],
+    gap_runs: [],
+  } satisfies CatalogHealth,
+  SubjectGap: { subject_id: "", name: "", nodes: 0 } satisfies SubjectGap,
+  ConnectorHealth: {
+    connector: "",
+    runs: 0,
+    errors: 0,
+    created: 0,
+    last_run_at: null,
+    last_error: null,
+  } satisfies ConnectorHealth,
+  DeadLink: {
+    id: "",
+    title: "",
+    url: "",
+    http_status: null,
+    last_checked_at: null,
+  } satisfies DeadLink,
+  GapRun: {
+    kind: "fill_gaps",
+    at: "",
+    insufficient_before: 0,
+    insufficient_after: 0,
+    ingest_jobs: 0,
+  } satisfies GapRun,
 };
 
 it.each(Object.entries(samples))("%s matches docs/openapi.json", (name, sample) => {

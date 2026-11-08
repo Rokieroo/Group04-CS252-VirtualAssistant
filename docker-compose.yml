@@ -57,6 +57,20 @@ services:
       api:
         condition: service_healthy
 
+  # One-shot: loads the bundled catalog sample (sources for the CSC10014 roadmap) so a
+  # new machine has catalog sources at once. Idempotent; dev only. Staging loads a real
+  # snapshot instead: `python -m devcli db seed-catalog --file <snapshot.json>`.
+  catalog-seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "no"
+    command: ["python", "-m", "devcli", "db", "seed-catalog", "--sample"]
+    environment: *backend-env
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   pgdata:
 

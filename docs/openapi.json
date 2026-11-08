@@ -3812,6 +3812,57 @@
         }
       }
     },
+    "/api/v1/admin/catalog/health": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Get Catalog Health",
+        "description": "Gaps per subject, resources per status, failing connectors and dead links (#105).",
+        "operationId": "get_catalog_health_api_v1_admin_catalog_health_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 30,
+              "minimum": 1,
+              "default": 7,
+              "title": "Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogHealth"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/costs": {
       "get": {
         "tags": [
@@ -4104,6 +4155,69 @@
         ],
         "title": "BusyOut"
       },
+      "CatalogHealth": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "insufficient_nodes": {
+            "type": "integer",
+            "title": "Insufficient Nodes"
+          },
+          "gaps": {
+            "items": {
+              "$ref": "#/components/schemas/SubjectGap"
+            },
+            "type": "array",
+            "title": "Gaps"
+          },
+          "resources": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Resources"
+          },
+          "connectors": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectorHealth"
+            },
+            "type": "array",
+            "title": "Connectors"
+          },
+          "dead_links": {
+            "type": "integer",
+            "title": "Dead Links"
+          },
+          "dead": {
+            "items": {
+              "$ref": "#/components/schemas/DeadLink"
+            },
+            "type": "array",
+            "title": "Dead"
+          },
+          "gap_runs": {
+            "items": {
+              "$ref": "#/components/schemas/GapRun"
+            },
+            "type": "array",
+            "title": "Gap Runs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "days",
+          "insufficient_nodes",
+          "gaps",
+          "resources",
+          "connectors",
+          "dead_links",
+          "dead",
+          "gap_runs"
+        ],
+        "title": "CatalogHealth"
+      },
       "ChatOut": {
         "properties": {
           "reply": {
@@ -4284,6 +4398,59 @@
           "confirmed"
         ],
         "title": "ConceptOut"
+      },
+      "ConnectorHealth": {
+        "properties": {
+          "connector": {
+            "type": "string",
+            "title": "Connector"
+          },
+          "runs": {
+            "type": "integer",
+            "title": "Runs"
+          },
+          "errors": {
+            "type": "integer",
+            "title": "Errors"
+          },
+          "created": {
+            "type": "integer",
+            "title": "Created"
+          },
+          "last_run_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Run At"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "connector",
+          "runs",
+          "errors",
+          "created",
+          "last_run_at",
+          "last_error"
+        ],
+        "title": "ConnectorHealth"
       },
       "CoordinateRequest": {
         "properties": {
@@ -4488,6 +4655,54 @@
           "cost_usd"
         ],
         "title": "DailyCost"
+      },
+      "DeadLink": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "http_status": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Http Status"
+          },
+          "last_checked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Checked At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "url",
+          "http_status",
+          "last_checked_at"
+        ],
+        "title": "DeadLink"
       },
       "DecisionIn": {
         "properties": {
@@ -4808,6 +5023,44 @@
           "exercises"
         ],
         "title": "ExercisesOut"
+      },
+      "GapRun": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "fill_gaps",
+              "rematch_sources"
+            ],
+            "title": "Kind"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "insufficient_before": {
+            "type": "integer",
+            "title": "Insufficient Before"
+          },
+          "insufficient_after": {
+            "type": "integer",
+            "title": "Insufficient After"
+          },
+          "ingest_jobs": {
+            "type": "integer",
+            "title": "Ingest Jobs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "at",
+          "insufficient_before",
+          "insufficient_after",
+          "ingest_jobs"
+        ],
+        "title": "GapRun"
       },
       "GoalCreate": {
         "properties": {
@@ -6893,6 +7146,29 @@
           "nodes"
         ],
         "title": "SourceSummaryOut"
+      },
+      "SubjectGap": {
+        "properties": {
+          "subject_id": {
+            "type": "string",
+            "title": "Subject Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "nodes": {
+            "type": "integer",
+            "title": "Nodes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject_id",
+          "name",
+          "nodes"
+        ],
+        "title": "SubjectGap"
       },
       "SyllabusIn": {
         "properties": {

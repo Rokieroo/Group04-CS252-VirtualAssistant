@@ -8,6 +8,7 @@ import { Modal } from "./components/Modal";
 import { Shell } from "./components/Shell";
 import { AppearancePicker } from "./features/appearance/AppearancePicker";
 import { pageLabels, useHashPage, type Page } from "./navigation";
+import { CatalogHealthPanel } from "./pages/CatalogHealthPanel";
 import { CostsPage } from "./pages/CostsPage";
 import { AdminCatalogPage } from "./pages/AdminCatalogPage";
 import { CoreJourney } from "./pages/CoreJourney";
@@ -93,7 +94,12 @@ export default function CoreApp({ mock = false }: { mock?: boolean }) {
         </>
       )}
       {page === "Sources" && <SourcesPage go={go} />}
-      {page === "Costs" && <CostsPage />}
+      {page === "Costs" && (
+        <>
+          <CostsPage />
+          <CatalogHealthPanel />
+        </>
+      )}
       {page === "Catalog" && <AdminCatalogPage />}
     </Shell>
   );

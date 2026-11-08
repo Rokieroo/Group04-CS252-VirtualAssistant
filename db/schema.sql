@@ -165,6 +165,7 @@ CREATE TABLE IF NOT EXISTS concepts (
     summary      TEXT NOT NULL DEFAULT '',
     bloom_level  TEXT NOT NULL DEFAULT 'understand',
     source_pages TEXT,
+    source_refs  TEXT NOT NULL DEFAULT '[]',
     confirmed    INTEGER NOT NULL DEFAULT 0,
     UNIQUE (course_id, slug)
 );
@@ -633,7 +634,7 @@ CREATE INDEX IF NOT EXISTS ix_notifications_user_id ON notifications (user_id);
 CREATE INDEX IF NOT EXISTS ix_chat_messages_user_id ON chat_messages (user_id);
 
 INSERT INTO alembic_version (version_num)
-SELECT '0012_source_subjects'
+SELECT '0013_concept_source_refs'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);
 
 CREATE INDEX IF NOT EXISTS ix_roadmap_edges_roadmap_id ON roadmap_edges (roadmap_id);
