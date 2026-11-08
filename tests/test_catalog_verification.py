@@ -169,8 +169,8 @@ def test_job_verifies_rejects_and_queues_and_never_rereads(app, client, clock, p
         db.commit()
         status = {name: db.get(Resource, i).verification_status for name, i in ids.items()}
 
-        assert result == {"stale": 0, "checked": 7, "verified": 2, "rejected": 2, "review": 2,
-                          "retry": 1}
+        assert result == {"stale": 0, "checked": 7, "deferred": False, "verified": 2,
+                          "rejected": 2, "review": 2, "retry": 1}
         assert status == {"mit": "verified", "web": "verified", "unlicensed": "pending",
                           "gone": "rejected", "fake": "rejected", "slow": "pending",
                           "khan": "pending"}
