@@ -126,6 +126,51 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
     vi.restoreAllMocks();
   });
 
+  const panel = (
+    <NodePanel
+      roadmapId="rm-1"
+      node={sampleNode}
+      allNodes={allNodes}
+      edges={edges}
+      isOpen={true}
+      onClose={vi.fn()}
+    />
+  );
+
+  it("badges catalog sources as verified but not web results", async () => {
+    vi.spyOn(materialsApi, "nodeSources").mockResolvedValue({
+      node_id: "node-2",
+      status: "ready",
+      user_material_count: 0,
+      sources: [
+        { kind: "catalog", id: "c1", title: "Catalog page", url: "https://ocw.mit.edu/a",
+          pages: [], provider: "mit_ocw", format: "article", reason: "" },
+        { kind: "web", id: "w1", title: "Web page", url: "https://example.com/b",
+          pages: [], provider: "web", format: "article", reason: "" },
+      ],
+    });
+    render(panel);
+    await screen.findByText(/Web page/);
+    expect(screen.getAllByRole("button", { name: /tiêu chí thẩm định/ })).toHaveLength(1);
+  });
+
+  it("reports a failed source load instead of an empty list", async () => {
+    vi.spyOn(materialsApi, "nodeSources").mockRejectedValue(new Error("network down"));
+    render(panel);
+    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "network down");
+  });
+
+  it("moves focus into the dialog and back to the opener on close", async () => {
+    const opener = document.createElement("button");
+    document.body.appendChild(opener);
+    opener.focus();
+    const { unmount } = render(panel);
+    expect(document.activeElement).toBe(screen.getByRole("dialog"));
+    unmount();
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+
   it("renders node header with week, duration, CLO chips, and syllabus page button", async () => {
     const pageSpy = vi.fn();
     render(

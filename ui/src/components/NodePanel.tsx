@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import type { Edge, NodeStatus } from "../api/core";
 import type { RoadmapNode } from "../api/types";
 import { nodeSources, type NodeSources } from "../api/materials";
@@ -56,6 +56,7 @@ export function NodePanel({
   const [exercises, setExercises] = useState<ExerciseItem[]>([]);
   const [exercisesCount, setExercisesCount] = useState(0);
   const [searching, setSearching] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Update URL hash for deep-linking: /roadmaps/{id}/graph/{node} (Issue #109 requirement 1)
@@ -77,16 +78,11 @@ export function NodePanel({
   // Load sources and exercises for current node
   const loadData = useCallback(async (nodeId: string) => {
     try {
-      const s = await nodeSources(nodeId);
-      setSourcesData(s);
-    } catch {
-      // Fallback
-      setSourcesData({
-        node_id: nodeId,
-        status: "ready",
-        user_material_count: 0,
-        sources: [],
-      });
+      setSourcesData(await nodeSources(nodeId));
+      setLoadError("");
+    } catch (err) {
+      setSourcesData(null);
+      setLoadError(err instanceof Error ? err.message : "Không tải được nguồn học.");
     }
 
     try {
@@ -104,6 +100,32 @@ export function NodePanel({
       void loadData(node.id);
     }
   }, [node, isOpen, loadData]);
+
+  // A modal dialog (#109 step 7): focus moves in on open, Tab stays inside, and
+  // focus returns to whatever opened the panel when it closes.
+  useEffect(() => {
+    if (!isOpen) return;
+    const opener = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus();
+    return () => opener?.focus();
+  }, [isOpen]);
+
+  const trapFocus = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key !== "Tab" || !panelRef.current) return;
+    const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   // Close on Escape key
   useEffect(() => {
@@ -152,8 +174,8 @@ export function NodePanel({
     try {
       await searchNodeResources(node.id);
       await loadData(node.id);
-    } catch {
-      // Handled
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : "Không bắt đầu tìm lại được.");
     } finally {
       setSearching(false);
     }
@@ -167,16 +189,15 @@ export function NodePanel({
     id: s.id,
     title: s.title,
     url: s.url,
-    domain: s.url ? new URL(s.url).hostname : undefined,
     provider: s.provider,
     format: s.format,
     reason: s.reason,
-    verification_status: "verified",
+    kind: s.kind,
+    // Only catalog sources passed the verification checks; web results did not.
+    verification_status: s.kind === "catalog" ? "verified" : undefined,
   }));
 
-  const isInsufficient =
-    sourcesData?.status === "insufficient" ||
-    (sourcesData?.sources.length === 0 && !sourcesData);
+  const isInsufficient = sourcesData?.status === "insufficient";
 
   const isMilestone = node.type === "milestone" || node.kind === "milestone";
   const coveredNodes = (node.covers || [])
@@ -200,6 +221,8 @@ export function NodePanel({
         role="dialog"
         aria-modal="true"
         aria-label={`Chi tiết chặng: ${node.title}`}
+        tabIndex={-1}
+        onKeyDown={trapFocus}
       >
         <div className="node-panel-drag-handle" aria-hidden="true" />
 
@@ -365,6 +388,12 @@ export function NodePanel({
                   </div>
                 ))}
               </div>
+            )}
+
+            {loadError && (
+              <p role="alert" className="row-error">
+                {loadError}
+              </p>
             )}
 
             {/* Insufficient State Banner */}
