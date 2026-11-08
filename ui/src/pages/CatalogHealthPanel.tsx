@@ -44,10 +44,10 @@ export function CatalogHealthPanel({
           <p>Roadmap steps with fewer than 2 sources</p>
         </div>
         <div>
-          <strong>{health.resources.verified ?? 0}</strong>
+          <strong>{(health.resources ?? {}).verified ?? 0}</strong>
           <p>
             Verified sources ·{" "}
-            {STATUSES.map((status) => `${health.resources[status] ?? 0} ${status}`).join(" · ")}
+            {STATUSES.map((status) => `${(health.resources ?? {})[status] ?? 0} ${status}`).join(" · ")}
           </p>
         </div>
         <div>
@@ -94,16 +94,24 @@ export function CatalogHealthPanel({
             </tr>
           </thead>
           <tbody>
-            {health.connectors.map((row) => (
-              <tr key={row.connector}>
-                <th scope="row">{row.connector}</th>
-                <td>{row.runs}</td>
-                <td>{row.created}</td>
-                <td>{row.errors}</td>
-                <td>{row.last_error ?? "—"}</td>
-                <td>{when(row.last_run_at)}</td>
+            {health.connectors.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ textAlign: "center", color: "var(--muted, #888)" }}>
+                  No connector runs in this window.
+                </td>
               </tr>
-            ))}
+            ) : (
+              health.connectors.map((row) => (
+                <tr key={row.connector}>
+                  <th scope="row">{row.connector}</th>
+                  <td>{row.runs}</td>
+                  <td>{row.created}</td>
+                  <td>{row.errors}</td>
+                  <td>{row.last_error ?? "—"}</td>
+                  <td>{when(row.last_run_at)}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </section>

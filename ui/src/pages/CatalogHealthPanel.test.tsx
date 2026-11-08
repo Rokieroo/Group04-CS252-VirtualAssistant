@@ -66,3 +66,15 @@ it("tells a non-admin why nothing is shown", async () => {
     "Only admins can see catalog health.",
   );
 });
+
+it("renders cleanly with empty connectors and no dead links", async () => {
+  const emptyHealth: CatalogHealth = {
+    ...health,
+    connectors: [],
+    dead: [],
+    dead_links: 0,
+  };
+  render(<CatalogHealthPanel load={async () => emptyHealth} />);
+  expect(await screen.findByText("No connector runs in this window.")).toBeTruthy();
+  expect(screen.queryByRole("link", { name: "Gone page" })).toBeNull();
+});
