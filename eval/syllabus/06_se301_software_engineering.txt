@@ -1,0 +1,31 @@
+SYLLABUS
+Course: Software Engineering Methodologies
+Course Code: SE301
+Credits: 3 (Lecture: 2, Project: 1)
+Software Engineering Department
+
+1. OVERVIEW
+Introduction to agile software development processes, Scrum framework, user story mapping, behavioral testing, clean architecture, refactoring patterns, and CI/CD automation pipelines.
+
+2. EXPECTED OUTCOMES
+- CLO1: Apply agile principles and Scrum ceremonies in a multi-developer team setting.
+- CLO2: Formulate test cases and execute Test-Driven Development (TDD) using unit and integration test runners.
+- CLO3: Refactor legacy systems using SOLID design principles and clean code design patterns.
+
+3. SCHEDULE OF TOPICS
+Week 1: Software Lifecycles, Waterfall vs Agile, and Scrum Framework.
+Week 2: Requirements Elicitation, User Stories, and Acceptance Criteria.
+Week 3: Version Control Workflows (Git Flow, Trunk-based) and Code Reviews.
+Week 4: Object-Oriented Design Principles (SOLID) and Design Patterns.
+Week 5: Test-Driven Development (TDD), Mocking, and Test Automation.
+Week 6: Midterm Sprint Review and Architecture Defense.
+Week 7: Clean Architecture, Layer Separation, and Domain-Driven Design Basics.
+Week 8: Refactoring Code Smells and Technical Debt Management.
+Week 9: Continuous Integration, Continuous Delivery (CI/CD), and Automated Deployment.
+Week 10: Final Sprint Retrospective and Production Release.
+
+4. EVALUATION SCHEME
+- Sprint Deliverables: 30% (due week 8).
+- Midterm Sprint Review: 20% (due week 6).
+- Final Project Demo: 50% (due week 10).
+

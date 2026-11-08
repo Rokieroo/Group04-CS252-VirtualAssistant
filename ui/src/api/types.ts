@@ -32,3 +32,131 @@ export interface LearningCheckService {
     signal?: AbortSignal,
   ): Promise<CheckResult>;
 }
+
+// Core loop (spec 8). Wire format in snake_case, as docs/openapi.json serves it;
+// src/api/contract.test.ts fails when these drift from that file.
+export type LearningOutcome = {
+  id: string;
+  syllabus_id: string;
+  code: string;
+  description: string;
+  bloom_level: string;
+};
+export type Assessment = {
+  id: string;
+  syllabus_id: string;
+  name: string;
+  weight: number;
+  due_week: number | null;
+};
+/** GET/POST/PUT /courses/{id}/syllabus (spec 8.1–8.2). */
+export type Syllabus = {
+  id: string;
+  syllabus_id: string;
+  course_id: string;
+  raw_text: string;
+  created_at: string;
+  learning_outcomes: LearningOutcome[];
+  assessments: Assessment[];
+};
+/** One step of a roadmap; a milestone ``covers`` the topic node ids it tests. */
+export type RoadmapNode = {
+  status?: "locked" | "available" | "in_progress" | "done" | "needs_review";
+  id: string;
+  roadmap_id: string;
+  type: "topic" | "milestone";
+  kind: "topic" | "milestone" | null;
+  title: string;
+  week: number | null;
+  duration_minutes: number | null;
+  est_minutes: number | null;
+  due_at: string | null;
+  covers: string[];
+};
+/** POST /courses/{id}/roadmap:generate and GET /roadmaps/{id} (spec 8.3). */
+export type Roadmap = {
+  id: string;
+  roadmap_id: string;
+  course_id: string;
+  user_id: string;
+  title: string;
+  created_at: string;
+  nodes: RoadmapNode[];
+};
+/** A web source chosen for a node (spec 8.6); the backend does not serve it yet. */
+export type Resource = {
+  id: string;
+  rank: number;
+  title: string;
+  url: string;
+  domain: string;
+  format: "article" | "video" | "course" | "book" | "paper" | "exercise";
+  language: string;
+  duration_min: number | null;
+  is_free: boolean;
+  score: number;
+  breakdown: Record<
+    | "relevance"
+    | "authority"
+    | "level_fit"
+    | "pedagogy"
+    | "freshness"
+    | "accessibility"
+    | "community",
+    number
+  >;
+  reason: string;
+  evidence_quote: string;
+  pinned: boolean;
+};
+/** GET /roadmap-nodes/{id}/resources (spec 8.6). */
+export type NodeResources = {
+  status: "searching" | "ready" | "insufficient";
+  resources: Resource[];
+  gaps: string[];
+};
+
+/** GET /admin/costs (issue #69): spend of resource searches, for admins. */
+export type CostTotals = {
+  searches: number;
+  cache_hits: number;
+  llm_calls: number;
+  llm_calls_today: number;
+  llm_cost_usd: number;
+  search_cost_usd: number;
+  cost_usd: number;
+  cost_per_search_usd: number;
+};
+
+export type NodeCost = {
+  node_id: string | null;
+  node_title: string;
+  searches: number;
+  cache_hits: number;
+  llm_calls: number;
+  llm_cost_usd: number;
+  search_cost_usd: number;
+  cost_usd: number;
+  last_search_at: string;
+};
+
+export type ProviderUsage = {
+  provider: string;
+  calls: number;
+  errors: number;
+  calls_today: number;
+  avg_latency_ms: number;
+  max_latency_ms: number;
+  cost_usd: number;
+};
+
+export type DailyCost = { day: string; searches: number; cost_usd: number };
+
+export type CostReport = {
+  days: number;
+  since: string;
+  totals: CostTotals;
+  nodes: NodeCost[];
+  providers: ProviderUsage[];
+  daily: DailyCost[];
+};

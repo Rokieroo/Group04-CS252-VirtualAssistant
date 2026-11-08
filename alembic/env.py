@@ -20,13 +20,17 @@ from alembic import context
 
 config = context.config
 
-if config.config_file_name is not None:
+# The backend passes its own connection (see assistant.backend.database); it also
+# owns logging, so only the CLI applies alembic.ini's logging config.
+_given_connection = config.attributes.get("connection")
+if config.config_file_name is not None and _given_connection is None:
     fileConfig(config.config_file_name)
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./local.db")
 
-# No ORM models yet: migrations are the source of truth and are written by hand
-# to mirror db/schema.sql. Set this once models are introduced.
+# Migrations are hand-written to mirror db/schema.sql. The backend ORM maps only
+# some tables, so autogenerate would propose dropping the rest; drift is checked
+# by tests/test_schema_sync.py instead.
 target_metadata = None
 
 
@@ -60,8 +64,22 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def _run_on(connection) -> None:
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        compare_type=True,
+        render_as_batch=connection.dialect.name == "sqlite",
+    )
+    with context.begin_transaction():
+        context.run_migrations()
+
+
 def run_migrations_online() -> None:
     """Run migrations against a live database."""
+    if _given_connection is not None:
+        _run_on(_given_connection)
+        return
     _ensure_sqlite_directory(DATABASE_URL)
     connectable = create_engine(DATABASE_URL, poolclass=pool.NullPool)
 
@@ -69,14 +87,7 @@ def run_migrations_online() -> None:
         event.listen(connectable, "connect", _enable_sqlite_foreign_keys)
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata,
-            compare_type=True,
-            render_as_batch=connectable.dialect.name == "sqlite",
-        )
-        with context.begin_transaction():
-            context.run_migrations()
+        _run_on(connection)
 
 
 if context.is_offline_mode():

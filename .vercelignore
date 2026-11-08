@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+.claude
+.impeccable
+ui/node_modules

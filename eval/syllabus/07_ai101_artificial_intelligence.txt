@@ -1,0 +1,31 @@
+COURSE SYLLABUS
+Course: Introduction to Artificial Intelligence
+Course Code: AI101
+Credits: 3 (Lecture: 2, Lab: 1)
+Artificial Intelligence Department
+
+1. COURSE DESCRIPTION
+Fundamental techniques in artificial intelligence: uninformed and heuristic search algorithms, adversarial game playing, constraint satisfaction problems, probabilistic reasoning with Bayesian networks, and supervised machine learning basics.
+
+2. LEARNING OUTCOMES (CLO)
+- CLO1: Formulate problem spaces and apply heuristic search (A*, Greedy Best-First) and Minimax with Alpha-Beta pruning.
+- CLO2: Model constraint satisfaction problems (CSP) and solve them using backtracking and arc consistency (AC-3).
+- CLO3: Perform probabilistic inference using Bayesian networks and construct naive Bayes classifiers.
+
+3. SCHEDULE OF LECTURES
+Week 1: Intelligent Agents, Environments, and Uninformed State Space Search (BFS, DFS, UCS).
+Week 2: Heuristic Search, Greedy Search, A* Optimality, and Admissible Heuristics.
+Week 3: Adversarial Search, Minimax Algorithm, Alpha-Beta Pruning, and Evaluation Functions.
+Week 4: Constraint Satisfaction Problems (CSP), Backtracking, and Forward Checking.
+Week 5: Knowledge Representation and Propositional Logic Inference.
+Week 6: Midterm Exam (State Search & Game Playing).
+Week 7: Uncertainty, Probability Axioms, and Conditional Independence.
+Week 8: Bayesian Networks, Exact Inference by Enumeration, and Variable Elimination.
+Week 9: Supervised Learning Foundations, Decision Trees, and Overfitting.
+Week 10: Linear Classification, Perceptron, and Introduction to Deep Learning.
+
+4. ASSESSMENT PLAN
+- Programming Labs: 25% (due week 8).
+- Midterm In-class Exam: 25% (due week 6).
+- Final Exam: 50% (due week 10).
+

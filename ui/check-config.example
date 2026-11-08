@@ -1,5 +1,8 @@
 # Copy to .env.local inside ui/, then restart Vite.
-# Only learning checks have an API adapter; the workspace is still a demo.
+# VITE_BACKEND_MODE=api: sign-in, PDF upload and concept extraction use the real backend
+# at VITE_API_URL (start it first). Omit it for the offline demo.
+# VITE_BACKEND_MODE=api
+# VITE_CHECK_MODE: learning checks only.
 VITE_CHECK_MODE=demo
 VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
 # VITE_* values are public browser configuration. Never put secrets here.

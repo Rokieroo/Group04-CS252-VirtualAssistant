@@ -1,0 +1,40 @@
+{
+  "id": "SYL-06",
+  "course_code": "SE301",
+  "course_name": "Software Engineering Methodologies",
+  "learning_outcomes": [
+    {
+      "code": "CLO1",
+      "description": "Apply agile principles and Scrum ceremonies in a multi-developer team setting.",
+      "bloom_level": "apply"
+    },
+    {
+      "code": "CLO2",
+      "description": "Formulate test cases and execute Test-Driven Development (TDD) using unit and integration test runners.",
+      "bloom_level": "apply"
+    },
+    {
+      "code": "CLO3",
+      "description": "Refactor legacy systems using SOLID design principles and clean code design patterns.",
+      "bloom_level": "analyze"
+    }
+  ],
+  "weeks": [
+    { "week": 1, "topic": "Software Lifecycles, Waterfall vs Agile, and Scrum Framework." },
+    { "week": 2, "topic": "Requirements Elicitation, User Stories, and Acceptance Criteria." },
+    { "week": 3, "topic": "Version Control Workflows (Git Flow, Trunk-based) and Code Reviews." },
+    { "week": 4, "topic": "Object-Oriented Design Principles (SOLID) and Design Patterns." },
+    { "week": 5, "topic": "Test-Driven Development (TDD), Mocking, and Test Automation." },
+    { "week": 6, "topic": "Midterm Sprint Review and Architecture Defense." },
+    { "week": 7, "topic": "Clean Architecture, Layer Separation, and Domain-Driven Design Basics." },
+    { "week": 8, "topic": "Refactoring Code Smells and Technical Debt Management." },
+    { "week": 9, "topic": "Continuous Integration, Continuous Delivery (CI/CD), and Automated Deployment." },
+    { "week": 10, "topic": "Final Sprint Retrospective and Production Release." }
+  ],
+  "assessments": [
+    { "name": "Sprint Deliverables", "weight": 30.0, "due_week": 8 },
+    { "name": "Midterm Sprint Review", "weight": 20.0, "due_week": 6 },
+    { "name": "Final Project Demo", "weight": 50.0, "due_week": 10 }
+  ]
+}
+

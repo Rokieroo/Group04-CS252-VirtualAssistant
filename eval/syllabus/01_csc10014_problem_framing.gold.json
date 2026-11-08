@@ -1,0 +1,45 @@
+{
+  "id": "SYL-01",
+  "course_code": "CSC10014",
+  "course_name": "Problem Framing and Solution Architecture",
+  "learning_outcomes": [
+    {
+      "code": "CLO1",
+      "description": "Frame business problems, distinguish Functional vs Non-Functional Requirements, and evaluate 4 product risks (Value, Usability, Feasibility, Viability).",
+      "bloom_level": "analyze"
+    },
+    {
+      "code": "CLO2",
+      "description": "Select optimal solution tiers on the Solution Ladder ranging from manual human processes to LLM/Agent tools.",
+      "bloom_level": "evaluate"
+    },
+    {
+      "code": "CLO3",
+      "description": "Decompose tasks into Use Cases, model include vs extend relationships in UML diagrams, and draft rigorous specifications.",
+      "bloom_level": "apply"
+    },
+    {
+      "code": "CLO4",
+      "description": "Architect end-to-end success pipelines with 5 key components: Trigger, Steps, Checkpoint, Result, and Saving metrics.",
+      "bloom_level": "create"
+    }
+  ],
+  "weeks": [
+    { "week": 1, "topic": "Orientation, Problem Framing, Solution Ladder, Functional vs Non-Functional Requirements." },
+    { "week": 2, "topic": "Task Decomposition, Anatomy of a Task, Use Case Diagram (include vs extend), MoSCoW Prioritisation." },
+    { "week": 3, "topic": "Pitfalls & Success Pipelines, Human-in-the-loop, Checkpoints, 4 Pipeline Patterns." },
+    { "week": 4, "topic": "System Architecture, API Design, Data Modeling, and Defensive Safeguards." },
+    { "week": 5, "topic": "Engineering Quality, Red-teaming, Benchmark Dataset Construction, and AI Evaluation." },
+    { "week": 6, "topic": "Midterm Milestone Report and Phase 1 Project Presentation." },
+    { "week": 7, "topic": "Retrieval Integration, LLM Interface, and Cite-or-Refuse Citation Strategies." },
+    { "week": 8, "topic": "Performance Optimization, Caching, Asynchronous Job Queues, and Background Workers." },
+    { "week": 9, "topic": "Staging Deployment, CI/CD, Containerization with Docker Compose, and Runtime Monitoring." },
+    { "week": 10, "topic": "Final Capstone Project Defense and Real-world Evaluation." }
+  ],
+  "assessments": [
+    { "name": "Weekly Homework & Quizzes", "weight": 20.0, "due_week": 8 },
+    { "name": "Midterm Project Milestone", "weight": 30.0, "due_week": 6 },
+    { "name": "Final Capstone Project Defense", "weight": 50.0, "due_week": 10 }
+  ]
+}
+

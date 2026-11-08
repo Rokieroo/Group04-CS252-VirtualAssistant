@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
-import { ApiError, proposeConcepts, uploadSource, type UploadResult } from "../api/courses";
+import {
+  ApiError,
+  type CourseService,
+  type Item,
+  type UploadResult,
+} from "../api/courses";
 import {
   addPrereq,
   checkFile,
@@ -10,13 +15,72 @@ import {
   removePrereq,
   rename,
   type Graph,
+  UPLOAD_ACCEPT,
 } from "../concepts";
+import { Button } from "../components/Button";
 
 type Row = UploadResult & { error?: string };
 const STATUS = { processing: "Processing…", processed: "Done", error: "Error" };
 
-/** S3 Upload + S4 Concept editor (spec section 5), backed by the mock in api/courses.ts. */
-export function CoursesPage({ courseId }: { courseId: string }) {
+/** A concept's cited practice questions (UC-03), each with its slide page. */
+function Questions({
+  title,
+  state,
+  onAsk,
+}: {
+  title: string;
+  state: { busy?: boolean; error?: string; items?: Item[] };
+  onAsk: () => void;
+}) {
+  return (
+    <div className="questions">
+      <button className="secondary-action" disabled={state.busy} onClick={onAsk}>
+        {state.busy ? "Finding questions…" : state.items ? "More questions" : "Find questions in my slides"}
+      </button>
+      {state.error && (
+        <p role="alert" className="row-error">
+          {state.error}
+        </p>
+      )}
+      {state.items && (
+        <ol className="question-list" aria-label={`Questions for ${title}`}>
+          {state.items.map((i) => (
+            <li key={i.id}>
+              <p>{i.prompt}</p>
+              {i.type === "mcq" ? (
+                <ul>
+                  {i.choices.map((choice) => (
+                    <li key={choice}>
+                      {choice === i.answer ? <strong>{choice} (answer)</strong> : choice}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="hint">
+                  Answer: {i.answer}
+                  <br />
+                  Rubric: {i.rubric.join("; ")}
+                </p>
+              )}
+              <span className="citation">
+                {i.file_name} · p. {i.page}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
+/** S3 Upload + S4 Concept editor (spec section 5); the caller passes the backend or the demo service. */
+export function CoursesPage({
+  course,
+  service,
+}: {
+  course: string;
+  service: CourseService;
+}) {
   const [files, setFiles] = useState<Row[]>([]);
   const [graph, setGraph] = useState<Graph | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
@@ -24,6 +88,10 @@ export function CoursesPage({ courseId }: { courseId: string }) {
   const [edgeError, setEdgeError] = useState<{ id: string; text: string } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [proposing, setProposing] = useState(false);
+  const [proposeError, setProposeError] = useState("");
+  const [questions, setQuestions] = useState<
+    Record<string, { busy?: boolean; error?: string; items?: Item[] }>
+  >({});
   const picker = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -34,6 +102,14 @@ export function CoursesPage({ courseId }: { courseId: string }) {
 
   const update = (name: string, row: Partial<Row>) =>
     setFiles((fs) => fs.map((f) => (f.file_name === name ? { ...f, ...row } : f)));
+  const deleteFile = async (name: string) => {
+    try {
+      await service.deleteSource(course, name);
+      setFiles((fs) => fs.filter((f) => f.file_name !== name));
+    } catch (err) {
+      update(name, { error: err instanceof Error ? err.message : "Could not delete this file." });
+    }
+  };
 
   const upload = async (list: FileList | null) => {
     let proposed = graph !== null;
@@ -50,21 +126,37 @@ export function CoursesPage({ courseId }: { courseId: string }) {
       ]);
       if (rejected) continue;
       try {
-        update(file.name, await uploadSource(courseId, file));
-        if (!proposed) {
-          proposed = true;
-          setProposing(true);
-          try {
-            setGraph(await proposeConcepts(courseId));
-          } finally {
-            setProposing(false);
-          }
-        }
+        const result = await service.uploadSource(course, file);
+        update(file.name, { ...result, error: result.warning && ERRORS[result.warning] });
       } catch (err) {
         update(file.name, {
           status: "error",
-          error: err instanceof ApiError ? ERRORS[err.code] : ERRORS.invalid_pdf,
+          error:
+            err instanceof ApiError
+              ? ERRORS[err.code]
+              : err instanceof Error
+                ? err.message
+                : ERRORS.invalid_pdf,
         });
+        continue;
+      }
+      // The backend extracts each new file; the demo shows its fixed sample once.
+      if (proposed && !service.live) continue;
+      proposed = true;
+      setProposing(true);
+      setProposeError("");
+      try {
+        setGraph(await service.proposeConcepts(course, file.name));
+      } catch (err) {
+        setProposeError(
+          err instanceof ApiError
+            ? ERRORS[err.code]
+            : err instanceof Error
+              ? err.message
+              : ERRORS.concepts_unavailable,
+        );
+      } finally {
+        setProposing(false);
       }
     }
   };
@@ -73,6 +165,22 @@ export function CoursesPage({ courseId }: { courseId: string }) {
     e.preventDefault();
     setDragging(false);
     void upload(e.dataTransfer.files);
+  };
+
+  const ask = async (id: string) => {
+    setQuestions((q) => ({ ...q, [id]: { ...q[id], busy: true, error: undefined } }));
+    try {
+      const items = await service.generateItems(course, id);
+      setQuestions((q) => ({ ...q, [id]: { items } }));
+    } catch (err) {
+      const error =
+        err instanceof ApiError
+          ? ERRORS[err.code]
+          : err instanceof Error
+            ? err.message
+            : ERRORS.items_unavailable;
+      setQuestions((q) => ({ ...q, [id]: { ...q[id], busy: false, error } }));
+    }
   };
 
   const edit = (next: Graph) => {
@@ -87,7 +195,11 @@ export function CoursesPage({ courseId }: { courseId: string }) {
     <section className="courses" aria-labelledby="upload-title">
       <div className="card">
         <h2 id="upload-title">Course materials</h2>
-        <p className="hint">Demo: files are checked locally. Concepts are fixed Week 1 examples, not extracted from your PDF. Edits last until you reload.</p>
+        <p className="hint">
+          {service.live
+            ? "AI reads your slides and proposes concepts; this can take a minute or two per file. Concept edits are not saved yet."
+            : "Demo: files are checked locally. Concepts are fixed Week 1 examples, not extracted from your PDF. Edits last until you reload."}
+        </p>
         <div
           className={`dropzone ${dragging ? "dragging" : ""}`}
           onDragOver={(e) => {
@@ -100,17 +212,17 @@ export function CoursesPage({ courseId }: { courseId: string }) {
           }}
           onDrop={drop}
         >
-          <p>Drag and drop PDF files here (up to 20 MB)</p>
+          <p>Drag and drop slides, PDFs, Word files or photos here (up to 20 MB each)</p>
           <button className="primary-action" onClick={() => picker.current?.click()}>
-            Choose PDF files
+            Choose files
           </button>
           <input
             ref={picker}
             type="file"
-            accept="application/pdf,.pdf"
+            accept={UPLOAD_ACCEPT}
             multiple
             hidden
-            aria-label="Choose PDF files to upload"
+            aria-label="Choose files to upload"
             onChange={(e) => {
               void upload(e.target.files);
               e.target.value = "";
@@ -125,6 +237,9 @@ export function CoursesPage({ courseId }: { courseId: string }) {
                 <span>{f.pages ? `${f.pages} ${f.pages === 1 ? "page" : "pages"}` : ""}</span>
                 <span>{STATUS[f.status]}</span>
                 {f.error && <span className="row-error">{f.error}</span>}
+                {service.live && f.status === "processed" && (
+                  <Button onClick={() => void deleteFile(f.file_name)}>Delete</Button>
+                )}
               </li>
             ))}
           </ul>
@@ -134,6 +249,11 @@ export function CoursesPage({ courseId }: { courseId: string }) {
       {proposing && (
         <p className="card proposing" role="status">
           Finding concepts in your slides…
+        </p>
+      )}
+      {proposeError && (
+        <p className="card row-error" role="alert">
+          {proposeError}
         </p>
       )}
 
@@ -190,7 +310,7 @@ export function CoursesPage({ courseId }: { courseId: string }) {
                     />
                     <p>{c.summary}</p>
                     <span className="citation">
-                      {c.source_file} · p. {c.source_pages.join(", ")}
+                      {c.source_file && `${c.source_file} · `}p. {c.source_pages.join(", ")}
                     </span>
                     {parents.length > 0 && (
                       <div className="parents">
@@ -230,6 +350,14 @@ export function CoursesPage({ courseId }: { courseId: string }) {
                       <p role="alert" className="row-error">
                         {edgeError.text}
                       </p>
+                    )}
+                    {/* Demo concepts are not stored, so only the backend can write questions. */}
+                    {service.live && (
+                      <Questions
+                        title={c.title}
+                        state={questions[c.id] ?? {}}
+                        onAsk={() => void ask(c.id)}
+                      />
                     )}
                   </div>
                   <button

@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from threading import Event
 from types import SimpleNamespace
 
@@ -24,8 +24,8 @@ def test_task_update_rechecks_progress_after_acquiring_assignee_lock(
     availability(client, headers)
     created = task(client, headers, duration_minutes=60)
     plan(client, headers)
-    entry = client.get("/api/schedule", headers=headers).json()[0]
-    clock[0] = datetime(2030, 1, 7, 3, tzinfo=timezone.utc)
+    entry = client.get("/api/v1/schedule", headers=headers).json()[0]
+    clock[0] = datetime(2030, 1, 7, 3, tzinfo=UTC)
     request = SimpleNamespace(app=app)
     with (
         app.state.database.sessions() as earlier,
@@ -46,13 +46,16 @@ def test_task_update_rechecks_progress_after_acquiring_assignee_lock(
                 created["id"], TaskPatch(status="cancelled"), request, earlier, owner
             )
         assert denied.value.status_code == 409
-    current = client.get("/api/tasks/" + created["id"], headers=headers).json()
+    current = client.get("/api/v1/tasks/" + created["id"], headers=headers).json()
     assert current["status"] == "completed" and current["completed_minutes"] == 60
 
 
 def test_delete_and_checkin_cannot_both_succeed_and_erase_history(tmp_path):
-    clock = [datetime(2030, 1, 7, 0, tzinfo=timezone.utc)]
-    settings = Settings(database_url="sqlite:///" + (tmp_path / "race.db").as_posix())
+    clock = [datetime(2030, 1, 7, 0, tzinfo=UTC)]
+    settings = Settings(
+        database_url="sqlite:///" + (tmp_path / "race.db").as_posix(),
+        session_minutes=43200,
+    )
     app = create_app(settings, now=lambda: clock[0])
     reached_delete, release_delete, checkin_finished = Event(), Event(), Event()
 
@@ -70,14 +73,14 @@ def test_delete_and_checkin_cannot_both_succeed_and_erase_history(tmp_path):
         availability(client, headers)
         created = task(client, headers, duration_minutes=60)
         plan(client, headers)
-        entry = client.get("/api/schedule", headers=headers).json()[0]
-        clock[0] = datetime(2030, 1, 7, 3, tzinfo=timezone.utc)
+        entry = client.get("/api/v1/schedule", headers=headers).json()[0]
+        clock[0] = datetime(2030, 1, 7, 3, tzinfo=UTC)
         event.listen(app.state.database.engine, "before_cursor_execute", pause_delete)
 
         def complete():
             try:
                 return client.post(
-                    "/api/schedule/" + entry["id"] + "/check-in",
+                    "/api/v1/schedule/" + entry["id"] + "/check-in",
                     headers=headers,
                     json={"status": "completed"},
                 )
@@ -87,7 +90,7 @@ def test_delete_and_checkin_cannot_both_succeed_and_erase_history(tmp_path):
         try:
             with ThreadPoolExecutor(max_workers=2) as workers:
                 deletion = workers.submit(
-                    client.delete, "/api/tasks/" + created["id"], headers=headers
+                    client.delete, "/api/v1/tasks/" + created["id"], headers=headers
                 )
                 assert reached_delete.wait(5)
                 completion = workers.submit(complete)
@@ -105,7 +108,7 @@ def test_delete_and_checkin_cannot_both_succeed_and_erase_history(tmp_path):
             )
         assert (deleted.status_code, completed.status_code) in {(204, 404), (409, 200)}
         if completed.status_code == 200:
-            saved = client.get("/api/schedule", headers=headers).json()
+            saved = client.get("/api/v1/schedule", headers=headers).json()
             assert any(
                 row["id"] == entry["id"] and row["actual_minutes"] == 60
                 for row in saved
@@ -115,9 +118,10 @@ def test_delete_and_checkin_cannot_both_succeed_and_erase_history(tmp_path):
 def test_availability_change_cannot_interleave_with_committed_plan(
     tmp_path, monkeypatch
 ):
-    clock = datetime(2030, 1, 7, 0, tzinfo=timezone.utc)
+    clock = datetime(2030, 1, 7, 0, tzinfo=UTC)
     settings = Settings(
-        database_url="sqlite:///" + (tmp_path / "plan-race.db").as_posix()
+        database_url="sqlite:///" + (tmp_path / "plan-race.db").as_posix(),
+        session_minutes=43200,
     )
     app = create_app(settings, now=lambda: clock)
     reached_insert, release_insert, availability_finished = Event(), Event(), Event()
@@ -141,7 +145,7 @@ def test_availability_change_cannot_interleave_with_committed_plan(
         def clear_windows():
             try:
                 return client.put(
-                    "/api/availability", headers=headers, json={"windows": []}
+                    "/api/v1/availability", headers=headers, json={"windows": []}
                 )
             finally:
                 availability_finished.set()
@@ -157,8 +161,8 @@ def test_availability_change_cannot_interleave_with_committed_plan(
                 assert clearing.result(timeout=5).status_code == 200
         finally:
             release_insert.set()
-        assert client.get("/api/availability", headers=headers).json() == []
-        assert client.get("/api/schedule", headers=headers).json() == []
+        assert client.get("/api/v1/availability", headers=headers).json() == []
+        assert client.get("/api/v1/schedule", headers=headers).json() == []
 
 
 def test_replan_recovers_past_unchecked_work_without_changing_history_during_preview(
@@ -167,13 +171,13 @@ def test_replan_recovers_past_unchecked_work_without_changing_history_during_pre
     availability(client, headers)
     created = task(client, headers, duration_minutes=60)
     plan(client, headers)
-    old_entry = client.get("/api/schedule", headers=headers).json()[0]
-    clock[0] = datetime(2030, 1, 7, 3, tzinfo=timezone.utc)
+    old_entry = client.get("/api/v1/schedule", headers=headers).json()[0]
+    clock[0] = datetime(2030, 1, 7, 3, tzinfo=UTC)
     request = {
         "starts_at": "2030-01-07T10:00:00+07:00",
         "ends_at": "2030-01-07T12:00:00+07:00",
     }
-    preview = client.post("/api/schedule/replan", headers=headers, json=request)
+    preview = client.post("/api/v1/schedule/replan", headers=headers, json=request)
     assert preview.status_code == 200
     assert preview.json()["entries"] == [
         {
@@ -183,16 +187,16 @@ def test_replan_recovers_past_unchecked_work_without_changing_history_during_pre
         }
     ]
     assert preview.json()["expired_sessions"] == 1
-    assert client.get("/api/schedule", headers=headers).json()[0]["status"] == "planned"
+    assert client.get("/api/v1/schedule", headers=headers).json()[0]["status"] == "planned"
     committed = client.post(
-        "/api/schedule/replan", headers=headers, json={**request, "commit": True}
+        "/api/v1/schedule/replan", headers=headers, json={**request, "commit": True}
     )
     assert committed.status_code == 200
-    entries = client.get("/api/schedule", headers=headers).json()
+    entries = client.get("/api/v1/schedule", headers=headers).json()
     assert (
         next(row for row in entries if row["id"] == old_entry["id"])["status"]
         == "missed"
     )
     assert len([row for row in entries if row["status"] == "planned"]) == 1
-    current = client.get("/api/tasks/" + created["id"], headers=headers).json()
+    current = client.get("/api/v1/tasks/" + created["id"], headers=headers).json()
     assert current["completed_minutes"] == 0

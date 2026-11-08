@@ -1,0 +1,316 @@
+# Open Yale Courses (ADR 004: open_yale, method manual, CC BY-NC-SA 3.0).
+# Copied from the course list at https://oyc.yale.edu/courses on 2026-11-05: Open Yale has
+# no sitemap. Read by the open_yale connector (#98); entries stay pending until
+# verified (#101). Format: src/app/catalog/connectors/manual_yaml.py.
+resources:
+  - title: "African American History: From Emancipation to the Present (2010)"
+    url: https://oyc.yale.edu/african-american-studies/afam-162
+    code: AFAM 162
+    course: African american studies
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Hemingway, Fitzgerald, Faulkner"
+    url: https://oyc.yale.edu/american-studies/amst-246
+    code: AMST 246
+    course: American studies
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Frontiers and Controversies in Astrophysics"
+    url: https://oyc.yale.edu/astronomy/astr-160
+    code: ASTR 160
+    course: Astronomy
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Frontiers of Biomedical Engineering"
+    url: https://oyc.yale.edu/biomedical-engineering/beng-100
+    code: BENG 100
+    course: Biomedical engineering
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Freshman Organic Chemistry I"
+    url: https://oyc.yale.edu/chemistry/chem-125a
+    code: CHEM 125a
+    course: Chemistry
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Freshman Organic Chemistry II"
+    url: https://oyc.yale.edu/chemistry/chem-125b
+    code: CHEM 125b
+    course: Chemistry
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Introduction to Ancient Greek History"
+    url: https://oyc.yale.edu/classics/clcv-205
+    code: CLCV 205
+    course: Classics
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Principles of Evolution, Ecology and Behavior"
+    url: https://oyc.yale.edu/ecology-and-evolutionary-biology/eeb-122
+    code: EEB 122
+    course: Ecology and evolutionary biology
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Financial Markets (2011)"
+    url: https://oyc.yale.edu/economics/econ-252
+    code: ECON 252
+    course: Economics
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Financial Theory"
+    url: https://oyc.yale.edu/economics/econ-251
+    code: ECON 251
+    course: Economics
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Game Theory"
+    url: https://oyc.yale.edu/economics/econ-159
+    code: ECON 159
+    course: Economics
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Introduction to Theory of Literature"
+    url: https://oyc.yale.edu/english/engl-300
+    code: ENGL 300
+    course: English
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Milton"
+    url: https://oyc.yale.edu/english/engl-220
+    code: ENGL 220
+    course: English
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Modern Poetry"
+    url: https://oyc.yale.edu/english/engl-310
+    code: ENGL 310
+    course: English
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "The American Novel Since 1945"
+    url: https://oyc.yale.edu/english/engl-291
+    code: ENGL 291
+    course: English
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Environmental Politics and Law"
+    url: https://oyc.yale.edu/environmental-studies/evst-255
+    code: EVST 255
+    course: Environmental studies
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "The Atmosphere, the Ocean, and Environmental Change"
+    url: https://oyc.yale.edu/geology-and-geophysics/gg-140
+    code: GG 140
+    course: Geology and geophysics
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "The American Revolution"
+    url: https://oyc.yale.edu/history/hist-116
+    code: HIST 116
+    course: History
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "The Civil War and Reconstruction Era, 1845-1877"
+    url: https://oyc.yale.edu/history/hist-119
+    code: HIST 119
+    course: History
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "The Early Middle Ages, 284–1000"
+    url: https://oyc.yale.edu/history/hist-210
+    code: HIST 210
+    course: History
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "European Civilization, 1648-1945"
+    url: https://oyc.yale.edu/history/hist-202
+    code: HIST 202
+    course: History
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Epidemics in Western Society Since 1600"
+    url: https://oyc.yale.edu/history/hist-234
+    code: HIST 234
+    course: History
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Early Modern England: Politics, Religion, and Society under the Tudors and Stuarts"
+    url: https://oyc.yale.edu/history/hist-251
+    code: HIST 251
+    course: History
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "France Since 1871"
+    url: https://oyc.yale.edu/history/hist-276
+    code: HIST 276
+    course: History
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Roman Architecture"
+    url: https://oyc.yale.edu/history-of-art/hsar-252
+    code: HSAR 252
+    course: History of art
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Dante in Translation"
+    url: https://oyc.yale.edu/italian-language-and-literature/ital-310
+    code: ITAL 310
+    course: Italian language and literature
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Global Problems of Population Growth"
+    url: https://oyc.yale.edu/molecular-cellular-and-developmental-biology/mcdb-150
+    code: MCDB 150
+    course: Molecular cellular and developmental biology
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Philosophy and the Science of Human Nature"
+    url: https://oyc.yale.edu/philosophy/phil-181
+    code: PHIL 181
+    course: Philosophy
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Death"
+    url: https://oyc.yale.edu/death/phil-176
+    code: PHIL 176
+    course: Philosophy
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Fundamentals of Physics I"
+    url: https://oyc.yale.edu/physics/phys-200
+    code: PHYS 200
+    course: Physics
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Fundamentals of Physics II"
+    url: https://oyc.yale.edu/physics/phys-201
+    code: PHYS 201
+    course: Physics
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Capitalism: Success, Crisis, and Reform"
+    url: https://oyc.yale.edu/political-science/plsc-270
+    code: PLSC 270
+    course: Political science
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Introduction to Political Philosophy"
+    url: https://oyc.yale.edu/political-science/plsc-114
+    code: PLSC 114
+    course: Political science
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Introduction to Psychology"
+    url: https://oyc.yale.edu/introduction-psychology/psyc-110
+    code: PSYC 110
+    course: Introduction psychology
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "The Psychology, Biology and Politics of Food"
+    url: https://oyc.yale.edu/psychology/psyc-123
+    code: PSYC 123
+    course: Psychology
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Introduction to the New Testament History and Literature"
+    url: https://oyc.yale.edu/religious-studies/rlst-152
+    code: RLST 152
+    course: Religious studies
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Introduction to the Old Testament (Hebrew Bible)"
+    url: https://oyc.yale.edu/religious-studies/rlst-145
+    code: RLST 145
+    course: Religious studies
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Foundations of Modern Social Theory"
+    url: https://oyc.yale.edu/sociology/socy-151
+    code: SOCY 151
+    course: Sociology
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en
+
+  - title: "Cervantes' Don Quixote"
+    url: https://oyc.yale.edu/spanish-and-portuguese/span-300
+    code: SPAN 300
+    course: Spanish and portuguese
+    license: CC-BY-NC-SA-3.0
+    kind: course
+    lang: en

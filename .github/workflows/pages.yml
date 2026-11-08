@@ -1,0 +1,55 @@
+name: UI demo on GitHub Pages
+
+# The offline demo (no backend, no AI calls) at https://<owner>.github.io/<repo>/.
+on:
+  push:
+    branches: ["main"]
+    paths: ["ui/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+# Actions on Node 24 (Node 20 is deprecated on runners); a pinned image, not ubuntu-latest,
+# so the Ubuntu 26 migration cannot change the build unannounced.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: ui/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24.22.1"
+          cache: pnpm
+          cache-dependency-path: ui/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      # Relative asset paths serve from the /<repo>/ sub-path; hash routes need no server rewrites.
+      - run: pnpm run build:pages
+        env:
+          VITE_CHECK_MODE: demo
+          VITE_BACKEND_MODE: demo
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: ui/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

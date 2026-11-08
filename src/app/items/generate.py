@@ -1,58 +1,124 @@
+"""Compatibility entry points: extract existing exercises; never generate prose (#115)."""
+
 import json
-import math
-from pathlib import Path
-from typing import Literal
+from uuid import uuid4
 
-from pydantic import Field, model_validator
+from sqlalchemy import text
 
-from app.ai_data import SLIDE_SYSTEM, Source, StrictModel, data_block
-from app.llm import LLMClient
+from app.catalog.exercises import exact, extract_numbered, from_offsets
+from app.retrieval import retrieve_top_k
 
-
-class Item(StrictModel):
-    type: Literal["mcq", "numeric", "short"]
-    prompt: str = Field(min_length=1, max_length=10000)
-    choices: list[str] | None = None
-    answer: str = Field(min_length=1, max_length=10000)
-    rubric: list[str] | None = None
-    source_id: str = Field(min_length=1)
-
-    @model_validator(mode="after")
-    def check_type_fields(self):
-        if self.type == "mcq":
-            if (self.choices is None or len(self.choices) != 4 or
-                    any(not value.strip() for value in self.choices) or
-                    len({value.strip().casefold() for value in self.choices}) != 4 or
-                    self.answer not in self.choices or self.rubric is not None):
-                raise ValueError("MCQ requires four unique choices and an answer among them")
-        elif self.type == "short":
-            if (self.choices is not None or self.rubric is None or not 2 <= len(self.rubric) <= 4 or
-                    any(not value.strip() for value in self.rubric)):
-                raise ValueError("Short answers require two to four rubric criteria")
-        else:
-            if self.choices is not None or self.rubric is not None or not math.isfinite(float(self.answer)):
-                raise ValueError("Numeric answer must be finite with no choices or rubric")
-        return self
+TOP_K = 3
+MAX_ITEMS = 5
 
 
-class ItemsResponse(StrictModel):
-    items: list[Item] = Field(max_length=5)
+def pick_pages(concept: dict, sources: list[dict]) -> list[dict]:
+    """Top-3 BM25 pages for the concept, ranked among the pages it cites (``source_pages``)
+    when it has any, else among all pages; its other cited pages fill the rest."""
+    cited = set(concept.get("source_pages") or [])
+    own = [
+        {"id": str(s["id"]), "page": s["page"], "text": s["text"]}
+        for s in sources
+        if s["page"] in cited
+    ]
+    hits = retrieve_top_k(
+        f"{concept['title']} {concept['summary']}", own or sources, top_k=TOP_K
+    )
+    picked = [{"id": h.source_id, "page": h.page, "text": h.text} for h in hits]
+    ids = {p["id"] for p in picked}
+    return (picked + [p for p in own if p["id"] not in ids])[:TOP_K]
 
 
-def generate_items(concept: dict, sources: list[dict], client: LLMClient) -> list[dict]:
-    pages = [Source.model_validate(row) for row in sources]
-    pages = [page for page in pages if page.text][:3]
-    if not pages:
+def parse_items(answer, sources):
+    """Accept offset proposals only; a collection of source IDs is not evidence."""
+    data = json.loads(answer)
+    if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+        raise TypeError("expected offset items")
+    if not isinstance(sources, dict):
         return []
-    instruction = (Path(__file__).parent / "prompts/generate_v1.txt").read_text(encoding="utf-8")
-    prompt = instruction + "\n<slide_text>\n" + data_block({
-        "concept": concept, "sources": [page.model_dump() for page in pages]
-    }) + "\n</slide_text>"
-    result = client.complete(prompt, system=SLIDE_SYSTEM, temperature=0.2, max_tokens=4096,
-                             json_schema=ItemsResponse.model_json_schema())
-    response = ItemsResponse.model_validate(json.loads(result.text))
-    allowed = {page.id for page in pages}
-    items = [item.model_dump() for item in response.items if item.source_id in allowed]
-    if len(items) < 3 or not {"mcq", "short"} <= {item["type"] for item in items}:
+    result = []
+    for proposal in data["items"]:
+        if not isinstance(proposal, dict) or set(proposal) - {
+            "source_id",
+            "start",
+            "end",
+        }:
+            continue
+        source = sources.get(proposal.get("source_id"))
+        if source is None:
+            continue
+        spans = [{k: proposal[k] for k in ("start", "end") if k in proposal}]
+        result.extend(
+            {**item, "source_id": proposal["source_id"]}
+            for item in from_offsets(source, spans)
+        )
+    return result[:MAX_ITEMS]
+
+
+def generate_items(llm, concept, sources):
+    """Deprecated name retained for callers; llm is deliberately never invoked."""
+    return [
+        {**item, "source_id": page["id"]}
+        for page in pick_pages(concept, sources)
+        for item in extract_numbered(page["text"])
+    ][:MAX_ITEMS]
+
+
+def save_items(db, concept_id, items):
+    """FSRS compatibility rows always point at a verified, owner-scoped exercise."""
+    from app.catalog.exercises import store_private
+
+    saved = []
+    course_id = db.scalar(
+        text("SELECT course_id FROM concepts WHERE id=:id"), {"id": concept_id}
+    )
+    owner = db.scalar(
+        text("SELECT owner_id FROM courses WHERE id=:id"), {"id": course_id}
+    )
+    if owner is None:
         return []
-    return items
+    for item in items:
+        source = (
+            db.execute(
+                text("SELECT id,course_id,text,page FROM sources WHERE id=:id"),
+                {"id": item.get("source_id")},
+            )
+            .mappings()
+            .first()
+        )
+        if (
+            source is None
+            or source["course_id"] != course_id
+            or not exact(item, source["text"])
+        ):
+            continue
+        exercises = store_private(db, source, owner)
+        exercise = next(
+            (e for e in exercises if e["quote_hash"] == item["quote_hash"]), None
+        )
+        if exercise is None:
+            continue
+        exists = db.execute(
+            text("SELECT id FROM items WHERE concept_id=:c AND exercise_id=:e"),
+            {"c": concept_id, "e": exercise["id"]},
+        ).first()
+        if exists:
+            continue
+        row = {
+            **item,
+            "id": str(uuid4()),
+            "concept_id": concept_id,
+            "exercise_id": exercise["id"],
+            "choices": json.dumps(item.get("choices") or [], ensure_ascii=False),
+            "answer": item.get("answer") or "",
+            "rubric": None,
+        }
+        db.execute(
+            text(
+                "INSERT INTO items (id,concept_id,exercise_id,source_id,type,prompt,choices,answer,rubric) "
+                "VALUES (:id,:concept_id,:exercise_id,:source_id,:type,:prompt,:choices,:answer,:rubric)"
+            ),
+            row,
+        )
+        saved.append(row)
+    return saved
