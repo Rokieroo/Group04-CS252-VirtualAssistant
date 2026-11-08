@@ -34,9 +34,9 @@ import { SchedulePage } from "./pages/SchedulePage";
 import { courseFor } from "./selectors";
 
 /** The offline demo (no VITE_BACKEND_MODE=api): scripted assistant, local state only. */
-type DemoPage = Exclude<Page, "Costs">;
+type DemoPage = Exclude<Page, "Costs" | "Catalog">;
 // The cost dashboard reads the live backend's admin API, which the demo does not have.
-const demoPages = pages.filter((page): page is DemoPage => page !== "Costs");
+const demoPages = pages.filter((page): page is DemoPage => page !== "Costs" && page !== "Catalog");
 
 export default function DemoApp() {
   // Demo tokens live in memory only, so a reload signs out.
