@@ -125,4 +125,23 @@ def merge(concepts: list[dict], into: list[dict] | None = None) -> list[dict]:
             merged.append(dict(concept))
         else:
             same["source_pages"] = sorted(set(same["source_pages"]) | set(concept["source_pages"]))
+            if "source_refs" in same or "source_refs" in concept:
+                same["source_refs"] = sorted(
+                    {(r["file_name"], r["page"]): r for r in
+                     [*same.get("source_refs", []), *concept.get("source_refs", [])]}.values(),
+                    key=lambda r: (r["file_name"], r["page"]))
     return merged
+
+
+def source_refs(file_name: str, pages: list[int]) -> list[dict]:
+    """Pin a deck's page numbers to the file they came from."""
+    return [{"file_name": file_name, "page": page} for page in pages]
+
+
+def pages_in(concept: dict, file_name: str | None) -> list[int]:
+    """The pages a concept cites in one file. Concepts saved before files were recorded
+    (no ``source_refs``) cite their page numbers in every file, as they always did."""
+    refs = concept.get("source_refs")
+    if not refs:
+        return concept.get("source_pages") or []
+    return [r["page"] for r in refs if r["file_name"] == file_name]
