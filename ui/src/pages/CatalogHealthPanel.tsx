@@ -44,10 +44,10 @@ export function CatalogHealthPanel({
           <p>Roadmap steps with fewer than 2 sources</p>
         </div>
         <div>
-          <strong>{(health.resources ?? {}).verified ?? 0}</strong>
+          <strong>{health.resources.verified ?? 0}</strong>
           <p>
             Verified sources ·{" "}
-            {STATUSES.map((status) => `${(health.resources ?? {})[status] ?? 0} ${status}`).join(" · ")}
+            {STATUSES.map((status) => `${health.resources[status] ?? 0} ${status}`).join(" · ")}
           </p>
         </div>
         <div>
@@ -82,26 +82,22 @@ export function CatalogHealthPanel({
 
       <section className="card">
         <h3>Connectors (last {health.days} days)</h3>
-        <table className="cost-table">
-          <thead>
-            <tr>
-              <th scope="col">Connector</th>
-              <th scope="col">Runs</th>
-              <th scope="col">New sources</th>
-              <th scope="col">Errors</th>
-              <th scope="col">Last error</th>
-              <th scope="col">Last run</th>
-            </tr>
-          </thead>
-          <tbody>
-            {health.connectors.length === 0 ? (
+        {health.connectors.length === 0 ? (
+          <p>No connector runs in this window.</p>
+        ) : (
+          <table className="cost-table">
+            <thead>
               <tr>
-                <td colSpan={6} style={{ textAlign: "center", color: "var(--muted, #888)" }}>
-                  No connector runs in this window.
-                </td>
+                <th scope="col">Connector</th>
+                <th scope="col">Runs</th>
+                <th scope="col">New sources</th>
+                <th scope="col">Errors</th>
+                <th scope="col">Last error</th>
+                <th scope="col">Last run</th>
               </tr>
-            ) : (
-              health.connectors.map((row) => (
+            </thead>
+            <tbody>
+              {health.connectors.map((row) => (
                 <tr key={row.connector}>
                   <th scope="row">{row.connector}</th>
                   <td>{row.runs}</td>
@@ -110,10 +106,10 @@ export function CatalogHealthPanel({
                   <td>{row.last_error ?? "—"}</td>
                   <td>{when(row.last_run_at)}</td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
 
       <section className="card">

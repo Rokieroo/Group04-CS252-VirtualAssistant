@@ -4,7 +4,7 @@ import { loadCosts } from "../api/costs";
 import type { CostReport } from "../api/types";
 
 const WINDOWS = [7, 30, 90];
-const usd = (value: number | undefined | null) => `$${(value ?? 0).toFixed(value && value < 0.01 ? 4 : 2)}`;
+const usd = (value: number) => `$${value.toFixed(value && value < 0.01 ? 4 : 2)}`;
 
 /** Admin dashboard (issue #69): what resource searches cost, per roadmap step and provider. */
 export function CostsPage({ load = loadCosts }: { load?: (days: number) => Promise<CostReport> }) {
