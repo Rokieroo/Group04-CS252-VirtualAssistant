@@ -98,7 +98,7 @@ def parse_judgement(answer: str, page_text: str) -> Judgement:
     if not isinstance(data, dict):
         return FAILED
     quote = collapse(str(data.get("evidence_quote") or ""))
-    grounded = len(quote) >= MIN_QUOTE_CHARS and quote in page_text
+    grounded = len(quote) >= MIN_QUOTE_CHARS and (quote in page_text or quote in collapse(page_text))
     return Judgement(
         relevance=_rubric(data.get("relevance")) if grounded else 0.0,
         level_fit=_rubric(data.get("level_fit")),
