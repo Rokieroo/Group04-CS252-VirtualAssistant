@@ -396,3 +396,46 @@ def test_evaluation_on_5_sample_syllabi():
     # Acceptance criteria: >= 80% strict edges have agreed confidence (confidence >= 0.6)
     consensus_rate = agreed_strict_edges / total_proposed_strict_edges
     assert consensus_rate >= 0.80, f"Consensus rate {consensus_rate:.2%} is below 80%"
+
+
+def test_learning_path_linear_and_branching():
+    from app.roadmap.graph import learning_path
+
+    nodes = ["A", "B", "C", "D", "E"]
+    edges = [("A", "C"), ("B", "C"), ("C", "D"), ("E", "D")]
+
+    # Path to C requires A, B, and C
+    path_c = learning_path(nodes, edges, "C")
+    assert path_c == ["A", "B", "C"] or path_c == ["B", "A", "C"]
+    assert path_c[-1] == "C"
+
+    # Path to A requires only A
+    assert learning_path(nodes, edges, "A") == ["A"]
+
+    # Unknown node
+    assert learning_path(nodes, edges, "Z") == ["Z"]
+
+
+def test_learning_path_milestone_covers():
+    from app.roadmap.graph import Edge, learning_path
+    from app.roadmap.nodes import NodeSpec
+
+    t0 = NodeSpec("topic", "Foundations", id="t0")
+    t1 = NodeSpec("topic", "Recursion", id="t1")
+    t2 = NodeSpec("topic", "Dynamic Programming", id="t2")
+    m1 = NodeSpec("milestone", "Midterm Exam", id="m1", covers=["t1", "t2"])
+
+    nodes = [t0, t1, t2, m1]
+    edges = [
+        Edge("t0", "t1", kind="strict"),
+        Edge("m1", "t1", kind="covers"),
+        Edge("m1", "t2", kind="covers"),
+    ]
+
+    # Pre-exam study path should include all covered topics and their dependencies
+    path = learning_path(nodes, edges, "m1")
+    assert "t0" in path
+    assert "t1" in path
+    assert "t2" in path
+    assert path[-1] == "m1"
+    assert path.index("t0") < path.index("t1")

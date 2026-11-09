@@ -396,3 +396,65 @@ def layers(
             layer_map[nid] = max(layer_map[nid], layer_map[p] + 1)
 
     return layer_map
+
+
+def learning_path(
+    nodes: Iterable[Any],
+    edges: Iterable[Any],
+    target_id: str,
+) -> list[str]:
+    """Topologically sorted list of all ancestors needed before `target_id` (#97).
+
+    If `target_id` covers other nodes (e.g. an exam milestone), includes all covered
+    nodes and their prerequisites so the learner knows what to review before the milestone.
+    """
+    node_list = list(nodes)
+    ids = _unique_ids(node_list)
+    known = set(ids)
+    if target_id not in known:
+        return [target_id] if target_id else []
+
+    node_by_id = {node_key(n): n for n in node_list}
+    covers_targets = set()
+    target_node = node_by_id.get(target_id)
+    if target_node is not None:
+        raw_covers = getattr(target_node, "covers", None)
+        if raw_covers is None and isinstance(target_node, dict):
+            raw_covers = target_node.get("covers")
+        if raw_covers:
+            if isinstance(raw_covers, str):
+                from app.roadmap.nodes import decode_covers
+
+                covers_targets.update(decode_covers(raw_covers))
+            elif isinstance(raw_covers, (list, set, tuple)):
+                covers_targets.update(str(x) for x in raw_covers)
+
+    edge_list = list(edges)
+    reverse_adj: dict[str, list[str]] = {nid: [] for nid in ids}
+    for edge in edge_list:
+        p, c = edge_pair(edge)
+        if p in known and c in known:
+            reverse_adj[c].append(p)
+            kind = getattr(edge, "kind", None)
+            if kind is None and isinstance(edge, dict):
+                kind = edge.get("kind")
+            if kind == "covers":
+                if p == target_id:
+                    covers_targets.add(c)
+                elif c == target_id:
+                    covers_targets.add(p)
+
+    needed: set[str] = {target_id} | (covers_targets & known)
+    queue = deque(needed)
+    while queue:
+        curr = queue.popleft()
+        for ancestor in reverse_adj.get(curr, []):
+            if ancestor not in needed:
+                needed.add(ancestor)
+                queue.append(ancestor)
+
+    full_order = topological_sort(ids, edges)
+    ordered = [nid for nid in full_order if nid in needed and nid != target_id]
+    if target_id in needed:
+        ordered.append(target_id)
+    return ordered
