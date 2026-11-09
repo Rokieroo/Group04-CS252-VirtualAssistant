@@ -227,3 +227,5 @@ def test_weights_and_criteria():
     assert accessibility(free=True, transcript=False, minutes=None) == pytest.approx(0.55)
     assert community(9, 9) == 0.5  # fewer than 10 ratings
     assert community(20, 20) == pytest.approx(25 / 30)
+    assert total({}) == 0.5
+    assert total({"relevance": 1.0, "authority": 1.0}) == pytest.approx(0.75)

@@ -65,4 +65,6 @@ def community(helpful: int, total: int) -> float:
 
 
 def total(breakdown: Mapping[str, float]) -> float:
-    return round(sum(weight * breakdown[name] for name, weight in WEIGHTS.items()), 4)
+    return round(
+        sum(weight * breakdown.get(name, UNKNOWN) for name, weight in WEIGHTS.items()), 4
+    )

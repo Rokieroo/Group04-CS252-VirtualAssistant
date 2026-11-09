@@ -119,3 +119,39 @@ def test_lexical_similarity_bounds():
     same = resource("x", text="recursion base case")
     assert lexical_similarity(same, same) == pytest.approx(1.0)
     assert lexical_similarity(resource("a", text="alpha"), resource("b", text="beta")) == 0.0
+
+def test_lexical_similarity_handles_none_and_empty_text():
+    r1_none = ScoredResource(
+        url="https://example.com/1",
+        title="",
+        provider="web",
+        format="reading",
+        lang="en",
+        domain="example.com",
+        is_free=True,
+        minutes=10,
+        score=0.8,
+        breakdown={},
+        reason="",
+        evidence_quote="quote",
+        content_hash="h1",
+        excerpt=None,
+    )
+    r2_none = ScoredResource(
+        url="https://example.com/2",
+        title="",
+        provider="web",
+        format="reading",
+        lang="en",
+        domain="example.com",
+        is_free=True,
+        minutes=10,
+        score=0.8,
+        breakdown={},
+        reason="",
+        evidence_quote="quote",
+        content_hash="h2",
+        excerpt=None,
+    )
+    assert lexical_similarity(r1_none, r2_none) == 0.0
+
