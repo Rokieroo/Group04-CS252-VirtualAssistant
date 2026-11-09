@@ -102,3 +102,26 @@ def test_catalog_authority_follows_the_institution_tier(app, client, clock):
         institution.tier = 2
         db.flush()
         assert matched_authority() == (2, 0.7)
+
+
+def test_match_sources_handles_missing_keys():
+    # Node with 'lang' alias and omitted level
+    node = {
+        "title": "Recursion Intro",
+        "lang": "en",
+        "subjects": ["ct.recursion"],
+    }
+    # Resource with missing optional fields (domain, format)
+    resource = {
+        "id": "r1",
+        "title": "Recursion Guide",
+        "verification_status": "verified",
+        "subjects": ["ct.recursion"],
+        "lang": "en",
+        "level": "undergrad",
+        "tier": 1,
+        "is_free": True,
+    }
+    matches = match_sources(node, [resource])
+    assert len(matches) == 1
+    assert matches[0]["id"] == "r1"
