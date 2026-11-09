@@ -135,7 +135,9 @@ class Companion:
 
     @staticmethod
     def _messages(context: CompanionContext, message: str) -> list[dict]:
-        system = (SYSTEM_PROMPT, MODES[context.mode], PERSONALITIES[context.personality])
+        mode_instruction = MODES.get(context.mode, MODES["buddy"])
+        personality_instruction = PERSONALITIES.get(context.personality, PERSONALITIES["warm"])
+        system = (SYSTEM_PROMPT, mode_instruction, personality_instruction)
         return [
             {"role": "system", "content": "\n".join(system)},
             {
@@ -149,30 +151,38 @@ class Companion:
 
     @staticmethod
     def _offline(context: CompanionContext, reason: str) -> CompanionReply:
-        name = context.name
+        name = context.name or "bạn"
         opening = {
             "warm": f"Mình ở đây hỗ trợ bạn, {name}.",
             "direct": f"{name}, mình cùng xem tiến độ nhé.",
             "playful": f"Tiến từng bước nhỏ thôi, {name} — cùng bắt đầu nhé!",
-        }[context.personality]
+        }.get(context.personality, f"Mình ở đây hỗ trợ bạn, {name}.")
         mood = {
             "neutral": "",
             "happy": "Thật vui khi bạn đang có tinh thần tốt. ",
             "stressed": "Nghe có vẻ bạn đang chịu áp lực. Bạn có thể nghỉ một chút rồi chọn một việc nhỏ. ",
             "tired": "Nếu đang mệt, bạn có thể nghỉ ngơi trước khi tiếp tục. ",
-        }[context.mood]
+        }.get(context.mood, "")
         session = context.next_session
-        next_step = (
-            f"Buổi kế tiếp: {session.title}, lúc "
-            f"{session.starts_at.astimezone(ZoneInfo(context.timezone)):%H:%M %d/%m}."
-            if session
-            else "Bạn có thể thêm giờ rảnh rồi xem trước một kế hoạch học phù hợp."
-        )
-        progress = context.weekly_progress
+        if session:
+            try:
+                tz = ZoneInfo(context.timezone)
+            except (KeyError, ValueError):
+                tz = ZoneInfo("UTC")
+            next_step = (
+                f"Buổi kế tiếp: {session.title}, lúc "
+                f"{session.starts_at.astimezone(tz):%H:%M %d/%m}."
+            )
+        else:
+            next_step = "Bạn có thể thêm giờ rảnh rồi xem trước một kế hoạch học phù hợp."
+        progress = context.weekly_progress or {}
+        completed_minutes = progress.get("completed_minutes", 0)
+        completed_tasks = progress.get("completed_tasks", 0)
+        total_tasks = progress.get("total_tasks", 0)
         return CompanionReply(
             f"[Chế độ offline] {opening} {mood}Tuần này bạn đã hoàn thành "
-            f"{progress['completed_minutes']} phút và {progress['completed_tasks']}/"
-            f"{progress['total_tasks']} task đến hạn trong tuần. {next_step} "
+            f"{completed_minutes} phút và {completed_tasks}/"
+            f"{total_tasks} task đến hạn trong tuần. {next_step} "
             "Mọi thay đổi lịch cần bạn xác nhận lưu kế hoạch.",
             "offline",
             reason,

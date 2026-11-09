@@ -87,3 +87,16 @@ def test_chat_provider_turns_every_bad_response_into_provider_unavailable(respon
     )
     with pytest.raises(ProviderUnavailable):
         provider.complete([{"role": "user", "content": "Hi"}])
+
+def test_offline_fallback_handles_unexpected_context_values():
+    custom_ctx = context(
+        personality="unknown_personality",
+        mood="unknown_mood",
+        timezone="Invalid/Timezone",
+        weekly_progress={},
+    )
+    reply = Companion().reply(custom_ctx, "Hi")
+    assert reply.provider == "offline"
+    assert "0 phút" in reply.text and "0/0 task" in reply.text
+    assert reply.fallback_reason == "not_configured"
+
