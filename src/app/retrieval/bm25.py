@@ -41,6 +41,7 @@ VIETNAMESE_STOPWORDS: frozenset[str] = frozenset(
         "gì",
         "ở",
         "đâu",
+        "lại",
         "ại",
         "sao",
         "như",

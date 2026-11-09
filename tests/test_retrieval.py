@@ -83,6 +83,7 @@ def test_tokenize_vi_keeps_diacritics_and_normalises_nfc_nfd():
 
 def test_tokenize_vi_removes_stopwords_but_keeps_tokens_when_all_are_stopwords():
     assert "nào" not in tokenize_vi("Bậc nào của solution ladder dùng BM25?")
+    assert "lại" not in tokenize_vi("Làm lại bài toán này đi")
     assert tokenize_vi("là gì?") == ["là", "gì"]
 
 

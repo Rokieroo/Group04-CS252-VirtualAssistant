@@ -43,6 +43,12 @@ def test_extraction_never_invokes_a_model_and_uses_cited_pages():
     )
 
 
+def test_pick_pages_handles_missing_title_or_summary():
+    concept_missing = {"name": "Solution ladder", "source_pages": [1]}
+    assert pick_pages(concept_missing, SOURCES)[0]["id"] == "s1"
+    assert pick_pages({}, SOURCES) == []
+
+
 def test_cited_pages_are_matched_in_their_own_file():
     decks = [{**SOURCES[0], "file_name": "week01.pdf"},
              {"id": "s2", "file_name": "week02.pdf", "page": 1, "text": TEXT}]
