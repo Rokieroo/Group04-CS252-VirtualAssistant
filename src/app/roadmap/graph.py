@@ -396,3 +396,113 @@ def layers(
             layer_map[nid] = max(layer_map[nid], layer_map[p] + 1)
 
     return layer_map
+
+
+def learning_path(
+    nodes: Iterable[Any],
+    edges: Iterable[Any],
+    target_id: str,
+) -> list[str]:
+    """Topologically sorted list of all ancestors needed before `target_id` (#97).
+
+    If `target_id` covers other nodes (e.g. an exam milestone), includes all covered
+    nodes and their prerequisites so the learner knows what to review before the milestone.
+    """
+    node_list = list(nodes)
+    ids = _unique_ids(node_list)
+    known = set(ids)
+    if not target_id:
+        return []
+    if target_id not in known:
+        return [target_id]
+
+    node_by_id = {node_key(n): n for n in node_list}
+    target_node = node_by_id.get(target_id)
+
+    # 1. Collect covered topics if target_id is a milestone covering topics.
+    covers_targets: set[str] = set()
+    if target_node is not None:
+        raw_covers = getattr(target_node, "covers", None)
+        if raw_covers is None and isinstance(target_node, dict):
+            raw_covers = target_node.get("covers")
+        if raw_covers:
+            if isinstance(raw_covers, str):
+                from app.roadmap.nodes import decode_covers
+
+                covers_targets.update(decode_covers(raw_covers))
+            elif isinstance(raw_covers, (list, set, tuple)):
+                covers_targets.update(str(x) for x in raw_covers)
+
+    target_is_milestone = False
+    if target_node is not None:
+        target_kind = getattr(target_node, "kind", None) or getattr(target_node, "type", None)
+        if target_kind is None and isinstance(target_node, dict):
+            target_kind = target_node.get("kind") or target_node.get("type")
+        if target_kind == "milestone" or covers_targets:
+            target_is_milestone = True
+
+    # 2. Process edges:
+    # A directed prerequisite edge (p, c) means p must be learned before c.
+    # For "covers" edges, milestone covers topic (topic is studied before milestone).
+    edge_list = list(edges)
+    prereq_edges: list[tuple[str, str]] = []
+    reverse_adj: dict[str, list[str]] = {nid: [] for nid in ids}
+
+    for edge in edge_list:
+        p, c = edge_pair(edge)
+        if p not in known or c not in known:
+            continue
+        kind = getattr(edge, "kind", None)
+        if kind is None and isinstance(edge, dict):
+            kind = edge.get("kind")
+
+        if kind == "covers":
+            p_node = node_by_id.get(p)
+            c_node = node_by_id.get(c)
+            p_is_topic = getattr(p_node, "kind", None) == "topic" if p_node else False
+            c_is_topic = getattr(c_node, "kind", None) == "topic" if c_node else False
+
+            if p == target_id and (target_is_milestone or c_is_topic):
+                covers_targets.add(c)
+                target_is_milestone = True
+            elif c == target_id and (target_is_milestone or p_is_topic):
+                covers_targets.add(p)
+                target_is_milestone = True
+        else:
+            prereq_edges.append((p, c))
+            reverse_adj[c].append(p)
+
+    if target_is_milestone and covers_targets:
+        for cov in covers_targets:
+            if cov in known and cov != target_id:
+                reverse_adj[target_id].append(cov)
+                prereq_edges.append((cov, target_id))
+
+    # 3. Traverse reverse adjacency from target_id to find all ancestors
+    needed: set[str] = {target_id}
+    if target_is_milestone:
+        needed.update(covers_targets & known)
+
+    queue = deque(needed)
+    while queue:
+        curr = queue.popleft()
+        for parent in reverse_adj.get(curr, []):
+            if parent not in needed:
+                needed.add(parent)
+                queue.append(parent)
+
+    # 4. Filter nodes and edges to the needed subgraph, then topologically sort
+    subgraph_nodes = [nid for nid in ids if nid in needed]
+    subgraph_edges = [(p, c) for (p, c) in prereq_edges if p in needed and c in needed]
+
+    ordered = topological_sort(subgraph_nodes, subgraph_edges)
+
+    for nid in subgraph_nodes:
+        if nid not in ordered:
+            ordered.append(nid)
+
+    if target_id in ordered:
+        ordered.remove(target_id)
+        ordered.append(target_id)
+
+    return ordered
