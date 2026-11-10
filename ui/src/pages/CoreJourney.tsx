@@ -8,6 +8,7 @@ import { RoadmapTimeline } from "./course-setup/RoadmapTimeline";
 import { SyllabusUpload } from "./course-setup/SyllabusUpload";
 import { SyllabusReview } from "./course-setup/SyllabusReview";
 import { Modal } from "../components/Modal";
+import { GraphCanvas } from "../components/GraphCanvas";
 import { useEffect, useRef, useState } from "react";
 import type { Page } from "../navigation";
 import type { RoadmapNode } from "../api/types";
@@ -53,6 +54,8 @@ export function CoreJourney({
   const [parent, setParent] = useState("");
   const [child, setChild] = useState("");
   const [graphError, setGraphError] = useState("");
+  const [graphLayoutMode, setGraphLayoutMode] = useState<"week" | "force">("week");
+  const [selectedGraphNodeId, setSelectedGraphNodeId] = useState<string | null>(null);
   const [weekly, setWeekly] = useState(300);
   const [daily, setDaily] = useState(120);
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -117,23 +120,25 @@ export function CoreJourney({
       setStage("complete");
     });
   };
-  const addEdge = () => {
-    if (!roadmap || !parent || !child) return;
-    if (createsRoadmapCycle(roadmap.edges, parent, child)) {
+  const addEdge = (p?: string, c?: string) => {
+    const parentId = p ?? parent;
+    const childId = c ?? child;
+    if (!roadmap || !parentId || !childId) return;
+    if (createsRoadmapCycle(roadmap.edges, parentId, childId)) {
       setGraphError("Tạo vòng lặp, hãy bỏ một cạnh.");
       return;
     }
     setGraphError("");
     if (
-      !roadmap.edges.some((e) => e.parent_id === parent && e.child_id === child)
+      !roadmap.edges.some((e) => e.parent_id === parentId && e.child_id === childId)
     )
       setRoadmap({
         ...roadmap,
         edges: [
           ...roadmap.edges,
           {
-            parent_id: parent,
-            child_id: child,
+            parent_id: parentId,
+            child_id: childId,
             kind: "strict",
             origin: "user",
             confidence: 1,
@@ -486,6 +491,35 @@ export function CoreJourney({
               ) : (
                 <section className="card core-panel">
                   <h3>Quan hệ tiên quyết</h3>
+                  <div style={{ marginBottom: "16px" }}>
+                    <GraphCanvas
+                      nodes={roadmap.nodes.map((n) => ({
+                        id: n.id,
+                        title: n.title,
+                        type: (n.type as "topic" | "milestone") || "topic",
+                        week: n.week,
+                        est_minutes: n.est_minutes ?? n.duration_minutes ?? 60,
+                        status:
+                          n.status === "done"
+                            ? "mastered"
+                            : n.status === "in_progress"
+                              ? "in_progress"
+                              : "not_started",
+                      }))}
+                      edges={roadmap.edges.map((e) => ({
+                        parent_id: e.parent_id,
+                        child_id: e.child_id,
+                        kind: e.kind,
+                        confidence: e.confidence,
+                        origin: e.origin,
+                      }))}
+                      layout={graphLayoutMode}
+                      onLayoutModeChange={setGraphLayoutMode}
+                      selectedId={selectedGraphNodeId}
+                      onSelect={setSelectedGraphNodeId}
+                      onEdgeCreate={(p, c) => addEdge(p, c)}
+                    />
+                  </div>
                   <div className="core-edges">
                     {roadmap.edges.map((e, i) => (
                       <div
@@ -540,7 +574,7 @@ export function CoreJourney({
                         ))}
                       </select>
                     </label>
-                    <button onClick={addEdge}>Thêm cạnh</button>
+                    <button onClick={() => addEdge()}>Thêm cạnh</button>
                   </div>
                   {graphError && (
                     <p role="alert" className="core-error">

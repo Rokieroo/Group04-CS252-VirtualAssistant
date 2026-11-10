@@ -99,6 +99,25 @@ The parser returns synchronously, so processing shows an indeterminate indicator
 
 See [issue #56 verification](../docs/notes/uiux/ISSUE_56.md) for acceptance checks and the isolated real-backend smoke test. The concept-extraction browser test (`e2e/concepts.spec.ts`) still runs in the `backend-ui` project.
 
+## Knowledge Graph Rendering & Architecture (#108)
+
+For interactive course knowledge graph visualization (`GraphCanvas`), we evaluated graph rendering libraries based on bundle impact, rendering performance for 300+ nodes, layout flexibility, and client-side DAG cycle prevention:
+
+| Solution | Bundle Impact (gzip) | 300-Node Performance | Layout & Control | Assessment |
+|---|---|---|---|---|
+| **Cytoscape.js** | ~320 KB | 30–45 fps (DOM/Canvas) | Rich algorithms, but heavy styling layer | ❌ Exceeds 80 KB limit; complex API |
+| **react-force-graph-2d** | ~180 KB | 40–50 fps (Canvas 2D) | Wraps Three/d3; heavy transitive dependencies | ❌ Too heavy for lightweight SPA |
+| **d3-force** | ~35 KB | 55–60 fps | Pure physics, needs custom Canvas wrapper | ⚠️ Good, but requires external npm packages |
+| **Native Canvas 2D + Force Engine** | **< 8 KB** | **60+ fps** | Custom week columns + force layout, zero deps | ✅ **Selected** (Zero dependency, < 80 KB gzip, client cycle check) |
+
+### Technical Implementation:
+- **Renderer**: Native HTML5 Canvas 2D with HiDPI scaling (`window.devicePixelRatio`).
+- **Week Layout**: Deterministic syllabus column placement where $X = (\text{week} - 1) \times \text{colWidth}$ and $Y$ is distributed by topic sequence.
+- **Force Layout**: Obsidian-style graph physics implementing Hooke's spring force on edges ($F_s = d^2/k$), Coulomb electrostatic repulsion between nodes ($F_r = k^2/d$), and center gravity attraction ($F_g = (c - p) \times \alpha$).
+- **Client Cycle Prevention**: `findCyclePath()` performs iterative BFS from target to source before committing edges, preventing dependency loops and highlighting conflict paths in crimson red (`#ef4444`).
+- **Interaction**: Zoom (wheel/touch/+/- keys, 0.2x–3.0x), background pan (drag/touch/arrows), node pin dragging (debounced `onLayoutChange`), and Shift+drag edge creation.
+
+
 ## Troubleshooting
 
 - `node` or `npm` is not recognized: install Node.js 24 LTS, close the terminal, and open a new one.
