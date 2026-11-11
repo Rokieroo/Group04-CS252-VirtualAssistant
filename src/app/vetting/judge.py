@@ -90,7 +90,8 @@ def _rubric(value: object) -> float:
 
 
 def parse_judgement(answer: str, page_text: str) -> Judgement:
-    """Validate the judge's JSON; the quote is checked against ``page_text`` verbatim."""
+    """Validate the judge's JSON; the quote must appear in ``page_text`` once both have
+    their whitespace collapsed (extracted pages keep line breaks, the model's quote does not)."""
     try:
         data = json.loads(answer)
     except (json.JSONDecodeError, TypeError):
@@ -98,7 +99,7 @@ def parse_judgement(answer: str, page_text: str) -> Judgement:
     if not isinstance(data, dict):
         return FAILED
     quote = collapse(str(data.get("evidence_quote") or ""))
-    grounded = len(quote) >= MIN_QUOTE_CHARS and (quote in page_text or quote in collapse(page_text))
+    grounded = len(quote) >= MIN_QUOTE_CHARS and quote in collapse(page_text)
     return Judgement(
         relevance=_rubric(data.get("relevance")) if grounded else 0.0,
         level_fit=_rubric(data.get("level_fit")),
