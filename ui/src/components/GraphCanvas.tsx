@@ -1,9 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import "./GraphCanvas.css";
 
 export interface GraphNode {
@@ -13,7 +8,13 @@ export interface GraphNode {
   week?: number | null;
   layer?: number | null;
   est_minutes?: number;
-  status?: "not_started" | "in_progress" | "mastered" | "review_due";
+  status?:
+    | "not_started"
+    | "in_progress"
+    | "mastered"
+    | "review_due"
+    | "locked"
+    | "available";
   sources_status?: "sufficient" | "insufficient" | "pending";
   clo?: string[];
   covers?: string[];
@@ -26,7 +27,7 @@ export interface GraphEdge {
   parent_id: string;
   child_id: string;
   kind?: "strict" | "soft" | "covers";
-  origin?: "week_order" | "llm" | "user";
+  origin?: "week_order" | "llm" | "user" | "milestone_covers";
   confidence?: number;
   reason?: string;
 }
@@ -34,15 +35,22 @@ export interface GraphEdge {
 export interface GraphCanvasProps {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  cycleEdges?: GraphEdge[];
   layout?: "week" | "force";
   selectedId?: string | null;
+  highlightedIds?: string[];
   onSelect?: (nodeId: string | null) => void;
   onEdgeCreate?: (
     parentId: string,
     childId: string,
   ) => Promise<boolean | void> | boolean | void;
   onLayoutChange?: (
-    positions: Array<{ node_id: string; x: number; y: number; pinned: boolean }>,
+    positions: Array<{
+      node_id: string;
+      x: number;
+      y: number;
+      pinned: boolean;
+    }>,
   ) => void;
   onLayoutModeChange?: (mode: "week" | "force") => void;
   cyclePath?: string[] | null;
@@ -105,7 +113,9 @@ export function findCyclePath(
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  mastered: "#10b981", // emerald
+  locked: "#64748b",
+  available: "#7c5bf0",
+  mastered: "#087f5b", // emerald
   in_progress: "#3b82f6", // blue
   review_due: "#f59e0b", // amber
   not_started: "#64748b", // slate
@@ -114,8 +124,10 @@ const STATUS_COLORS: Record<string, string> = {
 export function GraphCanvas({
   nodes,
   edges,
+  cycleEdges,
   layout = "week",
   selectedId = null,
+  highlightedIds = [],
   onSelect,
   onEdgeCreate,
   onLayoutChange,
@@ -164,8 +176,15 @@ export function GraphCanvas({
     return 16 + ((clamped - 30) / 210) * 12; // 16px to 28px
   }, []);
 
+  const previousLayout = useRef(layout);
+  const drawRef = useRef<() => void>(() => {});
+  const persistRef = useRef(onLayoutChange);
+  persistRef.current = onLayoutChange;
+
   // Initialize and place nodes
   useEffect(() => {
+    const changedLayout = previousLayout.current !== layout;
+    previousLayout.current = layout;
     const map = internalNodesRef.current;
     const newMap = new Map<string, InternalNode>();
 
@@ -184,8 +203,19 @@ export function GraphCanvas({
     nodes.forEach((node) => {
       const prev = map.get(node.id);
       const radius = getNodeRadius(node);
-      let initX = prev?.displayX ?? node.x;
-      let initY = prev?.displayY ?? node.y;
+      const pinned = prev?.pinned ?? node.pinned ?? false;
+      let initX =
+        node.pinned && node.x !== undefined
+          ? node.x
+          : changedLayout && !pinned
+            ? undefined
+            : (prev?.displayX ?? node.x);
+      let initY =
+        node.pinned && node.y !== undefined
+          ? node.y
+          : changedLayout && !pinned
+            ? undefined
+            : (prev?.displayY ?? node.y);
 
       if (initX === undefined || initY === undefined) {
         if (layout === "week") {
@@ -225,7 +255,8 @@ export function GraphCanvas({
       const nodeMap = internalNodesRef.current;
       const nodeList = Array.from(nodeMap.values());
 
-      if (layout === "force" && nodeList.length > 0) {
+      // Keep the graph steady while the user manipulates the viewport.
+      if (layout === "force" && nodeList.length > 0 && !isPanning.current) {
         // 1. Repulsion between all nodes
         for (let i = 0; i < nodeList.length; i++) {
           for (let j = i + 1; j < nodeList.length; j++) {
@@ -233,8 +264,9 @@ export function GraphCanvas({
             const b = nodeList[j];
             const dx = b.displayX - a.displayX;
             const dy = b.displayY - a.displayY;
-            const dist = Math.hypot(dx, dy) || 1;
-            if (dist < 350) {
+            const distanceSquared = dx * dx + dy * dy;
+            if (distanceSquared < 350 * 350) {
+              const dist = Math.sqrt(distanceSquared) || 1;
               const force = (800 / (dist * dist)) * 0.8;
               const fx = (dx / dist) * force;
               const fy = (dy / dist) * force;
@@ -290,7 +322,7 @@ export function GraphCanvas({
         });
       }
 
-      draw();
+      drawRef.current();
       animId = requestAnimationFrame(tick);
     };
 
@@ -314,10 +346,12 @@ export function GraphCanvas({
     ctx.scale(zoom, zoom);
 
     const nodeMap = internalNodesRef.current;
-    const activeHover = hoveredNodeId || selectedId;
+    const activeHover = highlightedIds.length
+      ? null
+      : hoveredNodeId || selectedId;
 
     // Determine neighbor nodes if a node is focused/hovered
-    const neighborSet = new Set<string>();
+    const neighborSet = new Set<string>(highlightedIds);
     if (activeHover) {
       neighborSet.add(activeHover);
       edges.forEach((edge) => {
@@ -344,7 +378,8 @@ export function GraphCanvas({
       ctx.save();
       for (let w = 1; w <= maxWeek; w++) {
         const x = (w - 1) * colWidth + 10;
-        ctx.fillStyle = w % 2 === 0 ? "rgba(241, 245, 249, 0.5)" : "transparent";
+        ctx.fillStyle =
+          w % 2 === 0 ? "rgba(241, 245, 249, 0.5)" : "transparent";
         ctx.fillRect(x, -500, colWidth, 2000);
         ctx.fillStyle = "#94a3b8";
         ctx.font = "bold 13px Inter, sans-serif";
@@ -363,7 +398,7 @@ export function GraphCanvas({
         `${edge.parent_id}>${edge.child_id}`,
       );
       const isConnectedToFocus =
-        !activeHover ||
+        (!activeHover && !highlightedIds.length) ||
         (neighborSet.has(edge.parent_id) && neighborSet.has(edge.child_id));
 
       ctx.save();
@@ -447,7 +482,11 @@ export function GraphCanvas({
     });
 
     // 3. Draw Rubber-band edge when dragging Shift+edge
-    if (isEdgeDragging.current && edgeDragSource.current && edgeDragPos.current) {
+    if (
+      isEdgeDragging.current &&
+      edgeDragSource.current &&
+      edgeDragPos.current
+    ) {
       const src = nodeMap.get(edgeDragSource.current);
       if (src) {
         ctx.save();
@@ -467,7 +506,8 @@ export function GraphCanvas({
       const isSelected = selectedId === node.id;
       const isHovered = hoveredNodeId === node.id;
       const isCycle = activeCycle?.includes(node.id);
-      const isNeighbor = !activeHover || neighborSet.has(node.id);
+      const isNeighbor =
+        (!activeHover && !highlightedIds.length) || neighborSet.has(node.id);
 
       ctx.save();
       const alpha = isNeighbor ? 1.0 : 0.2;
@@ -522,14 +562,8 @@ export function GraphCanvas({
       ctx.fillStyle = "#1e293b";
       ctx.textAlign = "center";
       const shortTitle =
-        node.title.length > 22
-          ? node.title.slice(0, 20) + "…"
-          : node.title;
-      ctx.fillText(
-        shortTitle,
-        node.displayX,
-        node.displayY + node.radius + 14,
-      );
+        node.title.length > 22 ? node.title.slice(0, 20) + "…" : node.title;
+      ctx.fillText(shortTitle, node.displayX, node.displayY + node.radius + 14);
 
       ctx.restore();
     });
@@ -540,11 +574,22 @@ export function GraphCanvas({
     zoom,
     edges,
     hoveredNodeId,
+    highlightedIds,
     hoveredEdge,
     selectedId,
     activeCycle,
     layout,
   ]);
+
+  drawRef.current = draw;
+
+  useEffect(
+    () => () => {
+      if (layoutDebounceTimer.current)
+        window.clearTimeout(layoutDebounceTimer.current);
+    },
+    [],
+  );
 
   // Coordinate conversion helpers
   const screenToCanvas = useCallback(
@@ -573,8 +618,36 @@ export function GraphCanvas({
     [],
   );
 
+  const dragMoved = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const focusNode = (id: string) => {
+    const node = internalNodesRef.current.get(id),
+      canvas = canvasRef.current;
+    if (node && canvas) {
+      const rect = canvas.getBoundingClientRect();
+      setPan({
+        x: rect.width / 2 - node.displayX * zoom,
+        y: rect.height / 2 - node.displayY * zoom,
+      });
+    }
+  };
+  useEffect(() => {
+    if (selectedId) focusNode(selectedId);
+  }, [selectedId]);
+
   // Mouse & Touch Interaction Handlers
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ distance: number; zoom: number } | null>(null);
+  const handleMouseDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()];
+      pinch.current = { distance: Math.hypot(b.x - a.x, b.y - a.y), zoom };
+      isDraggingNode.current = false;
+      isPanning.current = false;
+      return;
+    }
     const { x, y } = screenToCanvas(e.clientX, e.clientY);
     const clickedNode = findNodeAt(x, y);
 
@@ -592,8 +665,8 @@ export function GraphCanvas({
       // Start node dragging
       isDraggingNode.current = true;
       draggedNodeId.current = clickedNode.id;
-      clickedNode.pinned = true;
-      onSelect?.(clickedNode.id);
+      dragMoved.current = false;
+      dragStart.current = { x: e.clientX, y: e.clientY };
     } else {
       // Background pan
       isPanning.current = true;
@@ -602,7 +675,23 @@ export function GraphCanvas({
     }
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (pointers.current.has(e.pointerId))
+      pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch.current && pointers.current.size >= 2) {
+      const [a, b] = [...pointers.current.values()];
+      setZoom(
+        Math.max(
+          0.2,
+          Math.min(
+            3,
+            (pinch.current.zoom * Math.hypot(b.x - a.x, b.y - a.y)) /
+              Math.max(1, pinch.current.distance),
+          ),
+        ),
+      );
+      return;
+    }
     const { x, y } = screenToCanvas(e.clientX, e.clientY);
 
     if (isEdgeDragging.current) {
@@ -613,6 +702,15 @@ export function GraphCanvas({
     if (isDraggingNode.current && draggedNodeId.current) {
       const node = internalNodesRef.current.get(draggedNodeId.current);
       if (node) {
+        if (
+          Math.hypot(
+            e.clientX - dragStart.current.x,
+            e.clientY - dragStart.current.y,
+          ) < 3 &&
+          !dragMoved.current
+        )
+          return;
+        dragMoved.current = true;
         node.displayX = x;
         node.displayY = y;
         node.pinned = true;
@@ -630,7 +728,7 @@ export function GraphCanvas({
               pinned: n.pinned ?? false,
             }),
           );
-          onLayoutChange?.(positions);
+          persistRef.current?.(positions);
         }, 1000);
       }
       return;
@@ -647,9 +745,38 @@ export function GraphCanvas({
     // Check hover
     const hoverNode = findNodeAt(x, y);
     setHoveredNodeId(hoverNode ? hoverNode.id : null);
+    setHoveredEdge(
+      hoverNode
+        ? null
+        : edges.find((edge) => {
+            const a = internalNodesRef.current.get(edge.parent_id),
+              b = internalNodesRef.current.get(edge.child_id);
+            if (!a || !b) return false;
+            const dx = b.displayX - a.displayX,
+              dy = b.displayY - a.displayY;
+            const t = Math.max(
+              0,
+              Math.min(
+                1,
+                ((x - a.displayX) * dx + (y - a.displayY) * dy) /
+                  (dx * dx + dy * dy || 1),
+              ),
+            );
+            return (
+              Math.hypot(x - a.displayX - t * dx, y - a.displayY - t * dy) <
+              8 / zoom
+            );
+          }) || null,
+    );
   };
 
-  const handleMouseUp = async (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseUp = async (e: React.PointerEvent<HTMLCanvasElement>) => {
+    pointers.current.delete(e.pointerId);
+    if (pinch.current) {
+      pinch.current = null;
+      pointers.current.clear();
+      return;
+    }
     if (isEdgeDragging.current && edgeDragSource.current) {
       const { x, y } = screenToCanvas(e.clientX, e.clientY);
       const targetNode = findNodeAt(x, y);
@@ -659,7 +786,11 @@ export function GraphCanvas({
         const childId = targetNode.id;
 
         // Client-side cycle detection
-        const detectedCycle = findCyclePath(edges, parentId, childId);
+        const detectedCycle = findCyclePath(
+          cycleEdges || edges,
+          parentId,
+          childId,
+        );
         if (detectedCycle) {
           setActiveCycle(detectedCycle);
           setCycleAlert(
@@ -678,6 +809,12 @@ export function GraphCanvas({
               setCycleAlert(
                 `API từ chối: chu trình ${errorObj.detail.path.join(" → ")}`,
               );
+            } else {
+              setCycleAlert(
+                err instanceof Error
+                  ? err.message
+                  : "Could not save prerequisite. Try again.",
+              );
             }
           }
         }
@@ -689,6 +826,8 @@ export function GraphCanvas({
     }
 
     if (isDraggingNode.current) {
+      if (!dragMoved.current && draggedNodeId.current)
+        onSelect?.(draggedNodeId.current);
       isDraggingNode.current = false;
       draggedNodeId.current = null;
     }
@@ -707,6 +846,8 @@ export function GraphCanvas({
 
   // Keyboard navigation (+ - arrow keys 0)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key))
+      e.preventDefault();
     if (e.key === "+" || e.key === "=") {
       e.preventDefault();
       setZoom((z) => Math.min(3.0, z * 1.15));
@@ -743,8 +884,16 @@ export function GraphCanvas({
       }
     };
     handleResize();
+    const observer =
+      typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(handleResize)
+        : null;
+    if (containerRef.current) observer?.observe(containerRef.current);
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", handleResize);
+    };
   }, []);
 
   return (
@@ -829,16 +978,45 @@ export function GraphCanvas({
 
       {/* Helper guide */}
       <div className="graph-canvas-hint">
-        <span>Giữ <strong>Shift + Kéo</strong> để tạo liên kết tiên quyết</span>
+        <span>
+          Giữ <strong>Shift + Kéo</strong> để tạo liên kết tiên quyết
+        </span>
       </div>
 
+      <div className="graph-keyboard-nodes" aria-label="Graph checkpoints">
+        {nodes.map((node) => (
+          <button
+            key={node.id}
+            onFocus={() => {
+              setHoveredNodeId(node.id);
+              focusNode(node.id);
+            }}
+            onClick={() => onSelect?.(node.id)}
+          >
+            {node.title}
+          </button>
+        ))}
+      </div>
       {/* 2D Canvas */}
       <canvas
         ref={canvasRef}
         className="graph-canvas"
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
+        style={{ touchAction: "none" }}
+        onPointerDown={handleMouseDown}
+        onPointerMove={handleMouseMove}
+        onPointerUp={handleMouseUp}
+        onPointerCancel={() => {
+          pointers.current.clear();
+          pinch.current = null;
+          isDraggingNode.current = false;
+          isPanning.current = false;
+          isEdgeDragging.current = false;
+        }}
+        onLostPointerCapture={() => {
+          isDraggingNode.current = false;
+          isPanning.current = false;
+          isEdgeDragging.current = false;
+        }}
         onWheel={handleWheel}
       />
     </div>

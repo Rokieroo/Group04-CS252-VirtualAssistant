@@ -5,7 +5,14 @@ export interface FilterState {
   search: string;
   weekMin: number;
   weekMax: number;
-  status: "all" | "mastered" | "in_progress" | "review_due" | "not_started";
+  status:
+    | "all"
+    | "mastered"
+    | "in_progress"
+    | "review_due"
+    | "not_started"
+    | "locked"
+    | "available";
   clo: string;
   verifiedOnly: boolean;
   hideSoftEdges: boolean;
@@ -40,6 +47,7 @@ export function GraphFilterBar({
   className = "",
 }: GraphFilterBarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [activeSuggestion, setActiveSuggestion] = useState(0);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 
   // Global keydown listener for '/' shortcut to focus search
@@ -51,7 +59,15 @@ export function GraphFilterBar({
         activeEl instanceof HTMLTextAreaElement ||
         activeEl instanceof HTMLSelectElement;
 
-      if (e.key === "/" && !isInput) {
+      if (
+        e.key === "/" &&
+        !isInput &&
+        !(
+          activeEl instanceof HTMLElement &&
+          (activeEl.isContentEditable ||
+            activeEl.closest("[role=dialog],dialog"))
+        )
+      ) {
         e.preventDefault();
         searchInputRef.current?.focus();
         setSuggestionsOpen(true);
@@ -66,9 +82,7 @@ export function GraphFilterBar({
 
   // Collect unique CLOs and Milestones
   const availableClos = Array.from(
-    new Set(
-      nodes.flatMap((n) => n.clo || []).filter(Boolean),
-    ),
+    new Set(nodes.flatMap((n) => n.clo || []).filter(Boolean)),
   ).sort();
 
   const milestones = nodes.filter((n) => n.type === "milestone");
@@ -88,7 +102,11 @@ export function GraphFilterBar({
   };
 
   return (
-    <div className={`kg-filter-bar ${className}`} role="search" aria-label="Bộ lọc Knowledge Graph">
+    <div
+      className={`kg-filter-bar ${className}`}
+      role="search"
+      aria-label="Bộ lọc Knowledge Graph"
+    >
       <div className="filter-row-primary">
         {/* Search input with '/' shortcut badge */}
         <div className="search-box-wrapper">
@@ -103,10 +121,41 @@ export function GraphFilterBar({
               id="kg-topic-search"
               ref={searchInputRef}
               type="search"
+              role="combobox"
+              aria-controls="kg-suggestions"
+              aria-activedescendant={
+                suggestionsOpen && suggestions[activeSuggestion]
+                  ? `kg-suggestion-${activeSuggestion}`
+                  : undefined
+              }
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setSuggestionsOpen(true);
+                  setActiveSuggestion(
+                    (i) =>
+                      (i +
+                        (e.key === "ArrowDown" ? 1 : -1) +
+                        Math.max(1, suggestions.length)) %
+                      Math.max(1, suggestions.length),
+                  );
+                } else if (
+                  e.key === "Enter" &&
+                  suggestionsOpen &&
+                  suggestions.length
+                ) {
+                  e.preventDefault();
+                  const item = suggestions[activeSuggestion] || suggestions[0];
+                  handleUpdate({ search: item.title });
+                  onSelectNode(item.id);
+                  setSuggestionsOpen(false);
+                } else if (e.key === "Escape") setSuggestionsOpen(false);
+              }}
               className="kg-search-input"
               placeholder="Tìm chủ đề chặng học..."
               value={filters.search}
               onChange={(e) => {
+                setActiveSuggestion(0);
                 handleUpdate({ search: e.target.value });
                 setSuggestionsOpen(true);
               }}
@@ -114,19 +163,29 @@ export function GraphFilterBar({
               aria-expanded={suggestionsOpen && suggestions.length > 0}
               aria-autocomplete="list"
             />
-            <kbd className="search-shortcut" title="Phím tắt: /" aria-hidden="true">
+            <kbd
+              className="search-shortcut"
+              title="Phím tắt: /"
+              aria-hidden="true"
+            >
               /
             </kbd>
           </div>
 
           {/* Autocomplete suggestions dropdown */}
           {suggestionsOpen && suggestions.length > 0 && (
-            <ul className="search-suggestions-dropdown" role="listbox">
-              {suggestions.map((item) => (
+            <ul
+              id="kg-suggestions"
+              className="search-suggestions-dropdown"
+              role="listbox"
+              aria-label="Matching topics"
+            >
+              {suggestions.map((item, index) => (
                 <li
                   key={item.id}
                   role="option"
-                  aria-selected="false"
+                  id={`kg-suggestion-${index}`}
+                  aria-selected={activeSuggestion === index}
                   className="suggestion-item"
                   onMouseDown={() => {
                     handleUpdate({ search: item.title });
@@ -206,6 +265,8 @@ export function GraphFilterBar({
             <option value="mastered">Đã vững</option>
             <option value="in_progress">Đang học</option>
             <option value="review_due">Cần ôn</option>
+            <option value="locked">Đang khóa</option>
+            <option value="available">Có thể học</option>
             <option value="not_started">Chưa học</option>
           </select>
         </div>
@@ -239,7 +300,15 @@ export function GraphFilterBar({
             max={filters.weekMax}
             value={filters.weekMin}
             onChange={(e) =>
-              handleUpdate({ weekMin: Math.max(1, Number(e.target.value)) })
+              handleUpdate({
+                weekMin: Math.min(
+                  filters.weekMax,
+                  Math.max(
+                    1,
+                    Math.min(52, Math.trunc(Number(e.target.value) || 1)),
+                  ),
+                ),
+              })
             }
             aria-label="Tuần bắt đầu"
           />
@@ -248,10 +317,18 @@ export function GraphFilterBar({
             id="kg-week-max"
             type="number"
             min={filters.weekMin}
-            max={20}
+            max={52}
             value={filters.weekMax}
             onChange={(e) =>
-              handleUpdate({ weekMax: Math.max(filters.weekMin, Number(e.target.value)) })
+              handleUpdate({
+                weekMax: Math.min(
+                  52,
+                  Math.max(
+                    filters.weekMin,
+                    Math.trunc(Number(e.target.value) || 1),
+                  ),
+                ),
+              })
             }
             aria-label="Tuần kết thúc"
           />
@@ -278,7 +355,10 @@ export function GraphFilterBar({
         </label>
 
         {/* Checkbox: Transitive reduction */}
-        <label className="checkbox-item" title="Ẩn các cạnh bắc cầu suy ra được (a→b→c thì ẩn a→c)">
+        <label
+          className="checkbox-item"
+          title="Ẩn các cạnh bắc cầu suy ra được (a→b→c thì ẩn a→c)"
+        >
           <input
             type="checkbox"
             checked={filters.transitiveReduction}
@@ -295,9 +375,7 @@ export function GraphFilterBar({
             <input
               type="checkbox"
               checked={filters.isLocalGraph}
-              onChange={(e) =>
-                handleUpdate({ isLocalGraph: e.target.checked })
-              }
+              onChange={(e) => handleUpdate({ isLocalGraph: e.target.checked })}
             />
             <span>Local graph</span>
           </label>

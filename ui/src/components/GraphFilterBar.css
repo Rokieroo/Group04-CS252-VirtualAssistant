@@ -213,3 +213,8 @@
   white-space: nowrap;
   border-width: 0;
 }
+
+/* The surrounding form's generic label color is too faint on this white bar. */
+.core-panel .kg-filter-bar label {
+  color: #475569;
+}

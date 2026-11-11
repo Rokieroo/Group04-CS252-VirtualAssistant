@@ -38,12 +38,12 @@ export default defineConfig({
     },
     {
       name: "backend-ui",
-      testMatch: /(concepts|syllabus)\.spec\.ts/,
+      testMatch: /(concepts|syllabus|graph)\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: "http://127.0.0.1:5180" },
     },
     {
       name: "backend-ui-mobile",
-      testMatch: /syllabus\.spec\.ts/,
+      testMatch: /(syllabus|graph)\.spec\.ts/,
       use: {
         ...devices["Pixel 7"],
         viewport: { width: 390, height: 844 },
