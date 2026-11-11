@@ -141,8 +141,25 @@ it("restores week positions for unpinned nodes after force layout", () => {
   frame();
   view.rerender(<GraphCanvas nodes={nodes} edges={[]} layout="week" />);
   ctx.arc.mockClear();
-  frame();
+  // Nodes glide back over several frames; the last moving frame lands exactly.
+  for (let i = 0; i < 60; i++) frame();
   expect(
     ctx.arc.mock.calls.some((c: number[]) => c[0] === 80 && c[1] === 80),
   ).toBe(true);
+});
+
+it("wheel zoom glides around the cursor and an idle graph stops redrawing", () => {
+  const view = render(<GraphCanvas nodes={nodes} edges={[]} />);
+  frame();
+  // jsdom puts the canvas at 0,0: the world point under (100, 100) is (40, 40) at zoom 1.
+  fireEvent.wheel(view.container.querySelector("canvas")!, { deltaY: -100, clientX: 100, clientY: 100 });
+  frame();
+  expect(ctx.scale.mock.lastCall[0]).toBeLessThan(1.1);
+  for (let i = 0; i < 60; i++) frame();
+  expect(ctx.scale.mock.lastCall[0]).toBeCloseTo(1.1);
+  expect(ctx.translate.mock.lastCall[0]).toBeCloseTo(100 - 40 * 1.1);
+  expect(ctx.translate.mock.lastCall[1]).toBeCloseTo(100 - 40 * 1.1);
+  ctx.clearRect.mockClear();
+  for (let i = 0; i < 5; i++) frame();
+  expect(ctx.clearRect).not.toHaveBeenCalled();
 });

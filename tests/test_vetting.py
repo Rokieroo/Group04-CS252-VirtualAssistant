@@ -227,3 +227,16 @@ def test_weights_and_criteria():
     assert accessibility(free=True, transcript=False, minutes=None) == pytest.approx(0.55)
     assert community(9, 9) == 0.5  # fewer than 10 ratings
     assert community(20, 20) == pytest.approx(25 / 30)
+
+
+def test_multiline_quote_is_grounded_after_collapse():
+    page_with_newlines = "Every recursive function\nneeds a base case that\nstops the calls."
+    verdict = parse_judgement(json.dumps(ANSWER), page_with_newlines)
+    assert verdict.relevance == 1.0
+    assert verdict.evidence_quote == QUOTE
+
+
+def test_total_names_missing_criteria():
+    with pytest.raises(ValueError, match="community, freshness"):
+        total({name: 1.0 for name in WEIGHTS if name not in {"community", "freshness"}})
+

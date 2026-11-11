@@ -317,9 +317,7 @@ async function backend(page: Page, courseNodes = nodes) {
       }));
       return route.fulfill({
         json: {
-          nodes: path.includes("/roadmap-nodes/")
-            ? graphNodes.slice(0, 2)
-            : graphNodes,
+          nodes: graphNodes,
           edges: [
             ...courseEdges.map((e) => ({
               ...e,
@@ -354,7 +352,7 @@ async function backend(page: Page, courseNodes = nodes) {
     },
   };
 }
-test("CLO/source filters and URL selection restore after reload, with server local graph", async ({
+test("CLO/source filters and URL selection restore after reload, with local graph", async ({
   page,
 }) => {
   const api = await backend(page);
@@ -382,11 +380,8 @@ test("CLO/source filters and URL selection restore after reload, with server loc
   await page.getByLabel(/Local graph/).check();
   await page.getByRole("button", { name: "Chọn chặng A Retrieval" }).click();
   await expect(page.getByRole("dialog")).toContainText("A Retrieval");
-  await expect
-    .poll(() =>
-      api.requested.some((p) => p.includes("/roadmap-nodes/b/graph?depth=2")),
-    )
-    .toBe(true);
+  // Views are derived from the one full-graph fetch, not a second request.
+  expect(api.requested.some((p) => p.includes("/roadmap-nodes/b/graph"))).toBe(false);
 });
 test("drag saves layout and survives reload without opening a panel mid-drag", async ({
   page,

@@ -46,14 +46,17 @@ describe("computeMilestoneScope", () => {
     const edges: Edge[] = [
       { parent_id: "T1", child_id: "T2", kind: "strict", confidence: 1, origin: "week_order" },
       { parent_id: "T2", child_id: "T3", kind: "strict", confidence: 1, origin: "week_order" },
+      { parent_id: "T0", child_id: "T2", kind: "soft", confidence: 1, origin: "week_order" },
     ];
 
-    // Midterm covers T2; T2 has prerequisite T1. T3 is after T2 and not covered.
+    // Midterm covers T2; T2 has prerequisite T1. T3 is after T2 and not covered,
+    // and T0 only precedes T2 in week order.
     const scope = computeMilestoneScope("M1", nodes, edges);
     expect(scope.has("M1")).toBe(true);
     expect(scope.has("T2")).toBe(true);
     expect(scope.has("T1")).toBe(true);
     expect(scope.has("T3")).toBe(false);
+    expect(scope.has("T0")).toBe(false);
   });
 });
 

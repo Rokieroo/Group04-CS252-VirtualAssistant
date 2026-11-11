@@ -87,3 +87,13 @@ def test_chat_provider_turns_every_bad_response_into_provider_unavailable(respon
     )
     with pytest.raises(ProviderUnavailable):
         provider.complete([{"role": "user", "content": "Hi"}])
+
+
+@pytest.mark.parametrize(
+    "change",
+    [{"mode": "pirate"}, {"personality": "grumpy"}, {"mood": "bored"}, {"timezone": "Mars/Base"}],
+)
+def test_context_rejects_values_the_companion_cannot_voice(change):
+    with pytest.raises(ValueError):
+        context(**change)
+

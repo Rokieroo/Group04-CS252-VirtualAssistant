@@ -1,7 +1,9 @@
 """Syllabus parsing, roadmap node rules, and Issue #60 Roadmap Builder verification."""
 
 import json
+import random
 from datetime import UTC, datetime, timedelta
+from itertools import pairwise
 
 import pytest
 
@@ -396,3 +398,152 @@ def test_evaluation_on_5_sample_syllabi():
     # Acceptance criteria: >= 80% strict edges have agreed confidence (confidence >= 0.6)
     consensus_rate = agreed_strict_edges / total_proposed_strict_edges
     assert consensus_rate >= 0.80, f"Consensus rate {consensus_rate:.2%} is below 80%"
+
+
+def test_learning_path_linear_and_branching():
+    from app.roadmap.graph import learning_path
+
+    nodes = ["A", "B", "C", "D", "E"]
+    edges = [("A", "C"), ("B", "C"), ("C", "D"), ("E", "D")]
+
+    # Path to C requires A, B, and C
+    path_c = learning_path(nodes, edges, "C")
+    assert path_c == ["A", "B", "C"] or path_c == ["B", "A", "C"]
+    assert path_c[-1] == "C"
+
+    # Path to A requires only A
+    assert learning_path(nodes, edges, "A") == ["A"]
+
+    # An unknown node has no path
+    assert learning_path(nodes, edges, "Z") == []
+    assert learning_path(nodes, edges, "") == []
+
+
+def test_learning_path_milestone_covers():
+    from app.roadmap.graph import Edge, learning_path
+    from app.roadmap.nodes import NodeSpec
+
+    t0 = NodeSpec("topic", "Foundations", id="t0")
+    t1 = NodeSpec("topic", "Recursion", id="t1")
+    t2 = NodeSpec("topic", "Dynamic Programming", id="t2")
+    m1 = NodeSpec("milestone", "Midterm Exam", id="m1", covers=["t1", "t2"])
+
+    nodes = [t0, t1, t2, m1]
+    edges = [
+        Edge("t0", "t1", kind="strict"),
+        Edge("t1", "m1", kind="covers"),
+        Edge("t2", "m1", kind="covers"),
+    ]
+
+    # Pre-exam study path should include all covered topics and their dependencies
+    path = learning_path(nodes, edges, "m1")
+    assert "t0" in path
+    assert "t1" in path
+    assert "t2" in path
+    assert path[-1] == "m1"
+    assert path.index("t0") < path.index("t1")
+
+
+def test_learning_path_covered_topic_does_not_pull_milestone():
+    from app.roadmap.graph import Edge, learning_path
+    from app.roadmap.nodes import NodeSpec
+
+    t0 = NodeSpec("topic", "Foundations", id="t0")
+    t1 = NodeSpec("topic", "Recursion", id="t1")
+    t2 = NodeSpec("topic", "Dynamic Programming", id="t2")
+    m1 = NodeSpec("milestone", "Midterm Exam", id="m1", covers=["t1", "t2"])
+
+    nodes = [t0, t1, t2, m1]
+    edges = [
+        Edge("t0", "t1", kind="strict"),
+        Edge("t1", "m1", kind="covers"),
+        Edge("t2", "m1", kind="covers"),
+    ]
+
+    # Querying a topic must NOT pull in the milestone that covers it, nor unrelated covered topics
+    path_t1 = learning_path(nodes, edges, "t1")
+    assert path_t1 == ["t0", "t1"]
+    assert "m1" not in path_t1
+    assert "t2" not in path_t1
+
+
+def test_transitive_reduction_unit():
+    from app.roadmap.graph import transitive_reduction
+
+    nodes = ["A", "B", "C", "D"]
+    # A -> B -> C and direct shortcut A -> C
+    edges = [("A", "B"), ("B", "C"), ("A", "C"), ("C", "D")]
+    reduced = transitive_reduction(nodes, edges)
+    # The direct shortcut A -> C is redundant and should be removed
+    assert ("A", "C") not in reduced
+    assert ("A", "B") in reduced
+    assert ("B", "C") in reduced
+    assert ("C", "D") in reduced
+
+
+def test_local_graph_subgraph_navigation():
+    from app.roadmap.graph import local_graph
+
+    nodes = ["A", "B", "C", "D", "E"]
+    edges = [("A", "B"), ("B", "C"), ("C", "D"), ("D", "E")]
+
+    # Subgraph centered at C with depth=1
+    both_nodes, both_edges = local_graph(nodes, edges, "C", depth=1, direction="both")
+    assert set(both_nodes) == {"B", "C", "D"}
+    assert ("B", "C") in both_edges
+    assert ("C", "D") in both_edges
+
+    ancestors, _ = local_graph(nodes, edges, "C", depth=2, direction="ancestors")
+    assert set(ancestors) == {"A", "B", "C"}
+
+    descendants, _ = local_graph(nodes, edges, "C", depth=1, direction="descendants")
+    assert set(descendants) == {"C", "D"}
+
+
+def test_layers_calculation_with_dependencies():
+    from app.roadmap.graph import Edge, layers
+    from app.roadmap.nodes import NodeSpec
+
+    # t1 starts at week 1, t2 starts at week 1, but t2 strictly depends on t1
+    t1 = NodeSpec("topic", "Intro", id="t1", week=1)
+    t2 = NodeSpec("topic", "Advanced", id="t2", week=1)
+    edges = [Edge("t1", "t2", kind="strict")]
+
+    layer_map = layers([t1, t2], edges)
+    assert layer_map["t1"] == 1
+    # t2 is pushed to layer 2 because of strict dependency on t1
+    assert layer_map["t2"] >= 2
+
+
+def test_would_create_cycle_check():
+    from app.roadmap.graph import would_create_cycle
+
+    edges = [("A", "B"), ("B", "C")]
+    # Adding C -> A would close a cycle: C -> A -> B -> C
+    cycle_path = would_create_cycle(edges, "C", "A")
+    assert cycle_path == ["C", "A", "B", "C"]
+
+    # Adding A -> C is valid (DAG forward edge)
+    assert would_create_cycle(edges, "A", "C") is None
+
+
+@pytest.mark.parametrize("seed", range(20))
+def test_edges_accepted_by_would_create_cycle_keep_the_graph_sortable(seed):
+    """#97 done-when: random edges added through the cycle check never break Kahn's
+    order, and every rejection names a real closed path (seeded, so failures replay)."""
+    from app.roadmap.graph import topological_sort, would_create_cycle
+
+    rng = random.Random(seed)
+    nodes = [str(i) for i in range(30)]
+    edges: list[tuple[str, str]] = []
+    for _ in range(120):
+        parent, child = rng.sample(nodes, 2)
+        path = would_create_cycle(edges, parent, child)
+        if path is None:
+            edges.append((parent, child))
+            continue
+        assert path[0] == path[-1] == parent and path[1] == child
+        assert all(pair in edges for pair in pairwise(path[1:]))
+    assert len(topological_sort(nodes, edges)) == len(nodes)
+    assert would_create_cycle(edges, "0", "0") == ["0", "0"]  # a self-edge is always a cycle
+

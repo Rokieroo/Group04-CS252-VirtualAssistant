@@ -1,7 +1,6 @@
 import { BackendError, call } from "../api/backend";
 import {
   fetchRoadmapGraph,
-  fetchNodeLocalGraph,
   fetchGraphLayout,
   saveGraphLayout,
   normalizeGraph,
@@ -114,7 +113,6 @@ export function CoreJourney({
     () => readGraphState().filters,
   );
   const [fullGraph, setFullGraph] = useState<RoadmapGraphResponse | null>(null);
-  const [viewGraph, setViewGraph] = useState<RoadmapGraphResponse | null>(null);
   const [positions, setPositions] = useState<NodePosition[]>([]);
   const [graphLoading, setGraphLoading] = useState(false);
   const [graphReload, setGraphReload] = useState(0);
@@ -176,7 +174,6 @@ export function CoreJourney({
   }, [mock]);
   useEffect(() => {
     setFullGraph(null);
-    setViewGraph(null);
     setPositions([]);
   }, [roadmap?.id]);
   useEffect(() => {
@@ -204,41 +201,6 @@ export function CoreJourney({
       cancelled = true;
     };
   }, [roadmap?.id, roadmapTab, mock, graphReload, roadmap?.edges]);
-  useEffect(() => {
-    if (!roadmap || roadmapTab !== "graph" || mock) return;
-    let cancelled = false;
-    setViewGraph(null);
-    const work =
-      filters.isLocalGraph && selectedGraphNodeId
-        ? fetchNodeLocalGraph(selectedGraphNodeId, filters.localDepth)
-        : filters.transitiveReduction
-          ? fetchRoadmapGraph(roadmap.id, true)
-          : null;
-    if (work)
-      work
-        .then((data) => {
-          if (!cancelled) setViewGraph(data);
-        })
-        .catch((e) => {
-          if (!cancelled)
-            setGraphError(
-              e instanceof Error ? e.message : "Could not load graph view.",
-            );
-        });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    roadmap?.id,
-    roadmap?.edges,
-    roadmapTab,
-    mock,
-    filters.isLocalGraph,
-    filters.localDepth,
-    filters.transitiveReduction,
-    selectedGraphNodeId,
-    graphReload,
-  ]);
   const layoutQueue = useRef<Promise<void>>(Promise.resolve());
   const layoutVersion = useRef(0);
   const [failedLayout, setFailedLayout] = useState<NodePosition[] | null>(null);
@@ -297,12 +259,14 @@ export function CoreJourney({
       }
     }
   }, [mock, roadmap?.id]);
-  // Filtered nodes and edges for Knowledge Graph (Issue #110)
+  // Filtered nodes and edges for Knowledge Graph (Issue #110). Every view is derived
+  // here from the one full-graph fetch: reducing after filtering keeps a -> c when a
+  // filter hides the b of a -> b -> c, which a server-reduced edge list would lose.
   const filteredGraphData = (() => {
     if (!roadmap) return { nodes: [], edges: [] };
 
-    let candidateNodes = viewGraph?.nodes || graphData.nodes;
-    let candidateEdges = viewGraph?.edges || graphData.edges;
+    let candidateNodes = graphData.nodes;
+    let candidateEdges = graphData.edges;
 
     // 1. Milestone scope filter (Exam prep: "Tới mốc kiểm tra")
     if (filters.selectedMilestone) {
@@ -971,7 +935,9 @@ export function CoreJourney({
                   >
                     <h3>Knowledge Graph môn học</h3>
                   </div>
-                  {graphLoading && <p role="status">Loading course graph…</p>}
+                  {graphLoading && (
+                    <div role="status" aria-label="Loading course graph…" className="core-graph-loading" />
+                  )}
                   <GraphFilterBar
                     nodes={graphData.nodes}
                     filters={filters}

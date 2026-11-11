@@ -8,8 +8,18 @@ from app.catalog.taxonomy import cosine, encode, normalize
 from app.vetting.policy import DomainTier
 from app.vetting.score import authority, total
 
+NODE_KEYS = ("title", "language", "level")
+
 
 def match_sources(node, resources, *, limit=5):
+    """Rank ``verified_resources`` rows for one node context (``node_sources`` builds it).
+
+    The node must carry ``NODE_KEYS``; a missing language or level fails loudly
+    rather than defaulting, which would rank sources for the wrong audience.
+    """
+    missing = [key for key in NODE_KEYS if not node.get(key)]
+    if missing:
+        raise ValueError(f"node context is missing {', '.join(missing)}")
     subjects = set(node.get("subjects", []))
     pool = [
         r

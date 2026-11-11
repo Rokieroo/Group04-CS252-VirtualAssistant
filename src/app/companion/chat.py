@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
 
@@ -18,6 +18,13 @@ from app.companion.persona import MODES, PERSONALITIES, SYSTEM_PROMPT
 logger = logging.getLogger(__name__)
 
 MAX_REPLY_CHARS = 12000
+# Offline mood lines; their keys are the moods a context may carry.
+MOOD_NOTES = {
+    "neutral": "",
+    "happy": "Thật vui khi bạn đang có tinh thần tốt. ",
+    "stressed": "Nghe có vẻ bạn đang chịu áp lực. Bạn có thể nghỉ một chút rồi chọn một việc nhỏ. ",
+    "tired": "Nếu đang mệt, bạn có thể nghỉ ngơi trước khi tiếp tục. ",
+}
 
 
 @dataclass(frozen=True)
@@ -46,6 +53,22 @@ class CompanionContext:
     pending_tasks: list[PendingTask] = field(default_factory=list)
     next_session: NextSession | None = None
     history: list[tuple[str, str]] = field(default_factory=list)  # (role, content)
+
+    def __post_init__(self):
+        # Checked once here, so the reply and its offline fallback can index the tables.
+        if (
+            self.mode not in MODES
+            or self.personality not in PERSONALITIES
+            or self.mood not in MOOD_NOTES
+        ):
+            raise ValueError(
+                f"unknown companion mode/personality/mood: "
+                f"{self.mode}/{self.personality}/{self.mood}"
+            )
+        try:
+            ZoneInfo(self.timezone)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError(f"unknown timezone: {self.timezone}") from exc
 
     def facts(self) -> dict:
         return {
@@ -155,12 +178,7 @@ class Companion:
             "direct": f"{name}, mình cùng xem tiến độ nhé.",
             "playful": f"Tiến từng bước nhỏ thôi, {name} — cùng bắt đầu nhé!",
         }[context.personality]
-        mood = {
-            "neutral": "",
-            "happy": "Thật vui khi bạn đang có tinh thần tốt. ",
-            "stressed": "Nghe có vẻ bạn đang chịu áp lực. Bạn có thể nghỉ một chút rồi chọn một việc nhỏ. ",
-            "tired": "Nếu đang mệt, bạn có thể nghỉ ngơi trước khi tiếp tục. ",
-        }[context.mood]
+        mood = MOOD_NOTES[context.mood]
         session = context.next_session
         next_step = (
             f"Buổi kế tiếp: {session.title}, lúc "
