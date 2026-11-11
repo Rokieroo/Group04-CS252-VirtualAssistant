@@ -826,3 +826,91 @@ def test_catalog_license_change_hides_old_exercise_until_reimport(
         and not result["auto_grade"]
     )
     assert result["citation"]["license"] == "CC-BY-NC-SA-4.0"
+
+
+def test_roadmap_edges_and_layouts_schema_invariants(app, roadmap):
+    from sqlalchemy.exc import IntegrityError
+
+    from assistant.backend.catalog_models import GraphLayout
+
+    first, second = roadmap["nodes"]
+    roadmap_id = roadmap["id"]
+    user_id = roadmap["user_id"]
+
+    with app.state.database.sessions() as db:
+        # 1. CHECK (parent_id <> child_id)
+        with pytest.raises(IntegrityError), db.begin_nested():
+            db.add(
+                RoadmapEdge(
+                    roadmap_id=roadmap_id,
+                    parent_id=first["id"],
+                    child_id=first["id"],
+                    kind="strict",
+                    origin="user",
+                    confidence=1.0,
+                    created_by=user_id,
+                )
+            )
+            db.flush()
+
+        # 2. CHECK confidence BETWEEN 0 AND 1
+        with pytest.raises(IntegrityError), db.begin_nested():
+            db.add(
+                RoadmapEdge(
+                    roadmap_id=roadmap_id,
+                    parent_id=first["id"],
+                    child_id=second["id"],
+                    kind="strict",
+                    origin="user",
+                    confidence=1.5,
+                    created_by=user_id,
+                )
+            )
+            db.flush()
+
+        # 3. Add valid edge via add_roadmap_edge
+        edge = add_roadmap_edge(
+            db,
+            roadmap_id,
+            parent_id=first["id"],
+            child_id=second["id"],
+            kind="strict",
+            created_by=user_id,
+        )
+        db.commit()
+        assert edge.parent_id == first["id"]
+        assert edge.child_id == second["id"]
+
+        # 4. Cycle rejection with exact path
+        with pytest.raises(CycleError) as exc_info:
+            add_roadmap_edge(
+                db,
+                roadmap_id,
+                parent_id=second["id"],
+                child_id=first["id"],
+                kind="strict",
+                created_by=user_id,
+            )
+        assert exc_info.value.path == [second["id"], first["id"], second["id"]]
+
+        # 5. GraphLayout creation and cascade on node deletion
+        db.add(
+            GraphLayout(
+                user_id=user_id,
+                node_id=first["id"],
+                x=100.0,
+                y=200.0,
+                pinned=True,
+            )
+        )
+        db.commit()
+        assert db.scalar(select(func.count()).select_from(GraphLayout)) == 1
+
+        # Delete first node and check cascade
+        node_obj = db.get(RoadmapNode, first["id"])
+        db.delete(node_obj)
+        db.commit()
+
+        # Both GraphLayout and RoadmapEdge referencing first node should be cascaded
+        assert db.scalar(select(func.count()).select_from(GraphLayout)) == 0
+        assert db.scalar(select(func.count()).select_from(RoadmapEdge)) == 0

@@ -1,5 +1,12 @@
 // @vitest-environment jsdom
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  cleanup,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NodePanel, type ExtendedNode } from "./NodePanel";
 import * as materialsApi from "../api/materials";
@@ -87,11 +94,16 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
         },
         {
           kind: "catalog",
+          verification_status: "verified",
           id: "cat-1",
           title: "MIT OCW 6.006 Trees Lecture",
           url: "https://ocw.mit.edu/courses/6-006/trees",
           pages: [],
           provider: "MIT OCW",
+          institution: "Massachusetts Institute of Technology",
+          license: "CC-BY-4.0",
+          duration_min: 45,
+          score: 0.91,
           format: "video",
           reason: "Covers BST insertion and deletion",
         },
@@ -143,21 +155,78 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
       status: "ready",
       user_material_count: 0,
       sources: [
-        { kind: "catalog", id: "c1", title: "Catalog page", url: "https://ocw.mit.edu/a",
-          pages: [], provider: "mit_ocw", format: "article", reason: "" },
-        { kind: "web", id: "w1", title: "Web page", url: "https://example.com/b",
-          pages: [], provider: "web", format: "article", reason: "" },
+        {
+          kind: "catalog",
+          verification_status: "verified",
+          id: "c1",
+          title: "Catalog page",
+          url: "https://ocw.mit.edu/a",
+          pages: [],
+          provider: "mit_ocw",
+          format: "article",
+          reason: "",
+        },
+        {
+          kind: "web",
+          id: "w1",
+          title: "Web page",
+          url: "https://example.com/b",
+          pages: [],
+          provider: "web",
+          format: "article",
+          reason: "",
+        },
       ],
     });
     render(panel);
     await screen.findByText(/Web page/);
-    expect(screen.getAllByRole("button", { name: /tiêu chí thẩm định/ })).toHaveLength(1);
+    expect(
+      screen.getAllByRole("button", { name: /tiêu chí thẩm định/ }),
+    ).toHaveLength(1);
+  });
+
+  it("preserves ranked source metadata and disables unavailable gateways", async () => {
+    render(panel);
+    await screen.findByText(/Massachusetts Institute of Technology/);
+    expect(screen.getByText(/CC-BY-4.0/)).toBeTruthy();
+    expect(screen.getByText(/★ 91%/)).toBeTruthy();
+    expect(
+      screen
+        .getByRole("button", { name: /Trang chặng/ })
+        .hasAttribute("disabled"),
+    ).toBe(true);
+    expect(
+      screen
+        .getByRole("button", { name: /Hỏi đáp AI/ })
+        .hasAttribute("disabled"),
+    ).toBe(true);
+    expect(
+      screen
+        .getByRole("button", { name: /Luyện tập chặng này/ })
+        .hasAttribute("disabled"),
+    ).toBe(true);
   });
 
   it("reports a failed source load instead of an empty list", async () => {
-    vi.spyOn(materialsApi, "nodeSources").mockRejectedValue(new Error("network down"));
+    vi.spyOn(materialsApi, "nodeSources").mockRejectedValue(
+      new Error("network down"),
+    );
     render(panel);
-    expect(await screen.findByRole("alert")).toHaveProperty("textContent", "network down");
+    expect(await screen.findByRole("alert")).toHaveProperty(
+      "textContent",
+      "network down",
+    );
+    vi.mocked(materialsApi.nodeSources).mockResolvedValue({
+      node_id: "node-2",
+      status: "insufficient",
+      user_material_count: 0,
+      sources: [],
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Thử lại thông tin chặng" }),
+    );
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(await screen.findByText("Chưa tìm được nguồn đủ tốt")).toBeTruthy();
   });
 
   it("moves focus into the dialog and back to the opener on close", async () => {
@@ -182,16 +251,20 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
         isOpen={true}
         onClose={vi.fn()}
         onOpenSyllabusPage={pageSpy}
-      />
+      />,
     );
 
     expect(await screen.findByText(/Binary Search Trees/)).toBeTruthy();
     expect(screen.getByText("Tuần 3")).toBeTruthy();
-    expect(screen.getByText(/45 phút/)).toBeTruthy();
+    expect(
+      within(screen.getByRole("banner")).getByText(/45 phút/),
+    ).toBeTruthy();
     expect(screen.getByText(/CLO 1.2/)).toBeTruthy();
     expect(screen.getByText(/CLO 2.1/)).toBeTruthy();
 
-    const syllabusChip = screen.getByRole("button", { name: /Trang syllabus: 15/i });
+    const syllabusChip = screen.getByRole("button", {
+      name: /Trang syllabus: 15/i,
+    });
     fireEvent.click(syllabusChip);
     expect(pageSpy).toHaveBeenCalledWith(15);
   });
@@ -205,7 +278,7 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
         edges={edges}
         isOpen={true}
         onClose={vi.fn()}
-      />
+      />,
     );
 
     await waitFor(() => {
@@ -223,7 +296,7 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
         edges={edges}
         isOpen={true}
         onClose={closeSpy}
-      />
+      />,
     );
 
     // Escape key
@@ -231,7 +304,9 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
     expect(closeSpy).toHaveBeenCalled();
 
     // Close button
-    fireEvent.click(screen.getByRole("button", { name: /Đóng bảng thông tin chặng/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Đóng bảng thông tin chặng/i }),
+    );
     expect(closeSpy).toHaveBeenCalledTimes(2);
   });
 
@@ -246,14 +321,18 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
         isOpen={true}
         onClose={vi.fn()}
         onSelectNode={selectSpy}
-      />
+      />,
     );
 
-    const prereqBtn = await screen.findByRole("button", { name: /← Array and Linked List/i });
+    const prereqBtn = await screen.findByRole("button", {
+      name: /← Array and Linked List/i,
+    });
     fireEvent.click(prereqBtn);
     expect(selectSpy).toHaveBeenCalledWith("node-1");
 
-    const unlockBtn = screen.getByRole("button", { name: /→ Balanced Trees \(AVL\)/i });
+    const unlockBtn = screen.getByRole("button", {
+      name: /→ Balanced Trees \(AVL\)/i,
+    });
     fireEvent.click(unlockBtn);
     expect(selectSpy).toHaveBeenCalledWith("node-3");
   });
@@ -269,13 +348,17 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
         isOpen={true}
         onClose={vi.fn()}
         onHighlightPath={pathSpy}
-      />
+      />,
     );
 
-    const pathBtn = await screen.findByRole("button", { name: /Đường học tới đây/i });
+    const pathBtn = await screen.findByRole("button", {
+      name: /Đường học tới đây/i,
+    });
     fireEvent.click(pathBtn);
 
-    expect(pathSpy).toHaveBeenCalledWith(expect.arrayContaining(["node-2", "node-1"]));
+    expect(pathSpy).toHaveBeenCalledWith(
+      expect.arrayContaining(["node-2", "node-1"]),
+    );
   });
 
   it("prioritizes user materials over catalog sources and provides page action", async () => {
@@ -289,17 +372,21 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
         isOpen={true}
         onClose={vi.fn()}
         onOpenMaterialPage={matPageSpy}
-      />
+      />,
     );
 
     // User material
-    expect(await screen.findByText(/Lecture 3 Slides - Trees.pdf/)).toBeTruthy();
+    expect(
+      await screen.findByText(/Lecture 3 Slides - Trees.pdf/),
+    ).toBeTruthy();
     const pageBtn = screen.getByRole("button", { name: /Trang 12/i });
     fireEvent.click(pageBtn);
     expect(matPageSpy).toHaveBeenCalledWith("mat-1", 12);
 
     // Catalog source with domain and safe link
-    const link = screen.getByRole("link", { name: /MIT OCW 6.006 Trees Lecture/i });
+    const link = screen.getByRole("link", {
+      name: /MIT OCW 6.006 Trees Lecture/i,
+    });
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toBe("noopener noreferrer");
     expect(screen.getByText("ocw.mit.edu")).toBeTruthy();
@@ -321,7 +408,7 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
         edges={edges}
         isOpen={true}
         onClose={vi.fn()}
-      />
+      />,
     );
 
     expect(await screen.findByText("Chưa tìm được nguồn đủ tốt")).toBeTruthy();
@@ -339,13 +426,15 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
         isOpen={true}
         onClose={vi.fn()}
         onOpenPractice={practiceSpy}
-      />
+      />,
     );
 
     expect(await screen.findByText(/worst-case search time/)).toBeTruthy();
     expect(screen.getByText(/MIT OCW · Trang 4/)).toBeTruthy();
 
-    const practiceBtn = screen.getByRole("button", { name: /Luyện tập chặng này/i });
+    const practiceBtn = screen.getByRole("button", {
+      name: /Luyện tập chặng này/i,
+    });
     fireEvent.click(practiceBtn);
     expect(practiceSpy).toHaveBeenCalledWith("node-2", ["ex-1"]);
   });
@@ -366,16 +455,22 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
         onOpenFullStage={stageSpy}
         onAskQuestion={askSpy}
         onScheduleNode={schedSpy}
-      />
+      />,
     );
 
-    fireEvent.click(await screen.findByRole("button", { name: /Trang chặng \(S6\)/i }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: /Trang chặng \(S6\)/i }),
+    );
     expect(stageSpy).toHaveBeenCalledWith("node-2");
 
-    fireEvent.click(screen.getByRole("button", { name: /Hỏi đáp AI \(S10\)/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Hỏi đáp AI \(S10\)/i }),
+    );
     expect(askSpy).toHaveBeenCalledWith("node-2");
 
-    fireEvent.click(screen.getByRole("button", { name: /Xếp vào lịch \(S7\)/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Xếp vào lịch \(S7\)/i }),
+    );
     expect(schedSpy).toHaveBeenCalledWith("node-2");
   });
 });
