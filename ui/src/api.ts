@@ -1,6 +1,5 @@
 /** The real workspace API. Session credentials stay in this tab's sessionStorage. */
-import { API_ORIGIN, errorDetail } from "./api/backend";
-
+// Wire types of the planner endpoints (docs/openapi.json); requests go through api/backend `call`.
 export type User = {
   id: string; name: string; email: string; timezone: string; personality: string;
   role: string; account_level: "university" | "k12"; birth_year: number | null;
@@ -34,43 +33,3 @@ export type Report = {
 };
 export type Message = { id: string; role: "user" | "assistant"; content: string };
 export type ChatReply = { reply: string; provider: "llm" | "offline"; fallback_reason: string | null };
-
-export class ApiError extends Error {
-  constructor(public status: number, message: string) { super(message); }
-}
-
-export class ApiClient {
-  constructor(
-    private token = "",
-    private onUnauthorized: () => void = () => {},
-    private baseUrl = API_ORIGIN,
-  ) {}
-
-  async request<T>(path: string, method = "GET", body?: unknown): Promise<T> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 30_000);
-    try {
-      const response = await fetch(this.baseUrl.replace(/\/$/, "") + path, {
-        method, signal: controller.signal,
-        headers: {
-          ...(body === undefined ? {} : { "Content-Type": "application/json" }),
-          ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
-        },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      });
-      if (!response.ok) {
-        if (response.status === 401 && this.token) this.onUnauthorized();
-        throw new ApiError(response.status, await errorDetail(response));
-      }
-      if (response.status === 204) return undefined as T;
-      return await response.json() as T;
-    } catch (error) {
-      if (error instanceof ApiError) throw error;
-      throw new Error(error instanceof Error && error.name === "AbortError"
-        ? "The request timed out. Please try again."
-        : "Cannot reach the workspace. Start the backend and check your connection.");
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-}

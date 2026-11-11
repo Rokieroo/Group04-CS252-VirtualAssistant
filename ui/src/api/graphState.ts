@@ -1,4 +1,24 @@
-import type { FilterState } from "../components/GraphFilterBar";
+export interface FilterState {
+  search: string;
+  weekMin: number;
+  weekMax: number;
+  status:
+    | "all"
+    | "mastered"
+    | "in_progress"
+    | "review_due"
+    | "not_started"
+    | "locked"
+    | "available";
+  clo: string;
+  verifiedOnly: boolean;
+  hideSoftEdges: boolean;
+  transitiveReduction: boolean;
+  selectedMilestone: string;
+  isLocalGraph: boolean;
+  localDepth: number;
+  viewMode: "graph" | "list";
+}
 import type { RoadmapGraphNode } from "./graph";
 import type { Edge } from "./core";
 export const defaultGraphFilters: FilterState = {
