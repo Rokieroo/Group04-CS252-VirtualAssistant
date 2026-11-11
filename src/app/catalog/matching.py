@@ -8,23 +8,31 @@ from app.catalog.taxonomy import cosine, encode, normalize
 from app.vetting.policy import DomainTier
 from app.vetting.score import authority, total
 
+NODE_KEYS = ("title", "language", "level")
+
 
 def match_sources(node, resources, *, limit=5):
+    """Rank ``verified_resources`` rows for one node context (``node_sources`` builds it).
+
+    The node must carry ``NODE_KEYS``; a missing language or level fails loudly
+    rather than defaulting, which would rank sources for the wrong audience.
+    """
+    missing = [key for key in NODE_KEYS if not node.get(key)]
+    if missing:
+        raise ValueError(f"node context is missing {', '.join(missing)}")
     subjects = set(node.get("subjects", []))
-    lang = node.get("language") or node.get("lang") or "en"
-    level = node.get("level") or "undergrad"
     pool = [
         r
         for r in resources
         if r.get("verification_status") == "verified"
-        and (r.get("lang") or "en") == lang
-        and (r.get("level") or "undergrad") == level
+        and r.get("lang") == node["language"]
+        and r.get("level") == node["level"]
         and subjects.intersection(r.get("subjects", []))
     ]
     if not pool:
         return []
-    corpus = [normalize(r.get("title", "")).split() or ["_"] for r in pool]
-    query = normalize(str(node.get("title", "")) + " " + " ".join(node.get("outcomes", [])))
+    corpus = [normalize(r["title"]).split() or ["_"] for r in pool]
+    query = normalize(node["title"] + " " + " ".join(node.get("outcomes", [])))
     bm25 = BM25Okapi(corpus).get_scores(query.split())
     maximum = max(max(bm25), 0.001)
     lexical_vector = encode(query)
@@ -37,11 +45,12 @@ def match_sources(node, resources, *, limit=5):
         )
         vector = node["vector"] if compatible else lexical_vector
         resource_vector = (
-            resource["vector"] if compatible else encode(resource.get("title", ""))
+            resource["vector"] if compatible else encode(resource["title"])
         )
         similarity = max(0, cosine(vector, resource_vector))
-        res_subjects = set(resource.get("subjects", []))
-        overlap = len(subjects.intersection(res_subjects)) / max(1, len(subjects))
+        overlap = len(subjects.intersection(resource["subjects"])) / max(
+            1, len(subjects)
+        )
         relevance = min(
             1.0, 0.6 * overlap + 0.2 * max(0, lexical) / maximum + 0.2 * similarity
         )
@@ -64,7 +73,7 @@ def match_sources(node, resources, *, limit=5):
                     "breakdown": breakdown,
                     "reason": "Khớp chủ đề, trình độ và ngôn ngữ của chặng; nguồn đã được xác minh.",
                     "textbook": any(
-                        normalize(resource.get("title", "")) in normalize(title)
+                        normalize(resource["title"]) in normalize(title)
                         for title in node.get("textbooks", [])
                     ),
                 }
@@ -76,24 +85,23 @@ def match_sources(node, resources, *, limit=5):
 
     def mmr(index):
         resource = ranked[index]
-        res_format = resource.get("format", "")
-        diversity = 0.05 if res_format not in formats else 0
+        diversity = 0.05 if resource["format"] not in formats else 0
         return (
-            bool(resource.get("textbook")),
+            bool(resource["textbook"]),
             0.7 * resource["score"] - 0.3 * redundancy[index] + diversity,
-            resource.get("id"),
+            resource["id"],
         )
 
     while redundancy and len(chosen) < limit:
-        allowed = [i for i in redundancy if per_domain[ranked[i].get("domain", "")] < 2]
+        allowed = [i for i in redundancy if per_domain[ranked[i]["domain"]] < 2]
         if not allowed:
             break
         pick = max(allowed, key=mmr)
         del redundancy[pick]
         best = ranked[pick]
         chosen.append(best)
-        per_domain[best.get("domain", "")] += 1
-        formats.add(best.get("format", ""))
+        per_domain[best["domain"]] += 1
+        formats.add(best["format"])
         for i in redundancy:
             similarity = cosine(ranked[i]["_match_vector"], best["_match_vector"])
             redundancy[i] = max(redundancy[i], similarity)
