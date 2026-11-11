@@ -349,6 +349,438 @@ function s5(state) {
   return { title: "Roadmap · CS252", nav: "roadmap", body: content };
 }
 
+// Function s5kg for Issue #107 Knowledge Graph Wireframes
+function s5kg(state) {
+  const isErr = state === "error" || state === "cycle";
+  const isForce = state === "force";
+  const isLocal = state === "local";
+  const isList = state === "list";
+  const isCycle = state === "cycle";
+
+  // 1. View Switcher Header
+  const topNav = `<div class="between wrap" style="margin-bottom:8px">
+    <div class="inline">
+      <span class="btn sm ghost">📅 Timeline theo tuần</span>
+      <span class="btn sm primary">🕸️ Knowledge Graph (Obsidian)</span>
+    </div>
+    <div class="inline sm">
+      <span class="tag ok sm">● Đạt chuẩn WCAG AA</span>
+      <span class="tag sm">6 chặng · 1 milestone</span>
+    </div>
+  </div>`;
+
+  // 2. Cycle Alert Banner
+  const cycleBanner = isCycle ? alert("⛔ Vòng lặp phụ thuộc (Cycle Detected) — Lỗi 409 Conflict:",
+    `<div class="stack sm" style="gap:4px">
+      <span>Thao tác kéo cạnh <b>Chặng 4 → Chặng 2</b> bị chặn vì tạo chu trình: <b>Chặng 2 → Chặng 3 → Chặng 4 → Chặng 2</b>.</span>
+      <span>Đường đi gây lỗi được <b style="color:var(--bad)">tô đỏ trên canvas</b>. Hệ thống đã tự động từ chối và khôi phục trạng thái an toàn.</span>
+    </div>`, "bad") : "";
+
+  // 3. Toolbar
+  const searchBar = `<div class="kg-search"><span class="muted">🔍</span><span>Tìm chủ đề (vd: Decomposition)...</span><span class="kg-kbd">/</span></div>`;
+  const layoutBtns = `<div class="inline">
+    <span class="btn sm ${!isForce && !isList ? "primary" : "ghost"}">📅 Theo tuần</span>
+    <span class="btn sm ${isForce ? "primary" : "ghost"}">🕸️ Lực tự do (Obsidian)</span>
+    <span class="btn sm ${isList ? "primary" : "ghost"}">📋 Danh sách (WCAG)</span>
+  </div>`;
+  const filterChips = `<div class="inline sm">
+    <span class="btn sm ghost">Khoảng tuần: 1–8 ▾</span>
+    <span class="btn sm ghost">Trạng thái: Tất cả ▾</span>
+    <span class="btn sm ghost">CLO: Tất cả ▾</span>
+    <span class="tag ok sm">✓ Chỉ nguồn kiểm chứng</span>
+  </div>`;
+  const depthSlider = isLocal ? `<div class="slider-group">
+    <span class="muted sm">Độ sâu local graph:</span>
+    <span class="tag on sm">k = 2</span>
+    <input type="range" min="1" max="3" value="2" style="width:70px" />
+  </div>` : `<span class="tag sm" style="cursor:pointer">Ẩn cạnh suy ra (Transitive reduction: Bật)</span>`;
+
+  const toolbar = `<div class="kg-toolbar">
+    <div class="inline wrap">${searchBar}${layoutBtns}</div>
+    <div class="inline wrap">${filterChips}${depthSlider}</div>
+  </div>`;
+
+  // 4. Legend
+  const legend = `<div class="inline sm muted" style="padding:4px 16px;background:var(--soft);border-bottom:1px solid var(--line);font-size:12px">
+    <span><b>Chú thích màu & hình dạng:</b></span>
+    <span class="kg-legend-i"><span class="kg-dot done"></span> Đã hoàn thành</span>
+    <span class="kg-legend-i"><span class="kg-dot prog"></span> Đang học</span>
+    <span class="kg-legend-i"><span class="kg-dot avail"></span> Sẵn sàng học</span>
+    <span class="kg-legend-i"><span class="kg-dot locked"></span> Khóa</span>
+    <span class="kg-legend-i"><span class="kg-dot diamond"></span> Milestone (Hình thoi)</span>
+    <span class="kg-legend-i"><span style="color:var(--bad)">●</span> Chấm đỏ: Chưa đủ nguồn</span>
+    <span class="kg-legend-i"><span style="border-bottom:2px dashed #666;width:18px;display:inline-block"></span> Cạnh soft</span>
+  </div>`;
+
+  // 5. Canvas SVG Layouts
+  let canvasSvg = "";
+  if (isForce) {
+    // Obsidian force-directed constellation layout
+    canvasSvg = `<svg viewBox="0 0 880 560" style="width:100%;height:100%;display:block">
+      <defs>
+        <marker id="arr-force" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="#555"/>
+        </marker>
+        <marker id="arr-covers" viewBox="0 0 10 10" refX="20" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="#1a73e8"/>
+        </marker>
+      </defs>
+      <!-- Background subtle grid -->
+      <circle cx="440" cy="280" r="160" fill="none" stroke="#ebebeb" stroke-dasharray="4,4"/>
+      <circle cx="440" cy="280" r="260" fill="none" stroke="#f0f0f0" stroke-dasharray="6,6"/>
+
+      <!-- Edges -->
+      <line x1="280" y1="200" x2="380" y2="180" stroke="#777" stroke-width="2" marker-end="url(#arr-force)"/>
+      <line x1="380" y1="180" x2="480" y2="280" stroke="#b06000" stroke-width="2.5" marker-end="url(#arr-force)"/>
+      <line x1="280" y1="360" x2="480" y2="280" stroke="#777" stroke-width="2" marker-end="url(#arr-force)"/>
+      <line x1="480" y1="280" x2="600" y2="220" stroke="#777" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#arr-force)"/>
+      <line x1="480" y1="280" x2="560" y2="380" stroke="#777" stroke-width="2" marker-end="url(#arr-force)"/>
+      <line x1="600" y1="220" x2="720" y2="290" stroke="#1a73e8" stroke-width="1.8" stroke-dasharray="3,3" marker-end="url(#arr-covers)"/>
+      <line x1="560" y1="380" x2="720" y2="290" stroke="#1a73e8" stroke-width="1.8" stroke-dasharray="3,3" marker-end="url(#arr-covers)"/>
+
+      <!-- Force Nodes -->
+      <g transform="translate(280,200)">
+        <circle r="30" fill="#e6f4ea" stroke="#137333" stroke-width="2.5"/>
+        <text y="4" text-anchor="middle" font-size="12" font-weight="700" fill="#137333">C1</text>
+        <text y="46" text-anchor="middle" font-size="11" font-weight="600" fill="#333">Nhập môn CT (45p)</text>
+      </g>
+      <g transform="translate(280,360)">
+        <circle r="32" fill="#e6f4ea" stroke="#137333" stroke-width="2.5"/>
+        <text y="4" text-anchor="middle" font-size="12" font-weight="700" fill="#137333">C2</text>
+        <text y="48" text-anchor="middle" font-size="11" font-weight="600" fill="#333">Biểu diễn thuật toán (60p)</text>
+      </g>
+      <g transform="translate(380,180)">
+        <circle r="28" fill="#e6f4ea" stroke="#137333" stroke-width="2"/>
+        <text y="4" text-anchor="middle" font-size="12" font-weight="700" fill="#137333">C1b</text>
+        <text y="-36" text-anchor="middle" font-size="11" font-weight="600" fill="#333">Tư duy logic (30p)</text>
+      </g>
+      <g transform="translate(480,280)">
+        <circle r="42" fill="#fef7e0" stroke="#b06000" stroke-width="3.5" filter="drop-shadow(0 0 6px rgba(176,96,0,0.3))"/>
+        <circle r="48" fill="none" stroke="#1a73e8" stroke-width="2" stroke-dasharray="4,3"/>
+        <text y="5" text-anchor="middle" font-size="13" font-weight="700" fill="#b06000">C3 ★</text>
+        <text y="62" text-anchor="middle" font-size="12" font-weight="700" fill="#174ea6">Decomposition (90p)</text>
+      </g>
+      <g transform="translate(600,220)">
+        <circle r="36" fill="#e8f0fe" stroke="#1a73e8" stroke-width="2.5"/>
+        <text y="4" text-anchor="middle" font-size="12" font-weight="700" fill="#174ea6">C4</text>
+        <text y="52" text-anchor="middle" font-size="11" font-weight="600" fill="#333">Abstraction (75p)</text>
+      </g>
+      <g transform="translate(560,380)">
+        <circle r="38" fill="#e8f0fe" stroke="#1a73e8" stroke-width="2.5"/>
+        <circle cx="26" cy="-24" r="5" fill="#d93025"/>
+        <text y="4" text-anchor="middle" font-size="12" font-weight="700" fill="#174ea6">C5</text>
+        <text y="54" text-anchor="middle" font-size="11" font-weight="600" fill="#333">Pattern Rec (80p)</text>
+        <text y="68" text-anchor="middle" font-size="10" font-weight="600" fill="#d93025">● thiếu nguồn</text>
+      </g>
+      <g transform="translate(720,290)">
+        <polygon points="0,-36 36,0 0,36 -36,0" fill="#f8fafd" stroke="#174ea6" stroke-width="2.5"/>
+        <text y="4" text-anchor="middle" font-size="16">🚩</text>
+        <text y="52" text-anchor="middle" font-size="12" font-weight="700" fill="#174ea6">Thi Giữa Kỳ (30%)</text>
+      </g>
+    </svg>`;
+  } else {
+    // Standard Week Layout (Columns Week 1...n)
+    const dimOther = isLocal ? "kg-dimmed" : "";
+    const cycleRed = isCycle ? "stroke:#b3261e;stroke-width:3.5" : "";
+
+    canvasSvg = `<svg viewBox="0 0 880 560" style="width:100%;height:100%;display:block">
+      <defs>
+        <marker id="arr-std" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="#555"/>
+        </marker>
+        <marker id="arr-red" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="#b3261e"/>
+        </marker>
+        <marker id="arr-covers-std" viewBox="0 0 10 10" refX="20" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+          <path d="M 0 1 L 9 5 L 0 9 z" fill="#1a73e8"/>
+        </marker>
+      </defs>
+
+      <!-- Week Columns Background -->
+      <g>
+        <rect x="20" y="20" width="160" height="520" rx="8" fill="#fff" stroke="#e0e0e0"/>
+        <text x="100" y="44" text-anchor="middle" font-size="13" font-weight="700" fill="#555">Tuần 1: Nhập môn</text>
+        <line x1="20" y1="56" x2="180" y2="56" stroke="#eee"/>
+
+        <rect x="200" y="20" width="180" height="520" rx="8" fill="#fff" stroke="#e0e0e0"/>
+        <text x="290" y="44" text-anchor="middle" font-size="13" font-weight="700" fill="#174ea6">Tuần 2: Phân rã ★</text>
+        <line x1="200" y1="56" x2="380" y2="56" stroke="#eee"/>
+
+        <rect x="400" y="20" width="160" height="520" rx="8" fill="#fff" stroke="#e0e0e0"/>
+        <text x="480" y="44" text-anchor="middle" font-size="13" font-weight="700" fill="#555">Tuần 3: Trừu tượng</text>
+        <line x1="400" y1="56" x2="560" y2="56" stroke="#eee"/>
+
+        <rect x="580" y="20" width="140" height="520" rx="8" fill="#fff" stroke="#e0e0e0" class="${dimOther}"/>
+        <text x="650" y="44" text-anchor="middle" font-size="13" font-weight="700" fill="#555" class="${dimOther}">Tuần 4: Thuật toán</text>
+        <line x1="580" y1="56" x2="720" y2="56" stroke="#eee"/>
+
+        <rect x="740" y="20" width="120" height="520" rx="8" fill="#f8fafd" stroke="#c2e7ff" class="${dimOther}"/>
+        <text x="800" y="44" text-anchor="middle" font-size="13" font-weight="700" fill="#174ea6" class="${dimOther}">🚩 Tuần 8 (GK)</text>
+        <line x1="740" y1="56" x2="860" y2="56" stroke="#eee"/>
+      </g>
+
+      <!-- Standard Prerequisite Edges -->
+      <path d="M 100 180 L 100 270" stroke="#777" stroke-width="2" marker-end="url(#arr-std)"/>
+      <path d="M 100 150 C 180 150, 210 200, 290 200" stroke="#777" stroke-width="2" marker-end="url(#arr-std)"/>
+      <path d="M 100 300 C 180 300, 210 220, 290 220" stroke="#777" stroke-width="2" marker-end="url(#arr-std)"/>
+      <path d="M 290 240 L 290 350" stroke="#777" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#arr-std)"/>
+      <path d="M 290 200 C 360 200, 410 210, 480 210" stroke="#777" stroke-width="2" marker-end="url(#arr-std)"/>
+      <path d="M 290 370 C 370 370, 410 230, 480 230" stroke="#777" stroke-width="2" marker-end="url(#arr-std)"/>
+      <path d="M 480 220 C 540 220, 580 270, 650 270" stroke="#777" stroke-width="2" marker-end="url(#arr-std)" class="${dimOther}"/>
+
+      <!-- Milestone Covers Edges (thin dashed) -->
+      <path d="M 800 250 C 760 250, 700 270, 650 270" stroke="#1a73e8" stroke-width="1.6" stroke-dasharray="3,3" marker-end="url(#arr-covers-std)" class="${dimOther}"/>
+      <path d="M 800 250 C 700 250, 560 220, 480 220" stroke="#1a73e8" stroke-width="1.6" stroke-dasharray="3,3" marker-end="url(#arr-covers-std)" class="${dimOther}"/>
+
+      <!-- Cycle Conflict Edge (Red) -->
+      ${isCycle ? `
+        <path d="M 290 390 C 220 460, 140 420, 100 330" fill="none" stroke="#b3261e" stroke-width="3.5" marker-end="url(#arr-red)"/>
+        <g transform="translate(190,420)">
+          <rect x="-6" y="-12" width="140" height="24" rx="4" fill="#fdf3f2" stroke="#b3261e"/>
+          <text x="64" y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#b3261e">⛔ Cạnh cycle (409)</text>
+        </g>
+      ` : ""}
+
+      <!-- Nodes -->
+      <!-- Node 1: Tuần 1 -->
+      <g transform="translate(100,150)">
+        <circle r="30" fill="#e6f4ea" stroke="#137333" stroke-width="2.5"/>
+        <text y="4" text-anchor="middle" font-size="12" font-weight="700" fill="#137333">✓ C1</text>
+        <text y="46" text-anchor="middle" font-size="11" font-weight="600" fill="#333">Nhập môn CT (45p)</text>
+      </g>
+
+      <!-- Node 2: Tuần 1 -->
+      <g transform="translate(100,300)" class="${isCycle ? "" : ""}">
+        <circle r="32" fill="${isCycle ? "#fdf3f2" : "#e6f4ea"}" stroke="${isCycle ? "#b3261e" : "#137333"}" stroke-width="${isCycle ? "3.5" : "2.5"}"/>
+        <text y="4" text-anchor="middle" font-size="12" font-weight="700" fill="${isCycle ? "#b3261e" : "#137333"}">C2</text>
+        <text y="48" text-anchor="middle" font-size="11" font-weight="600" fill="#333">Thuật toán (60p)</text>
+      </g>
+
+      <!-- Node 3: Tuần 2 (Active Focus) -->
+      <g transform="translate(290,200)">
+        <circle r="42" fill="#fef7e0" stroke="#b06000" stroke-width="3"/>
+        <circle r="49" fill="none" stroke="#1a73e8" stroke-width="2.5" stroke-dasharray="5,3"/>
+        <text y="5" text-anchor="middle" font-size="13" font-weight="700" fill="#b06000">C3 ★</text>
+        <text y="64" text-anchor="middle" font-size="12" font-weight="700" fill="#174ea6">Decomposition (90p)</text>
+      </g>
+
+      <!-- Node 4: Tuần 2 -->
+      <g transform="translate(290,370)">
+        <circle r="34" fill="${isCycle ? "#fdf3f2" : "#e8f0fe"}" stroke="${isCycle ? "#b3261e" : "#1a73e8"}" stroke-width="${isCycle ? "3.5" : "2"}"/>
+        <text y="4" text-anchor="middle" font-size="12" font-weight="700" fill="${isCycle ? "#b3261e" : "#174ea6"}">C4</text>
+        <text y="50" text-anchor="middle" font-size="11" font-weight="600" fill="#333">Abstraction (75p)</text>
+      </g>
+
+      <!-- Node 5: Tuần 3 -->
+      <g transform="translate(480,220)">
+        <circle r="36" fill="#e8f0fe" stroke="#1a73e8" stroke-width="2"/>
+        <circle cx="26" cy="-24" r="5" fill="#d93025"/>
+        <text y="4" text-anchor="middle" font-size="12" font-weight="700" fill="#174ea6">C5</text>
+        <text y="52" text-anchor="middle" font-size="11" font-weight="600" fill="#333">Pattern Rec (80p)</text>
+        <text y="66" text-anchor="middle" font-size="10" font-weight="600" fill="#d93025">● thiếu nguồn</text>
+      </g>
+
+      <!-- Node 6: Tuần 4 -->
+      <g transform="translate(650,270)" class="${dimOther}">
+        <circle r="38" fill="#f5f5f5" stroke="#888" stroke-width="2"/>
+        <text y="4" text-anchor="middle" font-size="12" font-weight="700" fill="#666">C6</text>
+        <text y="54" text-anchor="middle" font-size="11" font-weight="600" fill="#333">Algorithm Design</text>
+      </g>
+
+      <!-- Milestone Node: Tuần 8 Thi GK -->
+      <g transform="translate(800,250)" class="${dimOther}">
+        <polygon points="0,-36 36,0 0,36 -36,0" fill="#f8fafd" stroke="#174ea6" stroke-width="2.5"/>
+        <text y="4" text-anchor="middle" font-size="16">🚩</text>
+        <text y="52" text-anchor="middle" font-size="12" font-weight="700" fill="#174ea6">Giữa kỳ (30%)</text>
+        <text y="68" text-anchor="middle" font-size="10" font-weight="500" fill="#666">Bao phủ C1..C6</text>
+      </g>
+    </svg>`;
+  }
+
+  // 6. Right Node Panel (Desktop) or Bottom Sheet (Mobile)
+  const nodePanel = `<div class="kg-panel">
+    <div class="between">
+      <div>
+        <span class="tag warn sm">● Đang học</span>
+        <h3 style="font-size:18px;margin-top:4px">Chặng 3: Decomposition (Phân rã)</h3>
+      </div>
+      <span class="btn ghost sm" style="font-size:16px">✕</span>
+    </div>
+
+    <div class="inline sm wrap">
+      <span class="tag">Tuần 2</span>
+      <span class="tag">CLO 1.2</span>
+      <span class="tag">90 phút</span>
+      ${chip("Syllabus_CS252.pdf", 3)}
+    </div>
+
+    <div class="note"><b>Chuẩn đầu ra CLO 1.2:</b> Phân tích bài toán tính toán lớn thành các phần độc lập và thiết kế thuật toán tuần tự.</div>
+
+    <div class="stack" style="gap:6px">
+      <b class="sm">Quan hệ đồ thị (Graph edges):</b>
+      <div class="inline sm">
+        <span class="muted sm">Cần học trước:</span>
+        <span class="node-chip done sm">Chặng 1</span>
+        <span class="node-chip done sm">Chặng 2</span>
+      </div>
+      <div class="inline sm">
+        <span class="muted sm">Mở khóa:</span>
+        <span class="node-chip avail sm">Chặng 4</span>
+        <span class="node-chip avail sm">Chặng 5</span>
+      </div>
+    </div>
+
+    <hr style="border:0;border-top:1px solid var(--line);margin:2px 0">
+
+    <div class="stack" style="gap:8px">
+      <div class="between">
+        <b class="sm">Nguồn học đã kiểm chứng (2/2):</b>
+        <span class="tag ok sm">✓ Đủ nguồn</span>
+      </div>
+      <div class="source-card" style="padding:10px">
+        <div class="between wrap">
+          <b style="font-size:13px">MIT OCW 6.0001: Problem Decomposition</b>
+          <span class="score-badge sm">★ 0.88</span>
+        </div>
+        <div class="inline xs muted">
+          <span class="domain-link">ocw.mit.edu</span>
+          <span>·</span><span>Video · 45p</span>
+        </div>
+        <div class="quote-box" style="font-size:12px">“Decomposition breaks a large system into self-contained modules...”</div>
+      </div>
+      <div class="source-card" style="padding:10px">
+        <div class="between wrap">
+          <b style="font-size:13px">CMU 15-112: Top-down Design</b>
+          <span class="score-badge sm">★ 0.82</span>
+        </div>
+        <div class="inline xs muted">
+          <span class="domain-link">cs.cmu.edu</span>
+          <span>·</span><span>PDF · 14 trang</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="stack" style="gap:6px;margin-top:auto">
+      ${btn("🎯 Bắt đầu Luyện tập (6 bài tập có trích dẫn)", "primary block sm")}
+      <div class="inline">${btn("💬 Hỏi Companion", "ghost block sm")}${btn("📅 Xếp vào lịch", "ghost block sm")}</div>
+    </div>
+  </div>`;
+
+  // 7. Accessible List Mode (WCAG AA)
+  const listMode = `<div style="overflow-x:auto;padding:16px;background:#fff;height:100%">
+    <div class="between" style="margin-bottom:12px">
+      <b>Danh sách chặng học theo tuần và thứ tự topo (WCAG AA Screen-reader friendly):</b>
+      <span class="tag ok sm">Phím tắt: / để tìm, ↑↓ để điều hướng, Enter để mở panel</span>
+    </div>
+    <table class="kg-table" aria-label="Thứ tự học tập topo">
+      <thead>
+        <tr>
+          <th scope="col" style="width:70px">Tuần</th>
+          <th scope="col">Chặng học</th>
+          <th scope="col" style="width:110px">CLO</th>
+          <th scope="col">Tiên quyết</th>
+          <th scope="col" style="width:120px">Trạng thái</th>
+          <th scope="col" style="width:110px">Nguồn</th>
+          <th scope="col" style="width:100px;text-align:center">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Tuần 1</b></td>
+          <td><b>Chặng 1:</b> Khái niệm Tư duy tính toán</td>
+          <td><span class="tag">CLO 1.1</span></td>
+          <td><span class="muted">—</span></td>
+          <td><span class="tag ok">● Hoàn thành</span></td>
+          <td>2 nguồn (★ 0.90)</td>
+          <td style="text-align:center">${btn("Xem", "sm ghost")}</td>
+        </tr>
+        <tr>
+          <td><b>Tuần 1</b></td>
+          <td><b>Chặng 2:</b> Biểu diễn thuật toán cơ bản</td>
+          <td><span class="tag">CLO 1.1</span></td>
+          <td>Chặng 1</td>
+          <td><span class="tag ok">● Hoàn thành</span></td>
+          <td>3 nguồn (★ 0.85)</td>
+          <td style="text-align:center">${btn("Xem", "sm ghost")}</td>
+        </tr>
+        <tr style="background:#fffdf8;border-left:3px solid #b06000">
+          <td><b>Tuần 2</b></td>
+          <td><b>Chặng 3:</b> Decomposition (Kỹ thuật phân rã) ★</td>
+          <td><span class="tag">CLO 1.2</span></td>
+          <td>Chặng 1, Chặng 2</td>
+          <td><span class="tag warn">● Đang học</span></td>
+          <td>2 nguồn (★ 0.88)</td>
+          <td style="text-align:center">${btn("Đang chọn", "sm primary")}</td>
+        </tr>
+        <tr>
+          <td><b>Tuần 2</b></td>
+          <td><b>Chặng 4:</b> Abstraction & Mô hình hóa</td>
+          <td><span class="tag">CLO 1.2</span></td>
+          <td>Chặng 3 (soft)</td>
+          <td><span class="tag">○ Sẵn sàng</span></td>
+          <td>2 nguồn (★ 0.82)</td>
+          <td style="text-align:center">${btn("Xem", "sm ghost")}</td>
+        </tr>
+        <tr>
+          <td><b>Tuần 3</b></td>
+          <td><b>Chặng 5:</b> Pattern Recognition</td>
+          <td><span class="tag">CLO 1.3</span></td>
+          <td>Chặng 3, Chặng 4</td>
+          <td><span class="tag">○ Sẵn sàng</span></td>
+          <td><span style="color:var(--bad)">● 1 nguồn (thiếu)</span></td>
+          <td style="text-align:center">${btn("Xem", "sm ghost")}</td>
+        </tr>
+        <tr>
+          <td><b>Tuần 4</b></td>
+          <td><b>Chặng 6:</b> Algorithm Design</td>
+          <td><span class="tag">CLO 2.1</span></td>
+          <td>Chặng 5</td>
+          <td><span class="tag">○ Khóa</span></td>
+          <td>Chưa tìm</td>
+          <td style="text-align:center">${btn("Xem", "sm ghost")}</td>
+        </tr>
+        <tr style="background:#f8fafd;font-weight:700">
+          <td><b>Tuần 8</b></td>
+          <td style="color:#174ea6">🚩 Thi giữa kỳ trắc nghiệm & tự luận (30%)</td>
+          <td><span class="tag on">CLO 1.1–1.3</span></td>
+          <td>Bao phủ Chặng 1 đến 6</td>
+          <td><span class="tag on">Mốc kiểm tra</span></td>
+          <td>Đề thi trích dẫn</td>
+          <td style="text-align:center">${btn("Ôn thi", "sm primary")}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>`;
+
+  // Content state rendering
+  if (state === "empty") {
+    return {
+      title: "Knowledge Graph · CS252",
+      nav: "roadmap",
+      body: empty("Chưa có Knowledge Graph cho môn học",
+        "Hãy duyệt syllabus ở bước S4 để hệ thống tự động trích xuất các concept và quan hệ tiên quyết.",
+        btn("Quay lại Duyệt Syllabus (S4)", "primary")),
+    };
+  }
+
+  if (state === "loading") {
+    return {
+      title: "Knowledge Graph · CS252",
+      nav: "roadmap",
+      body: `<div class="panel"><b>Đang dựng Knowledge Graph và tính toán topological layers…</b>${skel("block", "block", "block")}</div>`,
+    };
+  }
+
+  const mainView = isList ? listMode : canvasSvg;
+
+  return {
+    title: "Knowledge Graph · CS252",
+    nav: "roadmap",
+    body: `<div class="kg-container">${topNav}${cycleBanner}${toolbar}${legend}<div class="kg-body"><div class="kg-canvas-wrap">${mainView}</div>${nodePanel}</div></div>`,
+  };
+}
+
+
 // ==========================================
 // S6: Trang chặng (Stage / Topic Page)
 // ==========================================
@@ -517,6 +949,7 @@ const SCREENS = {
   s3: ["S3 Tải syllabus", s3],
   s4: ["S4 Duyệt syllabus", s4],
   s5: ["S5 Roadmap", s5],
+  s5kg: ["S5 Knowledge Graph", s5kg],
   s6: ["S6 Trang chặng", s6],
   s7: ["S7 Lịch học", s7],
 };
@@ -526,6 +959,7 @@ const STATE_NOTE = {
   s3: { empty: "chưa có file", loading: "đang trích text & phân tích", error: "file hỏng, >20MB, chỉ có ảnh, không giống syllabus" },
   s4: { empty: "chưa có dữ liệu syllabus", loading: "đang trích xuất cấu trúc", error: "trọng số ≠ 100%, ngày ngoài kỳ, tuần trống" },
   s5: { empty: "chưa có roadmap", loading: "đang dựng roadmap & graph", error: "vòng lặp phụ thuộc (cycle), tuần 7 quá tải" },
+  s5kg: { empty: "chưa có graph môn học", loading: "đang tính toán topological layers", error: "vòng lặp phụ thuộc (cycle)" },
   s6: { empty: "chưa tìm được nguồn đủ tốt", loading: "đang tìm kiếm & thẩm định", error: "mất liên kết / lỗi mạng" },
   s7: { empty: "chưa xếp lịch học", loading: "đang tối ưu hóa lịch", error: "trễ hạn kế hoạch, xung đột giờ học" },
 };
@@ -540,6 +974,12 @@ for (const [k, [name]] of Object.entries(SCREENS)) {
   if (k === "s6") {
     add(k, "submitted", "d", `${name} · bảng 7 tiêu chí (rubric) · desktop`);
     add(k, "submitted", "m", `${name} · bảng 7 tiêu chí (rubric) · mobile`);
+  }
+  if (k === "s5kg") {
+    add(k, "force", "d", `${name} · Lực tự do (Obsidian style) · desktop 1440×900`);
+    add(k, "local", "d", `${name} · Local Graph (Độ sâu k=2) · desktop 1440×900`);
+    add(k, "cycle", "d", `${name} · Lỗi cycle phụ thuộc (409 Conflict) · desktop 1440×900`);
+    add(k, "list", "d", `${name} · Chế độ danh sách (WCAG AA Screen-reader) · desktop 1440×900`);
   }
   for (const s of STATES) {
     add(k, s, "m", `${name} · ${s}: ${STATE_NOTE[k][s]}`);
@@ -567,6 +1007,7 @@ const FLOW = [
   ["s3-default-d", "3. Kéo thả Syllabus PDF/DOCX (S3)"],
   ["s4-default-d", "4. Duyệt chuẩn đầu ra & tuần học (S4)"],
   ["s5-default-d", "5. Xem Roadmap & mốc thi (S5)"],
+  ["s5kg-default-d", "5b. Khám phá Knowledge Graph & quan hệ tiên quyết (Issue #107)"],
   ["s6-default-d", "6. Xem Trang chặng & nguồn học 7 tiêu chí (S6)"],
   ["s7-default-d", "7. Xếp lịch học & duyệt Replan (S7)"],
   ["s10-default-d", "8. Đồng hành cùng AI Companion (S10)"],
@@ -595,7 +1036,16 @@ const COMPONENTS = `<div class="row" style="background:#fff;padding:24px;border-
 </div>`;
 
 const SECTIONS = {
-  wireframes: ["Wireframes Core Loop (S3–S7)", "5 màn hình chính ở Desktop 1440×900 và Mobile 390×844 theo Spec 3.0 mục 5.",
+  kg: ["Knowledge Graph Wireframes (Issue #107)", "Đồ thị tri thức môn học kiểu Obsidian: toàn môn (theo tuần & tự do), local graph độ sâu 1–3, panel chặng, phát hiện cycle, và chế độ danh sách WCAG AA.",
+    `<div class="row">
+      ${card("s5kg-default-d", "1. Toàn môn theo tuần & Panel chặng (Desktop 1440×900)")}
+      ${card("s5kg-default-m", "2. Giao diện Mobile với Bottom Sheet (Mobile 390×844)")}
+      ${card("s5kg-force-d", "3. Bố cục lực tự do (Obsidian style) · Desktop")}
+      ${card("s5kg-local-d", "4. Local Graph với thanh trượt độ sâu k=2 · Desktop")}
+      ${card("s5kg-cycle-d", "5. Trạng thái chặn cạnh tạo chu trình (Cycle 409 Conflict) · Desktop")}
+      ${card("s5kg-list-d", "6. Chế độ danh sách tuần tự topo cho bàn phím / Screen-reader (WCAG AA)")}
+    </div>`],
+  wireframes: ["Wireframes Core Loop (S3–S7)", "5 màn hình chính ở Desktop 1440×900 và Mobile 390×844 theo Spec 3.0 mục 5.", 
     Object.keys(SCREENS).map((k) => `<div class="row">${FRAMES.filter((f) => f[1] === k && !STATES.includes(f[2])).map((f) => card(f[0], f[4])).join("")}</div>`).join("")],
   states: ["Các trạng thái bắt buộc (States)", "Empty, loading, error cho từng màn hình S3–S7 ở kích thước Mobile.",
     Object.keys(SCREENS).map((k) => `<div class="row">${STATES.map((s) => card(`${k}-${s}-m`, byId[`${k}-${s}-m`][4])).join("")}</div>`).join("")],
