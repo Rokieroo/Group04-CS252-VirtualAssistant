@@ -1,3 +1,4 @@
+import { topologicalNodes } from "../api/graphState";
 import React from "react";
 import "./GraphListView.css";
 
@@ -17,12 +18,17 @@ export interface GraphListNode {
 
 export interface GraphListViewProps {
   nodes: GraphListNode[];
+  orderingNodes?: GraphListNode[];
+  edges?: { parent_id: string; child_id: string }[];
   selectedId?: string | null;
   onSelect: (nodeId: string) => void;
   className?: string;
 }
 
 const STATUS_LABELS: Record<string, { text: string; className: string }> = {
+  locked: { text: "Đang khóa", className: "status-not-started" },
+  available: { text: "Có thể học", className: "status-in-progress" },
+  unknown: { text: "Chưa có trạng thái", className: "status-not-started" },
   mastered: { text: "Đã vững", className: "status-mastered" },
   in_progress: { text: "Đang học", className: "status-in-progress" },
   review_due: { text: "Cần ôn tập", className: "status-review-due" },
@@ -31,17 +37,17 @@ const STATUS_LABELS: Record<string, { text: string; className: string }> = {
 
 export function GraphListView({
   nodes,
+  orderingNodes,
+  edges = [],
   selectedId,
   onSelect,
   className = "",
 }: GraphListViewProps) {
-  // Sort nodes primarily by week, then by type/title
-  const sortedNodes = [...nodes].sort((a, b) => {
-    const wA = a.week ?? a.layer ?? 1;
-    const wB = b.week ?? b.layer ?? 1;
-    if (wA !== wB) return wA - wB;
-    return a.title.localeCompare(b.title, "vi");
-  });
+  // Preserve prerequisite order even when intermediate nodes are filtered out.
+  const visible = new Set(nodes.map((n) => n.id));
+  const sortedNodes = topologicalNodes(orderingNodes || nodes, edges).filter(
+    (n) => visible.has(n.id),
+  );
 
   return (
     <div
@@ -55,13 +61,27 @@ export function GraphListView({
         </caption>
         <thead>
           <tr>
-            <th scope="col" className="col-week">Tuần</th>
-            <th scope="col" className="col-title">Chặng học</th>
-            <th scope="col" className="col-type">Phân loại</th>
-            <th scope="col" className="col-status">Trạng thái</th>
-            <th scope="col" className="col-sources">Nguồn kiểm chứng</th>
-            <th scope="col" className="col-clo">Chuẩn đầu ra</th>
-            <th scope="col" className="col-action">Thao tác</th>
+            <th scope="col" className="col-week">
+              Tuần
+            </th>
+            <th scope="col" className="col-title">
+              Chặng học
+            </th>
+            <th scope="col" className="col-type">
+              Phân loại
+            </th>
+            <th scope="col" className="col-status">
+              Trạng thái
+            </th>
+            <th scope="col" className="col-sources">
+              Nguồn kiểm chứng
+            </th>
+            <th scope="col" className="col-clo">
+              Chuẩn đầu ra
+            </th>
+            <th scope="col" className="col-action">
+              Thao tác
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -123,12 +143,17 @@ export function GraphListView({
                   </td>
                   <td className="cell-sources">
                     {node.sources_status === "insufficient" ? (
-                      <span className="sources-badge insufficient" title="Cần bổ sung nguồn kiểm chứng">
+                      <span
+                        className="sources-badge insufficient"
+                        title="Cần bổ sung nguồn kiểm chứng"
+                      >
                         ⚠️ Chưa đủ
                       </span>
                     ) : (
                       <span className="sources-badge sufficient">
-                        ✓ {node.sources_count ?? 3} nguồn
+                        {node.sources_status === "pending"
+                          ? "Đang kiểm tra"
+                          : `✓ ${node.sources_count ?? 0} nguồn`}
                       </span>
                     )}
                   </td>

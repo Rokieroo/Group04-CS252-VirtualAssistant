@@ -1,6 +1,9 @@
 import { call } from "./backend";
 import type { Edge } from "./core";
-import type { RoadmapNode } from "./types";
+export type RoadmapGraphEdge = Omit<Edge, "kind" | "origin"> & {
+  kind: Edge["kind"] | "covers";
+  origin: Edge["origin"] | "milestone_covers";
+};
 
 export interface RoadmapGraphNode {
   id: string;
@@ -8,8 +11,17 @@ export interface RoadmapGraphNode {
   type: "topic" | "milestone";
   week?: number | null;
   layer?: number | null;
-  est_minutes?: number | null;
-  status?: "not_started" | "in_progress" | "mastered" | "review_due";
+  est_minutes?: number;
+  outcome_ids?: string[];
+  sources_count?: number;
+  verified_sources_count?: number;
+  status?:
+    | "not_started"
+    | "in_progress"
+    | "mastered"
+    | "review_due"
+    | "locked"
+    | "available";
   sources_status?: "sufficient" | "insufficient" | "pending";
   clo?: string[];
   covers?: string[];
@@ -20,7 +32,7 @@ export interface RoadmapGraphNode {
 
 export interface RoadmapGraphResponse {
   nodes: RoadmapGraphNode[];
-  edges: Edge[];
+  edges: RoadmapGraphEdge[];
   center_id?: string;
   depth?: number;
 }
@@ -34,7 +46,11 @@ export async function fetchRoadmapGraph(
   reduce = false,
 ): Promise<RoadmapGraphResponse> {
   const query = reduce ? "?reduce=true" : "";
-  return call<RoadmapGraphResponse>(`/roadmaps/${encodeURIComponent(roadmapId)}/graph${query}`);
+  return normalizeGraph(
+    await call<RawGraph>(
+      `/roadmaps/${encodeURIComponent(roadmapId)}/graph${query}`,
+    ),
+  );
 }
 
 /**
@@ -50,8 +66,10 @@ export async function fetchNodeLocalGraph(
     depth: String(depth),
     direction,
   });
-  return call<RoadmapGraphResponse>(
-    `/roadmap-nodes/${encodeURIComponent(nodeId)}/graph?${params.toString()}`,
+  return normalizeGraph(
+    await call<RawGraph>(
+      `/roadmap-nodes/${encodeURIComponent(nodeId)}/graph?${params.toString()}`,
+    ),
   );
 }
 
@@ -59,10 +77,9 @@ export async function fetchNodeLocalGraph(
  * Client-side Transitive Reduction algorithm (matching Python's transitive_reduction).
  * For a DAG, if a -> b -> c and a -> c, edge a -> c is redundant and hidden.
  */
-export function computeTransitiveReduction<T extends { parent_id: string; child_id: string }>(
-  nodes: Array<{ id: string }>,
-  edges: T[],
-): T[] {
+export function computeTransitiveReduction<
+  T extends { parent_id: string; child_id: string },
+>(nodes: Array<{ id: string }>, edges: T[]): T[] {
   const nodeIds = new Set(nodes.map((n) => n.id));
   const adjacency = new Map<string, Array<{ childId: string; edge: T }>>();
 
@@ -130,7 +147,7 @@ export function computeTransitiveReduction<T extends { parent_id: string; child_
 export function computeMilestoneScope(
   milestoneId: string,
   nodes: Array<{ id: string; covers?: string[] }>,
-  edges: Edge[],
+  edges: RoadmapGraphEdge[],
 ): Set<string> {
   const milestone = nodes.find((n) => n.id === milestoneId);
   const targetIds = new Set<string>([milestoneId]);
@@ -140,8 +157,8 @@ export function computeMilestoneScope(
     milestone.covers.forEach((c: string) => targetIds.add(c));
   }
   edges.forEach((e) => {
-    if (e.parent_id === milestoneId && (e.kind as string) === "covers") {
-      targetIds.add(e.child_id);
+    if (e.child_id === milestoneId && e.kind === "covers") {
+      targetIds.add(e.parent_id);
     }
   });
 
@@ -177,8 +194,8 @@ export function computeLocalSubgraph(
   depth: number,
   direction: "both" | "ancestors" | "descendants",
   nodes: Array<{ id: string }>,
-  edges: Edge[],
-): { nodeIds: Set<string>; edges: Edge[] } {
+  edges: RoadmapGraphEdge[],
+): { nodeIds: Set<string>; edges: RoadmapGraphEdge[] } {
   const forwardAdj = new Map<string, string[]>();
   const reverseAdj = new Map<string, string[]>();
 
@@ -192,38 +209,24 @@ export function computeLocalSubgraph(
 
   const subgraphNodes = new Set<string>([centerId]);
 
-  if (direction === "descendants" || direction === "both") {
-    let frontier = [centerId];
-    for (let d = 0; d < depth; d++) {
-      const nextFrontier: string[] = [];
-      for (const u of frontier) {
-        for (const v of forwardAdj.get(u) || []) {
-          if (!subgraphNodes.has(v)) {
-            subgraphNodes.add(v);
-            nextFrontier.push(v);
-          }
+  const known = new Set(nodes.map((n) => n.id));
+  let frontier = known.has(centerId) ? [centerId] : [];
+  if (!known.has(centerId)) subgraphNodes.clear();
+  for (let d = 0; d < depth; d++) {
+    const next: string[] = [];
+    for (const id of frontier) {
+      const adjacent = [
+        ...(direction !== "ancestors" ? forwardAdj.get(id) || [] : []),
+        ...(direction !== "descendants" ? reverseAdj.get(id) || [] : []),
+      ];
+      for (const neighbor of adjacent)
+        if (known.has(neighbor) && !subgraphNodes.has(neighbor)) {
+          subgraphNodes.add(neighbor);
+          next.push(neighbor);
         }
-      }
-      frontier = nextFrontier;
-      if (frontier.length === 0) break;
     }
-  }
-
-  if (direction === "ancestors" || direction === "both") {
-    let frontier = [centerId];
-    for (let d = 0; d < depth; d++) {
-      const nextFrontier: string[] = [];
-      for (const u of frontier) {
-        for (const v of reverseAdj.get(u) || []) {
-          if (!subgraphNodes.has(v)) {
-            subgraphNodes.add(v);
-            nextFrontier.push(v);
-          }
-        }
-      }
-      frontier = nextFrontier;
-      if (frontier.length === 0) break;
-    }
+    frontier = next;
+    if (!frontier.length) break;
   }
 
   const subgraphEdges = edges.filter(
@@ -231,4 +234,80 @@ export function computeLocalSubgraph(
   );
 
   return { nodeIds: subgraphNodes, edges: subgraphEdges };
+}
+
+export type NodePosition = {
+  node_id: string;
+  x: number;
+  y: number;
+  pinned: boolean;
+};
+export async function fetchGraphLayout(id: string) {
+  return (
+    await call<{ positions: NodePosition[] }>(
+      `/roadmaps/${encodeURIComponent(id)}/graph/layout`,
+    )
+  ).positions;
+}
+export async function saveGraphLayout(id: string, positions: NodePosition[]) {
+  return call(`/roadmaps/${encodeURIComponent(id)}/graph/layout`, {
+    method: "PUT",
+    body: JSON.stringify({ positions }),
+  });
+}
+
+type RawGraph = {
+  nodes: (Omit<RoadmapGraphNode, "status" | "sources_status"> & {
+    status?: string;
+    sources_status?: string;
+    source_count?: number;
+    user_material_count?: number;
+    duration_minutes?: number | null;
+  })[];
+  edges: (Partial<RoadmapGraphEdge> & { parent?: string; child?: string })[];
+};
+export function normalizeGraph(raw: RawGraph): RoadmapGraphResponse {
+  return {
+    nodes: raw.nodes.map((n) => ({
+      ...n,
+      est_minutes: n.est_minutes ?? n.duration_minutes ?? undefined,
+      clo: n.clo ?? n.outcome_ids ?? [],
+      sources_count: n.sources_count ?? n.source_count ?? 0,
+      // Catalog counts include private uploads, which are not verified catalog sources.
+      verified_sources_count:
+        n.verified_sources_count ??
+        Math.max(
+          0,
+          (n.sources_count ?? n.source_count ?? 0) -
+            (n.user_material_count ?? 0),
+        ),
+      status: (
+        {
+          completed: "mastered",
+          done: "mastered",
+          mastered: "mastered",
+          pending: "not_started",
+          available: "available",
+          locked: "locked",
+          in_progress: "in_progress",
+          needs_review: "review_due",
+          review_due: "review_due",
+        } as Record<string, RoadmapGraphNode["status"]>
+      )[n.status || ""],
+      sources_status:
+        n.sources_status === "ready" || n.sources_status === "sufficient"
+          ? "sufficient"
+          : n.sources_status === "insufficient"
+            ? "insufficient"
+            : "pending",
+    })),
+    edges: raw.edges.map((e) => ({
+      parent_id: e.parent_id ?? e.parent ?? "",
+      child_id: e.child_id ?? e.child ?? "",
+      kind: e.kind || "strict",
+      origin: e.origin || "user",
+      confidence: e.confidence ?? 1,
+      ...(e.reason ? { reason: e.reason } : {}),
+    })),
+  };
 }

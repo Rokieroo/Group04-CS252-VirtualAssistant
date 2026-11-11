@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import type { Edge, NodeStatus } from "../api/core";
 import type { RoadmapNode } from "../api/types";
 import { nodeSources, type NodeSources } from "../api/materials";
@@ -20,6 +26,7 @@ export type ExtendedNode = RoadmapNode & {
 };
 
 export type NodePanelProps = {
+  manageUrl?: boolean;
   roadmapId: string;
   node: ExtendedNode | null;
   allNodes: (RoadmapNode & { status?: NodeStatus })[];
@@ -27,6 +34,7 @@ export type NodePanelProps = {
   isOpen: boolean;
   onClose: () => void;
   onSelectNode?: (nodeId: string) => void;
+  onLocalGraph?: (nodeId: string) => void;
   onHighlightPath?: (pathNodeIds: string[]) => void;
   onOpenFullStage?: (nodeId: string) => void;
   onAskQuestion?: (nodeId: string) => void;
@@ -37,6 +45,7 @@ export type NodePanelProps = {
 };
 
 export function NodePanel({
+  manageUrl = true,
   roadmapId,
   node,
   allNodes,
@@ -44,6 +53,7 @@ export function NodePanel({
   isOpen,
   onClose,
   onSelectNode,
+  onLocalGraph,
   onHighlightPath,
   onOpenFullStage,
   onAskQuestion,
@@ -61,7 +71,7 @@ export function NodePanel({
 
   // Update URL hash for deep-linking: /roadmaps/{id}/graph/{node} (Issue #109 requirement 1)
   useEffect(() => {
-    if (isOpen && node) {
+    if (manageUrl && isOpen && node) {
       const prevHash = window.location.hash;
       const targetHash = `roadmaps/${encodeURIComponent(roadmapId)}/graph/${encodeURIComponent(node.id)}`;
       if (!window.location.hash.includes(targetHash)) {
@@ -73,7 +83,7 @@ export function NodePanel({
         }
       };
     }
-  }, [isOpen, node, roadmapId]);
+  }, [isOpen, node, roadmapId, manageUrl]);
 
   // Load sources and exercises for current node
   const loadData = useCallback(async (nodeId: string) => {
@@ -82,7 +92,9 @@ export function NodePanel({
       setLoadError("");
     } catch (err) {
       setSourcesData(null);
-      setLoadError(err instanceof Error ? err.message : "Không tải được nguồn học.");
+      setLoadError(
+        err instanceof Error ? err.message : "Không tải được nguồn học.",
+      );
     }
 
     try {
@@ -162,7 +174,9 @@ export function NodePanel({
       const curr = queue.shift()!;
       if (!visited.has(curr)) {
         visited.add(curr);
-        const parents = edges.filter((e) => e.child_id === curr).map((e) => e.parent_id);
+        const parents = edges
+          .filter((e) => e.child_id === curr)
+          .map((e) => e.parent_id);
         queue.push(...parents);
       }
     }
@@ -175,14 +189,17 @@ export function NodePanel({
       await searchNodeResources(node.id);
       await loadData(node.id);
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : "Không bắt đầu tìm lại được.");
+      setLoadError(
+        err instanceof Error ? err.message : "Không bắt đầu tìm lại được.",
+      );
     } finally {
       setSearching(false);
     }
   };
 
   // Sources categorized
-  const ownMaterials = sourcesData?.sources.filter((s) => s.kind === "user_material") || [];
+  const ownMaterials =
+    sourcesData?.sources.filter((s) => s.kind === "user_material") || [];
   const catalogSources: VerifiedSource[] = (
     sourcesData?.sources.filter((s) => s.kind !== "user_material") || []
   ).map((s) => ({
@@ -258,7 +275,11 @@ export function NodePanel({
             )}
             {node.outcome_ids &&
               node.outcome_ids.map((clo: string) => (
-                <span key={clo} className="np-chip" title="Chuẩn đầu ra môn học">
+                <span
+                  key={clo}
+                  className="np-chip"
+                  title="Chuẩn đầu ra môn học"
+                >
                   🎯 {clo}
                 </span>
               ))}
@@ -278,10 +299,15 @@ export function NodePanel({
           {isMilestone && (
             <div
               className="np-meta-chips"
-              style={{ marginTop: "0.25rem", color: "var(--color-primary-ink)" }}
+              style={{
+                marginTop: "0.25rem",
+                color: "var(--color-primary-ink)",
+              }}
             >
               {node.due_at && <span>📅 Hạn chót: {node.due_at}</span>}
-              {node.weight !== undefined && <span>⚖ Trọng số: {node.weight}%</span>}
+              {node.weight !== undefined && (
+                <span>⚖ Trọng số: {node.weight}%</span>
+              )}
               {coveredNodes.length > 0 && (
                 <span>
                   Bao phủ {coveredNodes.length} chặng (
@@ -292,6 +318,15 @@ export function NodePanel({
           )}
         </header>
 
+        {onLocalGraph && (
+          <button
+            type="button"
+            className="np-path-btn"
+            onClick={() => onLocalGraph(node.id)}
+          >
+            Xem đồ thị cục bộ
+          </button>
+        )}
         {/* 2. Scrollable Body Content */}
         <div className="np-body" aria-live="polite">
           {/* Prerequisite & Unlocked Nodes */}
@@ -309,7 +344,9 @@ export function NodePanel({
             </div>
 
             <div>
-              <span style={{ fontSize: "0.85rem", color: "var(--color-muted)" }}>
+              <span
+                style={{ fontSize: "0.85rem", color: "var(--color-muted)" }}
+              >
                 Cần học trước ({prereqNodes.length}):
               </span>
               <div className="np-node-links" style={{ marginTop: "0.25rem" }}>
@@ -325,7 +362,9 @@ export function NodePanel({
                     </button>
                   ))
                 ) : (
-                  <span style={{ fontSize: "0.82rem", color: "var(--color-muted)" }}>
+                  <span
+                    style={{ fontSize: "0.82rem", color: "var(--color-muted)" }}
+                  >
                     Không có tiên quyết
                   </span>
                 )}
@@ -333,7 +372,9 @@ export function NodePanel({
             </div>
 
             <div style={{ marginTop: "0.4rem" }}>
-              <span style={{ fontSize: "0.85rem", color: "var(--color-muted)" }}>
+              <span
+                style={{ fontSize: "0.85rem", color: "var(--color-muted)" }}
+              >
                 Mở khóa ({unlockNodes.length}):
               </span>
               <div className="np-node-links" style={{ marginTop: "0.25rem" }}>
@@ -349,7 +390,9 @@ export function NodePanel({
                     </button>
                   ))
                 ) : (
-                  <span style={{ fontSize: "0.82rem", color: "var(--color-muted)" }}>
+                  <span
+                    style={{ fontSize: "0.82rem", color: "var(--color-muted)" }}
+                  >
                     Không mở khóa thêm
                   </span>
                 )}
@@ -358,16 +401,27 @@ export function NodePanel({
           </section>
 
           {/* 3. Learning Sources (Spec 114 User Materials First, then Catalog) */}
-          <section className="np-section" aria-label="Nguồn học tập đã kiểm chứng">
+          <section
+            className="np-section"
+            aria-label="Nguồn học tập đã kiểm chứng"
+          >
             <h4 className="np-section-title">Nguồn học tập</h4>
 
             {/* User uploaded materials always first (#114) */}
             {ownMaterials.length > 0 && (
-              <div className="np-user-materials-list" aria-label="Tài liệu riêng của bạn">
+              <div
+                className="np-user-materials-list"
+                aria-label="Tài liệu riêng của bạn"
+              >
                 {ownMaterials.map((s) => (
                   <div key={s.id} className="np-user-material-item">
                     <span className="np-user-material-title">📂 {s.title}</span>
-                    <span style={{ fontSize: "0.8rem", color: "var(--color-muted)" }}>
+                    <span
+                      style={{
+                        fontSize: "0.8rem",
+                        color: "var(--color-muted)",
+                      }}
+                    >
                       {s.reason}
                     </span>
                     {s.pages && s.pages.length > 0 && (
@@ -398,24 +452,41 @@ export function NodePanel({
 
             {/* Insufficient State Banner */}
             {isInsufficient && (
-              <InsufficientSourcesNotice onRetry={handleRetrySearch} busy={searching} />
+              <InsufficientSourcesNotice
+                onRetry={handleRetrySearch}
+                busy={searching}
+              />
             )}
 
             {/* Verified Catalog Sources using Shared VerifiedSourceCard (#104) */}
             {catalogSources.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.6rem",
+                }}
+              >
                 {catalogSources.map((source) => (
-                  <VerifiedSourceCard key={source.id} source={source} compact={true} />
+                  <VerifiedSourceCard
+                    key={source.id}
+                    source={source}
+                    compact={true}
+                  />
                 ))}
               </div>
             )}
           </section>
 
           {/* 4. Practice Exercises Preview (#115) */}
-          <section className="np-section" aria-label="Bài luyện tập có trích dẫn">
+          <section
+            className="np-section"
+            aria-label="Bài luyện tập có trích dẫn"
+          >
             <div className="np-section-header">
               <h4 className="np-section-title">
-                Bài tập ({exercisesCount > 0 ? exercisesCount : exercises.length})
+                Bài tập (
+                {exercisesCount > 0 ? exercisesCount : exercises.length})
               </h4>
               {exercises.length > 0 && (
                 <button
@@ -424,7 +495,7 @@ export function NodePanel({
                   onClick={() =>
                     onOpenPractice?.(
                       node.id,
-                      exercises.map((e) => e.id)
+                      exercises.map((e) => e.id),
                     )
                   }
                 >
@@ -450,7 +521,9 @@ export function NodePanel({
                   </div>
                 ))
               ) : (
-                <span style={{ fontSize: "0.85rem", color: "var(--color-muted)" }}>
+                <span
+                  style={{ fontSize: "0.85rem", color: "var(--color-muted)" }}
+                >
                   Chưa có bài luyện tập được tạo cho chặng này.
                 </span>
               )}

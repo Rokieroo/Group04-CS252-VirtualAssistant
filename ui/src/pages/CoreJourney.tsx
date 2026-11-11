@@ -1,3 +1,18 @@
+import { call } from "../api/backend";
+import {
+  fetchRoadmapGraph,
+  fetchNodeLocalGraph,
+  fetchGraphLayout,
+  saveGraphLayout,
+  normalizeGraph,
+  type RoadmapGraphResponse,
+  type NodePosition,
+} from "../api/graph";
+import {
+  readGraphState,
+  writeGraphState,
+  filterGraphNodes,
+} from "../api/graphState";
 import { RootRoadmap, type RootCourse } from "./course-setup/RootRoadmap";
 import { tutorial } from "./TutorialCourses";
 import { syllabusError, validateDraft } from "../api/syllabus";
@@ -55,43 +70,226 @@ export function CoreJourney({
   const [tutorialEnrolled, setTutorialEnrolled] = useState(false);
   const [removeCourse, setRemoveCourse] = useState(false);
   const [roadmapTab, setRoadmapTab] = useState<"timeline" | "graph">(
-    "timeline",
+    new URLSearchParams(location.search).has("kg_roadmap")
+      ? "graph"
+      : "timeline",
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [parent, setParent] = useState("");
   const [child, setChild] = useState("");
   const [graphError, setGraphError] = useState("");
-  const [graphLayoutMode, setGraphLayoutMode] = useState<"week" | "force">("week");
-  const [selectedGraphNodeId, setSelectedGraphNodeId] = useState<string | null>(null);
-  const [filters, setFilters] = useState<FilterState>({
-    search: "",
-    weekMin: 1,
-    weekMax: 15,
-    status: "all",
-    clo: "",
-    verifiedOnly: false,
-    hideSoftEdges: false,
-    transitiveReduction: false,
-    selectedMilestone: "",
-    isLocalGraph: false,
-    localDepth: 2,
-    viewMode: "graph",
+  const [graphLayoutMode, setGraphLayoutMode] = useState<"week" | "force">(
+    () => readGraphState().layout,
+  );
+  const [selectedGraphNodeId, setSelectedGraphNodeId] = useState<string | null>(
+    () => readGraphState().selected,
+  );
+  const [nodePanelOpen, setNodePanelOpen] = useState(true);
+  const selectGraphNode = (id: string | null) => {
+    setSelectedGraphNodeId(id);
+    setNodePanelOpen(Boolean(id));
+  };
+  const [filters, setFilters] = useState<FilterState>(
+    () => readGraphState().filters,
+  );
+  const [fullGraph, setFullGraph] = useState<RoadmapGraphResponse | null>(null);
+  const [viewGraph, setViewGraph] = useState<RoadmapGraphResponse | null>(null);
+  const [positions, setPositions] = useState<NodePosition[]>([]);
+  const [graphLoading, setGraphLoading] = useState(false);
+  const [graphReload, setGraphReload] = useState(0);
+  const fallbackGraph = normalizeGraph({
+    nodes: (roadmap?.nodes || []).map((n) => ({
+      ...n,
+      est_minutes: n.est_minutes ?? undefined,
+    })),
+    edges: roadmap?.edges || [],
   });
-
+  const graphData = fullGraph || fallbackGraph;
+  useEffect(() => {
+    const restore = () => {
+      const state = readGraphState();
+      setFilters(state.filters);
+      setSelectedGraphNodeId(state.selected);
+      setNodePanelOpen(Boolean(state.selected));
+      setGraphLayoutMode(state.layout);
+    };
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, []);
+  useEffect(() => {
+    let cancelled = false;
+    const id = new URLSearchParams(location.search).get("kg_roadmap");
+    if (!id) return;
+    const restore = async () => {
+      try {
+        const saved = mock
+          ? JSON.parse(
+              sessionStorage.getItem("pathly.preview.graph." + id) || "null",
+            )
+          : await call<RoadmapDraft>(`/roadmaps/${encodeURIComponent(id)}`);
+        if (!saved) return;
+        if (!mock)
+          saved.edges = await call<Edge[]>(
+            `/roadmaps/${encodeURIComponent(id)}/edges`,
+          );
+        if (!cancelled) {
+          setRoadmap({
+            ...saved,
+            overloaded_weeks: saved.overloaded_weeks || [],
+          });
+          setRoadmapApproved(true);
+          setStage(location.hash === "#roadmap" ? "complete" : "plan");
+          setRoadmapTab("graph");
+        }
+      } catch (e) {
+        if (!cancelled)
+          setGraphError(
+            e instanceof Error ? e.message : "Could not restore roadmap.",
+          );
+      }
+    };
+    void restore();
+    return () => {
+      cancelled = true;
+    };
+  }, [mock]);
+  useEffect(() => {
+    setFullGraph(null);
+    setViewGraph(null);
+    setPositions([]);
+  }, [roadmap?.id]);
+  useEffect(() => {
+    if (!roadmap || roadmapTab !== "graph" || mock) return;
+    let cancelled = false;
+    setGraphLoading(true);
+    setGraphError("");
+    Promise.all([fetchRoadmapGraph(roadmap.id), fetchGraphLayout(roadmap.id)])
+      .then(([data, layout]) => {
+        if (!cancelled) {
+          setFullGraph(data);
+          setPositions(layout);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled)
+          setGraphError(
+            e instanceof Error ? e.message : "Could not load graph.",
+          );
+      })
+      .finally(() => {
+        if (!cancelled) setGraphLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [roadmap?.id, roadmapTab, mock, graphReload, roadmap?.edges]);
+  useEffect(() => {
+    if (!roadmap || roadmapTab !== "graph" || mock) return;
+    let cancelled = false;
+    setViewGraph(null);
+    const work =
+      filters.isLocalGraph && selectedGraphNodeId
+        ? fetchNodeLocalGraph(selectedGraphNodeId, filters.localDepth)
+        : filters.transitiveReduction
+          ? fetchRoadmapGraph(roadmap.id, true)
+          : null;
+    if (work)
+      work
+        .then((data) => {
+          if (!cancelled) setViewGraph(data);
+        })
+        .catch((e) => {
+          if (!cancelled)
+            setGraphError(
+              e instanceof Error ? e.message : "Could not load graph view.",
+            );
+        });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    roadmap?.id,
+    roadmap?.edges,
+    roadmapTab,
+    mock,
+    filters.isLocalGraph,
+    filters.localDepth,
+    filters.transitiveReduction,
+    selectedGraphNodeId,
+    graphReload,
+  ]);
+  const layoutQueue = useRef<Promise<void>>(Promise.resolve());
+  const layoutVersion = useRef(0);
+  const [failedLayout, setFailedLayout] = useState<NodePosition[] | null>(null);
+  const [layoutError, setLayoutError] = useState("");
+  useEffect(() => {
+    // Ignore save responses from a course that is no longer open.
+    ++layoutVersion.current;
+    setFailedLayout(null);
+    setLayoutError("");
+  }, [roadmap?.id]);
+  const persistLayout = (layout: NodePosition[]) => {
+    if (!roadmap) return;
+    const id = roadmap.id,
+      version = ++layoutVersion.current;
+    const mergedLayout = [
+      ...positions.filter((p) => !layout.some((n) => n.node_id === p.node_id)),
+      ...layout,
+    ];
+    setPositions(mergedLayout);
+    setLayoutError("");
+    layoutQueue.current = layoutQueue.current
+      .catch(() => {})
+      .then(async () => {
+        try {
+          if (mock)
+            sessionStorage.setItem(
+              "pathly.preview.layout." + id,
+              JSON.stringify(mergedLayout),
+            );
+          else await saveGraphLayout(id, layout);
+          if (version === layoutVersion.current) {
+            setFailedLayout(null);
+            setLayoutError("");
+          }
+        } catch (e) {
+          if (version === layoutVersion.current) {
+            setFailedLayout(layout);
+            setLayoutError(
+              e instanceof Error ? e.message : "Could not save layout.",
+            );
+          }
+        }
+      });
+  };
+  useEffect(() => {
+    if (mock && roadmap) {
+      try {
+        setPositions(
+          JSON.parse(
+            sessionStorage.getItem("pathly.preview.layout." + roadmap.id) ||
+              "[]",
+          ),
+        );
+      } catch {
+        setPositions([]);
+      }
+    }
+  }, [mock, roadmap?.id]);
   // Filtered nodes and edges for Knowledge Graph (Issue #110)
   const filteredGraphData = (() => {
     if (!roadmap) return { nodes: [], edges: [] };
 
-    let candidateNodes = roadmap.nodes;
-    let candidateEdges = roadmap.edges;
+    let candidateNodes = viewGraph?.nodes || graphData.nodes;
+    let candidateEdges = viewGraph?.edges || graphData.edges;
 
     // 1. Milestone scope filter (Exam prep: "Tới mốc kiểm tra")
     if (filters.selectedMilestone) {
       const scope = computeMilestoneScope(
         filters.selectedMilestone,
-        roadmap.nodes,
-        roadmap.edges,
+        graphData.nodes,
+        graphData.edges,
       );
       candidateNodes = candidateNodes.filter((n) => scope.has(n.id));
       candidateEdges = candidateEdges.filter(
@@ -114,32 +312,7 @@ export function CoreJourney({
       candidateEdges = localResult.edges;
     }
 
-    // 3. Search query filter
-    if (filters.search.trim()) {
-      const q = filters.search.toLowerCase().trim();
-      candidateNodes = candidateNodes.filter((n) =>
-        n.title.toLowerCase().includes(q),
-      );
-    }
-
-    // 4. Week range filter
-    candidateNodes = candidateNodes.filter((n) => {
-      const w = n.week ?? 1;
-      return w >= filters.weekMin && w <= filters.weekMax;
-    });
-
-    // 5. Status filter
-    if (filters.status !== "all") {
-      candidateNodes = candidateNodes.filter((n) => {
-        const s =
-          n.status === "done"
-            ? "mastered"
-            : n.status === "in_progress"
-              ? "in_progress"
-              : "not_started";
-        return s === filters.status;
-      });
-    }
+    candidateNodes = filterGraphNodes(candidateNodes, filters);
 
     const validNodeIds = new Set(candidateNodes.map((n) => n.id));
     candidateEdges = candidateEdges.filter(
@@ -153,29 +326,60 @@ export function CoreJourney({
 
     // 7. Transitive reduction
     if (filters.transitiveReduction) {
-      candidateEdges = computeTransitiveReduction(candidateNodes, candidateEdges);
+      candidateEdges = computeTransitiveReduction(
+        candidateNodes,
+        candidateEdges,
+      );
     }
 
-    return { nodes: candidateNodes, edges: candidateEdges };
+    return {
+      nodes: candidateNodes.map((n) => ({
+        ...n,
+        ...positions.find((p) => p.node_id === n.id),
+      })),
+      edges: candidateEdges,
+    };
   })();
 
-  const selectedNodeObj = roadmap
-    ? roadmap.nodes.find((n) => n.id === selectedGraphNodeId) ?? null
+  const selectedBase = roadmap?.nodes.find((n) => n.id === selectedGraphNodeId);
+  const selectedMeta = graphData.nodes.find(
+    (n) => n.id === selectedGraphNodeId,
+  );
+  const selectedNodeObj = selectedBase
+    ? {
+        ...selectedBase,
+        outcome_ids: selectedMeta?.outcome_ids,
+        status:
+          (
+            {
+              mastered: "done",
+              review_due: "needs_review",
+              in_progress: "in_progress",
+              locked: "locked",
+              available: "available",
+            } as Record<string, import("../api/core").NodeStatus>
+          )[selectedMeta?.status || ""] || selectedBase.status,
+      }
     : null;
-
-  // Sync URL hash for graph state (Issue #110 requirement 6)
   useEffect(() => {
-    if (roadmapTab === "graph") {
-      const params = new URLSearchParams();
-      if (filters.search) params.set("q", filters.search);
-      if (filters.status !== "all") params.set("status", filters.status);
-      if (filters.viewMode !== "graph") params.set("view", filters.viewMode);
-      if (selectedGraphNodeId) params.set("node", selectedGraphNodeId);
-      const queryStr = params.toString();
-      const hash = queryStr ? `#graph?${queryStr}` : "#graph";
-      window.history.replaceState(null, "", hash);
-    }
-  }, [roadmapTab, filters, selectedGraphNodeId]);
+    if (roadmapTab !== "graph" || !roadmap) return;
+    writeGraphState(filters, selectedGraphNodeId, graphLayoutMode);
+    const url = new URL(location.href);
+    url.searchParams.set("kg_roadmap", roadmap.id);
+    history.replaceState(null, "", url);
+    if (mock)
+      sessionStorage.setItem(
+        "pathly.preview.graph." + roadmap.id,
+        JSON.stringify(roadmap),
+      );
+  }, [
+    roadmapTab,
+    filters,
+    selectedGraphNodeId,
+    graphLayoutMode,
+    roadmap,
+    mock,
+  ]);
   const [weekly, setWeekly] = useState(300);
   const [daily, setDaily] = useState(120);
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -250,7 +454,9 @@ export function CoreJourney({
     }
     setGraphError("");
     if (
-      !roadmap.edges.some((e) => e.parent_id === parentId && e.child_id === childId)
+      !roadmap.edges.some(
+        (e) => e.parent_id === parentId && e.child_id === childId,
+      )
     )
       setRoadmap({
         ...roadmap,
@@ -266,9 +472,56 @@ export function CoreJourney({
         ],
       });
   };
-  const removeEdge = (edge: Edge) =>
-    roadmap &&
-    setRoadmap({ ...roadmap, edges: roadmap.edges.filter((e) => e !== edge) });
+  const createGraphEdge = async (p: string, c: string) => {
+    if (!roadmap) return false;
+    if (mock) {
+      addEdge(p, c);
+      return true;
+    }
+    const edge = await call<Edge>(
+      `/roadmaps/${encodeURIComponent(roadmap.id)}/graph/edges`,
+      {
+        method: "POST",
+        body: JSON.stringify({ parent_id: p, child_id: c, kind: "strict" }),
+      },
+    );
+    setRoadmap((current) =>
+      current && current.id === roadmap.id
+        ? {
+            ...current,
+            edges: current.edges.some(
+              (e) => e.parent_id === p && e.child_id === c,
+            )
+              ? current.edges
+              : [...current.edges, edge],
+          }
+        : current,
+    );
+    return true;
+  };
+  const removeEdge = (edge: Edge) => {
+    if (!roadmap) return;
+    const id = roadmap.id;
+    void run(async () => {
+      if (roadmapApproved && !mock)
+        await call(
+          `/roadmaps/${encodeURIComponent(id)}/graph/edges/${encodeURIComponent(edge.parent_id)}/${encodeURIComponent(edge.child_id)}`,
+          { method: "DELETE" },
+        );
+      setRoadmap((current) =>
+        current?.id === id
+          ? {
+              ...current,
+              edges: current.edges.filter(
+                (e) =>
+                  e.parent_id !== edge.parent_id ||
+                  e.child_id !== edge.child_id,
+              ),
+            }
+          : current,
+      );
+    });
+  };
   const schedule = () => {
     if (
       !roadmap ||
@@ -610,89 +863,71 @@ export function CoreJourney({
                 />
               ) : (
                 <section className="card core-panel">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: "12px",
+                    }}
+                  >
                     <h3>Knowledge Graph môn học</h3>
                   </div>
+                  {graphLoading && <p role="status">Loading course graph…</p>}
                   <GraphFilterBar
-                    nodes={roadmap.nodes.map((n) => ({
-                      id: n.id,
-                      title: n.title,
-                      type: (n.type as "topic" | "milestone") || "topic",
-                      week: n.week,
-                      status:
-                        n.status === "done"
-                          ? "mastered"
-                          : n.status === "in_progress"
-                            ? "in_progress"
-                            : "not_started",
-                    }))}
+                    nodes={graphData.nodes}
                     filters={filters}
                     onChange={setFilters}
-                    onSelectNode={(nodeId) => setSelectedGraphNodeId(nodeId)}
+                    onSelectNode={selectGraphNode}
                   />
+                  {!filteredGraphData.nodes.length && (
+                    <p role="status">No topics match these filters.</p>
+                  )}
                   {filters.viewMode === "graph" ? (
-                  <div style={{ marginBottom: "16px" }}>
                     <GraphCanvas
-                      nodes={filteredGraphData.nodes.map((n) => ({
-                        id: n.id,
-                        title: n.title,
-                        type: (n.type as "topic" | "milestone") || "topic",
-                        week: n.week,
-                        est_minutes: n.est_minutes ?? n.duration_minutes ?? 60,
-                        status:
-                          n.status === "done"
-                            ? "mastered"
-                            : n.status === "in_progress"
-                              ? "in_progress"
-                              : "not_started",
-                      }))}
-                      edges={filteredGraphData.edges.map((e) => ({
-                        parent_id: e.parent_id,
-                        child_id: e.child_id,
-                        kind: e.kind,
-                        confidence: e.confidence,
-                        origin: e.origin,
-                      }))}
+                      key={roadmap.id}
+                      nodes={filteredGraphData.nodes}
+                      edges={filteredGraphData.edges}
+                      cycleEdges={graphData.edges}
                       layout={graphLayoutMode}
                       onLayoutModeChange={setGraphLayoutMode}
                       selectedId={selectedGraphNodeId}
-                      onSelect={setSelectedGraphNodeId}
-                      onEdgeCreate={(p, c) => addEdge(p, c)}
+                      onSelect={selectGraphNode}
+                      onEdgeCreate={createGraphEdge}
+                      onLayoutChange={(positions) =>
+                        void persistLayout(positions)
+                      }
                     />
-                  </div>
-                ) : (
-                  <div style={{ marginBottom: "16px" }}>
+                  ) : (
                     <GraphListView
-                      nodes={filteredGraphData.nodes.map((n) => ({
-                        id: n.id,
-                        title: n.title,
-                        type: (n.type as "topic" | "milestone") || "topic",
-                        week: n.week,
-                        est_minutes: n.est_minutes ?? n.duration_minutes ?? 60,
-                        status:
-                          n.status === "done"
-                            ? "mastered"
-                            : n.status === "in_progress"
-                              ? "in_progress"
-                              : "not_started",
-                      }))}
+                      nodes={filteredGraphData.nodes}
+                      edges={graphData.edges}
+                      orderingNodes={graphData.nodes}
                       selectedId={selectedGraphNodeId}
-                      onSelect={(id) => setSelectedGraphNodeId(id)}
+                      onSelect={selectGraphNode}
                     />
-                  </div>
-                )}
-
-                {selectedNodeObj && (
-                  <NodePanel
-                    roadmapId={roadmap.id}
-                    node={selectedNodeObj}
-                    allNodes={roadmap.nodes}
-                    edges={roadmap.edges}
-                    isOpen={Boolean(selectedNodeObj)}
-                    onClose={() => setSelectedGraphNodeId(null)}
-                    onSelectNode={(id) => setSelectedGraphNodeId(id)}
-                  />
-                )}
+                  )}
+                  {selectedNodeObj && (
+                    <NodePanel
+                      manageUrl={false}
+                      roadmapId={roadmap.id}
+                      node={selectedNodeObj}
+                      allNodes={roadmap.nodes}
+                      edges={roadmap.edges}
+                      isOpen={nodePanelOpen}
+                      onLocalGraph={() => {
+                        setFilters((f) => ({ ...f, isLocalGraph: true }));
+                        setNodePanelOpen(false);
+                      }}
+                      onClose={() => setNodePanelOpen(false)}
+                      onSelectNode={selectGraphNode}
+                    />
+                  )}
+                  {graphError && (
+                    <button onClick={() => setGraphReload((n) => n + 1)}>
+                      Retry graph loading
+                    </button>
+                  )}
                   <div className="core-edges">
                     {roadmap.edges.map((e, i) => (
                       <div
@@ -747,7 +982,18 @@ export function CoreJourney({
                         ))}
                       </select>
                     </label>
-                    <button onClick={() => addEdge()}>Thêm cạnh</button>
+                    <button
+                      disabled={busy || !parent || !child}
+                      onClick={() => {
+                        if (roadmapApproved && !mock)
+                          void run(async () => {
+                            await createGraphEdge(parent, child);
+                          });
+                        else addEdge();
+                      }}
+                    >
+                      Thêm cạnh
+                    </button>
                   </div>
                   {graphError && (
                     <p role="alert" className="core-error">

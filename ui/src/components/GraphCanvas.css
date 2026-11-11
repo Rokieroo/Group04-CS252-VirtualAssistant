@@ -139,3 +139,18 @@
     transform: translate(-50%, 0);
   }
 }
+
+.graph-keyboard-nodes button {
+  position: absolute;
+  left: -10000px;
+  top: auto;
+}
+.graph-keyboard-nodes button:focus {
+  left: 12px;
+  top: 85px;
+  z-index: 20;
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: 12px;
+  border: 2px solid var(--color-primary);
+}

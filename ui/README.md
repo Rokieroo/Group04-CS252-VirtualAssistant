@@ -103,12 +103,20 @@ See [issue #56 verification](../docs/notes/uiux/ISSUE_56.md) for acceptance chec
 
 For interactive course knowledge graph visualization (`GraphCanvas`), we evaluated graph rendering libraries based on bundle impact, rendering performance for 300+ nodes, layout flexibility, and client-side DAG cycle prevention:
 
-| Solution | Bundle Impact (gzip) | 300-Node Performance | Layout & Control | Assessment |
-|---|---|---|---|---|
-| **Cytoscape.js** | ~320 KB | 30–45 fps (DOM/Canvas) | Rich algorithms, but heavy styling layer | ❌ Exceeds 80 KB limit; complex API |
-| **react-force-graph-2d** | ~180 KB | 40–50 fps (Canvas 2D) | Wraps Three/d3; heavy transitive dependencies | ❌ Too heavy for lightweight SPA |
-| **d3-force** | ~35 KB | 55–60 fps | Pure physics, needs custom Canvas wrapper | ⚠️ Good, but requires external npm packages |
-| **Native Canvas 2D + Force Engine** | **< 8 KB** | **60+ fps** | Custom week columns + force layout, zero deps | ✅ **Selected** (Zero dependency, < 80 KB gzip, client cycle check) |
+The implementation keeps the existing native Canvas renderer and force engine, so no graph dependency is added. Cytoscape.js and react-force-graph-2d provide more built-in graph features; d3-force provides a reusable simulation, but each would require an integration and a measured bundle comparison. The previous library size/FPS estimates were not benchmarks and have been removed.
+
+Local verification of the integrated #108/#110 branch measured **50.5 FPS (week)** and **54.4 FPS (force)** while panning a synthetic graph with 300 nodes and 299 edges in headless Chrome, without CPU throttling. This is a development-machine sample, not proof of performance on a mid-range laptop. Main JavaScript gzip size was **120.20 KB**, compared with **106.53 KB** for `origin/main` (`350224d`) using the same installed toolchain: **+13.67 KB**. CSS gzip increased from 13.64 KB to 16.12 KB. Font assets were unchanged.
+
+The force simulation pauses during background panning and resumes on release; rendering and viewport interaction continue every frame. The performance test is opt-in so concurrent browser suites do not distort it:
+
+```powershell
+$env:PLAYWRIGHT_CHANNEL = 'chrome'
+$env:GRAPH_PERFORMANCE = '1'
+pnpm --dir ui exec playwright test graph.spec.ts --project=backend-ui -g 'performance sample' --workers=1
+Remove-Item Env:GRAPH_PERFORMANCE
+```
+
+Graph browser tests use explicit intercepted API fixtures to check integration contracts; they do not prove production persistence. The application uses the existing authenticated graph, local graph, edge and layout endpoints. Demo mode uses session storage for graph previews. Filters, layout choice and selected node use `kg_*` query parameters while preserving the app's route hash. Closing a panel keeps the selected node as the local-graph center. The list/filter region is scanned with axe on desktop and mobile; this is not an accessibility audit of the whole application.
 
 ### Technical Implementation:
 - **Renderer**: Native HTML5 Canvas 2D with HiDPI scaling (`window.devicePixelRatio`).
