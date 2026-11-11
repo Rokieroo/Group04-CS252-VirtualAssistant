@@ -9,6 +9,14 @@ import { SyllabusUpload } from "./course-setup/SyllabusUpload";
 import { SyllabusReview } from "./course-setup/SyllabusReview";
 import { Modal } from "../components/Modal";
 import { GraphCanvas } from "../components/GraphCanvas";
+import { GraphFilterBar, type FilterState } from "../components/GraphFilterBar";
+import { GraphListView } from "../components/GraphListView";
+import { NodePanel } from "../components/NodePanel";
+import {
+  computeTransitiveReduction,
+  computeMilestoneScope,
+  computeLocalSubgraph,
+} from "../api/graph";
 import { useEffect, useRef, useState } from "react";
 import type { Page } from "../navigation";
 import type { RoadmapNode } from "../api/types";
@@ -56,6 +64,118 @@ export function CoreJourney({
   const [graphError, setGraphError] = useState("");
   const [graphLayoutMode, setGraphLayoutMode] = useState<"week" | "force">("week");
   const [selectedGraphNodeId, setSelectedGraphNodeId] = useState<string | null>(null);
+  const [filters, setFilters] = useState<FilterState>({
+    search: "",
+    weekMin: 1,
+    weekMax: 15,
+    status: "all",
+    clo: "",
+    verifiedOnly: false,
+    hideSoftEdges: false,
+    transitiveReduction: false,
+    selectedMilestone: "",
+    isLocalGraph: false,
+    localDepth: 2,
+    viewMode: "graph",
+  });
+
+  // Filtered nodes and edges for Knowledge Graph (Issue #110)
+  const filteredGraphData = (() => {
+    if (!roadmap) return { nodes: [], edges: [] };
+
+    let candidateNodes = roadmap.nodes;
+    let candidateEdges = roadmap.edges;
+
+    // 1. Milestone scope filter (Exam prep: "Tới mốc kiểm tra")
+    if (filters.selectedMilestone) {
+      const scope = computeMilestoneScope(
+        filters.selectedMilestone,
+        roadmap.nodes,
+        roadmap.edges,
+      );
+      candidateNodes = candidateNodes.filter((n) => scope.has(n.id));
+      candidateEdges = candidateEdges.filter(
+        (e) => scope.has(e.parent_id) && scope.has(e.child_id),
+      );
+    }
+
+    // 2. Local graph filter
+    if (filters.isLocalGraph && selectedGraphNodeId) {
+      const localResult = computeLocalSubgraph(
+        selectedGraphNodeId,
+        filters.localDepth,
+        "both",
+        candidateNodes,
+        candidateEdges,
+      );
+      candidateNodes = candidateNodes.filter((n) =>
+        localResult.nodeIds.has(n.id),
+      );
+      candidateEdges = localResult.edges;
+    }
+
+    // 3. Search query filter
+    if (filters.search.trim()) {
+      const q = filters.search.toLowerCase().trim();
+      candidateNodes = candidateNodes.filter((n) =>
+        n.title.toLowerCase().includes(q),
+      );
+    }
+
+    // 4. Week range filter
+    candidateNodes = candidateNodes.filter((n) => {
+      const w = n.week ?? 1;
+      return w >= filters.weekMin && w <= filters.weekMax;
+    });
+
+    // 5. Status filter
+    if (filters.status !== "all") {
+      candidateNodes = candidateNodes.filter((n) => {
+        const s =
+          n.status === "done"
+            ? "mastered"
+            : n.status === "in_progress"
+              ? "in_progress"
+              : "not_started";
+        return s === filters.status;
+      });
+    }
+
+    const validNodeIds = new Set(candidateNodes.map((n) => n.id));
+    candidateEdges = candidateEdges.filter(
+      (e) => validNodeIds.has(e.parent_id) && validNodeIds.has(e.child_id),
+    );
+
+    // 6. Hide soft edges
+    if (filters.hideSoftEdges) {
+      candidateEdges = candidateEdges.filter((e) => e.kind !== "soft");
+    }
+
+    // 7. Transitive reduction
+    if (filters.transitiveReduction) {
+      candidateEdges = computeTransitiveReduction(candidateNodes, candidateEdges);
+    }
+
+    return { nodes: candidateNodes, edges: candidateEdges };
+  })();
+
+  const selectedNodeObj = roadmap
+    ? roadmap.nodes.find((n) => n.id === selectedGraphNodeId) ?? null
+    : null;
+
+  // Sync URL hash for graph state (Issue #110 requirement 6)
+  useEffect(() => {
+    if (roadmapTab === "graph") {
+      const params = new URLSearchParams();
+      if (filters.search) params.set("q", filters.search);
+      if (filters.status !== "all") params.set("status", filters.status);
+      if (filters.viewMode !== "graph") params.set("view", filters.viewMode);
+      if (selectedGraphNodeId) params.set("node", selectedGraphNodeId);
+      const queryStr = params.toString();
+      const hash = queryStr ? `#graph?${queryStr}` : "#graph";
+      window.history.replaceState(null, "", hash);
+    }
+  }, [roadmapTab, filters, selectedGraphNodeId]);
   const [weekly, setWeekly] = useState(300);
   const [daily, setDaily] = useState(120);
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -490,10 +610,30 @@ export function CoreJourney({
                 />
               ) : (
                 <section className="card core-panel">
-                  <h3>Quan hệ tiên quyết</h3>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                    <h3>Knowledge Graph môn học</h3>
+                  </div>
+                  <GraphFilterBar
+                    nodes={roadmap.nodes.map((n) => ({
+                      id: n.id,
+                      title: n.title,
+                      type: (n.type as "topic" | "milestone") || "topic",
+                      week: n.week,
+                      status:
+                        n.status === "done"
+                          ? "mastered"
+                          : n.status === "in_progress"
+                            ? "in_progress"
+                            : "not_started",
+                    }))}
+                    filters={filters}
+                    onChange={setFilters}
+                    onSelectNode={(nodeId) => setSelectedGraphNodeId(nodeId)}
+                  />
+                  {filters.viewMode === "graph" ? (
                   <div style={{ marginBottom: "16px" }}>
                     <GraphCanvas
-                      nodes={roadmap.nodes.map((n) => ({
+                      nodes={filteredGraphData.nodes.map((n) => ({
                         id: n.id,
                         title: n.title,
                         type: (n.type as "topic" | "milestone") || "topic",
@@ -506,7 +646,7 @@ export function CoreJourney({
                               ? "in_progress"
                               : "not_started",
                       }))}
-                      edges={roadmap.edges.map((e) => ({
+                      edges={filteredGraphData.edges.map((e) => ({
                         parent_id: e.parent_id,
                         child_id: e.child_id,
                         kind: e.kind,
@@ -520,6 +660,39 @@ export function CoreJourney({
                       onEdgeCreate={(p, c) => addEdge(p, c)}
                     />
                   </div>
+                ) : (
+                  <div style={{ marginBottom: "16px" }}>
+                    <GraphListView
+                      nodes={filteredGraphData.nodes.map((n) => ({
+                        id: n.id,
+                        title: n.title,
+                        type: (n.type as "topic" | "milestone") || "topic",
+                        week: n.week,
+                        est_minutes: n.est_minutes ?? n.duration_minutes ?? 60,
+                        status:
+                          n.status === "done"
+                            ? "mastered"
+                            : n.status === "in_progress"
+                              ? "in_progress"
+                              : "not_started",
+                      }))}
+                      selectedId={selectedGraphNodeId}
+                      onSelect={(id) => setSelectedGraphNodeId(id)}
+                    />
+                  </div>
+                )}
+
+                {selectedNodeObj && (
+                  <NodePanel
+                    roadmapId={roadmap.id}
+                    node={selectedNodeObj}
+                    allNodes={roadmap.nodes}
+                    edges={roadmap.edges}
+                    isOpen={Boolean(selectedNodeObj)}
+                    onClose={() => setSelectedGraphNodeId(null)}
+                    onSelectNode={(id) => setSelectedGraphNodeId(id)}
+                  />
+                )}
                   <div className="core-edges">
                     {roadmap.edges.map((e, i) => (
                       <div
