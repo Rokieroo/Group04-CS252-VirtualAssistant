@@ -38,7 +38,8 @@
   pointer-events: none;
 }
 
-.kg-search-input {
+/* Scoped so the panel-wide `.core-panel input` padding cannot cover the icon. */
+.search-input-container .kg-search-input {
   width: 100%;
   padding: 7px 34px 7px 32px;
   border: 1px solid #cbd5e1;

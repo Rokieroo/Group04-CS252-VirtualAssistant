@@ -894,7 +894,9 @@ export function CoreJourney({
                   >
                     <h3>Knowledge Graph môn học</h3>
                   </div>
-                  {graphLoading && <p role="status">Loading course graph…</p>}
+                  {graphLoading && (
+                    <div role="status" aria-label="Loading course graph…" className="core-graph-loading" />
+                  )}
                   <GraphFilterBar
                     nodes={graphData.nodes}
                     filters={filters}

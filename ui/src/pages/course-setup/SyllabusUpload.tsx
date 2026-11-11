@@ -108,8 +108,9 @@ export function SyllabusUpload({ busy, mock, onUpload }: Props) {
           </p>
           {mock ? (
             <p className="hint">
-              Preview uses a sample syllabus. Your file is not parsed or
-              uploaded.
+              Preview reads weeks, CLOs and assessments from your file in
+              this browser with simple rules; nothing is uploaded. The full
+              app extracts with AI.
             </p>
           ) : (
             <p className="hint">
