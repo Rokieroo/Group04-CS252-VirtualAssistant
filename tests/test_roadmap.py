@@ -412,8 +412,8 @@ def test_learning_path_linear_and_branching():
     # Path to A requires only A
     assert learning_path(nodes, edges, "A") == ["A"]
 
-    # Unknown node returns the target itself
-    assert learning_path(nodes, edges, "Z") == ["Z"]
+    # An unknown node has no path
+    assert learning_path(nodes, edges, "Z") == []
     assert learning_path(nodes, edges, "") == []
 
 
@@ -429,8 +429,8 @@ def test_learning_path_milestone_covers():
     nodes = [t0, t1, t2, m1]
     edges = [
         Edge("t0", "t1", kind="strict"),
-        Edge("m1", "t1", kind="covers"),
-        Edge("m1", "t2", kind="covers"),
+        Edge("t1", "m1", kind="covers"),
+        Edge("t2", "m1", kind="covers"),
     ]
 
     # Pre-exam study path should include all covered topics and their dependencies
@@ -454,8 +454,8 @@ def test_learning_path_covered_topic_does_not_pull_milestone():
     nodes = [t0, t1, t2, m1]
     edges = [
         Edge("t0", "t1", kind="strict"),
-        Edge("m1", "t1", kind="covers"),
-        Edge("m1", "t2", kind="covers"),
+        Edge("t1", "m1", kind="covers"),
+        Edge("t2", "m1", kind="covers"),
     ]
 
     # Querying a topic must NOT pull in the milestone that covers it, nor unrelated covered topics
@@ -523,4 +523,3 @@ def test_would_create_cycle_check():
 
     # Adding A -> C is valid (DAG forward edge)
     assert would_create_cycle(edges, "A", "C") is None
-
