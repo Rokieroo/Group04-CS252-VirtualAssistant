@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
 
@@ -18,6 +18,13 @@ from app.companion.persona import MODES, PERSONALITIES, SYSTEM_PROMPT
 logger = logging.getLogger(__name__)
 
 MAX_REPLY_CHARS = 12000
+# Offline mood lines; their keys are the moods a context may carry.
+MOOD_NOTES = {
+    "neutral": "",
+    "happy": "Thật vui khi bạn đang có tinh thần tốt. ",
+    "stressed": "Nghe có vẻ bạn đang chịu áp lực. Bạn có thể nghỉ một chút rồi chọn một việc nhỏ. ",
+    "tired": "Nếu đang mệt, bạn có thể nghỉ ngơi trước khi tiếp tục. ",
+}
 
 
 @dataclass(frozen=True)
@@ -46,6 +53,22 @@ class CompanionContext:
     pending_tasks: list[PendingTask] = field(default_factory=list)
     next_session: NextSession | None = None
     history: list[tuple[str, str]] = field(default_factory=list)  # (role, content)
+
+    def __post_init__(self):
+        # Checked once here, so the reply and its offline fallback can index the tables.
+        if (
+            self.mode not in MODES
+            or self.personality not in PERSONALITIES
+            or self.mood not in MOOD_NOTES
+        ):
+            raise ValueError(
+                f"unknown companion mode/personality/mood: "
+                f"{self.mode}/{self.personality}/{self.mood}"
+            )
+        try:
+            ZoneInfo(self.timezone)
+        except ZoneInfoNotFoundError as exc:
+            raise ValueError(f"unknown timezone: {self.timezone}") from exc
 
     def facts(self) -> dict:
         return {
@@ -135,9 +158,7 @@ class Companion:
 
     @staticmethod
     def _messages(context: CompanionContext, message: str) -> list[dict]:
-        mode_instruction = MODES.get(context.mode, MODES["buddy"])
-        personality_instruction = PERSONALITIES.get(context.personality, PERSONALITIES["warm"])
-        system = (SYSTEM_PROMPT, mode_instruction, personality_instruction)
+        system = (SYSTEM_PROMPT, MODES[context.mode], PERSONALITIES[context.personality])
         return [
             {"role": "system", "content": "\n".join(system)},
             {
@@ -151,38 +172,25 @@ class Companion:
 
     @staticmethod
     def _offline(context: CompanionContext, reason: str) -> CompanionReply:
-        name = context.name or "bạn"
+        name = context.name
         opening = {
             "warm": f"Mình ở đây hỗ trợ bạn, {name}.",
             "direct": f"{name}, mình cùng xem tiến độ nhé.",
             "playful": f"Tiến từng bước nhỏ thôi, {name} — cùng bắt đầu nhé!",
-        }.get(context.personality, f"Mình ở đây hỗ trợ bạn, {name}.")
-        mood = {
-            "neutral": "",
-            "happy": "Thật vui khi bạn đang có tinh thần tốt. ",
-            "stressed": "Nghe có vẻ bạn đang chịu áp lực. Bạn có thể nghỉ một chút rồi chọn một việc nhỏ. ",
-            "tired": "Nếu đang mệt, bạn có thể nghỉ ngơi trước khi tiếp tục. ",
-        }.get(context.mood, "")
+        }[context.personality]
+        mood = MOOD_NOTES[context.mood]
         session = context.next_session
-        if session:
-            try:
-                tz = ZoneInfo(context.timezone)
-            except (KeyError, ValueError):
-                tz = ZoneInfo("UTC")
-            next_step = (
-                f"Buổi kế tiếp: {session.title}, lúc "
-                f"{session.starts_at.astimezone(tz):%H:%M %d/%m}."
-            )
-        else:
-            next_step = "Bạn có thể thêm giờ rảnh rồi xem trước một kế hoạch học phù hợp."
-        progress = context.weekly_progress or {}
-        completed_minutes = progress.get("completed_minutes", 0)
-        completed_tasks = progress.get("completed_tasks", 0)
-        total_tasks = progress.get("total_tasks", 0)
+        next_step = (
+            f"Buổi kế tiếp: {session.title}, lúc "
+            f"{session.starts_at.astimezone(ZoneInfo(context.timezone)):%H:%M %d/%m}."
+            if session
+            else "Bạn có thể thêm giờ rảnh rồi xem trước một kế hoạch học phù hợp."
+        )
+        progress = context.weekly_progress
         return CompanionReply(
             f"[Chế độ offline] {opening} {mood}Tuần này bạn đã hoàn thành "
-            f"{completed_minutes} phút và {completed_tasks}/"
-            f"{total_tasks} task đến hạn trong tuần. {next_step} "
+            f"{progress['completed_minutes']} phút và {progress['completed_tasks']}/"
+            f"{progress['total_tasks']} task đến hạn trong tuần. {next_step} "
             "Mọi thay đổi lịch cần bạn xác nhận lưu kế hoạch.",
             "offline",
             reason,
