@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { BackendError } from "./backend";
 import {
   confirmationPayload,
+  restoreSavedSyllabus,
   confirmSyllabus,
   normalizeDate,
   syllabusError,
@@ -239,4 +240,55 @@ describe("#56 warning resolution", () => {
       ).toBeGreaterThan(20);
     },
   );
+});
+
+it("restores reviewed syllabus metadata without parsing or losing source evidence", () => {
+  const d = valid();
+  const parsed = confirmationPayload(d).parsed;
+  const restored = restoreSavedSyllabus({
+    id: "saved",
+    syllabus_id: "saved",
+    course_id: "another-course",
+    created_at: "2026-11-11T00:00:00Z",
+    raw_text: JSON.stringify(parsed),
+    learning_outcomes: d.outcomes.map((o) => ({
+      ...o,
+      id: "outcome-id",
+      syllabus_id: "saved",
+      bloom_level: "understand",
+    })),
+    assessments: d.assessments.map((a) => ({
+      ...a,
+      id: "assessment-id",
+      syllabus_id: "saved",
+    })),
+  });
+  expect(restored).toMatchObject({
+    id: "saved",
+    course_id: "another-course",
+    status: "confirmed",
+    file_name: d.file_name,
+    raw_text: d.raw_text,
+    source_pages: d.source_pages,
+    weeks: d.weeks,
+    textbooks: d.textbooks,
+  });
+  expect(restored.outcomes[0].source_page).toBe(1);
+  expect(restored.assessments[0].source_page).toBe(2);
+  expect(validateDraft(restored).some((w) => w.blocking)).toBe(false);
+});
+it("keeps a legacy plain-text syllabus editable without inventing review fields", () => {
+  const result = restoreSavedSyllabus({
+    id: "old",
+    syllabus_id: "old",
+    course_id: "course",
+    created_at: "",
+    raw_text: "Plain syllabus",
+    learning_outcomes: [],
+    assessments: [],
+  });
+  expect(result.raw_text).toBe("Plain syllabus");
+  expect(result.weeks).toEqual([]);
+  expect(result.source_pages).toEqual({});
+  expect(validateDraft(result).some((w) => w.blocking)).toBe(true);
 });

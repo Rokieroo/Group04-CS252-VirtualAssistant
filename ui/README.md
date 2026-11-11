@@ -99,6 +99,33 @@ The parser returns synchronously, so processing shows an indeterminate indicator
 
 See [issue #56 verification](../docs/notes/uiux/ISSUE_56.md) for acceptance checks and the isolated real-backend smoke test. The concept-extraction browser test (`e2e/concepts.spec.ts`) still runs in the `backend-ui` project.
 
+## Knowledge Graph Rendering & Architecture (#108)
+
+For interactive course knowledge graph visualization (`GraphCanvas`), we evaluated graph rendering libraries based on bundle impact, rendering performance for 300+ nodes, layout flexibility, and client-side DAG cycle prevention:
+
+The implementation keeps the existing native Canvas renderer and force engine, so no graph dependency is added. Cytoscape.js and react-force-graph-2d provide more built-in graph features; d3-force provides a reusable simulation, but each would require an integration and a measured bundle comparison. The previous library size/FPS estimates were not benchmarks and have been removed.
+
+Local verification of the integrated #108/#110 branch measured **50.5 FPS (week)** and **54.4 FPS (force)** while panning a synthetic graph with 300 nodes and 299 edges in headless Chrome, without CPU throttling. This is a development-machine sample, not proof of performance on a mid-range laptop. Main JavaScript gzip size was **121.88 KB**, compared with **106.53 KB** for pre-graph main (`350224d`) using the same installed toolchain: **+15.35 KB**. CSS gzip increased from 13.64 KB to 16.15 KB. Font assets were unchanged.
+
+The force simulation pauses during background panning and resumes on release; rendering and viewport interaction continue every frame. The performance test is opt-in so concurrent browser suites do not distort it:
+
+```powershell
+$env:PLAYWRIGHT_CHANNEL = 'chrome'
+$env:GRAPH_PERFORMANCE = '1'
+pnpm --dir ui exec playwright test graph.spec.ts --project=backend-ui -g 'performance sample' --workers=1
+Remove-Item Env:GRAPH_PERFORMANCE
+```
+
+Graph browser tests use explicit intercepted API fixtures to check integration contracts; they do not prove production persistence. The application uses the existing authenticated graph, local graph, edge and layout endpoints. Demo mode uses session storage for graph previews. Filters, layout choice and selected node use `kg_*` query parameters while preserving the app's route hash. Closing a panel keeps the selected node as the local-graph center. The list/filter region is scanned with axe on desktop and mobile; this is not an accessibility audit of the whole application.
+
+### Technical Implementation:
+- **Renderer**: Native HTML5 Canvas 2D with HiDPI scaling (`window.devicePixelRatio`).
+- **Week Layout**: Deterministic syllabus column placement where $X = (\text{week} - 1) \times \text{colWidth}$ and $Y$ is distributed by topic sequence.
+- **Force Layout**: Obsidian-style graph physics implementing Hooke's spring force on edges ($F_s = d^2/k$), Coulomb electrostatic repulsion between nodes ($F_r = k^2/d$), and center gravity attraction ($F_g = (c - p) \times \alpha$).
+- **Client Cycle Prevention**: `findCyclePath()` performs iterative BFS from target to source before committing edges, preventing dependency loops and highlighting conflict paths in crimson red (`#ef4444`).
+- **Interaction**: Zoom (wheel/touch/+/- keys, 0.2x–3.0x), background pan (drag/touch/arrows), node pin dragging (debounced `onLayoutChange`), and Shift+drag edge creation.
+
+
 ## Troubleshooting
 
 - `node` or `npm` is not recognized: install Node.js 24 LTS, close the terminal, and open a new one.
@@ -178,3 +205,13 @@ High-fidelity context was retrieved for Home, weekly Schedule, selected lesson, 
 ## Scheduling Workspace
 
 Open `/#workspace` for the optional account-backed task planner. Start `assistant.backend.main:app` on port 8000 first. Workspace has its own account/session flow, separate from the course demo login. `VITE_API_URL` selects this scheduling backend; the course check API keeps its existing configuration. See [the scheduling handoff](../docs/handoff-and-review/minh-handoff.md).
+
+### Graph review follow-up (#153)
+
+Opening a saved graph and choosing Edit course syllabus restores the original reviewed payload and source evidence through GET syllabus. Confirming updates that original syllabus/course; generating again uses the selected course ID. Legacy plain-text records open for editing without fabricated review metadata and must have missing required fields filled in.
+
+The node panel now opens a full source-details dialog, private extracted pages and a course-wide scheduling dialog. Scheduling is labeled as applying to the whole roadmap because that is the existing API contract. The learning-path action highlights its nodes on the canvas and can be cleared. Ask and Practice buttons are disabled with an explanation until their node-scoped session flows are integrated.
+
+Source counts distinguish verified catalog sources from private materials. Insufficient-source results keep usable sources visible; load failures expose retry controls. The ranked-source adapter retains institution, license, duration, score and explicit verification status. Empty criterion scores no longer produce a misleading seven-criterion breakdown. Panel/source colors were checked with axe in light/dark mode and at a 360 px viewport.
+
+Remaining integration/product work: account-wide roadmap discovery (the current API has no course-to-roadmap listing endpoint), saved-source/notes APIs for Library, calendar move/diff contracts, node-scoped Ask/Practice sessions, and the tutorial's account-enrollment/product decision. This PR does not present these as complete.

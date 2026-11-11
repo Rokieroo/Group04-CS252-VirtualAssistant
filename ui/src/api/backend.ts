@@ -2,10 +2,9 @@
  * On when VITE_BACKEND_MODE=api; otherwise the demo mocks run with no server. */
 export const backendEnabled = import.meta.env.VITE_BACKEND_MODE === "api";
 
-export const API_ORIGIN = String(import.meta.env.VITE_API_URL || "http://127.0.0.1:8000").replace(
-  /\/$/,
-  "",
-);
+export const API_ORIGIN = String(
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000",
+).replace(/\/$/, "");
 const BASE = API_ORIGIN + "/api/v1";
 const SESSION = "pathly.session"; // shared with Workspace, so one sign-in serves both
 
@@ -38,6 +37,7 @@ export class BackendError extends Error {
   constructor(
     public status: number,
     public code: string,
+    public detail?: { code?: string; path?: string[] },
   ) {
     super(
       status === 0
@@ -60,7 +60,10 @@ export async function errorDetail(response: Response): Promise<string> {
 }
 
 /** No timeout: concept extraction can take minutes while the AI works. */
-export async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function call<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
   const token = session.get();
   const json = typeof init.body === "string";
   let response: Response;
@@ -77,9 +80,18 @@ export async function call<T>(path: string, init: RequestInit = {}): Promise<T> 
     throw new BackendError(0, "unreachable");
   }
   if (!response.ok) {
-    const code = await errorDetail(response);
+    const code = await errorDetail(response.clone());
+    const body = await response.json().catch(() => ({}));
     if (response.status === 401) session.clear();
-    throw new BackendError(response.status, code);
+    throw new BackendError(
+      response.status,
+      code,
+      body.detail &&
+        !Array.isArray(body.detail) &&
+        typeof body.detail === "object"
+        ? body.detail
+        : undefined,
+    );
   }
   return (response.status === 204 ? undefined : await response.json()) as T;
 }

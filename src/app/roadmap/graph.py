@@ -22,7 +22,7 @@ class Edge:
 
     parent: str
     child: str
-    kind: str = "strict"  # "strict" (prerequisite) or "soft" (week order)
+    kind: str = "strict"  # "strict" (prerequisite), "soft" (week order), "covers" (topic -> milestone)
     confidence: float = 1.0
     reason: str = ""
 
@@ -83,6 +83,15 @@ def edge_pair(edge: Any) -> tuple[str, str]:
     if parent is None or child is None:
         raise ValueError(f"edge needs parent and child: {edge!r}")
     return str(parent), str(child)
+
+
+PREREQUISITE_KINDS = frozenset({"strict", "covers"})
+
+
+def edge_kind(edge: Any) -> str:
+    """An edge's kind; tuples and edges without one are strict prerequisites."""
+    kind = edge.get("kind") if isinstance(edge, dict) else getattr(edge, "kind", None)
+    return kind or "strict"
 
 
 def _unique_ids(nodes: Iterable[Any]) -> list[str]:
@@ -383,12 +392,8 @@ def layers(
     strict_parents: dict[str, list[str]] = {nid: [] for nid in ids}
     for edge in edges:
         p, c = edge_pair(edge)
-        if p in layer_map and c in layer_map and p != c:
-            kind = getattr(edge, "kind", None)
-            if kind is None and isinstance(edge, dict):
-                kind = edge.get("kind")
-            if kind in ("strict", "covers"):
-                strict_parents[c].append(p)
+        if p in layer_map and c in layer_map and p != c and edge_kind(edge) in PREREQUISITE_KINDS:
+            strict_parents[c].append(p)
 
     order = topological_sort(ids, edges)
     for nid in order:
@@ -396,3 +401,34 @@ def layers(
             layer_map[nid] = max(layer_map[nid], layer_map[p] + 1)
 
     return layer_map
+
+
+def learning_path(
+    nodes: Iterable[Any], edges: Iterable[Any], target_id: str
+) -> list[str]:
+    """Every prerequisite of ``target_id`` in study order, ending with it (#97).
+
+    Follows ``strict`` and ``covers`` edges. ``covers`` edges run topic -> milestone,
+    as the graph API emits them, so a milestone's path is what to review before that
+    checkpoint, and a topic's path never pulls in the milestone that covers it. Soft
+    (week-order) edges are not prerequisites. An unknown target has no path.
+    """
+    ids = _unique_ids(nodes)
+    known = set(ids)
+    if target_id not in known:
+        return []
+    prerequisite_edges = [edge for edge in edges if edge_kind(edge) in PREREQUISITE_KINDS]
+    parents: dict[str, list[str]] = {key: [] for key in ids}
+    for edge in prerequisite_edges:
+        parent, child = edge_pair(edge)
+        if parent in known and child in known:
+            parents[child].append(parent)
+
+    needed = {target_id}
+    queue = deque([target_id])
+    while queue:
+        for parent in parents[queue.popleft()]:
+            if parent not in needed:
+                needed.add(parent)
+                queue.append(parent)
+    return [key for key in topological_sort(ids, prerequisite_edges) if key in needed]

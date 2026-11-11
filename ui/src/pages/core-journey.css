@@ -53,3 +53,5 @@
 .core-complete { max-width:760px; padding:36px; }
 .core-confirm-plan { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; }
 @media (orientation:portrait), (max-width:900px) { .core-setup-columns { grid-template-columns:1fr; } }
+
+.core-node-sources, .core-stage-details, .core-source-page { --color-muted: light-dark(#52637d, #a3b0c7); }

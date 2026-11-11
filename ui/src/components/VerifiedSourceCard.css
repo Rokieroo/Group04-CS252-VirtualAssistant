@@ -8,14 +8,20 @@
   background-color: var(--color-surface);
   border: 1px solid var(--color-line);
   box-shadow: 0 2px 8px light-dark(#1824390f, #00000040);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
   color: var(--color-text);
   font-size: 0.95rem;
 }
 
 .verified-source-card:hover,
 .verified-source-card:focus-within {
-  border-color: color-mix(in oklab, var(--color-primary) 60%, var(--color-line));
+  border-color: color-mix(
+    in oklab,
+    var(--color-primary) 60%,
+    var(--color-line)
+  );
 }
 
 .verified-source-card.compact {
@@ -95,7 +101,10 @@
 
 .vsc-badge-verified {
   background-color: var(--color-success-bg);
-  color: var(--color-success);
+  color: light-dark(
+    color-mix(in oklab, var(--color-success) 80%, black),
+    var(--color-success)
+  );
   border-color: color-mix(in oklab, var(--color-success) 35%, transparent);
   cursor: pointer;
 }
@@ -118,8 +127,8 @@
 }
 
 .vsc-badge-score {
-  background-color: color-mix(in oklab, #f59e0b 15%, transparent);
-  color: light-dark(#b45309, #fbbf24);
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-ink);
   font-weight: 700;
 }
 
@@ -255,7 +264,26 @@
 }
 
 /* 7-criteria score breakdown (spec 11.4), opened from the score badge */
-.vsc-breakdown summary { cursor: pointer; list-style: none; width: fit-content; }
-.vsc-breakdown-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; margin: 8px 0 0; }
-.vsc-breakdown-grid div { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 8px; border: 1px solid var(--color-line); border-radius: 4px; }
-.vsc-breakdown-grid dd { margin: 0; font-weight: 600; }
+.vsc-breakdown summary {
+  cursor: pointer;
+  list-style: none;
+  width: fit-content;
+}
+.vsc-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 6px;
+  margin: 8px 0 0;
+}
+.vsc-breakdown-grid div {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 4px 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+}
+.vsc-breakdown-grid dd {
+  margin: 0;
+  font-weight: 600;
+}
