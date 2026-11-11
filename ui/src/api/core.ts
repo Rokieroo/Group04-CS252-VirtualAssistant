@@ -65,6 +65,7 @@ export type NodeStatus =
   "locked" | "available" | "in_progress" | "done" | "needs_review";
 export type RoadmapDraft = {
   id: string;
+  course_id?: string;
   nodes: (RoadmapNode & { status?: NodeStatus })[];
   edges: Edge[];
   overloaded_weeks: number[];
@@ -74,7 +75,7 @@ export type CoreService = {
   /** ``goals``: pasted goals or a table of contents, from a learner with no syllabus. */
   upload(file: File | string, options?: UploadOptions): Promise<SyllabusDraft>;
   confirm(draft: SyllabusDraft): Promise<SyllabusDraft>;
-  generate(syllabusId: string): Promise<RoadmapDraft>;
+  generate(syllabusId: string, courseId?: string): Promise<RoadmapDraft>;
   save(roadmap: RoadmapDraft): Promise<RoadmapDraft>;
   schedule(
     roadmapId: string,
@@ -130,16 +131,22 @@ export function previewRoadmap(draft: SyllabusDraft): RoadmapDraft {
 export const liveCoreService: CoreService = {
   upload: uploadSyllabus,
   confirm: confirmSyllabus,
-  async generate(id) {
+  async generate(id, selectedCourseId) {
     const r = await call<Roadmap>(
-      `/courses/${await courseId(currentCourse.name)}/roadmap:generate`,
+      `/courses/${selectedCourseId ?? (await courseId(currentCourse.name))}/roadmap:generate`,
       {
         method: "POST",
         body: JSON.stringify({ syllabus_id: id }),
       },
     );
     const edges = await call<Edge[]>(`/roadmaps/${r.id}/edges`);
-    return { id: r.id, nodes: r.nodes, edges, overloaded_weeks: [] };
+    return {
+      id: r.id,
+      course_id: r.course_id,
+      nodes: r.nodes,
+      edges,
+      overloaded_weeks: [],
+    };
   },
   async save(roadmap) {
     const stored = await call<Edge[]>(`/roadmaps/${roadmap.id}/edges`);

@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  cleanup,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NodeMaterials } from "./NodeMaterials";
 import * as materialsApi from "../../api/materials";
@@ -106,7 +112,7 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
           language: "en",
           duration_min: 15,
           is_free: true,
-          score: 0.80,
+          score: 0.8,
           breakdown: fullBreakdown,
           reason: "",
           evidence_quote: "",
@@ -133,25 +139,27 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
   });
 
   it("handles one-tap feedback and replaces unhelpful resource in-place", async () => {
-    const feedbackSpy = vi.spyOn(resourcesApi, "sendResourceFeedback").mockResolvedValue({
-      status: "ok",
-      replacement: {
-        id: "r_replacement",
-        rank: 1,
-        title: "Replacement Resource from Stanford",
-        url: "https://stanford.edu/cs106",
-        domain: "stanford.edu",
-        format: "video",
-        language: "en",
-        duration_min: 30,
-        is_free: true,
-        score: 0.87,
-        breakdown: fullBreakdown,
-        reason: "Higher relevance alternative",
-        evidence_quote: "Stanford alternative quote",
-        pinned: false,
-      },
-    });
+    const feedbackSpy = vi
+      .spyOn(resourcesApi, "sendResourceFeedback")
+      .mockResolvedValue({
+        status: "ok",
+        replacement: {
+          id: "r_replacement",
+          rank: 1,
+          title: "Replacement Resource from Stanford",
+          url: "https://stanford.edu/cs106",
+          domain: "stanford.edu",
+          format: "video",
+          language: "en",
+          duration_min: 30,
+          is_free: true,
+          score: 0.87,
+          breakdown: fullBreakdown,
+          reason: "Higher relevance alternative",
+          evidence_quote: "Stanford alternative quote",
+          pinned: false,
+        },
+      });
 
     vi.spyOn(resourcesApi, "fetchNodeResources").mockResolvedValue({
       status: "ready",
@@ -166,7 +174,7 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
           language: "en",
           duration_min: 10,
           is_free: true,
-          score: 0.70,
+          score: 0.7,
           breakdown: fullBreakdown,
           reason: "Initial candidate",
           evidence_quote: "",
@@ -191,14 +199,18 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
     });
 
     // In-place replacement
-    expect(await screen.findByText(/Replacement Resource from Stanford/)).toBeTruthy();
+    expect(
+      await screen.findByText(/Replacement Resource from Stanford/),
+    ).toBeTruthy();
     expect(screen.queryByText(/Old Resource to Reject/)).toBeNull();
   });
 
   it("triggers searchNodeResources when 'Tìm lại' is clicked", async () => {
-    const searchSpy = vi.spyOn(resourcesApi, "searchNodeResources").mockResolvedValue({
-      run_id: "run-abc",
-    });
+    const searchSpy = vi
+      .spyOn(resourcesApi, "searchNodeResources")
+      .mockResolvedValue({
+        run_id: "run-abc",
+      });
 
     vi.spyOn(resourcesApi, "fetchNodeResources").mockResolvedValue({
       status: "ready",
@@ -208,9 +220,49 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
 
     render(<NodeMaterials nodeId="node-1" />);
 
-    const searchBtns = await screen.findAllByRole("button", { name: /Tìm lại/ });
+    const searchBtns = await screen.findAllByRole("button", {
+      name: /Tìm lại/,
+    });
     fireEvent.click(searchBtns[0]);
 
     expect(searchSpy).toHaveBeenCalledWith("node-1");
+  });
+  it("keeps a valid source visible with an insufficient warning and allows recovery after an error", async () => {
+    vi.spyOn(resourcesApi, "fetchNodeResources")
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue({
+        status: "insufficient",
+        resources: [
+          {
+            id: "valid",
+            rank: 1,
+            title: "One verified source",
+            url: "https://mit.edu/course",
+            domain: "mit.edu",
+            format: "article",
+            language: "en",
+            duration_min: 10,
+            is_free: true,
+            score: 0.8,
+            breakdown: fullBreakdown,
+            reason: "relevant",
+            evidence_quote: "Source excerpt",
+            pinned: false,
+          },
+        ],
+        gaps: [],
+      });
+    render(<NodeMaterials nodeId="node-1" />);
+    expect(await screen.findByRole("alert")).toHaveProperty(
+      "textContent",
+      "offline",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Thử lại nguồn học" }));
+    expect(
+      await screen.findByRole("link", { name: /One verified source/ }),
+    ).toBeTruthy();
+    expect(screen.getByText("Chưa tìm được nguồn đủ tốt")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Video" }));
+    expect(screen.getByText("Không có nguồn phù hợp với bộ lọc này.")).toBeTruthy();
   });
 });

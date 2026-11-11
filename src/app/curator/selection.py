@@ -43,12 +43,8 @@ def lexical_similarity(a: ScoredResource, b: ScoredResource) -> float:
     shortcut: lexical, not the embeddings spec 11.5 names; pass an embedding
     ``similarity`` once app.llm has an embedding client within quota.
     """
-    left_text = f"{a.title or ''} {a.excerpt or ''}".strip()
-    right_text = f"{b.title or ''} {b.excerpt or ''}".strip()
-    if not left_text or not right_text:
-        return 0.0
-    left = Counter(tokenize_vi(left_text))
-    right = Counter(tokenize_vi(right_text))
+    left = Counter(tokenize_vi(f"{a.title} {a.excerpt}"))
+    right = Counter(tokenize_vi(f"{b.title} {b.excerpt}"))
     dot = sum(count * right[word] for word, count in left.items())
     norm = math.sqrt(sum(c * c for c in left.values()) * sum(c * c for c in right.values()))
     return dot / norm if norm else 0.0
