@@ -64,3 +64,5 @@ The remaining review items need separate work: discoverable account/course-to-ro
 ![Full stage sources with an insufficient warning](graph-108-110/09-stage-sources.png)
 ![Private source page](graph-108-110/10-material-page.png)
 ![Restored syllabus editor](graph-108-110/11-restored-syllabus.png)
+
+The dark-theme axe scan waits for finite panel color transitions to settle. CI exposed intermediate animation colors during an immediate scan; no axe rule or severity check was removed. The complete panel/source scan passed three repeated desktop runs and three repeated mobile runs after this timing correction.

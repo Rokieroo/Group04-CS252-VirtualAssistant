@@ -694,6 +694,22 @@ test("node panel remains accessible with source metadata and inactive gateways",
       })),
   ).toEqual([]);
   await page.emulateMedia({ colorScheme: "dark" });
+  // Audit settled theme colors, not intermediate frames of the color transition.
+  await page.locator(".node-panel-container").evaluate(async (panel) => {
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => resolve()),
+    );
+    const finite = panel
+      .getAnimations({ subtree: true })
+      .filter((animation) =>
+        Number.isFinite(
+          animation.effect?.getComputedTiming().endTime ?? Infinity,
+        ),
+      );
+    await Promise.all(
+      finite.map((animation) => animation.finished.catch(() => undefined)),
+    );
+  });
   const dark = await new AxeBuilder({ page })
     .include(".node-panel-container")
     .analyze();
