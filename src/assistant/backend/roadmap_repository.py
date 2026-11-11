@@ -12,6 +12,7 @@ from sqlalchemy import select, text, update
 
 from app.concepts import comparison_key
 from app.roadmap.graph import would_create_cycle
+from app.roadmap.nodes import prerequisites
 
 from .catalog_models import Concept, GraphLayout, RoadmapEdge
 from .models import Course, Roadmap, RoadmapNode, utcnow
@@ -77,7 +78,18 @@ def add_roadmap_edge(
             RoadmapEdge.roadmap_id == roadmap_id
         )
     ).all()
-    path = would_create_cycle([tuple(edge) for edge in edges], parent_id, child_id)
+    # The graph also shows each milestone after the topics it covers (GET .../graph);
+    # an edge from a milestone back to one of those topics would close a visible cycle.
+    covers = [
+        (topic_id, milestone_id)
+        for milestone_id, topic_ids in prerequisites(
+            list(db.scalars(select(RoadmapNode).where(RoadmapNode.roadmap_id == roadmap_id)))
+        ).items()
+        for topic_id in topic_ids
+    ]
+    path = would_create_cycle(
+        [tuple(edge) for edge in edges] + covers, parent_id, child_id
+    )
     if path:
         raise CycleError(path)
     edge = RoadmapEdge(
