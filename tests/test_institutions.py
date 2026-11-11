@@ -4,6 +4,7 @@ import gzip
 import json
 from pathlib import Path
 
+import pytest
 from sqlalchemy import select
 from test_role_catalog import add_resource
 
@@ -102,3 +103,9 @@ def test_catalog_authority_follows_the_institution_tier(app, client, clock):
         institution.tier = 2
         db.flush()
         assert matched_authority() == (2, 0.7)
+
+
+def test_match_sources_rejects_an_incomplete_node_context():
+    with pytest.raises(ValueError, match="language, level"):
+        match_sources({"title": "Recursion", "subjects": ["ct.recursion"]}, [])
+
