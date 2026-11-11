@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { RoadmapDraft, SyllabusDraft } from "../../api/core";
+import type { NodeStatus, RoadmapDraft, SyllabusDraft } from "../../api/core";
 import { NodeMaterials } from "./NodeMaterials";
 
 type Props = {
@@ -9,6 +9,14 @@ type Props = {
   onWeeklyChange: (minutes: number) => void;
   /** The roadmap is saved on the backend, so its nodes have sources to show. */
   live?: boolean;
+};
+
+const STATUS_LABEL: Record<NodeStatus, string> = {
+  locked: "Locked",
+  available: "Available",
+  in_progress: "In progress",
+  done: "Done",
+  needs_review: "Needs review",
 };
 
 /** S5 overview and selected-week detail share the same approved syllabus data. */
@@ -56,7 +64,7 @@ export function RoadmapTimeline({
                     {items
                       .map(
                         (n) =>
-                          `${n.title} · ${n.est_minutes ?? n.duration_minutes ?? 0} min · ${n.status || "available"}`,
+                          `${n.title} · ${n.est_minutes ?? n.duration_minutes ?? 0} min · ${STATUS_LABEL[n.status || "available"]}`,
                       )
                       .join(" · ")}
                   </small>
@@ -67,6 +75,7 @@ export function RoadmapTimeline({
         </div>
         {selected !== null && (
           <section
+            key={selected}
             className="core-week-detail"
             aria-label={`Week ${selected} details`}
           >
@@ -77,15 +86,7 @@ export function RoadmapTimeline({
                 <p
                   className={`roadmap-status status-${node.status || "available"}`}
                 >
-                  {
-                    {
-                      locked: "Locked",
-                      available: "Available",
-                      in_progress: "In progress",
-                      done: "Done",
-                      needs_review: "Needs review",
-                    }[node.status || "available"]
-                  }
+                  {STATUS_LABEL[node.status || "available"]}
                 </p>
                 <p>{node.est_minutes ?? node.duration_minutes ?? 0} minutes</p>
                 <p>

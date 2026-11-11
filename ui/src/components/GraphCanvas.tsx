@@ -63,6 +63,9 @@ interface InternalNode extends GraphNode {
   radius: number;
   displayX: number;
   displayY: number;
+  /** Where the node is easing to after a layout change; unset once it arrives. */
+  targetX?: number;
+  targetY?: number;
 }
 
 /**
@@ -158,6 +161,14 @@ export function GraphCanvas({
 
   // Computed internal node positions
   const internalNodesRef = useRef<Map<string, InternalNode>>(new Map());
+  // Set on every render and pointer move; the frame loop draws only when this is set
+  // or something is still moving, so an idle graph costs no canvas work.
+  const needsDraw = useRef(true);
+  needsDraw.current = true;
+  const reducedMotion = useRef(
+    typeof matchMedia === "function" &&
+      matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
 
   // Update activeCycle and cycleAlert when prop changes
   useEffect(() => {
@@ -224,6 +235,10 @@ export function GraphCanvas({
           const indexInWeek = list.findIndex((n) => n.id === node.id);
           initX = (w - 1) * colWidth + 80;
           initY = indexInWeek * rowHeight + 80;
+        } else if (prev) {
+          // The simulation settles from where the nodes are now, not a fresh scatter.
+          initX = prev.displayX;
+          initY = prev.displayY;
         } else {
           // Circular / scatter distribution for force
           const angle = Math.random() * Math.PI * 2;
@@ -233,13 +248,17 @@ export function GraphCanvas({
         }
       }
 
+      // A node already on screen glides to its week column instead of jumping.
+      const glide = changedLayout && prev && !pinned && layout === "week";
       newMap.set(node.id, {
         ...node,
         vx: 0,
         vy: 0,
         radius,
-        displayX: initX,
-        displayY: initY,
+        displayX: glide ? prev.displayX : initX,
+        displayY: glide ? prev.displayY : initY,
+        targetX: glide ? initX : layout === "week" ? prev?.targetX : undefined,
+        targetY: glide ? initY : layout === "week" ? prev?.targetY : undefined,
         pinned: prev?.pinned ?? node.pinned ?? false,
       });
     });
@@ -254,6 +273,7 @@ export function GraphCanvas({
     const tick = () => {
       const nodeMap = internalNodesRef.current;
       const nodeList = Array.from(nodeMap.values());
+      let moving = false;
 
       // Keep the graph steady while the user manipulates the viewport.
       if (layout === "force" && nodeList.length > 0 && !isPanning.current) {
@@ -318,11 +338,28 @@ export function GraphCanvas({
             n.vy *= 0.85;
             n.displayX += n.vx;
             n.displayY += n.vy;
+            if (Math.abs(n.vx) + Math.abs(n.vy) > 0.02) moving = true;
           }
         });
       }
 
-      drawRef.current();
+      const ease = reducedMotion.current ? 1 : 0.18;
+      for (const n of nodeList) {
+        if (n.targetX === undefined || n.targetY === undefined) continue;
+        n.displayX += (n.targetX - n.displayX) * ease;
+        n.displayY += (n.targetY - n.displayY) * ease;
+        if (Math.hypot(n.targetX - n.displayX, n.targetY - n.displayY) < 0.5) {
+          n.displayX = n.targetX;
+          n.displayY = n.targetY;
+          n.targetX = n.targetY = undefined;
+        }
+        moving = true;
+      }
+
+      if (moving || needsDraw.current) {
+        needsDraw.current = false;
+        drawRef.current();
+      }
       animId = requestAnimationFrame(tick);
     };
 
@@ -618,6 +655,41 @@ export function GraphCanvas({
     [],
   );
 
+  // Wheel zoom and focusing a node glide to their goal; buttons and keys stay one step.
+  type View = { pan: { x: number; y: number }; zoom: number };
+  const view = useRef<View>({ pan, zoom });
+  view.current = { pan, zoom };
+  const viewGoal = useRef<View | null>(null);
+  const viewFrame = useRef(0);
+  useEffect(() => () => cancelAnimationFrame(viewFrame.current), []);
+  const animateView = (goal: View) => {
+    viewGoal.current = goal;
+    if (viewFrame.current) return;
+    const step = () => {
+      const target = viewGoal.current;
+      if (!target) {
+        viewFrame.current = 0;
+        return;
+      }
+      const k = reducedMotion.current ? 1 : 0.25;
+      const { pan: p, zoom: z } = view.current;
+      const next = {
+        zoom: z + (target.zoom - z) * k,
+        pan: { x: p.x + (target.pan.x - p.x) * k, y: p.y + (target.pan.y - p.y) * k },
+      };
+      const done =
+        Math.abs(target.zoom - next.zoom) < 0.002 &&
+        Math.hypot(target.pan.x - next.pan.x, target.pan.y - next.pan.y) < 0.5;
+      // Continue from this frame even before React re-renders with it.
+      view.current = done ? target : next;
+      setZoom(view.current.zoom);
+      setPan(view.current.pan);
+      if (done) viewGoal.current = null;
+      viewFrame.current = done ? 0 : requestAnimationFrame(step);
+    };
+    viewFrame.current = requestAnimationFrame(step);
+  };
+
   const dragMoved = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const focusNode = (id: string) => {
@@ -625,9 +697,13 @@ export function GraphCanvas({
       canvas = canvasRef.current;
     if (node && canvas) {
       const rect = canvas.getBoundingClientRect();
-      setPan({
-        x: rect.width / 2 - node.displayX * zoom,
-        y: rect.height / 2 - node.displayY * zoom,
+      const goalZoom = (viewGoal.current ?? view.current).zoom;
+      animateView({
+        zoom: goalZoom,
+        pan: {
+          x: rect.width / 2 - node.displayX * goalZoom,
+          y: rect.height / 2 - node.displayY * goalZoom,
+        },
       });
     }
   };
@@ -639,6 +715,7 @@ export function GraphCanvas({
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<{ distance: number; zoom: number } | null>(null);
   const handleMouseDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    viewGoal.current = null;
     e.currentTarget.setPointerCapture?.(e.pointerId);
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.current.size === 2) {
@@ -676,6 +753,7 @@ export function GraphCanvas({
   };
 
   const handleMouseMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    needsDraw.current = true;
     if (pointers.current.has(e.pointerId))
       pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pinch.current && pointers.current.size >= 2) {
@@ -840,8 +918,17 @@ export function GraphCanvas({
   // Zoom with Wheel
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.1 : 0.9;
-    setZoom((prev) => Math.max(0.2, Math.min(3.0, prev * factor)));
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const ax = e.clientX - rect.left,
+      ay = e.clientY - rect.top;
+    // Successive wheel ticks build on the goal, so fast scrolling still lands exactly.
+    const from = viewGoal.current ?? view.current;
+    const goalZoom = Math.max(0.2, Math.min(3.0, from.zoom * (e.deltaY < 0 ? 1.1 : 0.9)));
+    const wx = (ax - from.pan.x) / from.zoom,
+      wy = (ay - from.pan.y) / from.zoom;
+    animateView({ zoom: goalZoom, pan: { x: ax - wx * goalZoom, y: ay - wy * goalZoom } });
   };
 
   // Keyboard navigation (+ - arrow keys 0)
@@ -881,6 +968,7 @@ export function GraphCanvas({
         canvas.height = (rect.height || 550) * dpr;
         const ctx = canvas.getContext("2d");
         ctx?.scale(dpr, dpr);
+        needsDraw.current = true;
       }
     };
     handleResize();

@@ -252,6 +252,35 @@
   border-color: var(--color-primary);
   background: var(--color-tint);
 }
+.core-week:hover:not(.selected) {
+  border-color: color-mix(in oklab, var(--color-primary) 45%, var(--color-line));
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+.core-week:active {
+  transform: scale(0.99);
+}
+/* Each setup step and roadmap view mounts fresh panels, so they ease in on every step
+   change, not only on page switches; the global reduced-motion rule turns this off. */
+.core-panel,
+.core-week-detail {
+  animation: fade-up var(--duration-base) var(--ease-decelerate) backwards;
+}
+.core-panel + .core-panel {
+  animation-delay: 60ms;
+}
+.core-graph-loading {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--color-line), var(--color-tint), var(--color-line));
+  background-size: 200% 100%;
+  animation: core-shimmer 1.2s linear infinite;
+}
+@keyframes core-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
 .core-week-number {
   flex: 0 0 42px;
   display: grid;
