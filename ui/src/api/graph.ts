@@ -54,26 +54,6 @@ export async function fetchRoadmapGraph(
 }
 
 /**
- * Fetch local subgraph around center node.
- * GET /api/v1/roadmap-nodes/{nodeId}/graph?depth={depth}&direction={direction}
- */
-export async function fetchNodeLocalGraph(
-  nodeId: string,
-  depth = 2,
-  direction: "both" | "ancestors" | "descendants" = "both",
-): Promise<RoadmapGraphResponse> {
-  const params = new URLSearchParams({
-    depth: String(depth),
-    direction,
-  });
-  return normalizeGraph(
-    await call<RawGraph>(
-      `/roadmap-nodes/${encodeURIComponent(nodeId)}/graph?${params.toString()}`,
-    ),
-  );
-}
-
-/**
  * Client-side Transitive Reduction algorithm (matching Python's transitive_reduction).
  * For a DAG, if a -> b -> c and a -> c, edge a -> c is redundant and hidden.
  */
@@ -143,6 +123,7 @@ export function computeTransitiveReduction<
 
 /**
  * Client-side Learning Path for milestone exam prep (covers + all prerequisites).
+ * Like the backend's learning_path, soft (week-order) edges are not prerequisites.
  */
 export function computeMilestoneScope(
   milestoneId: string,
@@ -165,6 +146,7 @@ export function computeMilestoneScope(
   // Traverse backwards to collect all prerequisites
   const reverseAdj = new Map<string, string[]>();
   edges.forEach((e) => {
+    if (e.kind === "soft") return;
     if (!reverseAdj.has(e.child_id)) reverseAdj.set(e.child_id, []);
     reverseAdj.get(e.child_id)!.push(e.parent_id);
   });
