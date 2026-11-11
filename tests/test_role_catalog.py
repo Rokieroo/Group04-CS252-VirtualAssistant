@@ -831,8 +831,7 @@ def test_catalog_license_change_hides_old_exercise_until_reimport(
 def test_roadmap_edges_and_layouts_schema_invariants(app, roadmap):
     from sqlalchemy.exc import IntegrityError
 
-    from assistant.backend.catalog_models import GraphLayout, RoadmapEdge
-    from assistant.backend.roadmap_repository import CycleError, add_roadmap_edge
+    from assistant.backend.catalog_models import GraphLayout
 
     first, second = roadmap["nodes"]
     roadmap_id = roadmap["id"]
@@ -915,4 +914,3 @@ def test_roadmap_edges_and_layouts_schema_invariants(app, roadmap):
         # Both GraphLayout and RoadmapEdge referencing first node should be cascaded
         assert db.scalar(select(func.count()).select_from(GraphLayout)) == 0
         assert db.scalar(select(func.count()).select_from(RoadmapEdge)) == 0
-
