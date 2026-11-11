@@ -65,4 +65,8 @@ def community(helpful: int, total: int) -> float:
 
 
 def total(breakdown: Mapping[str, float]) -> float:
+    # A scorer that forgets a criterion must fail, not get a plausible score.
+    missing = sorted(WEIGHTS.keys() - breakdown.keys())
+    if missing:
+        raise ValueError(f"score breakdown is missing {', '.join(missing)}")
     return round(sum(weight * breakdown[name] for name, weight in WEIGHTS.items()), 4)
