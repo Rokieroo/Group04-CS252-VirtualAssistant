@@ -22,7 +22,7 @@ class Edge:
 
     parent: str
     child: str
-    kind: str = "strict"  # "strict" (prerequisite) or "soft" (week order)
+    kind: str = "strict"  # "strict" (prerequisite), "soft" (week order), "covers" (topic -> milestone)
     confidence: float = 1.0
     reason: str = ""
 
@@ -83,6 +83,15 @@ def edge_pair(edge: Any) -> tuple[str, str]:
     if parent is None or child is None:
         raise ValueError(f"edge needs parent and child: {edge!r}")
     return str(parent), str(child)
+
+
+PREREQUISITE_KINDS = frozenset({"strict", "covers"})
+
+
+def edge_kind(edge: Any) -> str:
+    """An edge's kind; tuples and edges without one are strict prerequisites."""
+    kind = edge.get("kind") if isinstance(edge, dict) else getattr(edge, "kind", None)
+    return kind or "strict"
 
 
 def _unique_ids(nodes: Iterable[Any]) -> list[str]:
@@ -383,12 +392,8 @@ def layers(
     strict_parents: dict[str, list[str]] = {nid: [] for nid in ids}
     for edge in edges:
         p, c = edge_pair(edge)
-        if p in layer_map and c in layer_map and p != c:
-            kind = getattr(edge, "kind", None)
-            if kind is None and isinstance(edge, dict):
-                kind = edge.get("kind")
-            if kind in ("strict", "covers"):
-                strict_parents[c].append(p)
+        if p in layer_map and c in layer_map and p != c and edge_kind(edge) in PREREQUISITE_KINDS:
+            strict_parents[c].append(p)
 
     order = topological_sort(ids, edges)
     for nid in order:
@@ -399,62 +404,31 @@ def layers(
 
 
 def learning_path(
-    nodes: Iterable[Any],
-    edges: Iterable[Any],
-    target_id: str,
+    nodes: Iterable[Any], edges: Iterable[Any], target_id: str
 ) -> list[str]:
-    """Topologically sorted list of all ancestors needed before `target_id` (#97).
+    """Every prerequisite of ``target_id`` in study order, ending with it (#97).
 
-    If `target_id` covers other nodes (e.g. an exam milestone), includes all covered
-    nodes and their prerequisites so the learner knows what to review before the milestone.
+    Follows ``strict`` and ``covers`` edges. ``covers`` edges run topic -> milestone,
+    as the graph API emits them, so a milestone's path is what to review before that
+    checkpoint, and a topic's path never pulls in the milestone that covers it. Soft
+    (week-order) edges are not prerequisites. An unknown target has no path.
     """
-    node_list = list(nodes)
-    ids = _unique_ids(node_list)
+    ids = _unique_ids(nodes)
     known = set(ids)
     if target_id not in known:
-        return [target_id] if target_id else []
+        return []
+    prerequisite_edges = [edge for edge in edges if edge_kind(edge) in PREREQUISITE_KINDS]
+    parents: dict[str, list[str]] = {key: [] for key in ids}
+    for edge in prerequisite_edges:
+        parent, child = edge_pair(edge)
+        if parent in known and child in known:
+            parents[child].append(parent)
 
-    node_by_id = {node_key(n): n for n in node_list}
-    covers_targets = set()
-    target_node = node_by_id.get(target_id)
-    if target_node is not None:
-        raw_covers = getattr(target_node, "covers", None)
-        if raw_covers is None and isinstance(target_node, dict):
-            raw_covers = target_node.get("covers")
-        if raw_covers:
-            if isinstance(raw_covers, str):
-                from app.roadmap.nodes import decode_covers
-
-                covers_targets.update(decode_covers(raw_covers))
-            elif isinstance(raw_covers, (list, set, tuple)):
-                covers_targets.update(str(x) for x in raw_covers)
-
-    edge_list = list(edges)
-    reverse_adj: dict[str, list[str]] = {nid: [] for nid in ids}
-    for edge in edge_list:
-        p, c = edge_pair(edge)
-        if p in known and c in known:
-            reverse_adj[c].append(p)
-            kind = getattr(edge, "kind", None)
-            if kind is None and isinstance(edge, dict):
-                kind = edge.get("kind")
-            if kind == "covers":
-                if p == target_id:
-                    covers_targets.add(c)
-                elif c == target_id:
-                    covers_targets.add(p)
-
-    needed: set[str] = {target_id} | (covers_targets & known)
-    queue = deque(needed)
+    needed = {target_id}
+    queue = deque([target_id])
     while queue:
-        curr = queue.popleft()
-        for ancestor in reverse_adj.get(curr, []):
-            if ancestor not in needed:
-                needed.add(ancestor)
-                queue.append(ancestor)
-
-    full_order = topological_sort(ids, edges)
-    ordered = [nid for nid in full_order if nid in needed and nid != target_id]
-    if target_id in needed:
-        ordered.append(target_id)
-    return ordered
+        for parent in parents[queue.popleft()]:
+            if parent not in needed:
+                needed.add(parent)
+                queue.append(parent)
+    return [key for key in topological_sort(ids, prerequisite_edges) if key in needed]

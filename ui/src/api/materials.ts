@@ -6,6 +6,12 @@ import { call } from "./backend";
 export type RankedSource = {
   kind: "user_material" | "catalog" | "web";
   id: string;
+  source_id?: string | null;
+  institution?: string | null;
+  license?: string;
+  duration_min?: number | null;
+  verification_status?: string;
+  score?: number;
   title: string;
   url: string | null;
   pages: number[];
@@ -39,7 +45,8 @@ export function nodeSources(nodeId: string): Promise<NodeSources> {
 }
 
 export async function nodeMaterials(nodeId: string): Promise<MaterialFile[]> {
-  return (await call<{ files: MaterialFile[] }>(`${node(nodeId)}/materials`)).files;
+  return (await call<{ files: MaterialFile[] }>(`${node(nodeId)}/materials`))
+    .files;
 }
 
 /** One tap confirms (or rejects) every page of a suggestion. */
@@ -49,10 +56,13 @@ export async function decideMaterial(
   attached: boolean,
 ): Promise<void> {
   for (const page of file.pages)
-    await call(`${node(nodeId)}/materials/${encodeURIComponent(page.source_id)}`, {
-      method: "PUT",
-      body: JSON.stringify({ attached }),
-    });
+    await call(
+      `${node(nodeId)}/materials/${encodeURIComponent(page.source_id)}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ attached }),
+      },
+    );
 }
 
 /** "2–3, 7": consecutive pages read as one range. */
