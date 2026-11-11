@@ -401,3 +401,25 @@ def test_graph_performance_300_nodes(app, client, headers):
 
     p95 = sorted(latencies)[8]
     assert p95 < 300.0, f"p95 latency was {p95:.1f}ms, expected < 300ms"
+
+
+def test_course_roadmap_discovery_is_owned_and_persistent(client, headers, headers_b, course_and_roadmap):
+    course_id, roadmap = course_and_roadmap
+    path = f"/api/v1/courses/{course_id}/roadmaps"
+    response = client.get(path, headers=headers)
+    assert response.status_code == 200
+    assert [r["id"] for r in response.json()] == [roadmap["id"]]
+    assert sorted(response.json()[0]["nodes"], key=lambda n: n["id"]) == sorted(roadmap["nodes"], key=lambda n: n["id"])
+    assert client.get(path, headers=headers).json() == response.json()
+    newer = client.post(
+        f"/api/v1/courses/{course_id}/roadmap:generate", headers=headers,
+        json={"nodes": [{"title": "Second saved plan", "week": 1, "type": "topic"}]},
+    )
+    assert newer.status_code == 201, newer.text
+    discovered = client.get(path, headers=headers).json()
+    assert [r["id"] for r in discovered] == [newer.json()["id"], roadmap["id"]]
+    assert client.get(path, headers=headers_b).status_code == 404
+    assert client.get(path).status_code == 401
+    assert client.get("/api/v1/courses/missing/roadmaps", headers=headers).status_code == 404
+    empty = client.post("/api/v1/courses", headers=headers, json={"title": "Empty course"}).json()
+    assert client.get(f"/api/v1/courses/{empty['id']}/roadmaps", headers=headers).json() == []

@@ -366,6 +366,18 @@ def generate_roadmap(
     return _roadmap_payload(roadmap, nodes)
 
 
+@router.get("/courses/{course_id}/roadmaps", response_model=list[RoadmapOut])
+def list_course_roadmaps(course_id: str, db: DB, user: CurrentUser):
+    """Discover persisted roadmaps without requiring a bookmarked roadmap ID."""
+    owned_course(db, course_id, user.id)
+    roadmaps = db.scalars(
+        select(Roadmap)
+        .where(Roadmap.course_id == course_id, Roadmap.user_id == user.id)
+        .order_by(Roadmap.created_at.desc(), Roadmap.id)
+    ).all()
+    return [_roadmap_payload(roadmap, _roadmap_nodes(db, roadmap.id)) for roadmap in roadmaps]
+
+
 @router.get("/roadmaps/{roadmap_id}", response_model=RoadmapOut)
 def get_roadmap(roadmap_id: str, db: DB, user: CurrentUser):
     roadmap = _owned_roadmap(db, roadmap_id, user.id)

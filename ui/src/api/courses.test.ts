@@ -175,3 +175,10 @@ describe("concept extraction against the real backend", () => {
     expect(api.calls).toEqual([]);
   });
 });
+
+
+it("binds materials to the selected course ID even when titles are identical", async () => {
+  const api = await live(happyBackend);
+  await api.courseServiceFor("owned-second-course").uploadSource("Same title", pdf());
+  expect(api.calls.map((c) => c.path)).toEqual(["/api/v1/courses/owned-second-course/sources"]);
+});

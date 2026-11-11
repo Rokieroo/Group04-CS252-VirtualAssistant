@@ -1,8 +1,9 @@
 import "./pages/course-setup/study-companion.css";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { authenticate } from "./api/account";
 import { session } from "./api/backend";
-import { backendCourses, currentCourse } from "./api/courses";
+import { courseServiceFor } from "./api/courses";
+import { CourseLibrary, type OwnedCourse } from "./pages/CourseLibrary";
 import { AuthScreen } from "./components/AuthScreen";
 import { Modal } from "./components/Modal";
 import { Shell } from "./components/Shell";
@@ -48,6 +49,56 @@ export default function CoreApp({ mock = false }: { mock?: boolean }) {
   const [token, setToken] = useState(() => session.get() || null);
   const [page, go] = useHashPage("Library", available);
   const [settings, setSettings] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<OwnedCourse | null>(
+    () => {
+      const id = new URLSearchParams(location.search).get("course");
+      return id ? { id, title: "Môn học đang chọn", level: "" } : null;
+    },
+  );
+  const [showCourses, setShowCourses] = useState(
+    !new URLSearchParams(location.search).has("course") &&
+      !new URLSearchParams(location.search).has("kg_roadmap"),
+  );
+  const selectedId = useRef(selectedCourse?.id || null);
+  const [journeyVersion, setJourneyVersion] = useState(0);
+  const [resumeSyllabus, setResumeSyllabus] = useState(true);
+  const openCourse = (
+    course: OwnedCourse,
+    roadmapId?: string,
+    resume = false,
+  ) => {
+    const url = new URL(location.href);
+    for (const key of [...url.searchParams.keys()])
+      if (key.startsWith("kg_")) url.searchParams.delete(key);
+    url.searchParams.set("course", course.id);
+    if (roadmapId) url.searchParams.set("kg_roadmap", roadmapId);
+    history.replaceState(null, "", url);
+    selectedId.current = course.id;
+    setSelectedCourse(course);
+    setShowCourses(false);
+    setResumeSyllabus(resume);
+    setJourneyVersion((v) => v + 1);
+    go(roadmapId ? "Roadmap" : "Library");
+  };
+
+  useEffect(() => {
+    if (mock) return;
+    const restoreCourse = () => {
+      const query = new URLSearchParams(location.search);
+      const id = query.get("course");
+      if (id === selectedId.current) return;
+      selectedId.current = id;
+      setSelectedCourse(
+        id ? { id, title: "Môn học đang chọn", level: "" } : null,
+      );
+      setShowCourses(!id && !query.has("kg_roadmap"));
+      setResumeSyllabus(true);
+      setJourneyVersion((v) => v + 1);
+    };
+    window.addEventListener("popstate", restoreCourse);
+    return () => window.removeEventListener("popstate", restoreCourse);
+  }, [mock]);
+
   if (!token && !mock)
     return <AuthScreen onAuth={setToken} authenticate={authenticate} />;
 
@@ -72,6 +123,13 @@ export default function CoreApp({ mock = false }: { mock?: boolean }) {
               type="button"
               onClick={() => {
                 session.clear();
+                const url = new URL(location.href);
+                url.search = "";
+                history.replaceState(null, "", url);
+                selectedId.current = null;
+                setSelectedCourse(null);
+                setShowCourses(true);
+                setJourneyVersion((v) => v + 1);
                 setSettings(false);
                 setToken(null);
               }}
@@ -82,14 +140,62 @@ export default function CoreApp({ mock = false }: { mock?: boolean }) {
         )
       }
     >
-      <CoreJourney page={page} go={go} mock={mock} />
+      {!mock && page === "Library" && (
+        <>
+          {selectedCourse && (
+            <div className="core-actions">
+              <strong>{selectedCourse.title}</strong>
+              <button
+                aria-expanded={showCourses}
+                onClick={() => setShowCourses(!showCourses)}
+              >
+                {showCourses ? "Ẩn danh sách môn học" : "Đổi môn học"}
+              </button>
+            </div>
+          )}
+          {!selectedCourse && !showCourses && (
+            <button onClick={() => setShowCourses(true)}>
+              Danh sách môn học
+            </button>
+          )}
+          {showCourses && <CourseLibrary onOpen={openCourse} />}
+        </>
+      )}
+      {(mock ||
+        selectedCourse ||
+        new URLSearchParams(location.search).has("kg_roadmap")) && (
+        <CoreJourney
+          key={journeyVersion}
+          page={page}
+          go={go}
+          mock={mock}
+          courseId={selectedCourse?.id}
+          courseTitle={selectedCourse?.title}
+          resumeSyllabus={resumeSyllabus}
+        />
+      )}
+      {!mock &&
+        page === "Roadmap" &&
+        !selectedCourse &&
+        !new URLSearchParams(location.search).has("kg_roadmap") && (
+          <section className="card core-panel">
+            <h1>Lộ trình của bạn</h1>
+            <p>Chọn môn học để mở lộ trình đã lưu.</p>
+            <button onClick={() => go("Library")}>Mở danh sách môn học</button>
+          </section>
+        )}
       {/* The sample preview has no backend for slides or the calendar. */}
       {!mock && (
         <>
           {/* Kept mounted so uploads and concept edits survive switching pages. */}
-          <div hidden={page !== "Library"}>
-            <CoursesPage course={currentCourse.name} service={backendCourses} />
-          </div>
+          {selectedCourse && (
+            <div hidden={page !== "Library"} key={selectedCourse.id}>
+              <CoursesPage
+                course={selectedCourse.title}
+                service={courseServiceFor(selectedCourse.id)}
+              />
+            </div>
+          )}
           {(page === "Schedule" || page === "Workspace") && <Workspace />}
         </>
       )}

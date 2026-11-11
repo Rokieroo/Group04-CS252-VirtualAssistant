@@ -37,6 +37,8 @@ async function registerAndUpload(page: Page) {
   await page.getByRole("button", { name: "Register", exact: true }).click();
   await expect(page.locator(".topbar")).toBeVisible();
   await navigate(page, "Courses");
+  await page.getByLabel("Tên môn học", { exact: true }).fill("Concept test course");
+  await page.getByRole("button", { name: "Tạo môn học", exact: true }).click();
   await page.getByLabel("Choose files to upload").setInputFiles({
     name: "week01.pdf",
     mimeType: "application/pdf",
