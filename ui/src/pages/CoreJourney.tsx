@@ -652,8 +652,11 @@ export function CoreJourney({
                     {
                       id: roadmap.id,
                       title: courseName,
+                      edges: roadmap.edges,
                       nodes: roadmap.nodes.map((n) => ({
                         id: n.id,
+                        week: n.week,
+                        covers: n.covers,
                         title: n.title,
                         minutes:
                           n.est_minutes ?? n.duration_minutes ?? undefined,
@@ -936,7 +939,11 @@ export function CoreJourney({
                     <h3>Knowledge Graph môn học</h3>
                   </div>
                   {graphLoading && (
-                    <div role="status" aria-label="Loading course graph…" className="core-graph-loading" />
+                    <div
+                      role="status"
+                      aria-label="Loading course graph…"
+                      className="core-graph-loading"
+                    />
                   )}
                   <GraphFilterBar
                     nodes={graphData.nodes}
