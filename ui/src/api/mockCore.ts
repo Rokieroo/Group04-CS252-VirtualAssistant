@@ -1,8 +1,10 @@
+import { parseSyllabusText, readPages } from "./demoParser";
 import { checkSyllabusInput, validateDraft } from "./syllabus";
-import type { CoreService, NodeStatus, SyllabusDraft } from "./core";
+import type { CoreService, Edge, NodeStatus, RoadmapDraft, SyllabusDraft } from "./core";
 import type { RoadmapNode } from "./types";
 
-// The labelled UI preview (no backend): a fixed CSC10014 syllabus stands in for parsing.
+// The labelled UI preview (no backend). Uploads are parsed in the browser by demoParser;
+// this CSC10014 sample is only the roadmap shown before anything is uploaded.
 const fixture: SyllabusDraft = {
   id: "sy_csc10014",
   file_name: "CSC10014_syllabus.pdf",
@@ -47,14 +49,11 @@ const fixture: SyllabusDraft = {
 const cloneFixture = () => structuredClone(fixture);
 let mockConfirmed = cloneFixture();
 export const mockCoreService: CoreService = {
-  async upload(file) {
+  async upload(file, options) {
     checkSyllabusInput(file);
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    return {
-      ...cloneFixture(),
-      file_name: typeof file === "string" ? "Nội dung đã dán" : file.name,
-      raw_text: typeof file === "string" ? file : fixture.raw_text,
-    };
+    const fileName = typeof file === "string" ? "Nội dung đã dán" : file.name;
+    if (options?.goals && typeof file === "string") return goalsDraft(file);
+    return parseSyllabusText(await readPages(file), fileName);
   },
   async confirm(draft) {
     const warnings = validateDraft(draft);
@@ -68,64 +67,7 @@ export const mockCoreService: CoreService = {
     return mockConfirmed;
   },
   async generate() {
-    const titles: {
-      title: string;
-      week: number;
-      type: "topic" | "milestone";
-    }[] = [
-      ...mockConfirmed.weeks.flatMap((w) =>
-        w.topics.map((title) => ({
-          title,
-          week: w.week,
-          type: "topic" as const,
-        })),
-      ),
-      ...mockConfirmed.assessments.map((a) => ({
-        title: a.name,
-        week: a.due_week ?? 1,
-        type: "milestone" as const,
-      })),
-    ];
-    const nodes: (RoadmapNode & { status?: NodeStatus })[] = titles.map(
-      (x, i) => ({
-        id: `n_${i + 1}`,
-        roadmap_id: "rm_csc10014",
-        title: x.title,
-        week: x.week,
-        type: x.type,
-        kind: x.type,
-        duration_minutes: x.type === "topic" ? 90 : 30,
-        est_minutes: x.type === "topic" ? 90 : 30,
-        due_at: null,
-        covers: [],
-        status: (
-          [
-            "done",
-            "in_progress",
-            "available",
-            "needs_review",
-            "locked",
-          ] as NodeStatus[]
-        )[i % 5],
-      }),
-    );
-    return {
-      id: "rm_csc10014",
-      nodes,
-      edges:
-        nodes.length > 1
-          ? [
-              {
-                parent_id: nodes[0].id,
-                child_id: nodes[1].id,
-                kind: "strict",
-                confidence: 0.82,
-                origin: "llm",
-              },
-            ]
-          : [],
-      overloaded_weeks: [],
-    };
+    return roadmapFrom(mockConfirmed);
   },
   async save(roadmap) { return structuredClone(roadmap); },
   async schedule() {
@@ -140,3 +82,74 @@ export const mockCoreService: CoreService = {
     };
   },
 };
+
+/** Pasted learning goals, one per line, become one week each (the server drafts these with its LLM). */
+function goalsDraft(text: string): SyllabusDraft {
+  const goals = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 52);
+  return {
+    ...cloneFixture(),
+    id: "sy_goals",
+    file_name: "Mục tiêu học tập",
+    pages: 1,
+    raw_text: text,
+    outcomes: [],
+    assessments: [],
+    textbooks: [],
+    weeks: goals.map((goal, i) => ({ week: i + 1, topics: [goal], source_page: 1 })),
+    source_pages: { 1: text.slice(0, 4000) },
+  };
+}
+
+/**
+ * The server builder's rules without its LLM (app/roadmap/builder.py, nodes.py): one node
+ * per topic and assessment, a soft edge from the last topic of a week to the first of the
+ * next, and a milestone covering every topic up to its week. Strict prerequisites come
+ * from the LLM in the full app, so the preview proposes none.
+ */
+export function roadmapFrom(syllabus: SyllabusDraft): RoadmapDraft {
+  const id = "rm_preview";
+  const lastWeek = Math.max(1, ...syllabus.weeks.map((w) => w.week));
+  const topics = syllabus.weeks.flatMap((w) =>
+    w.topics.map((title) => ({ title, week: w.week })),
+  );
+  const nodes: (RoadmapNode & { status?: NodeStatus })[] = topics.map((t, i) => ({
+    id: `n_${i + 1}`,
+    roadmap_id: id,
+    title: t.title,
+    week: t.week,
+    type: "topic",
+    kind: "topic",
+    duration_minutes: 90,
+    est_minutes: 90,
+    due_at: null,
+    covers: [],
+  }));
+  syllabus.assessments.forEach((a, i) => {
+    const week = a.due_week ?? lastWeek;
+    nodes.push({
+      id: `m_${i + 1}`,
+      roadmap_id: id,
+      title: a.name,
+      week,
+      type: "milestone",
+      kind: "milestone",
+      duration_minutes: 30,
+      est_minutes: 30,
+      due_at: null,
+      covers: nodes.filter((n) => n.type === "topic" && (n.week ?? 1) <= week).map((n) => n.id),
+    });
+  });
+  const weeks = [...new Set(topics.map((t) => t.week))];
+  const edges: Edge[] = weeks.slice(1).map((week, i) => {
+    const earlier = nodes.filter((n) => n.type === "topic" && n.week === weeks[i]);
+    return {
+      parent_id: earlier[earlier.length - 1].id,
+      child_id: nodes.find((n) => n.type === "topic" && n.week === week)!.id,
+      kind: "soft",
+      confidence: 1,
+      origin: "week_order",
+      reason: `week ${weeks[i]} -> week ${week}`,
+    };
+  });
+  return { id, nodes, edges, overloaded_weeks: [] };
+}

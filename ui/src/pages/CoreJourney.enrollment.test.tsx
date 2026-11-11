@@ -29,7 +29,7 @@ it("removes a personal roadmap without adding it to the prepared catalog and ret
   await user.click(screen.getByRole("button", { name: /Prefer text/ }));
   await user.type(
     screen.getByRole("textbox", { name: "Syllabus text" }),
-    "Personal syllabus",
+    "Personal syllabus{Enter}Week 1: Arrays{Enter}Final exam: week 1 (100%)",
   );
   await user.click(screen.getByRole("button", { name: /Continue to review/ }));
   await user.click(
