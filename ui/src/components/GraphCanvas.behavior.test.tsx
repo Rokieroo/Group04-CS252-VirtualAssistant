@@ -7,7 +7,7 @@ import {
   cleanup,
   act,
 } from "@testing-library/react";
-import { GraphCanvas } from "./GraphCanvas";
+import { GRAPH_FALLBACK, GraphCanvas } from "./GraphCanvas";
 import { BackendError } from "../api/backend";
 let frames: Map<number, FrameRequestCallback>;
 let next: number;
@@ -43,6 +43,8 @@ beforeEach(() => {
       "arc",
       "fillRect",
       "fillText",
+      "bezierCurveTo",
+      "strokeText",
     ].map((key) => [key, vi.fn()]),
   );
   fillColors = [];
@@ -92,7 +94,7 @@ it("blocks a cycle using full graph even when those edges are hidden", async () 
   expect(screen.getByRole("alert").textContent).toContain("b → a → b");
   expect(create).not.toHaveBeenCalled();
   frame();
-  expect(fillColors).toContain("#ef4444");
+  expect(fillColors).toContain(GRAPH_FALLBACK.danger);
 });
 it("shows structured server cycle paths", async () => {
   const create = vi
@@ -152,7 +154,11 @@ it("wheel zoom glides around the cursor and an idle graph stops redrawing", () =
   const view = render(<GraphCanvas nodes={nodes} edges={[]} />);
   frame();
   // jsdom puts the canvas at 0,0: the world point under (100, 100) is (40, 40) at zoom 1.
-  fireEvent.wheel(view.container.querySelector("canvas")!, { deltaY: -100, clientX: 100, clientY: 100 });
+  fireEvent.wheel(view.container.querySelector("canvas")!, {
+    deltaY: -100,
+    clientX: 100,
+    clientY: 100,
+  });
   frame();
   expect(ctx.scale.mock.lastCall[0]).toBeLessThan(1.1);
   for (let i = 0; i < 60; i++) frame();

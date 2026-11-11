@@ -38,7 +38,8 @@ def create_app(settings: Settings | None = None, *, now=utcnow, ai_transport=Non
 
     @asynccontextmanager
     async def lifespan(app):
-        database.create_schema()
+        if settings.run_migrations:
+            database.create_schema()
         yield
         database.engine.dispose()
 

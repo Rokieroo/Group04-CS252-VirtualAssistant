@@ -104,3 +104,23 @@ jobs:
           cache: pip
       - run: python -m pip install -r requirements.txt -e ".[dev,postgres]"
       - run: pytest tests/ -q
+      # The production layout (deploy/docker-compose.prod.yml, issue #18): roles from
+      # db/postgres/roles.sql, migrations as the owner, the API as the row-only app role.
+      - name: Least-privilege roles, migrate as owner, smoke test as app
+        env:
+          ADMIN_URL: postgresql://pathly:pathly-test-only@127.0.0.1:5432/postgres
+        run: |
+          psql "$ADMIN_URL" -v ON_ERROR_STOP=1 -v db_name=pathly_prod \
+               -v owner_password=owner-test-only -v app_password=app-test-only \
+               -f db/postgres/roles.sql
+          DATABASE_URL=postgresql+psycopg://pathly_owner:owner-test-only@127.0.0.1:5432/pathly_prod \
+            alembic upgrade head
+          DATABASE_URL=postgresql+psycopg://pathly_app:app-test-only@127.0.0.1:5432/pathly_prod \
+            RUN_MIGRATIONS=0 PYTHONPATH=src \
+            uvicorn assistant.backend.main:app --port 8000 > api.log 2>&1 &
+          for i in $(seq 30); do curl -fsS http://127.0.0.1:8000/api/v1/health && break; sleep 1; done
+          python scripts/smoke_server.py http://127.0.0.1:8000 || { cat api.log; exit 1; }
+          if psql "postgresql://pathly_app:app-test-only@127.0.0.1:5432/pathly_prod" \
+               -c "CREATE TABLE should_fail (id int)" 2>/dev/null; then
+            echo "pathly_app must not be able to create tables"; exit 1
+          fi
