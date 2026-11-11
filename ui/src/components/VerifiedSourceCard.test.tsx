@@ -106,6 +106,7 @@ describe("VerifiedSourceCard component (Issue #104, #58, #94)", () => {
     render(<InsufficientSourcesNotice onRetry={retrySpy} />);
 
     expect(screen.getByText("Chưa tìm được nguồn đủ tốt")).toBeTruthy();
+    expect(screen.getByText(/Chưa có đủ tài liệu mở/)).toBeTruthy();
     expect(
       screen.getByText(/ngưỡng chất lượng thẩm định ≥ 0.65/i),
     ).toBeTruthy();

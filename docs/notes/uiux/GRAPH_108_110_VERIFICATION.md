@@ -26,7 +26,7 @@ This follow-up retains Thinh's #149 and #150 contributions. Both original PRs we
 - Desktop/mobile browser checks cover search to panel, milestone coverage and prerequisites, CLO/verified filters, URL restoration after reload, local API calls, saved pinned positions, touch pinch, edge add/remove after reload, and scoped axe checks (no serious/critical violations).
 - API browser checks use clearly identified intercepted fixtures. They verify UI/API contracts and reload state, not a production account or database. No backend code changed.
 - Separate benchmark: 300 nodes, 299 prerequisite edges; week pan 50.5 FPS, force pan 54.4 FPS in local headless Chrome without CPU throttling. Force simulation pauses while background panning; canvas rendering continues each frame.
-- Production build passes TypeScript and Vite. Main JS gzip: 121.89 KB versus 106.53 KB on pre-graph main `350224d` with the same installed toolchain (+15.36 KB). CSS: 16.15 KB versus 13.64 KB. No runtime dependency added.
+- Production build passes TypeScript and Vite. Main JS gzip: 121.88 KB versus 106.53 KB on pre-graph main `350224d` with the same installed toolchain (+15.35 KB). CSS: 16.15 KB versus 13.64 KB. No runtime dependency added.
 
 See `ui/README.md` for the benchmark command and existing run instructions.
 

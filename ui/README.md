@@ -105,7 +105,7 @@ For interactive course knowledge graph visualization (`GraphCanvas`), we evaluat
 
 The implementation keeps the existing native Canvas renderer and force engine, so no graph dependency is added. Cytoscape.js and react-force-graph-2d provide more built-in graph features; d3-force provides a reusable simulation, but each would require an integration and a measured bundle comparison. The previous library size/FPS estimates were not benchmarks and have been removed.
 
-Local verification of the integrated #108/#110 branch measured **50.5 FPS (week)** and **54.4 FPS (force)** while panning a synthetic graph with 300 nodes and 299 edges in headless Chrome, without CPU throttling. This is a development-machine sample, not proof of performance on a mid-range laptop. Main JavaScript gzip size was **121.89 KB**, compared with **106.53 KB** for pre-graph main (`350224d`) using the same installed toolchain: **+15.36 KB**. CSS gzip increased from 13.64 KB to 16.15 KB. Font assets were unchanged.
+Local verification of the integrated #108/#110 branch measured **50.5 FPS (week)** and **54.4 FPS (force)** while panning a synthetic graph with 300 nodes and 299 edges in headless Chrome, without CPU throttling. This is a development-machine sample, not proof of performance on a mid-range laptop. Main JavaScript gzip size was **121.88 KB**, compared with **106.53 KB** for pre-graph main (`350224d`) using the same installed toolchain: **+15.35 KB**. CSS gzip increased from 13.64 KB to 16.15 KB. Font assets were unchanged.
 
 The force simulation pauses during background panning and resumes on release; rendering and viewport interaction continue every frame. The performance test is opt-in so concurrent browser suites do not distort it:
 

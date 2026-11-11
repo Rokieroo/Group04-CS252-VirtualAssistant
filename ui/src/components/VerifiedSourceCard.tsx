@@ -278,8 +278,8 @@ export function InsufficientSourcesNotice({
         <h4 className="vsc-insufficient-title">Chưa tìm được nguồn đủ tốt</h4>
       </div>
       <p className="vsc-insufficient-desc">
-        Hệ thống chưa tìm thấy tài liệu mở đạt ngưỡng chất lượng thẩm định ≥
-        0.65 cho chặng này.
+        Chưa có đủ tài liệu mở đạt ngưỡng chất lượng thẩm định ≥ 0.65 cho chặng
+        này.
       </p>
       {onRetry && (
         <div>
