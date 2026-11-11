@@ -22,10 +22,9 @@ def pick_pages(concept: dict, sources: list[dict]) -> list[dict]:
         for s in sources
         if s["page"] in pages_in(concept, s.get("file_name"))
     ]
-    title = concept.get("title") or concept.get("name") or ""
-    summary = concept.get("summary") or concept.get("description") or ""
-    query = f"{title} {summary}".strip()
-    hits = retrieve_top_k(query, own or sources, top_k=TOP_K) if query else []
+    hits = retrieve_top_k(
+        f"{concept['title']} {concept['summary']}", own or sources, top_k=TOP_K
+    )
     picked = [{"id": h.source_id, "page": h.page, "text": h.text} for h in hits]
     ids = {p["id"] for p in picked}
     return (picked + [p for p in own if p["id"] not in ids])[:TOP_K]
