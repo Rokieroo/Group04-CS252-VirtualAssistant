@@ -12,6 +12,7 @@ export interface GraphListNode {
   status?: string;
   sources_status?: string;
   sources_count?: number;
+  verified_sources_count?: number;
   clo?: string[];
   prereqs_count?: number;
 }
@@ -95,8 +96,8 @@ export function GraphListView({
             sortedNodes.map((node) => {
               const isSelected = selectedId === node.id;
               const statusInfo =
-                STATUS_LABELS[node.status || "not_started"] ||
-                STATUS_LABELS.not_started;
+                STATUS_LABELS[node.status || "unknown"] ||
+                STATUS_LABELS.unknown;
 
               return (
                 <tr
@@ -142,18 +143,25 @@ export function GraphListView({
                     </span>
                   </td>
                   <td className="cell-sources">
-                    {node.sources_status === "insufficient" ? (
+                    {node.sources_status === "pending" ||
+                    !node.sources_status ? (
+                      <span className="sources-badge">Đang kiểm tra</span>
+                    ) : node.sources_status === "insufficient" ||
+                      node.verified_sources_count === 0 ? (
                       <span
                         className="sources-badge insufficient"
                         title="Cần bổ sung nguồn kiểm chứng"
                       >
                         ⚠️ Chưa đủ
+                        {node.verified_sources_count !== undefined
+                          ? ` · ${node.verified_sources_count} nguồn đã xác minh`
+                          : ""}
                       </span>
                     ) : (
                       <span className="sources-badge sufficient">
                         {node.sources_status === "pending"
                           ? "Đang kiểm tra"
-                          : `✓ ${node.sources_count ?? 0} nguồn`}
+                          : `✓ ${node.verified_sources_count ?? node.sources_count ?? 0} nguồn`}
                       </span>
                     )}
                   </td>

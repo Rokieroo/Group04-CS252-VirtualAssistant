@@ -346,3 +346,49 @@ export function syllabusError(error: unknown): string {
     "Không xử lý được yêu cầu. Hãy thử lại."
   );
 }
+
+/** Reopen the reviewed data saved by confirmationPayload; never re-run the parser. */
+export function restoreSavedSyllabus(saved: Syllabus): SyllabusDraft {
+  let parsed: Partial<ReturnType<typeof confirmationPayload>["parsed"]> = {};
+  try {
+    const value = JSON.parse(saved.raw_text);
+    if (value && !Array.isArray(value) && typeof value === "object")
+      parsed = value;
+  } catch {
+    /* Older syllabuses store plain text without review metadata. */
+  }
+  const source_pages = parsed.source_pages || {};
+  return {
+    id: saved.id,
+    course_id: saved.course_id,
+    status: "confirmed",
+    raw_text: parsed.original_text ?? saved.raw_text,
+    file_name: parsed.file_name || "Đề cương đã lưu",
+    pages: Math.max(
+      0,
+      ...Object.keys(source_pages).map(Number).filter(Number.isFinite),
+    ),
+    course: parsed.course || {},
+    source_pages,
+    reviewed_warnings: parsed.reviewed_warnings || [],
+    warnings: [],
+    outcomes: saved.learning_outcomes.map((o) => ({
+      ...o,
+      source_page: parsed.outcomes?.find((p) => p.code === o.code)?.source_page,
+    })),
+    weeks: parsed.weeks || [],
+    assessments: saved.assessments.map((a) => ({
+      ...parsed.assessments?.find((p) => p.name === a.name),
+      ...a,
+    })),
+    textbooks: (parsed.textbooks || []).map((b) => ({
+      ...b,
+      author: b.author ?? b.authors ?? "",
+    })),
+  };
+}
+export async function fetchSavedSyllabus(courseId: string) {
+  return restoreSavedSyllabus(
+    await call<Syllabus>(`/courses/${encodeURIComponent(courseId)}/syllabus`),
+  );
+}

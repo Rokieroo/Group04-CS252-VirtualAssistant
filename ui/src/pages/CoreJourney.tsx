@@ -15,7 +15,13 @@ import {
 } from "../api/graphState";
 import { RootRoadmap, type RootCourse } from "./course-setup/RootRoadmap";
 import { tutorial } from "./TutorialCourses";
-import { syllabusError, validateDraft } from "../api/syllabus";
+import { StageDetails } from "./course-setup/StageDetails";
+import { SourcePageDialog } from "./course-setup/SourcePageDialog";
+import {
+  fetchSavedSyllabus,
+  syllabusError,
+  validateDraft,
+} from "../api/syllabus";
 import { mockCoreService } from "../api/mockCore";
 import { TutorialCourses } from "./TutorialCourses";
 
@@ -85,8 +91,16 @@ export function CoreJourney({
   const [selectedGraphNodeId, setSelectedGraphNodeId] = useState<string | null>(
     () => readGraphState().selected,
   );
+  const [highlightedIds, setHighlightedIds] = useState<string[]>([]);
+  const [stageNodeId, setStageNodeId] = useState<string | null>(null);
+  const [materialPage, setMaterialPage] = useState<{
+    sourceId: string;
+    page: number;
+  } | null>(null);
+  const [schedulingNode, setSchedulingNode] = useState<string | null>(null);
   const [nodePanelOpen, setNodePanelOpen] = useState(true);
   const selectGraphNode = (id: string | null) => {
+    setHighlightedIds([]);
     setSelectedGraphNodeId(id);
     setNodePanelOpen(Boolean(id));
   };
@@ -431,8 +445,22 @@ export function CoreJourney({
   const generate = () => {
     if (!draft || draft.status !== "confirmed") return;
     void run(async () => {
-      setRoadmap(await service.generate(draft.id));
+      setRoadmap(await service.generate(draft.id, draft.course_id));
       setStage("plan");
+    });
+  };
+  const editCourse = () => {
+    if (busy) return;
+    void run(async () => {
+      if (!draft) {
+        if (!roadmap?.course_id)
+          throw new Error(
+            "Lộ trình chưa có thông tin môn học để mở đề cương. Hãy mở lại môn học từ backend.",
+          );
+        setDraft(await fetchSavedSyllabus(roadmap.course_id));
+      }
+      setStage("review");
+      go("Library");
     });
   };
   const approveRoadmap = () => {
@@ -559,6 +587,40 @@ export function CoreJourney({
     (page === "Roadmap" && roadmapApproved);
   return (
     <div className="core-journey">
+      {stageNodeId && roadmap?.nodes.find((n) => n.id === stageNodeId) && (
+        <StageDetails
+          node={{
+            ...roadmap.nodes.find((n) => n.id === stageNodeId)!,
+            outcome_ids: graphData.nodes.find((n) => n.id === stageNodeId)
+              ?.outcome_ids,
+          }}
+          live={!mock && roadmapApproved}
+          onClose={() => setStageNodeId(null)}
+          onOpenMaterialPage={
+            roadmap.course_id || draft?.course_id
+              ? (sourceId, page) => setMaterialPage({ sourceId, page })
+              : undefined
+          }
+          onSchedule={
+            roadmapApproved
+              ? () => {
+                  setStageNodeId(null);
+                  setSchedulingNode(stageNodeId);
+                  setScheduleOpen(true);
+                }
+              : undefined
+          }
+        />
+      )}
+      {materialPage && (roadmap?.course_id || draft?.course_id) && (
+        <SourcePageDialog
+          courseId={(roadmap?.course_id || draft?.course_id)!}
+          sourceId={materialPage.sourceId}
+          page={materialPage.page}
+          onClose={() => setMaterialPage(null)}
+        />
+      )}
+
       {page === "Roadmap" && (
         <RootRoadmap
           courses={
@@ -613,12 +675,7 @@ export function CoreJourney({
           <h2>{draft?.file_name || "Your course"}</h2>
           <p>User-created · Personal syllabus and roadmap</p>
           <div className="core-actions">
-            <button
-              onClick={() => {
-                setStage("review");
-                go("Library");
-              }}
-            >
+            <button disabled={busy} onClick={editCourse}>
               Edit course syllabus
             </button>
             <button disabled={!mock} onClick={() => setRemoveCourse(true)}>
@@ -889,6 +946,7 @@ export function CoreJourney({
                       nodes={filteredGraphData.nodes}
                       edges={filteredGraphData.edges}
                       cycleEdges={graphData.edges}
+                      highlightedIds={highlightedIds}
                       layout={graphLayoutMode}
                       onLayoutModeChange={setGraphLayoutMode}
                       selectedId={selectedGraphNodeId}
@@ -907,9 +965,63 @@ export function CoreJourney({
                       onSelect={selectGraphNode}
                     />
                   )}
+                  {highlightedIds.length > 0 && (
+                    <div role="status">
+                      Đang làm nổi bật {highlightedIds.length} chặng trên đường
+                      học.{" "}
+                      <button onClick={() => setHighlightedIds([])}>
+                        Bỏ tô sáng đường học
+                      </button>
+                    </div>
+                  )}
                   {selectedNodeObj && (
                     <NodePanel
                       manageUrl={false}
+                      scheduleScope="course"
+                      onOpenFullStage={(id) => {
+                        setNodePanelOpen(false);
+                        setStageNodeId(id);
+                      }}
+                      onScheduleNode={
+                        roadmapApproved
+                          ? (id) => {
+                              setNodePanelOpen(false);
+                              setSchedulingNode(id);
+                              setScheduleOpen(true);
+                            }
+                          : undefined
+                      }
+                      onHighlightPath={(ids) => {
+                        setHighlightedIds(
+                          selectedNodeObj.type === "milestone"
+                            ? [
+                                ...computeMilestoneScope(
+                                  selectedNodeObj.id,
+                                  roadmap.nodes,
+                                  graphData.edges,
+                                ),
+                              ]
+                            : ids,
+                        );
+                        setNodePanelOpen(false);
+                        setFilters((f) => ({ ...f, viewMode: "graph" }));
+                      }}
+                      onOpenSyllabusPage={
+                        draft
+                          ? (page) => {
+                              setNodePanelOpen(false);
+                              setSourcePage(page);
+                            }
+                          : undefined
+                      }
+                      onOpenMaterialPage={
+                        roadmap.course_id || draft?.course_id
+                          ? (sourceId, page) => {
+                              setNodePanelOpen(false);
+                              setMaterialPage({ sourceId, page });
+                            }
+                          : undefined
+                      }
                       roadmapId={roadmap.id}
                       node={selectedNodeObj}
                       allNodes={roadmap.nodes}
@@ -1031,7 +1143,10 @@ export function CoreJourney({
                   <p>Chọn thời gian học phù hợp trước khi tạo các buổi học.</p>
                   <button
                     className="primary-action"
-                    onClick={() => setScheduleOpen(true)}
+                    onClick={() => {
+                      setSchedulingNode(null);
+                      setScheduleOpen(true);
+                    }}
                   >
                     Xếp vào lịch
                   </button>
@@ -1045,6 +1160,14 @@ export function CoreJourney({
               onClose={() => setScheduleOpen(false)}
             >
               <div className="core-panel">
+                {schedulingNode && (
+                  <p>
+                    Hiện chỉ có thể xếp lịch cho toàn bộ lộ trình, bao gồm chặng
+                    “
+                    {title(roadmap?.nodes.find((n) => n.id === schedulingNode))}
+                    ”. Đây không phải thao tác chỉ xếp riêng chặng này.
+                  </p>
+                )}
                 <div className="core-row">
                   <label>
                     Phút rảnh mỗi tuần

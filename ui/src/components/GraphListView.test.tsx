@@ -74,7 +74,9 @@ describe("GraphListView Component (Accessible List Mode)", () => {
     const onSelect = vi.fn();
     render(<GraphListView nodes={sampleNodes} onSelect={onSelect} />);
 
-    const topicBtn = screen.getByLabelText("Chọn chặng Cấu trúc dữ liệu mảng và danh sách");
+    const topicBtn = screen.getByLabelText(
+      "Chọn chặng Cấu trúc dữ liệu mảng và danh sách",
+    );
     fireEvent.click(topicBtn);
     expect(onSelect).toHaveBeenCalledWith("node-1");
 
@@ -96,5 +98,50 @@ describe("GraphListView Component (Accessible List Mode)", () => {
     const rows = screen.getAllByRole("row");
     // Row 0 is header, Row 2 is node-2
     expect(rows[2].getAttribute("aria-selected")).toBe("true");
+  });
+  it("does not label personal materials as verified catalog sources", () => {
+    render(
+      <GraphListView
+        nodes={[
+          {
+            ...sampleNodes[0],
+            id: "private",
+            sources_count: 2,
+            verified_sources_count: 0,
+            sources_status: "sufficient",
+          },
+          {
+            ...sampleNodes[1],
+            id: "mixed",
+            sources_count: 4,
+            verified_sources_count: 2,
+            sources_status: "sufficient",
+          },
+        ]}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/0 nguồn đã xác minh/)).toBeTruthy();
+    expect(screen.getByText("✓ 2 nguồn")).toBeTruthy();
+    expect(screen.queryByText("✓ 4 nguồn")).toBeNull();
+  });
+  it("does not turn pending source checks into an insufficient verdict", () => {
+    render(
+      <GraphListView
+        nodes={[
+          {
+            ...sampleNodes[0],
+            status: undefined,
+            sources_status: "pending",
+            verified_sources_count: 0,
+            sources_count: 0,
+          },
+        ]}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Đang kiểm tra")).toBeTruthy();
+    expect(screen.queryByText(/0 nguồn đã xác minh/)).toBeNull();
+    expect(screen.getByText("Chưa có trạng thái")).toBeTruthy();
   });
 });

@@ -61,7 +61,10 @@ export function VerifiedSourceCard({
   useEffect(() => {
     if (!showCriteria) return;
     const handleClick = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(e.target as Node)
+      ) {
         setShowCriteria(false);
       }
     };
@@ -91,6 +94,8 @@ export function VerifiedSourceCard({
   const institutionOrProvider = source.institution || source.provider;
   // Only a resource the catalog checks passed carries the badge; web results do not.
   const isVerified = source.verification_status === "verified";
+  const breakdownEntries = Object.entries(source.breakdown || {});
+  const hasBreakdown = breakdownEntries.length > 0;
 
   return (
     <article
@@ -130,7 +135,8 @@ export function VerifiedSourceCard({
                 aria-label="Xem tiêu chí thẩm định nguồn đã xác minh"
                 title="Nhấn để xem tiêu chí thẩm định"
               >
-                ✓ Đã xác minh {source.verified_at ? `· ${source.verified_at}` : ""}
+                ✓ Đã xác minh{" "}
+                {source.verified_at ? `· ${source.verified_at}` : ""}
               </button>
 
               {showCriteria && (
@@ -143,16 +149,20 @@ export function VerifiedSourceCard({
                   <h4>Tiêu chí thẩm định nguồn uy tín</h4>
                   <ul>
                     <li>
-                      <strong>Tải được:</strong> trang mở được, robots.txt cho phép và có nội dung đọc được.
+                      <strong>Tải được:</strong> trang mở được, robots.txt cho
+                      phép và có nội dung đọc được.
                     </li>
                     <li>
-                      <strong>Tên miền:</strong> thuộc trường hoặc tổ chức giáo dục trong danh sách tin cậy.
+                      <strong>Tên miền:</strong> thuộc trường hoặc tổ chức giáo
+                      dục trong danh sách tin cậy.
                     </li>
                     <li>
-                      <strong>Giấy phép:</strong> giấy phép mở được nhận diện rõ ràng.
+                      <strong>Giấy phép:</strong> giấy phép mở được nhận diện rõ
+                      ràng.
                     </li>
                     <li>
-                      <strong>Thông tin mô tả:</strong> có tiêu đề, định dạng và ngôn ngữ hợp lệ.
+                      <strong>Thông tin mô tả:</strong> có tiêu đề, định dạng và
+                      ngôn ngữ hợp lệ.
                     </li>
                   </ul>
                 </div>
@@ -167,17 +177,24 @@ export function VerifiedSourceCard({
           )}
 
           {source.duration_min ? (
-            <span className="vsc-badge vsc-badge-duration">⏱ {source.duration_min} phút</span>
+            <span className="vsc-badge vsc-badge-duration">
+              ⏱ {source.duration_min} phút
+            </span>
           ) : null}
 
           {source.license && (
-            <span className="vsc-badge vsc-badge-license" title="Giấy phép nội dung">
+            <span
+              className="vsc-badge vsc-badge-license"
+              title="Giấy phép nội dung"
+            >
               📜 {source.license}
             </span>
           )}
 
-          {source.score !== undefined && !source.breakdown && (
-            <span className="vsc-badge vsc-badge-score">★ {Math.round(source.score * 100)}%</span>
+          {source.score !== undefined && !hasBreakdown && (
+            <span className="vsc-badge vsc-badge-score">
+              ★ {Math.round(source.score * 100)}%
+            </span>
           )}
         </div>
       </div>
@@ -197,13 +214,14 @@ export function VerifiedSourceCard({
         </p>
       )}
 
-      {source.score !== undefined && source.breakdown && (
+      {source.score !== undefined && hasBreakdown && (
         <details className="vsc-breakdown">
           <summary className="vsc-badge vsc-badge-score">
-            ★ {Math.round(source.score * 100)}% (7 tiêu chí)
+            ★ {Math.round(source.score * 100)}% ({breakdownEntries.length} tiêu
+            chí)
           </summary>
           <dl className="vsc-breakdown-grid">
-            {Object.entries(source.breakdown).map(([criterion, value]) => (
+            {breakdownEntries.map(([criterion, value]) => (
               <div key={criterion}>
                 <dt>{criterion}</dt>
                 <dd>{Math.round(value * 100)}%</dd>
@@ -260,7 +278,8 @@ export function InsufficientSourcesNotice({
         <h4 className="vsc-insufficient-title">Chưa tìm được nguồn đủ tốt</h4>
       </div>
       <p className="vsc-insufficient-desc">
-        Hệ thống chưa tìm thấy tài liệu mở đạt ngưỡng chất lượng thẩm định ≥ 0.65 cho chặng này.
+        Hệ thống chưa tìm thấy tài liệu mở đạt ngưỡng chất lượng thẩm định ≥
+        0.65 cho chặng này.
       </p>
       {onRetry && (
         <div>

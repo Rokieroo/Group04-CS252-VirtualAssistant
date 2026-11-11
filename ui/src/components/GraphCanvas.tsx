@@ -38,6 +38,7 @@ export interface GraphCanvasProps {
   cycleEdges?: GraphEdge[];
   layout?: "week" | "force";
   selectedId?: string | null;
+  highlightedIds?: string[];
   onSelect?: (nodeId: string | null) => void;
   onEdgeCreate?: (
     parentId: string,
@@ -126,6 +127,7 @@ export function GraphCanvas({
   cycleEdges,
   layout = "week",
   selectedId = null,
+  highlightedIds = [],
   onSelect,
   onEdgeCreate,
   onLayoutChange,
@@ -344,10 +346,12 @@ export function GraphCanvas({
     ctx.scale(zoom, zoom);
 
     const nodeMap = internalNodesRef.current;
-    const activeHover = hoveredNodeId || selectedId;
+    const activeHover = highlightedIds.length
+      ? null
+      : hoveredNodeId || selectedId;
 
     // Determine neighbor nodes if a node is focused/hovered
-    const neighborSet = new Set<string>();
+    const neighborSet = new Set<string>(highlightedIds);
     if (activeHover) {
       neighborSet.add(activeHover);
       edges.forEach((edge) => {
@@ -394,7 +398,7 @@ export function GraphCanvas({
         `${edge.parent_id}>${edge.child_id}`,
       );
       const isConnectedToFocus =
-        !activeHover ||
+        (!activeHover && !highlightedIds.length) ||
         (neighborSet.has(edge.parent_id) && neighborSet.has(edge.child_id));
 
       ctx.save();
@@ -502,7 +506,8 @@ export function GraphCanvas({
       const isSelected = selectedId === node.id;
       const isHovered = hoveredNodeId === node.id;
       const isCycle = activeCycle?.includes(node.id);
-      const isNeighbor = !activeHover || neighborSet.has(node.id);
+      const isNeighbor =
+        (!activeHover && !highlightedIds.length) || neighborSet.has(node.id);
 
       ctx.save();
       const alpha = isNeighbor ? 1.0 : 0.2;
@@ -569,6 +574,7 @@ export function GraphCanvas({
     zoom,
     edges,
     hoveredNodeId,
+    highlightedIds,
     hoveredEdge,
     selectedId,
     activeCycle,

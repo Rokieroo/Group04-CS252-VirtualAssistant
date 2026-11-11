@@ -21,12 +21,12 @@ This follow-up retains Thinh's #149 and #150 contributions. Both original PRs we
 
 - `python dev.py devops ci`: 719 backend tests passed, Ruff passed, secret scan passed, benchmark fixtures validated. A pre-existing Windows checkout line-ending mismatch in `institutions.csv` was repaired locally to match Git exactly; it introduces no committed CSV change.
 
-- `pnpm --dir ui exec vitest run --maxWorkers=2`: 194 tests passed across 36 files.
-- `PLAYWRIGHT_CHANNEL=chrome pnpm --dir ui test:e2e`: 40 passed, 6 intentionally skipped. Skips cover desktop-only drag, mobile-only touch, and separately run opt-in benchmarks.
+- `pnpm --dir ui exec vitest run --maxWorkers=2`: 201 tests passed across 36 files.
+- `PLAYWRIGHT_CHANNEL=chrome pnpm --dir ui test:e2e`: 48 passed, 6 intentionally skipped. Skips cover desktop-only drag, mobile-only touch, and separately run opt-in benchmarks.
 - Desktop/mobile browser checks cover search to panel, milestone coverage and prerequisites, CLO/verified filters, URL restoration after reload, local API calls, saved pinned positions, touch pinch, edge add/remove after reload, and scoped axe checks (no serious/critical violations).
 - API browser checks use clearly identified intercepted fixtures. They verify UI/API contracts and reload state, not a production account or database. No backend code changed.
 - Separate benchmark: 300 nodes, 299 prerequisite edges; week pan 50.5 FPS, force pan 54.4 FPS in local headless Chrome without CPU throttling. Force simulation pauses while background panning; canvas rendering continues each frame.
-- Production build passes TypeScript and Vite. Main JS gzip: 120.20 KB versus 106.53 KB on `origin/main` with the same installed toolchain (+13.67 KB). CSS: 16.12 KB versus 13.64 KB. No runtime dependency added.
+- Production build passes TypeScript and Vite. Main JS gzip: 121.89 KB versus 106.53 KB on pre-graph main `350224d` with the same installed toolchain (+15.36 KB). CSS: 16.15 KB versus 13.64 KB. No runtime dependency added.
 
 See `ui/README.md` for the benchmark command and existing run instructions.
 
@@ -35,7 +35,7 @@ See `ui/README.md` for the benchmark command and existing run instructions.
 - Repeat the 300-node benchmark on a representative mid-range laptop; development-machine FPS is not proof of that hardware requirement.
 - Deployed-backend/browser persistence still needs a smoke test. The local authenticated API persistence smoke passed against port 8000 (offline AI): graph/local graph reads, layout PUT/GET, edge POST/GET, cycle 409 with a path, and edge DELETE/GET. The synthetic course was retained for manual review; this does not test syllabus parser quality.
 - Review the actual graph visually at desktop/mobile sizes. Figma was intentionally excluded at the user's request.
-- Axe coverage here is limited to graph filters/list, not the whole application's accessibility.
+- Axe coverage includes filters/list and the node panel/source dialog. Panel checks cover light/dark and 360 px mobile; this is not a whole-application accessibility audit.
 
 PR #149 merged as `968d612`; PR #150 merged as `2c66ddc`. The older local issue #57/tutorial stash was left intact.
 
@@ -49,3 +49,18 @@ All screenshots use the explicit four-node API fixture, not production learner d
 ![CLO and verified-source filtering](graph-108-110/04-verified-clo-filter.png)
 ![Local graph](graph-108-110/06-local-graph.png)
 ![Mobile node panel](graph-108-110/08-mobile-node-panel.png)
+
+## Review follow-up implemented
+
+- Reopen the original syllabus from a saved graph and retain reviewed fields, dates, evidence pages and course ID. PUT returns to the original syllabus; generation uses that course ID. Legacy records without review metadata remain editable without inventing missing data.
+- Separate verified counts from private materials, preserve pending/unknown states, and retain source metadata and verification provenance.
+- Connect the full-stage source dialog, private extracted-page viewer, learning-path highlighting and course-wide scheduling. Ask/Practice controls are explicitly unavailable rather than silent no-ops.
+- Keep usable sources visible in insufficient results, provide source/panel/page retries, ignore stale node loads, and show an empty filter state. An empty score breakdown does not claim seven scored criteria.
+- The final targeted desktop/mobile flow and panel/source accessibility rerun passed 8 tests after control-style and contrast corrections.
+- A real authenticated browser smoke test (no interception) reopened the retained synthetic Graph UI review course on the local API, restored its syllabus, edited and PUT the original record, confirmed the new value via an independent GET and reopened it in the UI. Only that synthetic test syllabus was prepared/edited. This does not validate the syllabus parser or a deployed backend.
+
+The remaining review items need separate work: discoverable account/course-to-roadmap metadata, saved-source/notes persistence, calendar move/replan-diff contracts, node-scoped Ask and Practice sessions, and the Getting Started enrollment/product exception. Nothing in this PR adds new backend deletion behavior or presents preview storage as account persistence.
+
+![Full stage sources with an insufficient warning](graph-108-110/09-stage-sources.png)
+![Private source page](graph-108-110/10-material-page.png)
+![Restored syllabus editor](graph-108-110/11-restored-syllabus.png)

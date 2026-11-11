@@ -29,27 +29,45 @@ describe("VerifiedSourceCard component (Issue #104, #58, #94)", () => {
 
   it("shows the verified badge only for a verified source", () => {
     const { rerender } = render(<VerifiedSourceCard source={sampleSource} />);
-    expect(screen.getByRole("button", { name: /tiêu chí thẩm định/ })).toBeTruthy();
-    rerender(<VerifiedSourceCard source={{ ...sampleSource, verification_status: undefined }} />);
-    expect(screen.queryByRole("button", { name: /tiêu chí thẩm định/ })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /tiêu chí thẩm định/ }),
+    ).toBeTruthy();
+    rerender(
+      <VerifiedSourceCard
+        source={{ ...sampleSource, verification_status: undefined }}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: /tiêu chí thẩm định/ }),
+    ).toBeNull();
   });
 
   it("renders verified source card with all fields and safe external link", () => {
     render(<VerifiedSourceCard source={sampleSource} />);
 
-    const link = screen.getByRole("link", { name: /Introduction to Algorithms - MIT OCW/i });
+    const link = screen.getByRole("link", {
+      name: /Introduction to Algorithms - MIT OCW/i,
+    });
     expect(link).toBeTruthy();
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toBe("noopener noreferrer");
 
     expect(screen.getByText("ocw.mit.edu")).toBeTruthy();
-    expect(screen.getByText(/Massachusetts Institute of Technology/)).toBeTruthy();
+    expect(
+      screen.getByText(/Massachusetts Institute of Technology/),
+    ).toBeTruthy();
     expect(screen.getByText(/CC-BY-NC-SA-4.0/)).toBeTruthy();
     expect(screen.getByText("Video")).toBeTruthy();
     expect(screen.getByText(/50 phút/)).toBeTruthy();
     expect(screen.getByText(/★ 92%/)).toBeTruthy();
-    expect(screen.getByText(/Directly matches learning outcome CLO 1.2/)).toBeTruthy();
-    expect(screen.getByText(/"Algorithms break complex problems into atomic steps."/)).toBeTruthy();
+    expect(
+      screen.getByText(/Directly matches learning outcome CLO 1.2/),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        /"Algorithms break complex problems into atomic steps."/,
+      ),
+    ).toBeTruthy();
   });
 
   it("toggles the vetting criteria explanation tooltip when badge is clicked", () => {
@@ -72,7 +90,9 @@ describe("VerifiedSourceCard component (Issue #104, #58, #94)", () => {
 
   it("triggers feedback callbacks for helpful / not helpful", () => {
     const feedbackSpy = vi.fn();
-    render(<VerifiedSourceCard source={sampleSource} onFeedback={feedbackSpy} />);
+    render(
+      <VerifiedSourceCard source={sampleSource} onFeedback={feedbackSpy} />,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: /Hữu ích/ }));
     expect(feedbackSpy).toHaveBeenCalledWith(true);
@@ -86,10 +106,27 @@ describe("VerifiedSourceCard component (Issue #104, #58, #94)", () => {
     render(<InsufficientSourcesNotice onRetry={retrySpy} />);
 
     expect(screen.getByText("Chưa tìm được nguồn đủ tốt")).toBeTruthy();
-    expect(screen.getByText(/ngưỡng chất lượng thẩm định ≥ 0.65/i)).toBeTruthy();
+    expect(
+      screen.getByText(/ngưỡng chất lượng thẩm định ≥ 0.65/i),
+    ).toBeTruthy();
 
     const retryBtn = screen.getByRole("button", { name: "Tìm lại" });
     fireEvent.click(retryBtn);
     expect(retrySpy).toHaveBeenCalled();
   });
+});
+
+it("does not claim a seven-criterion breakdown when the API returns no scores", () => {
+  render(
+    <VerifiedSourceCard
+      source={{
+        id: "empty",
+        title: "Source without breakdown",
+        score: 0.8,
+        breakdown: {},
+      }}
+    />,
+  );
+  expect(screen.getByText("★ 80%")).toBeTruthy();
+  expect(screen.queryByText(/7 tiêu chí/)).toBeNull();
 });

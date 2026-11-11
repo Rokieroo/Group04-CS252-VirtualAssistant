@@ -51,6 +51,83 @@ async function backend(page: Page, courseNodes = nodes) {
   let positions: { node_id: string; x: number; y: number; pinned: boolean }[] =
     [];
   const requested: string[] = [];
+  let savedSyllabus = {
+    id: "saved-syllabus",
+    syllabus_id: "saved-syllabus",
+    course_id: "c1",
+    created_at: "2026-11-11T00:00:00Z",
+    raw_text: JSON.stringify({
+      file_name: "Review syllabus.txt",
+      original_text: "Original syllabus source",
+      course: { title: { value: "Graph course" } },
+      source_pages: { 1: "Syllabus page one" },
+      weeks: nodes.map((n) => ({
+        week: n.week,
+        topics: [n.title],
+        source_page: 1,
+      })),
+      outcomes: [
+        {
+          code: "CLO1",
+          text: "Understand the foundations",
+          description: "Understand the foundations",
+          source_page: 1,
+        },
+      ],
+      assessments: [
+        {
+          name: "Midterm",
+          title: "Midterm",
+          weight: 100,
+          due_week: 4,
+          source_page: 1,
+        },
+      ],
+      textbooks: [],
+    }),
+    learning_outcomes: [
+      {
+        id: "outcome",
+        syllabus_id: "saved-syllabus",
+        code: "CLO1",
+        description: "Understand the foundations",
+        bloom_level: "understand",
+      },
+    ],
+    assessments: [
+      {
+        id: "exam",
+        syllabus_id: "saved-syllabus",
+        name: "Midterm",
+        weight: 100,
+        due_week: 4,
+      },
+    ],
+  };
+  const pages = [
+    {
+      id: "s1",
+      file_name: "Lecture notes.txt",
+      page: 1,
+      text: "Private lecture page one",
+      kind: "material",
+    },
+    {
+      id: "s2",
+      file_name: "Lecture notes.txt",
+      page: 2,
+      text: "Private lecture page two",
+      kind: "material",
+    },
+    {
+      id: "s3",
+      file_name: "Extra notes.txt",
+      page: 1,
+      text: "Extra private notes",
+      kind: "material",
+    },
+  ];
+
   const courseEdges =
     courseNodes === nodes
       ? [
@@ -90,19 +167,132 @@ async function backend(page: Page, courseNodes = nodes) {
       if (index >= 0) courseEdges.splice(index, 1);
       return route.fulfill({ status: 204 });
     }
+
+    if (/\/courses\/c1\/syllabus(?:\/saved-syllabus)?$/.test(path)) {
+      if (req.method() === "PUT") {
+        const body = req.postDataJSON();
+        savedSyllabus = {
+          ...savedSyllabus,
+          raw_text: JSON.stringify(body.parsed),
+          learning_outcomes: body.learning_outcomes,
+          assessments: body.assessments,
+        };
+      }
+      return route.fulfill({ json: savedSyllabus });
+    }
+    if (path.endsWith("/materials"))
+      return route.fulfill({
+        json: {
+          files: path.includes("/b/")
+            ? [
+                {
+                  file_name: "Lecture notes.txt",
+                  status: "attached",
+                  pages: [
+                    {
+                      source_id: "s2",
+                      page: 2,
+                      confidence: 1,
+                      method: "manual",
+                    },
+                  ],
+                },
+              ]
+            : [],
+        },
+      });
+    if (path.endsWith("/resources"))
+      return route.fulfill({
+        json: {
+          status: "insufficient",
+          gaps: [],
+          resources: [
+            {
+              id: "r1",
+              rank: 1,
+              title: "One verified reading",
+              url: "https://ocw.mit.edu/reading",
+              domain: "ocw.mit.edu",
+              format: "article",
+              language: "en",
+              duration_min: 10,
+              is_free: true,
+              score: 0.8,
+              breakdown: {},
+              reason: "Matches this topic",
+              evidence_quote: "Relevant source excerpt",
+              pinned: false,
+            },
+          ],
+        },
+      });
     if (path.endsWith("/courses"))
       return route.fulfill({
         json: [{ id: "c1", title: "CS252 - Computational Thinking" }],
       });
-    if (path.includes("/concepts/") && path.endsWith("/sources"))
+    if (path.includes("/concepts/") && path.endsWith("/sources")) {
+      const personal = path.includes("/b/");
       return route.fulfill({
-        json: { status: "ready", sources: [], gaps: [] },
+        json: {
+          node_id: personal ? "b" : "a",
+          status: "ready",
+          user_material_count: personal ? 2 : 0,
+          source_count: 2,
+          sources: personal
+            ? [
+                {
+                  kind: "user_material",
+                  id: "private-1",
+                  source_id: "s1",
+                  title: "Lecture notes.txt",
+                  url: null,
+                  pages: [1, 2],
+                  provider: "User upload",
+                  format: "pdf",
+                  reason: "Your course material",
+                  verification_status: "user_material",
+                  license: "private",
+                },
+                {
+                  kind: "user_material",
+                  id: "private-2",
+                  source_id: "s3",
+                  title: "Extra notes.txt",
+                  url: null,
+                  pages: [1],
+                  provider: "User upload",
+                  format: "pdf",
+                  reason: "Your course material",
+                  verification_status: "user_material",
+                  license: "private",
+                },
+              ]
+            : [
+                {
+                  kind: "catalog",
+                  id: "catalog-1",
+                  title: "Verified reading",
+                  url: "https://ocw.mit.edu/reading",
+                  pages: [],
+                  provider: "MIT OCW",
+                  institution: "Massachusetts Institute of Technology",
+                  license: "CC-BY-4.0",
+                  format: "article",
+                  duration_min: 20,
+                  score: 0.9,
+                  reason: "Matches the foundations",
+                  verification_status: "verified",
+                },
+              ],
+        },
       });
-    if (path.endsWith("/sources")) return route.fulfill({ json: [] });
+    }
+    if (path.endsWith("/sources")) return route.fulfill({ json: pages });
     if (path.endsWith("/roadmaps/rm"))
       return route.fulfill({
         json: {
           id: "rm",
+          course_id: "c1",
           nodes: courseNodes,
           edges: courseEdges,
         },
@@ -120,8 +310,9 @@ async function backend(page: Page, courseNodes = nodes) {
         ...n,
         status: i === 0 ? "completed" : "pending",
         outcome_ids: [i < 2 ? "CLO1" : "CLO2"],
-        source_count: i === 0 ? 2 : 0,
-        sources_status: i === 0 ? "ready" : "insufficient",
+        source_count: i < 2 ? 2 : 0,
+        user_material_count: i === 1 ? 2 : 0,
+        sources_status: i < 2 ? "ready" : "insufficient",
         layer: i + 1,
       }));
       return route.fulfill({
@@ -395,4 +586,142 @@ test("approved roadmap edge form adds and removes through the API across reload"
   await page.reload();
   await expect(page.getByRole("combobox", { name: "CLO:" })).toBeVisible();
   await expect(edge).toHaveCount(0);
+});
+
+test("reopened graph restores the syllabus editor and saves to the original course", async ({
+  page,
+}) => {
+  const api = await backend(page);
+  await page.goto("/?kg_roadmap=rm#roadmap");
+  await expect(page.getByRole("combobox", { name: "CLO:" })).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "Edit course syllabus" }).click();
+  const description = page.locator('input[value="Understand the foundations"]');
+  await expect(description).toBeVisible();
+  await description.fill("Updated foundations outcome");
+  await page
+    .getByRole("button", { name: "Xác nhận đề cương", exact: true })
+    .click();
+  await expect
+    .poll(() =>
+      api.requested.some((p) =>
+        p.endsWith("/courses/c1/syllabus/saved-syllabus"),
+      ),
+    )
+    .toBe(true);
+  await page.goto("/?kg_roadmap=rm#roadmap");
+  await page.getByRole("button", { name: "Edit course syllabus" }).click();
+  await expect(
+    page.locator('input[value="Updated foundations outcome"]'),
+  ).toBeVisible();
+});
+test("node gateways open real source details, a private page, and course scheduling", async ({
+  page,
+}) => {
+  await backend(page);
+  await page.goto("/?kg_roadmap=rm&kg_viewMode=list#roadmap");
+  await page.getByRole("button", { name: "Chọn chặng A Retrieval" }).click();
+  await expect(page.getByRole("button", { name: /Hỏi đáp AI/ })).toBeDisabled();
+  await page.getByRole("button", { name: "Trang 2 ↗", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "Private lecture page two",
+  );
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Chọn chặng A Retrieval" }).click();
+  await page
+    .getByRole("button", { name: "Trang chặng (S6)", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toContainText("One verified reading");
+  await expect(page.getByRole("dialog")).toContainText(
+    "Chưa tìm được nguồn đủ tốt",
+  );
+  await page.getByRole("button", { name: "Mở trang 2", exact: true }).click();
+  await expect(page.getByRole("dialog").last()).toContainText(
+    "Private lecture page two",
+  );
+  await page.keyboard.press("Escape");
+  await page
+    .getByRole("button", { name: "Xếp lịch lộ trình (S7)", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toContainText("toàn bộ lộ trình");
+  await expect(page.getByRole("dialog")).toContainText("A Retrieval");
+});
+test("source labels distinguish private uploads and node path highlight can be cleared", async ({
+  page,
+}) => {
+  await backend(page);
+  await page.goto("/?kg_roadmap=rm&kg_viewMode=list#roadmap");
+  const privateRow = page.getByRole("row").filter({
+    has: page.getByRole("button", { name: "Chọn chặng A Retrieval" }),
+  });
+  await expect(privateRow).toContainText("0 nguồn đã xác minh");
+  await page.getByRole("button", { name: "Chọn chặng A Retrieval" }).click();
+  await page.getByRole("button", { name: /Đường học tới đây/ }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Bỏ tô sáng đường học" }),
+  ).toBeVisible();
+  await expect(page.locator("canvas.graph-canvas")).toBeVisible();
+  await page.getByRole("button", { name: "Bỏ tô sáng đường học" }).click();
+  await expect(
+    page.getByRole("button", { name: "Bỏ tô sáng đường học" }),
+  ).toHaveCount(0);
+});
+
+test("node panel remains accessible with source metadata and inactive gateways", async ({
+  page,
+}, info) => {
+  if (info.project.name.includes("mobile"))
+    await page.setViewportSize({ width: 360, height: 844 });
+  await backend(page);
+  await page.goto("/?kg_roadmap=rm&kg_viewMode=list#roadmap");
+  await page.getByRole("button", { name: "Chọn chặng Z Foundations" }).click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "Massachusetts Institute of Technology",
+  );
+  const result = await new AxeBuilder({ page })
+    .include(".node-panel-container")
+    .analyze();
+  expect(
+    result.violations
+      .filter((v) => v.impact === "serious" || v.impact === "critical")
+      .map((v) => ({
+        id: v.id,
+        nodes: v.nodes.map((n) => ({
+          target: n.target,
+          summary: n.failureSummary,
+        })),
+      })),
+  ).toEqual([]);
+  await page.emulateMedia({ colorScheme: "dark" });
+  const dark = await new AxeBuilder({ page })
+    .include(".node-panel-container")
+    .analyze();
+  expect(
+    dark.violations
+      .filter((v) => v.impact === "serious" || v.impact === "critical")
+      .map((v) => ({
+        id: v.id,
+        nodes: v.nodes.map((n) => ({
+          target: n.target,
+          summary: n.failureSummary,
+        })),
+      })),
+  ).toEqual([]);
+  await page
+    .getByRole("button", { name: "Trang chặng (S6)", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toContainText("One verified reading");
+  const sources = await new AxeBuilder({ page }).include("dialog").analyze();
+  expect(
+    sources.violations
+      .filter((v) => v.impact === "serious" || v.impact === "critical")
+      .map((v) => ({
+        id: v.id,
+        nodes: v.nodes.map((n) => ({
+          target: n.target,
+          summary: n.failureSummary,
+        })),
+      })),
+  ).toEqual([]);
 });

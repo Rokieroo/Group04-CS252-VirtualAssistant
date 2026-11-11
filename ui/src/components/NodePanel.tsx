@@ -27,6 +27,7 @@ export type ExtendedNode = RoadmapNode & {
 
 export type NodePanelProps = {
   manageUrl?: boolean;
+  scheduleScope?: "node" | "course";
   roadmapId: string;
   node: ExtendedNode | null;
   allNodes: (RoadmapNode & { status?: NodeStatus })[];
@@ -46,6 +47,7 @@ export type NodePanelProps = {
 
 export function NodePanel({
   manageUrl = true,
+  scheduleScope = "node",
   roadmapId,
   node,
   allNodes,
@@ -68,6 +70,7 @@ export function NodePanel({
   const [searching, setSearching] = useState(false);
   const [loadError, setLoadError] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
+  const loadVersion = useRef(0);
 
   // Update URL hash for deep-linking: /roadmaps/{id}/graph/{node} (Issue #109 requirement 1)
   useEffect(() => {
@@ -87,31 +90,35 @@ export function NodePanel({
 
   // Load sources and exercises for current node
   const loadData = useCallback(async (nodeId: string) => {
-    try {
-      setSourcesData(await nodeSources(nodeId));
-      setLoadError("");
-    } catch (err) {
-      setSourcesData(null);
+    const version = ++loadVersion.current;
+    setSourcesData(null);
+    setExercises([]);
+    setExercisesCount(0);
+    setLoadError("");
+    const [sourceResult, exerciseResult] = await Promise.allSettled([
+      nodeSources(nodeId),
+      fetchNodeExercises(nodeId, 5),
+    ]);
+    if (version !== loadVersion.current) return;
+    if (sourceResult.status === "fulfilled") setSourcesData(sourceResult.value);
+    else
       setLoadError(
-        err instanceof Error ? err.message : "Không tải được nguồn học.",
+        sourceResult.reason instanceof Error
+          ? sourceResult.reason.message
+          : "Không tải được nguồn học.",
       );
-    }
-
-    try {
-      const ex = await fetchNodeExercises(nodeId, 5);
-      setExercises(ex.exercises);
-      setExercisesCount(ex.count);
-    } catch {
-      setExercises([]);
-      setExercisesCount(0);
+    if (exerciseResult.status === "fulfilled") {
+      setExercises(exerciseResult.value.exercises);
+      setExercisesCount(exerciseResult.value.count);
     }
   }, []);
 
   useEffect(() => {
-    if (node && isOpen) {
-      void loadData(node.id);
-    }
-  }, [node, isOpen, loadData]);
+    if (node && isOpen) void loadData(node.id);
+    return () => {
+      ++loadVersion.current;
+    };
+  }, [node?.id, isOpen, loadData]);
 
   // A modal dialog (#109 step 7): focus moves in on open, Tab stays inside, and
   // focus returns to whatever opened the panel when it closes.
@@ -203,15 +210,12 @@ export function NodePanel({
   const catalogSources: VerifiedSource[] = (
     sourcesData?.sources.filter((s) => s.kind !== "user_material") || []
   ).map((s) => ({
-    id: s.id,
-    title: s.title,
-    url: s.url,
-    provider: s.provider,
-    format: s.format,
-    reason: s.reason,
-    kind: s.kind,
-    // Only catalog sources passed the verification checks; web results did not.
-    verification_status: s.kind === "catalog" ? "verified" : undefined,
+    ...s,
+    institution: s.institution ?? undefined,
+    verification_status:
+      s.kind === "catalog" && s.verification_status === "verified"
+        ? "verified"
+        : undefined,
   }));
 
   const isInsufficient = sourcesData?.status === "insufficient";
@@ -287,6 +291,7 @@ export function NodePanel({
               <button
                 type="button"
                 className="np-chip np-chip-clickable"
+                disabled={!onOpenSyllabusPage}
                 onClick={() => onOpenSyllabusPage?.(node.syllabus_page!)}
                 title="Mở giáo trình tại trang này"
               >
@@ -336,6 +341,7 @@ export function NodePanel({
               <button
                 type="button"
                 className="np-path-btn"
+                disabled={!onHighlightPath}
                 onClick={handleHighlightPath}
                 title="Tô sáng đường dẫn học tập từ đầu đến chặng này"
               >
@@ -431,7 +437,10 @@ export function NodePanel({
                             key={p}
                             type="button"
                             className="np-page-btn"
-                            onClick={() => onOpenMaterialPage?.(s.id, p)}
+                            disabled={!onOpenMaterialPage}
+                            onClick={() =>
+                              onOpenMaterialPage?.(s.source_id || s.id, p)
+                            }
                             title={`Mở tài liệu tại trang ${p}`}
                           >
                             Trang {p} ↗
@@ -445,9 +454,17 @@ export function NodePanel({
             )}
 
             {loadError && (
-              <p role="alert" className="row-error">
-                {loadError}
-              </p>
+              <div>
+                <p role="alert" className="row-error">
+                  {loadError}
+                </p>
+                <button
+                  className="button"
+                  onClick={() => void loadData(node.id)}
+                >
+                  Thử lại thông tin chặng
+                </button>
+              </div>
             )}
 
             {/* Insufficient State Banner */}
@@ -492,6 +509,7 @@ export function NodePanel({
                 <button
                   type="button"
                   className="np-path-btn"
+                  disabled={!onOpenPractice}
                   onClick={() =>
                     onOpenPractice?.(
                       node.id,
@@ -524,7 +542,7 @@ export function NodePanel({
                 <span
                   style={{ fontSize: "0.85rem", color: "var(--color-muted)" }}
                 >
-                  Chưa có bài luyện tập được tạo cho chặng này.
+                  Chưa tìm thấy bài luyện tập có trích dẫn cho chặng này.
                 </span>
               )}
             </div>
@@ -533,10 +551,16 @@ export function NodePanel({
 
         {/* 5. Action Gateways Footer */}
         <footer className="np-footer">
+          {(!onAskQuestion || !onOpenPractice) && (
+            <p className="sm">
+              Hỏi đáp và luyện tập theo chặng hiện chưa khả dụng.
+            </p>
+          )}
           <div className="np-footer-buttons">
             <button
               type="button"
               className="np-btn-primary"
+              disabled={!onOpenFullStage}
               onClick={() => onOpenFullStage?.(node.id)}
             >
               Trang chặng (S6)
@@ -544,6 +568,7 @@ export function NodePanel({
             <button
               type="button"
               className="np-btn-secondary"
+              disabled={!onAskQuestion}
               onClick={() => onAskQuestion?.(node.id)}
             >
               Hỏi đáp AI (S10)
@@ -551,9 +576,12 @@ export function NodePanel({
             <button
               type="button"
               className="np-btn-secondary"
+              disabled={!onScheduleNode}
               onClick={() => onScheduleNode?.(node.id)}
             >
-              Xếp vào lịch (S7)
+              {scheduleScope === "course"
+                ? "Xếp lịch lộ trình (S7)"
+                : "Xếp vào lịch (S7)"}
             </button>
           </div>
         </footer>
