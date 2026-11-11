@@ -1,7 +1,9 @@
 """Syllabus parsing, roadmap node rules, and Issue #60 Roadmap Builder verification."""
 
 import json
+import random
 from datetime import UTC, datetime, timedelta
+from itertools import pairwise
 
 import pytest
 
@@ -523,3 +525,25 @@ def test_would_create_cycle_check():
 
     # Adding A -> C is valid (DAG forward edge)
     assert would_create_cycle(edges, "A", "C") is None
+
+
+@pytest.mark.parametrize("seed", range(20))
+def test_edges_accepted_by_would_create_cycle_keep_the_graph_sortable(seed):
+    """#97 done-when: random edges added through the cycle check never break Kahn's
+    order, and every rejection names a real closed path (seeded, so failures replay)."""
+    from app.roadmap.graph import topological_sort, would_create_cycle
+
+    rng = random.Random(seed)
+    nodes = [str(i) for i in range(30)]
+    edges: list[tuple[str, str]] = []
+    for _ in range(120):
+        parent, child = rng.sample(nodes, 2)
+        path = would_create_cycle(edges, parent, child)
+        if path is None:
+            edges.append((parent, child))
+            continue
+        assert path[0] == path[-1] == parent and path[1] == child
+        assert all(pair in edges for pair in pairwise(path[1:]))
+    assert len(topological_sort(nodes, edges)) == len(nodes)
+    assert would_create_cycle(edges, "0", "0") == ["0", "0"]  # a self-edge is always a cycle
+
