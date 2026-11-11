@@ -1,0 +1,154 @@
+# One server for real learners (issue #18): PostgreSQL 16, API, worker, HTTPS.
+#
+#   cp deploy/env.production.example deploy/.env    # fill every value
+#   docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d --build
+#
+# Differences from the dev docker-compose.yml at the repo root:
+#   - PostgreSQL is never published on a host port; only the containers reach it.
+#   - Every secret is required: a missing one stops `docker compose` before anything runs.
+#   - Migrations run once, as the schema owner; the API and worker log in as
+#     `pathly_app`, which can read and write rows but cannot change the schema.
+#   - Caddy serves the built UI and proxies /api to the API, with automatic HTTPS.
+#   - A backup container keeps a daily pg_dump (7 by default).
+# Runbook: docs/notes/devops/PRODUCTION.md
+
+name: pathly
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+psycopg://pathly_app:${PATHLY_APP_PASSWORD:?set PATHLY_APP_PASSWORD}@db:5432/${PATHLY_DB:-pathly}
+  RUN_MIGRATIONS: "0"
+  CORS_ORIGINS: https://${DOMAIN:?set DOMAIN}
+  SESSION_MINUTES: ${SESSION_MINUTES:-720}
+  LLM_PROVIDER: ${LLM_PROVIDER:-fake}
+  LLM_API_KEY: ${LLM_API_KEY:-}
+  LLM_MODEL: ${LLM_MODEL:-}
+  EMBEDDING_MODEL: ${EMBEDDING_MODEL:-}
+  COMPANION_LLM_BASE_URL: ${COMPANION_LLM_BASE_URL:-https://api.openai.com/v1}
+  COMPANION_LLM_API_KEY: ${COMPANION_LLM_API_KEY:-}
+  COMPANION_LLM_MODEL: ${COMPANION_LLM_MODEL:-}
+  YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+  SEARCH_API_KEY: ${SEARCH_API_KEY:-}
+  WEB_SEARCH_API_KEY: ${WEB_SEARCH_API_KEY:-}
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?set POSTGRES_SUPERUSER_PASSWORD}
+      POSTGRES_DB: postgres
+      # Read once by db/postgres/init/10-pathly-roles.sh on an empty volume.
+      PATHLY_DB: ${PATHLY_DB:-pathly}
+      PATHLY_OWNER_PASSWORD: ${PATHLY_OWNER_PASSWORD:?set PATHLY_OWNER_PASSWORD}
+      PATHLY_APP_PASSWORD: ${PATHLY_APP_PASSWORD:?set PATHLY_APP_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../db/postgres/roles.sql:/pathly/roles.sql:ro
+      - ../db/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks: [internal]
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d $${PATHLY_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  # One-shot: applies Alembic migrations as the schema owner, then exits 0.
+  migrate:
+    build: { context: .., dockerfile: Dockerfile }
+    image: pathly-api:latest
+    restart: "no"
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://pathly_owner:${PATHLY_OWNER_PASSWORD}@db:5432/${PATHLY_DB:-pathly}
+    networks: [internal]
+    depends_on:
+      db: { condition: service_healthy }
+    logging: *logging
+
+  api:
+    image: pathly-api:latest
+    pull_policy: never  # built by `migrate`
+    restart: unless-stopped
+    command: ["sh", "-c", "exec uvicorn assistant.backend.main:app --host 0.0.0.0 --port 8000 --workers ${API_WORKERS:-2} --proxy-headers --forwarded-allow-ips '*'"]
+    environment: *backend-env
+    # `public` gives egress for LLM, search and link checks; no host port is published.
+    networks: [internal, public]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging: *logging
+
+  worker:
+    image: pathly-api:latest
+    pull_policy: never  # built by `migrate`
+    restart: unless-stopped
+    command: ["python", "-m", "assistant.backend.worker"]
+    environment: *backend-env
+    # `public` gives egress for LLM, search and link checks; no host port is published.
+    networks: [internal, public]
+    depends_on:
+      api: { condition: service_healthy }
+    logging: *logging
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+      args:
+        PUBLIC_URL: https://${DOMAIN}
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [internal, public]
+    depends_on:
+      api: { condition: service_healthy }
+    logging: *logging
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/backup.sh"]
+    environment:
+      PGHOST: db
+      PGUSER: pathly_owner
+      PGPASSWORD: ${PATHLY_OWNER_PASSWORD}
+      PGDATABASE: ${PATHLY_DB:-pathly}
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+    volumes:
+      - ./backup.sh:/backup.sh:ro
+      - ${BACKUP_DIR:-./backups}:/backups
+    networks: [internal]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    logging: *logging
+
+networks:
+  # No route to the internet: the database, migrations and backups live only here.
+  internal:
+    internal: true
+  public: {}
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

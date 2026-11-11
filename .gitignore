@@ -53,3 +53,7 @@ data/local.db
 # Local Claude Code settings, skills and worktrees
 .claude/
 .tmp/
+
+# Production server (deploy/): secrets and local backups
+deploy/.env
+deploy/backups/
