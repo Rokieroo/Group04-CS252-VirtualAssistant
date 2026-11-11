@@ -68,8 +68,18 @@ describe("GraphCanvas Component", () => {
   ];
 
   const sampleEdges: GraphEdge[] = [
-    { parent_id: "node-1", child_id: "node-2", kind: "strict", origin: "week_order" },
-    { parent_id: "node-2", child_id: "node-3", kind: "strict", origin: "week_order" },
+    {
+      parent_id: "node-1",
+      child_id: "node-2",
+      kind: "strict",
+      origin: "week_order",
+    },
+    {
+      parent_id: "node-2",
+      child_id: "node-3",
+      kind: "strict",
+      origin: "week_order",
+    },
   ];
 
   beforeEach(() => {
@@ -89,6 +99,9 @@ describe("GraphCanvas Component", () => {
       closePath: vi.fn(),
       fillRect: vi.fn(),
       fillText: vi.fn(),
+      strokeText: vi.fn(),
+      bezierCurveTo: vi.fn(),
+      measureText: vi.fn(() => ({ width: 40 })),
       setLineDash: vi.fn(),
     });
   });
@@ -99,11 +112,15 @@ describe("GraphCanvas Component", () => {
   });
 
   it("renders toolbar with week and force layout options", () => {
-    render(<GraphCanvas nodes={sampleNodes} edges={sampleEdges} layout="week" />);
+    render(
+      <GraphCanvas nodes={sampleNodes} edges={sampleEdges} layout="week" />,
+    );
 
     expect(screen.getByText("Theo tuần")).toBeTruthy();
     expect(screen.getByText("Lực (Obsidian)")).toBeTruthy();
-    expect(screen.getByRole("region", { name: "Knowledge Graph Canvas" })).toBeTruthy();
+    expect(
+      screen.getByRole("region", { name: "Knowledge Graph Canvas" }),
+    ).toBeTruthy();
   });
 
   it("calls onLayoutModeChange when switching layout button is clicked", () => {
@@ -135,13 +152,17 @@ describe("GraphCanvas Component", () => {
     );
 
     expect(
-      screen.getByText(/Chu trình tiên quyết bị chặn: node-2 → node-1 → node-2/i),
+      screen.getByText(
+        /Chu trình tiên quyết bị chặn: node-2 → node-1 → node-2/i,
+      ),
     ).toBeTruthy();
     expect(onEdgeCreate).not.toHaveBeenCalled();
   });
 
   it("handles zoom controls interaction", () => {
-    render(<GraphCanvas nodes={sampleNodes} edges={sampleEdges} layout="week" />);
+    render(
+      <GraphCanvas nodes={sampleNodes} edges={sampleEdges} layout="week" />,
+    );
 
     const zoomInBtn = screen.getByLabelText("Phóng to");
     const zoomOutBtn = screen.getByLabelText("Thu nhỏ");

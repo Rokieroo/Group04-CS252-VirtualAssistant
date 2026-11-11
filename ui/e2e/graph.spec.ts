@@ -395,6 +395,8 @@ test("drag saves layout and survives reload without opening a panel mid-drag", a
   const canvas = page.locator("canvas.graph-canvas");
   await expect(page.getByRole("combobox", { name: "CLO:" })).toBeVisible();
   await canvas.scrollIntoViewIfNeeded();
+  // The graph opens framed to fit; reset to 100% so positions map 1:1 to pixels.
+  await page.getByRole("button", { name: "Đặt lại góc nhìn" }).click();
   let rect = (await canvas.boundingBox())!;
   await page.mouse.move(rect.x + 140, rect.y + 140);
   await page.mouse.down();
@@ -408,6 +410,7 @@ test("drag saves layout and survives reload without opening a panel mid-drag", a
   await page.reload();
   await expect(page.getByRole("combobox", { name: "CLO:" })).toBeVisible();
   await canvas.scrollIntoViewIfNeeded();
+  await page.getByRole("button", { name: "Đặt lại góc nhìn" }).click();
   rect = (await canvas.boundingBox())!;
   await page.mouse.click(rect.x + 60 + saved.x, rect.y + 60 + saved.y);
   await expect(page.getByRole("dialog")).toContainText("Z Foundations");
@@ -455,6 +458,8 @@ test("native touch pinch changes canvas zoom", async ({
   const canvas = page.locator("canvas.graph-canvas");
   await expect(canvas).toBeVisible();
   await canvas.scrollIntoViewIfNeeded();
+  await page.getByRole("button", { name: "Đặt lại góc nhìn" }).click();
+  await expect(page.locator(".graph-zoom-level")).toHaveText("100%");
   const r = (await canvas.boundingBox())!;
   const cdp = await context.newCDPSession(page);
   const point = (id: number, x: number) => ({
@@ -476,7 +481,7 @@ test("native touch pinch changes canvas zoom", async ({
     type: "touchEnd",
     touchPoints: [],
   });
-  await expect(page.locator(".zoom-level")).not.toHaveText("100%");
+  await expect(page.locator(".graph-zoom-level")).not.toHaveText("100%");
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 for (const layout of ["week", "force"] as const) {
