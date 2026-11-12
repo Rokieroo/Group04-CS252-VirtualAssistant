@@ -97,3 +97,14 @@ def test_context_rejects_values_the_companion_cannot_voice(change):
     with pytest.raises(ValueError):
         context(**change)
 
+
+def test_companion_truncates_oversized_user_message():
+    provider = StubProvider(reply="Ok")
+    companion = Companion(provider)
+    oversized = "A" * 20_000
+    companion.reply(context(), oversized)
+    last_msg = provider.messages[-1]
+    assert last_msg["role"] == "user"
+    assert len(last_msg["content"]) == 12_000
+
+
