@@ -56,6 +56,10 @@ EXPECTED_TABLES = {
     "catalog_embeddings", "roadmap_edges", "graph_layouts", "node_materials", "node_source_status",
     "exercises", "exercise_subjects", "node_exercises",
     "source_subjects",
+    # Recommendations and feedback (migration 0014)
+    "external_results",
+    "recommendations",
+    "recommendation_events",
 }
 
 

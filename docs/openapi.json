@@ -3758,6 +3758,172 @@
         }
       }
     },
+    "/api/v1/roadmap-nodes/{node_id}/recommendations": {
+      "get": {
+        "tags": [
+          "Recommendations"
+        ],
+        "summary": "Get Node Recommendations",
+        "description": "Retrieve recommendations for a roadmap node, recalculating if stale (>24h).",
+        "operationId": "get_node_recommendations_api_v1_roadmap_nodes__node_id__recommendations_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Node Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 20,
+              "minimum": 1,
+              "default": 5,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeRecommendationsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recommendations/{recommendation_id}/events": {
+      "post": {
+        "tags": [
+          "Recommendations"
+        ],
+        "summary": "Submit Recommendation Event",
+        "description": "Log an interaction event for a recommendation (shown, opened, helpful, not_helpful, pinned).",
+        "operationId": "submit_recommendation_event_api_v1_recommendations__recommendation_id__events_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "recommendation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Recommendation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecommendationEventCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationEventOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmaps/{roadmap_id}/recommendations:summary": {
+      "get": {
+        "tags": [
+          "Recommendations"
+        ],
+        "summary": "Get Roadmap Recommendations Summary",
+        "description": "Summarize recommendation metrics across all nodes of a roadmap.",
+        "operationId": "get_roadmap_recommendations_summary_api_v1_roadmaps__roadmap_id__recommendations_summary_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roadmap_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Roadmap Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoadmapRecommendationsSummaryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/catalog/review-queue": {
       "get": {
         "tags": [
@@ -6050,6 +6216,26 @@
         ],
         "title": "NodeMaterialsOut"
       },
+      "NodeRecommendationsOut": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "recommendations": {
+            "items": {
+              "$ref": "#/components/schemas/RecommendationOut"
+            },
+            "type": "array",
+            "title": "Recommendations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node_id"
+        ],
+        "title": "NodeRecommendationsOut"
+      },
       "NodeResourcesOut": {
         "properties": {
           "status": {
@@ -6623,6 +6809,139 @@
           "reason"
         ],
         "title": "RankedSourceOut"
+      },
+      "RecommendationEventCreate": {
+        "properties": {
+          "event": {
+            "type": "string",
+            "enum": [
+              "shown",
+              "opened",
+              "helpful",
+              "not_helpful",
+              "pinned"
+            ],
+            "title": "Event"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "event"
+        ],
+        "title": "RecommendationEventCreate"
+      },
+      "RecommendationEventOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "recommendation_id": {
+            "type": "string",
+            "title": "Recommendation Id"
+          },
+          "event": {
+            "type": "string",
+            "title": "Event"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "recommendation_id",
+          "event",
+          "created_at"
+        ],
+        "title": "RecommendationEventOut"
+      },
+      "RecommendationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "resource_ref": {
+            "type": "string",
+            "title": "Resource Ref"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "dismissed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dismissed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "node_id",
+          "resource_ref",
+          "kind",
+          "rank",
+          "score",
+          "reason",
+          "created_at"
+        ],
+        "title": "RecommendationOut"
       },
       "Register": {
         "properties": {
@@ -7233,6 +7552,48 @@
           "created_at"
         ],
         "title": "RoadmapOut"
+      },
+      "RoadmapRecommendationsSummaryOut": {
+        "properties": {
+          "roadmap_id": {
+            "type": "string",
+            "title": "Roadmap Id"
+          },
+          "total_nodes": {
+            "type": "integer",
+            "title": "Total Nodes"
+          },
+          "total_recommendations": {
+            "type": "integer",
+            "title": "Total Recommendations"
+          },
+          "by_kind": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Kind"
+          },
+          "events_summary": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Events Summary"
+          },
+          "pinned_count": {
+            "type": "integer",
+            "title": "Pinned Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "roadmap_id",
+          "total_nodes",
+          "total_recommendations",
+          "pinned_count"
+        ],
+        "title": "RoadmapRecommendationsSummaryOut"
       },
       "RoadmapReplanIn": {
         "properties": {

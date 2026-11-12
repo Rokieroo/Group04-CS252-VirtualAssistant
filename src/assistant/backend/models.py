@@ -665,5 +665,84 @@ class ResourceVerification(Base):
     )
 
 
+class Recommendation(Base):
+    """Recommendations for a roadmap node presented to a learner (issue #156)."""
+
+    __tablename__ = "recommendations"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    node_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("roadmap_nodes.id", ondelete="CASCADE"), nullable=False
+    )
+    resource_ref: Mapped[str] = mapped_column(Text, nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    rank: Mapped[int] = mapped_column(
+        Integer, default=1, server_default="1", nullable=False
+    )
+    score: Mapped[float] = mapped_column(
+        Float, default=0.0, server_default="0.0", nullable=False
+    )
+    reason: Mapped[str] = mapped_column(
+        Text, default="", server_default="", nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(),
+        default=utcnow,
+        server_default=func.current_timestamp(),
+        nullable=False,
+    )
+    dismissed_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime(), default=None, nullable=True
+    )
+    __table_args__ = (
+        Index("ix_recommendations_user_id", "user_id"),
+        Index("ix_recommendations_node_id", "node_id"),
+        Index("ix_recommendations_user_node", "user_id", "node_id"),
+    )
+
+
+class RecommendationEvent(Base):
+    """Feedback events on recommendations (shown, opened, helpful, not_helpful, pinned)."""
+
+    __tablename__ = "recommendation_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    recommendation_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("recommendations.id", ondelete="CASCADE"), nullable=False
+    )
+    event: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(),
+        default=utcnow,
+        server_default=func.current_timestamp(),
+        nullable=False,
+    )
+    __table_args__ = (
+        CheckConstraint(
+            "event IN ('shown', 'opened', 'helpful', 'not_helpful', 'pinned')"
+        ),
+        Index("ix_recommendation_events_recommendation_id", "recommendation_id"),
+    )
+
+
+class ExternalResult(Base):
+    """External provider cache entries with 7-day validity (issue #156)."""
+
+    __tablename__ = "external_results"
+    query_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    provider: Mapped[str] = mapped_column(String(64), primary_key=True)
+    payload: Mapped[str] = mapped_column(Text, nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(),
+        default=utcnow,
+        server_default=func.current_timestamp(),
+        nullable=False,
+    )
+    __table_args__ = (
+        Index("ix_external_results_fetched_at", "fetched_at"),
+    )
+
+
 # Register graph/exercise extensions on the canonical schema metadata.
 from . import catalog_models  # noqa: F401
