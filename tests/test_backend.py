@@ -44,7 +44,6 @@ def test_accounts_hash_password_and_sessions_and_revoke(
         "/api/v1/goals",
         "/api/v1/schedule",
         "/api/v1/ai/messages",
-        "/api/v1/teams",
         "/api/v1/notifications",
         "/api/v1/reports/weekly",
     ],

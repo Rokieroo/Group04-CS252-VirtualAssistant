@@ -119,3 +119,40 @@ def test_lexical_similarity_bounds():
     same = resource("x", text="recursion base case")
     assert lexical_similarity(same, same) == pytest.approx(1.0)
     assert lexical_similarity(resource("a", text="alpha"), resource("b", text="beta")) == 0.0
+
+
+def test_replace_matches_canonical_and_variation_urls():
+    pool = [resource(f"r{i}", 0.9 - i * 0.02) for i in range(7)]
+    cur = curate(pool)
+    # Target URL with trailing slash or formatting should still match the shown resource
+    result = replace(cur, "https://r1.example/r1/")
+    assert names(result) == ["r0", "r2", "r3", "r4", "r5"]
+    assert [r.title for r in result.reserve] == ["r6"]
+
+
+def test_match_sources_safe_with_missing_optional_format_and_domain():
+    from app.catalog.matching import match_sources
+
+    node = {
+        "title": "Sorting Algorithms",
+        "language": "en",
+        "level": "undergrad",
+        "subjects": ["cs.sort"],
+        "textbooks": ["Introduction to Algorithms"],
+    }
+    raw_resource = {
+        "id": "res-1",
+        "title": "Quick Sort Notes",
+        "verification_status": "verified",
+        "lang": "en",
+        "level": "undergrad",
+        "subjects": ["cs.sort"],
+        "format": None,  # nullable in schema
+        "domain": None,  # nullable in schema
+        "tier": 2,
+        "is_free": True,
+    }
+    results = match_sources(node, [raw_resource])
+    assert len(results) == 1
+    assert results[0]["id"] == "res-1"
+

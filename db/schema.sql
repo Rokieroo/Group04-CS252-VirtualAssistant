@@ -15,7 +15,9 @@ CREATE TABLE IF NOT EXISTS users (
 
     name                   VARCHAR(80) NOT NULL DEFAULT '',
     timezone               VARCHAR(64) NOT NULL DEFAULT 'Asia/Ho_Chi_Minh',
-    personality            VARCHAR(16) NOT NULL DEFAULT 'warm'
+    personality            VARCHAR(16) NOT NULL DEFAULT 'warm',
+    parental_consent       INTEGER NOT NULL DEFAULT 0,
+    parental_consent_at    TEXT
 );
 
 CREATE TABLE IF NOT EXISTS search_cache (
@@ -143,7 +145,8 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     created_at  TIMESTAMP NOT NULL,
     user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role        VARCHAR(16) NOT NULL,
-    content     TEXT NOT NULL
+    content     TEXT NOT NULL,
+    safety_flag INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS sources (
@@ -507,6 +510,36 @@ CREATE TABLE IF NOT EXISTS reviews (
     reviewed_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS review_cards (
+    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    item_id     TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    node_id     VARCHAR(36) REFERENCES roadmap_nodes(id) ON DELETE SET NULL,
+    due_at      TIMESTAMP NOT NULL,
+    stability   REAL NOT NULL DEFAULT 0.0,
+    difficulty  REAL NOT NULL DEFAULT 0.0,
+    state       INTEGER NOT NULL DEFAULT 0,
+    step        INTEGER NOT NULL DEFAULT 0,
+    last_review TIMESTAMP,
+    PRIMARY KEY (user_id, item_id)
+);
+CREATE INDEX IF NOT EXISTS ix_review_cards_due_at ON review_cards (due_at);
+CREATE INDEX IF NOT EXISTS ix_review_cards_node_id ON review_cards (node_id);
+
+CREATE TABLE IF NOT EXISTS review_logs (
+    id             VARCHAR(36) PRIMARY KEY,
+    user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    item_id        TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    node_id        VARCHAR(36) REFERENCES roadmap_nodes(id) ON DELETE SET NULL,
+    rating         INTEGER NOT NULL,
+    reviewed_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    elapsed_days   REAL NOT NULL DEFAULT 0.0,
+    scheduled_days REAL NOT NULL DEFAULT 0.0,
+    stability      REAL NOT NULL,
+    difficulty     REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_review_logs_user_item ON review_logs (user_id, item_id);
+CREATE INDEX IF NOT EXISTS ix_review_logs_node_id ON review_logs (node_id);
+
 CREATE TABLE IF NOT EXISTS search_runs (
     id             VARCHAR(36) PRIMARY KEY,
     user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -540,6 +573,34 @@ CREATE TABLE IF NOT EXISTS notifications (
     entry_id    VARCHAR(36) UNIQUE REFERENCES schedule_entries(id) ON DELETE CASCADE,
     message     VARCHAR(500) NOT NULL,
     read        BOOLEAN NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS external_results (
+    query_hash VARCHAR(64) NOT NULL,
+    provider VARCHAR(64) NOT NULL,
+    payload TEXT NOT NULL,
+    fetched_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (query_hash, provider)
+);
+
+CREATE TABLE IF NOT EXISTS recommendations (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    node_id VARCHAR(36) NOT NULL REFERENCES roadmap_nodes(id) ON DELETE CASCADE,
+    resource_ref TEXT NOT NULL,
+    kind VARCHAR(32) NOT NULL,
+    rank INTEGER NOT NULL DEFAULT 1,
+    score REAL NOT NULL DEFAULT 0.0,
+    reason TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    dismissed_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS recommendation_events (
+    id VARCHAR(36) PRIMARY KEY,
+    recommendation_id VARCHAR(36) NOT NULL REFERENCES recommendations(id) ON DELETE CASCADE,
+    event VARCHAR(32) NOT NULL CHECK (event IN ('shown', 'opened', 'helpful', 'not_helpful', 'pinned')),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_cards_user_due ON cards (user_id, due_at);
@@ -633,8 +694,18 @@ CREATE INDEX IF NOT EXISTS ix_notifications_user_id ON notifications (user_id);
 
 CREATE INDEX IF NOT EXISTS ix_chat_messages_user_id ON chat_messages (user_id);
 
+CREATE INDEX IF NOT EXISTS ix_recommendations_user_id ON recommendations (user_id);
+
+CREATE INDEX IF NOT EXISTS ix_recommendations_node_id ON recommendations (node_id);
+
+CREATE INDEX IF NOT EXISTS ix_recommendations_user_node ON recommendations (user_id, node_id);
+
+CREATE INDEX IF NOT EXISTS ix_recommendation_events_recommendation_id ON recommendation_events (recommendation_id);
+
+CREATE INDEX IF NOT EXISTS ix_external_results_fetched_at ON external_results (fetched_at);
+
 INSERT INTO alembic_version (version_num)
-SELECT '0013_concept_source_refs'
+SELECT '0016_fsrs_reviews'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);
 
 CREATE INDEX IF NOT EXISTS ix_roadmap_edges_roadmap_id ON roadmap_edges (roadmap_id);

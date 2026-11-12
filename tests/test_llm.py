@@ -129,3 +129,11 @@ def test_vision_and_text_roles_use_their_own_models(monkeypatch):
     vision, text = get_vision_client(), get_client()
     assert (vision.models, vision.thinking) == (["gemini-3.1-flash-lite"], "MINIMAL")
     assert (text.models, text.thinking) == (["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"], None)
+
+
+def test_gemini_prices_support_flash_lite(monkeypatch):
+    client = _gemini(monkeypatch, ('{"ok": 1}', 1_000_000, 1_000_000), models=("gemini-3.5-flash-lite",))
+    res = client.complete("p", json_schema={"type": "object"})
+    # 1.0M in * 0.10 + 1.0M out * 0.40 = 0.50
+    assert res.cost_usd == pytest.approx(0.50)
+
