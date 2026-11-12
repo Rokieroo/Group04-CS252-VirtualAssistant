@@ -93,6 +93,7 @@ class Planner:
         deadlines = self._deadlines(by_id, graph)
         free = self._free_slots(windows, occupied)
         daily_used = self._daily_usage(fixed_work)
+        weekly_used = self._weekly_usage(daily_used)
         finished: dict[str, datetime] = {}
         failed: set[str] = set()
         overloaded: set[date] = set()
@@ -116,7 +117,9 @@ class Planner:
                     [self.limits.starts_at, task.release_at or self.limits.starts_at]
                     + [finished[dep] for dep in graph[task_id] if dep in finished]
                 )
-                left = self._place(task, not_before, deadline, free, daily_used, plan)
+                left = self._place(
+                    task, not_before, deadline, free, daily_used, plan, weekly_used
+                )
                 reason = self._reason(deadline)
             if left:
                 failed.add(task_id)
@@ -143,10 +146,13 @@ class Planner:
     def _day(self, moment: datetime) -> date:
         return moment.astimezone(self.zone).date()
 
+    @staticmethod
+    def _monday(day: date) -> date:
+        return day - timedelta(days=day.weekday())
+
     def _week(self, end: datetime) -> date:
         # Ends are exclusive: a deadline at Monday 00:00 belongs to the week before.
-        day = self._day(end - timedelta(microseconds=1))
-        return day - timedelta(days=day.weekday())
+        return self._monday(self._day(end - timedelta(microseconds=1)))
 
     def _free_slots(self, windows: list[Interval], occupied: list[Interval]):
         horizon = [(self.limits.starts_at, self.limits.ends_at)]
@@ -160,21 +166,46 @@ class Planner:
                 used[self._day(start)] += minutes(start, end)
         return used
 
-    def _place(self, task, not_before, deadline, free, daily_used, plan) -> int:
+    def _weekly_usage(self, daily_used: dict[date, int]) -> dict[date, int]:
+        used: dict[date, int] = defaultdict(int)
+        for used_day, value in daily_used.items():
+            used[self._monday(used_day)] += value
+        return used
+
+    def _place(
+        self,
+        task,
+        not_before,
+        deadline,
+        free,
+        daily_used,
+        plan,
+        weekly_used: dict[date, int] | None = None,
+    ) -> int:
         """Place sessions inside [not_before, deadline), removing the time used from
         ``free`` in place; return the minutes left unplaced."""
-        limits = self.limits
         remaining = task.remaining
+        if remaining <= 0:
+            return 0
+        if weekly_used is None:
+            weekly_used = self._weekly_usage(daily_used)
+        limits = self.limits
+        weekly_limit = getattr(limits, "weekly_limit_minutes", 10080)
         kept: list[Interval] = []
-        for slot_start, slot_end in free:
+        for idx, (slot_start, slot_end) in enumerate(free):
+            if slot_start >= deadline:
+                kept.extend(free[idx:])
+                break
             start, end = max(slot_start, not_before), min(slot_end, deadline)
-            day = self._day(slot_start)
-            week_start = day - timedelta(days=day.weekday())
-            weekly_used = sum(value for used_day, value in daily_used.items()
-                              if used_day - timedelta(days=used_day.weekday()) == week_start)
+            if start >= end:
+                kept.append((slot_start, slot_end))
+                continue
+            day = self._day(start)
+            week_start = self._monday(day)
             capacity = min(
-                minutes(start, end), limits.daily_limit_minutes - daily_used[day],
-                getattr(limits, "weekly_limit_minutes", 10080) - weekly_used,
+                minutes(start, end),
+                limits.daily_limit_minutes - daily_used[day],
+                weekly_limit - weekly_used[week_start],
             )
             cursor = start
             while capacity > 0 and remaining > 0:
@@ -185,15 +216,19 @@ class Planner:
                 stop = cursor + timedelta(minutes=length)
                 plan.entries.append(PlannedSession(task.id, cursor, stop))
                 daily_used[day] += length
+                weekly_used[week_start] += length
                 remaining -= length
                 capacity -= length
                 cursor = stop
             if cursor > start:
-                kept += [
+                kept.extend(
                     piece
                     for piece in ((slot_start, start), (cursor, slot_end))
                     if piece[0] < piece[1]
-                ]
+                )
+                if remaining <= 0:
+                    kept.extend(free[idx + 1 :])
+                    break
             else:
                 kept.append((slot_start, slot_end))
         free[:] = kept
