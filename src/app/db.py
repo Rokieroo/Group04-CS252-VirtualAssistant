@@ -89,6 +89,9 @@ _TABLES = (
     "search_runs",
     "schedule_entries",
     "notifications",
+    "external_results",
+    "recommendations",
+    "recommendation_events",
 )
 
 

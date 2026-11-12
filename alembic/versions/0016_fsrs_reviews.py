@@ -13,8 +13,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "0014_fsrs_reviews"
-down_revision: str | None = "0013_concept_source_refs"
+revision: str = "0016_fsrs_reviews"
+down_revision: str | None = "0015_k12_safety"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

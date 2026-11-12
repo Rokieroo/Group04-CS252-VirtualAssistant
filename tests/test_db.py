@@ -65,6 +65,9 @@ EXPECTED_TABLES = {
     "source_subjects",
     "review_cards",
     "review_logs",
+    "external_results",
+    "recommendations",
+    "recommendation_events",
 }
 
 
