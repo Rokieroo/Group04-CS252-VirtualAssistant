@@ -44,6 +44,7 @@ Running `python eval/run_resources.py` computes coverage, ranking quality (Preci
 | **Micro-Average** | **50** | **25** | **25** | **100.0%** | **1.000** | **1.000** | **0.0%** | **PASS** |
 
 ### Acceptance Targets & Results
+
 - **Precision@5**: Target $\ge 0.80$ $\longrightarrow$ **Achieved: 1.000**
 - **nDCG@5**: Target $\ge 0.75$ $\longrightarrow$ **Achieved: 1.000**
 - **Dead Link Rate**: Target $< 2.0\%$ $\longrightarrow$ **Achieved: 0.0%**
@@ -65,6 +66,7 @@ The benchmark consists of **60 verified cases** mapped to core concepts across t
 | **Total** | **5 Benchmark Courses** | **60** | **All 6 Bloom Levels** | **All 5 Question Types** | **100.0%** |
 
 Every exercise satisfies:
+
 1. `exact(item, source_text) == True`: prompt, choices, and answer are authentic word-for-word substrings of the cited source.
 2. Verified `quote_hash`: cryptographic SHA-256 seal of the verbatim wording.
 3. Zero AI authoring: no model was asked to write, generate, or paraphrase questions.
