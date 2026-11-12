@@ -95,6 +95,10 @@ class User(Base):
     personality: Mapped[str] = mapped_column(
         String(16), default="warm", server_default="warm"
     )
+    parental_consent: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0"
+    )
+    parental_consent_at: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Course(Base):
@@ -274,6 +278,9 @@ class ChatMessage(Entity, Base):
     )
     role: Mapped[str] = mapped_column(String(16))
     content: Mapped[str] = mapped_column(Text)
+    safety_flag: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0"
+    )
 
 
 class Syllabus(Base):

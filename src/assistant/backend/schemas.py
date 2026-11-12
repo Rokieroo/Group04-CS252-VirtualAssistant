@@ -87,6 +87,7 @@ class Register(Input):
     birth_year: int
     account_level: AccountLevel = "university"
     timezone: str = "Asia/Ho_Chi_Minh"
+    parental_consent: bool = False
 
     @field_validator("password")
     @classmethod
@@ -123,6 +124,8 @@ class UserOut(Output):
     account_level: AccountLevel
     birth_year: int | None
     companion_mode: CompanionMode
+    parental_consent: bool = False
+    parental_consent_at: str | None = None
 
 
 class TokenOut(Output):
@@ -362,6 +365,7 @@ class ChatOut(Output):
     reply: str
     provider: Literal["llm", "offline"]
     fallback_reason: str | None = None
+    safety_flag: bool = False
 
 
 class MessageOut(Output):

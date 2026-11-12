@@ -27,6 +27,11 @@ from app.roadmap import (
     task_due_at,
     task_release_at,
 )
+from app.safety import (
+    SAFE_REDACTION_MESSAGE,
+    build_crisis_reply,
+    is_crisis_message,
+)
 
 from .models import (
     Availability,
@@ -418,6 +423,35 @@ def companion_reply(
     now: datetime,
 ) -> ChatOut:
     """One chat turn: gather read-only facts, ask the companion, store both messages."""
+    if is_crisis_message(data.message):
+        lang = "en" if any(w in data.message.lower() for w in ("kill", "myself", "suicide", "die", "harm")) and not any(w in data.message.lower() for w in ("tự tử", "chết", "sống", "muốn")) else "vi"
+        crisis_text = build_crisis_reply(lang)
+        db.add(
+            ChatMessage(
+                user_id=user.id,
+                role="user",
+                content=SAFE_REDACTION_MESSAGE,
+                safety_flag=1,
+                created_at=now,
+            )
+        )
+        db.add(
+            ChatMessage(
+                user_id=user.id,
+                role="assistant",
+                content=crisis_text,
+                safety_flag=1,
+                created_at=now + timedelta(microseconds=1),
+            )
+        )
+        db.commit()
+        return ChatOut(
+            reply=crisis_text,
+            provider="offline",
+            fallback_reason="crisis_intervention",
+            safety_flag=True,
+        )
+
     local_date = now.astimezone(ZoneInfo(user.timezone)).date()
     report = progress_report(
         db, user, local_date - timedelta(days=local_date.weekday())

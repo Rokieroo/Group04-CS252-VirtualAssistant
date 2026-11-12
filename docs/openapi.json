@@ -117,6 +117,11 @@
         ],
         "summary": "Profile",
         "operationId": "profile_api_v1_me_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -128,12 +133,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       },
       "patch": {
         "tags": [
@@ -141,15 +141,20 @@
         ],
         "summary": "Update Profile",
         "operationId": "update_profile_api_v1_me_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ProfilePatch"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -169,6 +174,66 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Delete Account",
+        "description": "Hard-delete current user and all related records with explicit confirmation.",
+        "operationId": "delete_account_api_v1_me_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "confirm",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Confirm"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/export": {
+      "get": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Export User Data",
+        "description": "Export complete personal data in JSON format (Issue #164, GDPR/Child Safety).",
+        "operationId": "export_user_data_api_v1_me_export_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -4130,6 +4195,11 @@
               }
             ],
             "title": "Fallback Reason"
+          },
+          "safety_flag": {
+            "type": "boolean",
+            "title": "Safety Flag",
+            "default": false
           }
         },
         "type": "object",
@@ -6374,6 +6444,11 @@
             "type": "string",
             "title": "Timezone",
             "default": "Asia/Ho_Chi_Minh"
+          },
+          "parental_consent": {
+            "type": "boolean",
+            "title": "Parental Consent",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -7907,6 +7982,22 @@
               "girlfriend"
             ],
             "title": "Companion Mode"
+          },
+          "parental_consent": {
+            "type": "boolean",
+            "title": "Parental Consent",
+            "default": false
+          },
+          "parental_consent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parental Consent At"
           }
         },
         "type": "object",

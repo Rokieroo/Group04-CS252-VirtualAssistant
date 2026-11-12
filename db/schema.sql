@@ -15,7 +15,9 @@ CREATE TABLE IF NOT EXISTS users (
 
     name                   VARCHAR(80) NOT NULL DEFAULT '',
     timezone               VARCHAR(64) NOT NULL DEFAULT 'Asia/Ho_Chi_Minh',
-    personality            VARCHAR(16) NOT NULL DEFAULT 'warm'
+    personality            VARCHAR(16) NOT NULL DEFAULT 'warm',
+    parental_consent       INTEGER NOT NULL DEFAULT 0,
+    parental_consent_at    TEXT
 );
 
 CREATE TABLE IF NOT EXISTS search_cache (
@@ -143,7 +145,8 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     created_at  TIMESTAMP NOT NULL,
     user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role        VARCHAR(16) NOT NULL,
-    content     TEXT NOT NULL
+    content     TEXT NOT NULL,
+    safety_flag INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS sources (
@@ -672,7 +675,7 @@ CREATE INDEX IF NOT EXISTS ix_recommendation_events_recommendation_id ON recomme
 CREATE INDEX IF NOT EXISTS ix_external_results_fetched_at ON external_results (fetched_at);
 
 INSERT INTO alembic_version (version_num)
-SELECT '0014_recommendations'
+SELECT '0015_k12_safety'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);
 
 CREATE INDEX IF NOT EXISTS ix_roadmap_edges_roadmap_id ON roadmap_edges (roadmap_id);
