@@ -216,8 +216,12 @@ class CatalogSearch(SearchProvider):
                 continue
             if default_policy().tier(row["url"]).value == 0:
                 continue
-            candidate = Candidate(row["url"], row["title"], "catalog", row["format"] or row["kind"], row["lang"])
-            entries.append(_Entry(candidate, _normalize(row["title"]), _normalize(row["title"]), ()))
+            kind = row["format"] or row["kind"] or "article"
+            lang_val = row["lang"] or "vi"
+            candidate = Candidate(row["url"], row["title"], "catalog", kind, lang_val)
+            tags = tuple(filter(None, (_normalize(kind), _normalize(lang_val))))
+            search_text = _normalize(f"{row['title']} {kind} {lang_val}")
+            entries.append(_Entry(candidate, search_text, _normalize(row["title"]), tags))
         return entries
 
     def search(
