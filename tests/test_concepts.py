@@ -433,3 +433,29 @@ def test_save_concepts_handles_empty_or_null_source_refs(app, course):
         updated = save_concepts(db, course, [concept("legacy-concept", [1, 2])])
         db.commit()
     assert [c["source_pages"] for c in updated if c["slug"] == "legacy-concept"] == [[1, 2]]
+
+
+def test_merge_normalizes_titles_once_and_indexes_slugs(monkeypatch):
+    import importlib
+
+    norm_mod = importlib.import_module("app.concepts.normalize")
+
+    calls = 0
+    orig_normalize = norm_mod.normalize
+
+    def tracked_normalize(title: str) -> str:
+        nonlocal calls
+        calls += 1
+        return orig_normalize(title)
+
+    monkeypatch.setattr(norm_mod, "normalize", tracked_normalize)
+    base = [concept(f"topic-{i}", [1], title=f"Distinct Topic Number {i}") for i in range(40)]
+    incoming = [concept("topic-0", [2], title="Totally Renamed Slug Match")] + [
+        concept(f"extra-{i}", [3], title=f"Another Concept {i}") for i in range(40)
+    ]
+
+    result = merge(incoming, into=base)
+    assert len(result) == 80
+    assert result[0]["source_pages"] == [1, 2]
+    # Slug match skips normalize completely, and every unmatched title is normalized once (not O(N^2)).
+    assert calls <= len(base) + len(incoming)
