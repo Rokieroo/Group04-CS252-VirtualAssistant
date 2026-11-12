@@ -204,19 +204,53 @@ export function NodePanel({
     }
   };
 
-  // Sources categorized
-  const ownMaterials =
-    sourcesData?.sources.filter((s) => s.kind === "user_material") || [];
-  const catalogSources: VerifiedSource[] = (
-    sourcesData?.sources.filter((s) => s.kind !== "user_material") || []
-  ).map((s) => ({
-    ...s,
-    institution: s.institution ?? undefined,
-    verification_status:
-      s.kind === "catalog" && s.verification_status === "verified"
-        ? "verified"
-        : undefined,
-  }));
+  const [pinnedSourceIds, setPinnedSourceIds] = useState<Set<string>>(new Set());
+  const [hiddenSourceIds, setHiddenSourceIds] = useState<Set<string>>(new Set());
+  const [exitingSourceIds, setExitingSourceIds] = useState<Set<string>>(new Set());
+
+  const handleFeedback = (sourceId: string, helpful: boolean) => {
+    if (!helpful) {
+      setExitingSourceIds((prev) => new Set(prev).add(sourceId));
+      setTimeout(() => {
+        setHiddenSourceIds((prev) => new Set(prev).add(sourceId));
+        setExitingSourceIds((prev) => {
+          const next = new Set(prev);
+          next.delete(sourceId);
+          return next;
+        });
+      }, 250);
+    }
+  };
+
+  const handlePin = (sourceId: string, pinned: boolean) => {
+    setPinnedSourceIds((prev) => {
+      const next = new Set(prev);
+      if (pinned) next.add(sourceId);
+      else next.delete(sourceId);
+      return next;
+    });
+  };
+
+  // Sources categorized into three distinct groups (Issue #159)
+  const rawSources = sourcesData?.sources || [];
+  const visibleSources: VerifiedSource[] = rawSources
+    .filter((s) => !hiddenSourceIds.has(s.id))
+    .map((s) => ({
+      ...s,
+      institution: s.institution ?? undefined,
+      verification_status:
+        s.kind === "catalog" && s.verification_status === "verified"
+          ? "verified"
+          : undefined,
+      pinned: pinnedSourceIds.has(s.id),
+    }))
+    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+
+  const ownMaterials = visibleSources.filter((s) => s.kind === "user_material");
+  const catalogSources = visibleSources.filter((s) => s.kind === "catalog");
+  const externalSources = visibleSources.filter(
+    (s) => s.kind === "external" || s.kind === "web",
+  );
 
   const isInsufficient = sourcesData?.status === "insufficient";
 
@@ -406,53 +440,21 @@ export function NodePanel({
             </div>
           </section>
 
-          {/* 3. Learning Sources (Spec 114 User Materials First, then Catalog) */}
+          {/* 3. Learning Sources (Spec 114 User Materials First, then Catalog, then External) */}
           <section
             className="np-section"
-            aria-label="Nguồn học tập đã kiểm chứng"
+            aria-label="Gợi ý nguồn học tập theo ba nhóm"
           >
-            <h4 className="np-section-title">Nguồn học tập</h4>
+            <h4 className="np-section-title">Gợi ý nguồn học tập</h4>
 
-            {/* User uploaded materials always first (#114) */}
-            {ownMaterials.length > 0 && (
-              <div
-                className="np-user-materials-list"
-                aria-label="Tài liệu riêng của bạn"
-              >
-                {ownMaterials.map((s) => (
-                  <div key={s.id} className="np-user-material-item">
-                    <span className="np-user-material-title">📂 {s.title}</span>
-                    <span
-                      style={{
-                        fontSize: "0.8rem",
-                        color: "var(--color-muted)",
-                      }}
-                    >
-                      {s.reason}
-                    </span>
-                    {s.pages && s.pages.length > 0 && (
-                      <div className="np-page-chips">
-                        {s.pages.map((p) => (
-                          <button
-                            key={p}
-                            type="button"
-                            className="np-page-btn"
-                            disabled={!onOpenMaterialPage}
-                            onClick={() =>
-                              onOpenMaterialPage?.(s.source_id || s.id, p)
-                            }
-                            title={`Mở tài liệu tại trang ${p}`}
-                          >
-                            Trang {p} ↗
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+            {/* Loading State */}
+            {sourcesData === null && !loadError && (
+              <div className="np-loading-sources" role="status">
+                <span>⏳ Đang tải gợi ý nguồn học…</span>
               </div>
             )}
 
+            {/* Error State */}
             {loadError && (
               <div>
                 <p role="alert" className="row-error">
@@ -460,6 +462,7 @@ export function NodePanel({
                 </p>
                 <button
                   className="button"
+                  type="button"
                   onClick={() => void loadData(node.id)}
                 >
                   Thử lại thông tin chặng
@@ -467,31 +470,173 @@ export function NodePanel({
               </div>
             )}
 
-            {/* Insufficient State Banner */}
-            {isInsufficient && (
-              <InsufficientSourcesNotice
-                onRetry={handleRetrySearch}
-                busy={searching}
-              />
+            {/* Group 1: User uploaded materials always first (#114) */}
+            {ownMaterials.length > 0 && (
+              <div
+                className="np-source-group np-group-user-material"
+                aria-label="Tài liệu riêng của bạn"
+              >
+                <h5 className="np-group-title">📂 Tài liệu của bạn</h5>
+                <div className="np-user-materials-list">
+                  {ownMaterials.map((s) => (
+                    <div
+                      key={s.id}
+                      className={`np-user-material-item ${exitingSourceIds.has(s.id) ? "vsc-card-animating-exit" : ""}`}
+                    >
+                      <div className="np-user-material-header">
+                        <span className="np-user-material-title">📂 {s.title}</span>
+                        {s.duration_min ? (
+                          <span className="vsc-badge vsc-badge-duration">⏱ {s.duration_min} phút</span>
+                        ) : null}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: "0.8rem",
+                          color: "var(--color-muted)",
+                        }}
+                      >
+                        {s.reason}
+                      </span>
+                      {s.pages && s.pages.length > 0 && (
+                        <div className="np-page-chips">
+                          {s.pages.map((p) => (
+                            <button
+                              key={p}
+                              type="button"
+                              className="np-page-btn"
+                              disabled={!onOpenMaterialPage}
+                              onClick={() =>
+                                onOpenMaterialPage?.(s.source_id || s.id, p)
+                              }
+                              title={`Mở tài liệu tại trang ${p}`}
+                            >
+                              Trang {p} ↗
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <div className="vsc-actions" style={{ marginTop: "0.4rem" }}>
+                        <button
+                          type="button"
+                          className="vsc-feedback-btn"
+                          onClick={() => handleFeedback(s.id, true)}
+                          title="Đánh giá hữu ích"
+                        >
+                          👍 Hữu ích
+                        </button>
+                        <button
+                          type="button"
+                          className="vsc-feedback-btn"
+                          onClick={() => handleFeedback(s.id, false)}
+                          title="Không hữu ích"
+                        >
+                          👎 Không hữu ích
+                        </button>
+                        <button
+                          type="button"
+                          className={`vsc-pin-btn ${s.pinned ? "pinned" : ""}`}
+                          onClick={() => handlePin(s.id, !s.pinned)}
+                          title={s.pinned ? "Bỏ ghim" : "Ghim lên đầu"}
+                        >
+                          {s.pinned ? "📌 Đã ghim" : "📌 Ghim"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
-            {/* Verified Catalog Sources using Shared VerifiedSourceCard (#104) */}
+            {/* Insufficient State Banner */}
+            {isInsufficient && (
+              <>
+                <InsufficientSourcesNotice
+                  onRetry={handleRetrySearch}
+                  busy={searching}
+                />
+                <div className="np-insufficient-alternatives" role="note">
+                  <p><strong>Gợi ý tài liệu tham khảo thay thế:</strong></p>
+                  <ul>
+                    <li>Đọc đề cương và giáo trình chính của môn học (Syllabus)</li>
+                    <li>Xem lại bài giảng và ghi chú cá nhân đã tải lên</li>
+                    <li>Tìm kiếm thêm từ các nguồn mở uy tín trên web</li>
+                  </ul>
+                </div>
+              </>
+            )}
+
+            {/* Group 2: Verified Catalog Sources using Shared VerifiedSourceCard (#104) */}
             {catalogSources.length > 0 && (
               <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.6rem",
-                }}
+                className="np-source-group np-group-catalog"
+                aria-label="Nguồn đã xác minh từ Catalog"
               >
-                {catalogSources.map((source) => (
-                  <VerifiedSourceCard
-                    key={source.id}
-                    source={source}
-                    compact={true}
-                  />
-                ))}
+                <h5 className="np-group-title">✓ Nguồn đã xác minh từ Catalog</h5>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.6rem",
+                  }}
+                >
+                  {catalogSources.map((source) => (
+                    <VerifiedSourceCard
+                      key={source.id}
+                      source={source}
+                      compact={true}
+                      onFeedback={(helpful) => handleFeedback(source.id, helpful)}
+                      onPin={(pinned) => handlePin(source.id, pinned)}
+                      className={
+                        exitingSourceIds.has(source.id)
+                          ? "vsc-card-animating-exit"
+                          : "vsc-card-animating-enter"
+                      }
+                    />
+                  ))}
+                </div>
               </div>
+            )}
+
+            {/* Group 3: External Unverified Recommendations (Issue #159) */}
+            {externalSources.length > 0 && (
+              <div
+                className="np-source-group np-group-external"
+                aria-label="Gợi ý từ nguồn ngoài"
+              >
+                <h5 className="np-group-title">🌐 Gợi ý từ nguồn ngoài</h5>
+                <p className="np-group-caption">
+                  Tài liệu tham khảo tìm từ web/Internet (chưa qua kiểm định chất lượng)
+                </p>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.6rem",
+                  }}
+                >
+                  {externalSources.map((source) => (
+                    <VerifiedSourceCard
+                      key={source.id}
+                      source={source}
+                      compact={true}
+                      onFeedback={(helpful) => handleFeedback(source.id, helpful)}
+                      onPin={(pinned) => handlePin(source.id, pinned)}
+                      className={
+                        exitingSourceIds.has(source.id)
+                          ? "vsc-card-animating-exit"
+                          : "vsc-card-animating-enter"
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Empty state when no sources in any group */}
+            {sourcesData !== null && !loadError && visibleSources.length === 0 && !isInsufficient && (
+              <p className="np-empty-sources" role="status">
+                Chưa có gợi ý nguồn học cho chặng này.
+              </p>
             )}
           </section>
 

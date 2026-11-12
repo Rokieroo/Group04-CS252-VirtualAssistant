@@ -473,4 +473,95 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
     );
     expect(schedSpy).toHaveBeenCalledWith("node-2");
   });
+
+  it("divides recommendations into three distinct groups and supports pin and dismiss (Issue #159)", async () => {
+    vi.spyOn(materialsApi, "nodeSources").mockResolvedValue({
+      node_id: "node-2",
+      status: "ready",
+      user_material_count: 1,
+      sources: [
+        {
+          kind: "user_material",
+          id: "mat-1",
+          title: "Personal Tree Notes.pdf",
+          url: null,
+          pages: [1, 2],
+          provider: "User upload",
+          format: "pdf",
+          reason: "Ghi chú cá nhân",
+        },
+        {
+          kind: "catalog",
+          verification_status: "verified",
+          id: "cat-1",
+          title: "MIT OCW BST Lecture",
+          url: "https://ocw.mit.edu/trees",
+          pages: [],
+          provider: "MIT OCW",
+          institution: "MIT",
+          license: "CC-BY-4.0",
+          duration_min: 45,
+          score: 0.95,
+          format: "video",
+          reason: "Bài giảng chính quy",
+        },
+        {
+          kind: "external",
+          verification_status: "verified", // Should be ignored because kind is external!
+          id: "ext-1",
+          title: "Wikipedia Binary Search Tree",
+          url: "https://en.wikipedia.org/wiki/Binary_search_tree",
+          pages: [],
+          provider: "Wikipedia",
+          format: "article",
+          duration_min: 15,
+          license: "CC-BY-SA-3.0",
+          reason: "Tham khảo mở từ web",
+        },
+      ],
+    });
+
+    render(
+      <NodePanel
+        roadmapId="rm-1"
+        node={sampleNode}
+        allNodes={allNodes}
+        edges={edges}
+        isOpen={true}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // Group 1: User materials
+    expect(await screen.findByText(/Tài liệu của bạn/)).toBeTruthy();
+    expect(screen.getByText(/Personal Tree Notes.pdf/)).toBeTruthy();
+
+    // Group 2: Verified catalog
+    expect(screen.getByText(/Nguồn đã xác minh từ Catalog/)).toBeTruthy();
+    expect(screen.getByText(/MIT OCW BST Lecture/)).toBeTruthy();
+
+    // Group 3: External unverified recommendations
+    expect(screen.getByText(/Gợi ý từ nguồn ngoài/)).toBeTruthy();
+    expect(screen.getByText(/Wikipedia Binary Search Tree/)).toBeTruthy();
+
+    // Verify external source NEVER has '✓ Đã xác minh'
+    const wikiArticle = screen.getByText(/Wikipedia Binary Search Tree/).closest("article");
+    expect(wikiArticle).toBeTruthy();
+    expect(within(wikiArticle!).queryByText(/✓ Đã xác minh/)).toBeNull();
+    expect(within(wikiArticle!).getByText(/🌐 Nguồn ngoài/)).toBeTruthy();
+
+    // Test Pinning on catalog source
+    const pinBtns = screen.getAllByRole("button", { name: /Ghim/ });
+    expect(pinBtns.length).toBeGreaterThan(0);
+    fireEvent.click(pinBtns[0]);
+    // Should toggle to pinned
+    expect(screen.getByText(/📌 Đã ghim/)).toBeTruthy();
+
+    // Test Dismissing ("Không phù hợp")
+    const notHelpfulBtns = screen.getAllByRole("button", { name: /Không phù hợp|Không hữu ích/ });
+    fireEvent.click(notHelpfulBtns[notHelpfulBtns.length - 1]); // dismiss Wikipedia
+    await waitFor(() => {
+      expect(screen.queryByText(/Wikipedia Binary Search Tree/)).toBeNull();
+    });
+  });
 });
