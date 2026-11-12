@@ -69,6 +69,9 @@ export function NodePanel({
   const [exercisesCount, setExercisesCount] = useState(0);
   const [searching, setSearching] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [pinnedSourceIds, setPinnedSourceIds] = useState<Set<string>>(new Set());
+  const [hiddenSourceIds, setHiddenSourceIds] = useState<Set<string>>(new Set());
+  const [exitingSourceIds, setExitingSourceIds] = useState<Set<string>>(new Set());
   const panelRef = useRef<HTMLDivElement>(null);
   const loadVersion = useRef(0);
 
@@ -203,10 +206,6 @@ export function NodePanel({
       setSearching(false);
     }
   };
-
-  const [pinnedSourceIds, setPinnedSourceIds] = useState<Set<string>>(new Set());
-  const [hiddenSourceIds, setHiddenSourceIds] = useState<Set<string>>(new Set());
-  const [exitingSourceIds, setExitingSourceIds] = useState<Set<string>>(new Set());
 
   const handleFeedback = (sourceId: string, helpful: boolean) => {
     if (!helpful) {
