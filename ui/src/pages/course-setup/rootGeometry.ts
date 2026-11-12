@@ -58,6 +58,8 @@ export function rootGeometry(count: number, scale = 1) {
 
 // Includes the 12px halo, its focus outline, and clearance from sector borders.
 export const NODE_EXTENT = 15;
+// Leave a subpixel gap even when a dragged halo is tangent to a sector divider.
+const SECTOR_CLEARANCE = NODE_EXTENT + 0.25;
 const BAND_GAP = 4,
   MIN_SLOT = 2 * NODE_EXTENT + 16 + BAND_GAP;
 export type PolarPosition = { angle: number; radius: number };
@@ -72,19 +74,22 @@ export function rootLayout(nodeCounts: number[]) {
     );
     const lowAngle = lane.center - half,
       highAngle = lane.center + half;
-    const pad = Math.min(
-      0.25,
-      (lowAngle - lane.low) / 2,
-      (lane.high - highAngle) / 2,
+    const clearanceAngle = Math.min(
+      lane.center - lane.low,
+      lane.high - lane.center,
     );
-    const start = Math.max(60, NODE_EXTENT / Math.sin(pad));
-    // A common safe radius across the whole corridor AND the node's angular footprint.
+    const firstRadius = Math.max(60, SECTOR_CLEARANCE / Math.sin(clearanceAngle));
+    // Put the first legal center at firstRadius, independently of the slot width.
+    const start = firstRadius - NODE_EXTENT - BAND_GAP / 2;
+    // At greater radii the halo subtends a smaller angle. This cap is safe
+    // throughout the corridor, including the full halo at the closest radius.
+    const footprint = Math.asin(SECTOR_CLEARANCE / firstRadius);
     const cap = Math.min(
       680,
-      base.maxRadius(lowAngle - pad),
-      base.maxRadius(highAngle + pad),
+      base.maxRadius(lowAngle - footprint),
+      base.maxRadius(highAngle + footprint),
     );
-    return { nodes, lowAngle, highAngle, start, cap };
+    return { nodes, lane, lowAngle, highAngle, start, cap };
   });
   const scale = Math.max(
     1,
@@ -107,22 +112,26 @@ export function rootLayout(nodeCounts: number[]) {
   const project = (course: number, node: number, requested?: PolarPosition) => {
     const c = courses[course],
       band = c.bands[node];
-    const angle = Math.max(
-      c.lowAngle,
+    const radius = Math.max(
+      band.low + NODE_EXTENT + 0.001,
       Math.min(
-        c.highAngle,
+        band.high - NODE_EXTENT - 0.001,
+        requested?.radius ??
+          (node === 0
+            ? band.low + NODE_EXTENT + 0.001
+            : (band.low + band.high) / 2),
+      ),
+    );
+    const footprint = Math.asin(SECTOR_CLEARANCE / radius);
+    const angle = Math.max(
+      Math.max(c.lowAngle, c.lane.low + footprint),
+      Math.min(
+        Math.min(c.highAngle, c.lane.high - footprint),
         requested?.angle ??
           (c.lowAngle + c.highAngle) / 2 +
             Math.sin((node + 1) * 2.1 + course) *
               (c.highAngle - c.lowAngle) *
               0.3,
-      ),
-    );
-    const radius = Math.max(
-      band.low + NODE_EXTENT + 0.001,
-      Math.min(
-        band.high - NODE_EXTENT - 0.001,
-        requested?.radius ?? (band.low + band.high) / 2,
       ),
     );
     return { ...geo.point(angle, radius), angle, radius };

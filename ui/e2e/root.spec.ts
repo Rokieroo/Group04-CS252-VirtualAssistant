@@ -6,6 +6,13 @@ test("root paths keep recalculated radial zones during pointer dragging and pres
   await page.goto("/e2e/fixtures/root-layout.html");
   const paths = page.locator("[data-course-path]");
   await expect(paths).toHaveCount(3);
+  for (const path of await paths.all()) {
+    const first = path.locator(".root-node").first();
+    expect(Number(await first.getAttribute("data-radius"))).toBeLessThan(160);
+  }
+  await page
+    .locator(".root-universe")
+    .screenshot({ path: test.info().outputPath("three-course-spacing.png") });
   const node = paths.first().locator(".root-node").nth(1);
   await node.scrollIntoViewIfNeeded();
   const before = await node.getAttribute("data-radius");

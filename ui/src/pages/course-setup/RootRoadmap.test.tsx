@@ -138,3 +138,20 @@ it("keeps narrow sectors finite beyond the area-sampling resolution", () => {
   }
   expect(rootLayout(Array(20).fill(0)).geo.scale).toBe(1);
 });
+
+it("anchors the first checkpoint near home independently of the course length", () => {
+  const reference = rootLayout([3, 4, 5]);
+  for (const counts of [
+    [1, 1, 1],
+    [3, 4, 5],
+    [30, 40, 50],
+  ]) {
+    const layout = rootLayout(counts);
+    counts.forEach((_, i) => {
+      const first = layout.project(i, 0);
+      expect(first.radius).toBeLessThan(160);
+      expect(first.radius).toBeCloseTo(reference.project(i, 0).radius);
+    });
+  }
+  expect(rootLayout([1]).project(0, 0).radius).toBeCloseTo(60);
+});

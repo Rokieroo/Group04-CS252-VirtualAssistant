@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { RootRoadmap } from "../../src/pages/course-setup/RootRoadmap";
 function Fixture() {
-  const [counts, setCounts] = useState([4, 6, 2]);
+  const [counts, setCounts] = useState([3, 4, 5]);
   return (
     <>
       <button onClick={() => setCounts([12, 1, 7])}>
@@ -12,7 +12,11 @@ function Fixture() {
       <RootRoadmap
         courses={counts.map((count, i) => ({
           id: `course-${i}`,
-          title: `Course ${i + 1}`,
+          title: [
+            "Computational Thinking",
+            "Database Systems",
+            "Academic English",
+          ][i],
           nodes: Array.from({ length: count }, (_, j) => ({
             id: `${i}-${j}`,
             title: `Lesson ${j + 1}`,
