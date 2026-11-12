@@ -12,6 +12,7 @@ import { pageLabels, useHashPage, type Page } from "./navigation";
 import { CatalogHealthPanel } from "./pages/CatalogHealthPanel";
 import { CostsPage } from "./pages/CostsPage";
 import { AdminCatalogPage } from "./pages/AdminCatalogPage";
+import { TodayPage } from "./pages/TodayPage";
 import { CoreJourney } from "./pages/CoreJourney";
 import { CoursesPage } from "./pages/CoursesPage";
 import { SourcesPage } from "./pages/SourcesPage";
@@ -23,6 +24,10 @@ const schedule: [string, string] = [
 ];
 // Pages the backend serves; Home, Mastery, Ask and Companion open Courses until they exist.
 const headings: Partial<Record<Page, [string, string]>> = {
+  Home: [
+    pageLabels.Home,
+    "Chặng đến hạn, bài ôn và mốc kiểm tra sắp tới trong ngày.",
+  ],
   Library: ["", ""],
   Roadmap: ["", ""],
   Schedule: schedule,
@@ -176,6 +181,7 @@ export default function CoreApp({ mock = false }: { mock?: boolean }) {
           resumeSyllabus={resumeSyllabus}
         />
       )}
+      {page === "Home" && <TodayPage go={go} />}
       {/* The sample preview has no backend for slides or the calendar. */}
       {!mock && (
         <>

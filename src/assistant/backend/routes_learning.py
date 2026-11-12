@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import delete, select, update
 
+from app.planner.fsrs import compute_node_mastery
 from app.roadmap import layers, local_graph, prerequisites, transitive_reduction
 
 from .catalog_models import Concept, GraphLayout, RoadmapEdge
@@ -20,6 +21,7 @@ from .models import (
     Course,
     LearningOutcome,
     Notification,
+    ReviewCard,
     Roadmap,
     RoadmapNode,
     Source,
@@ -283,7 +285,10 @@ def _build_roadmap_graph(
 
     concept_ids = [n.concept_id for n in nodes if n.concept_id]
     concepts = (
-        {c.id: c for c in db.scalars(select(Concept).where(Concept.id.in_(concept_ids)))}
+        {
+            c.id: c
+            for c in db.scalars(select(Concept).where(Concept.id.in_(concept_ids)))
+        }
         if concept_ids
         else {}
     )
@@ -295,7 +300,9 @@ def _build_roadmap_graph(
         {
             (o.description or o.code): o.id
             for o in db.scalars(
-                select(LearningOutcome).where(LearningOutcome.syllabus_id == syllabus.id)
+                select(LearningOutcome).where(
+                    LearningOutcome.syllabus_id == syllabus.id
+                )
             )
         }
         if syllabus
@@ -333,27 +340,51 @@ def _build_roadmap_graph(
     ]
     layer_of = layers(nodes, edges)
 
+    # Calculate mastery per node for the current user (issue #162, UC-11)
+    cards = list(
+        db.scalars(
+            select(ReviewCard).where(
+                ReviewCard.user_id == user_id,
+                ReviewCard.node_id.in_(node_ids),
+            )
+        )
+    )
+    cards_by_node: dict[str, list[ReviewCard]] = {nid: [] for nid in node_ids}
+    for c in cards:
+        if c.node_id in cards_by_node:
+            cards_by_node[c.node_id].append(c)
+
+    mastery_by_node = {
+        nid: compute_node_mastery(node_cards, now)
+        for nid, node_cards in cards_by_node.items()
+    }
+
     graph_nodes = []
     for node in nodes:
         concept = concepts.get(node.concept_id)
         task = tasks.get(node.id)
         summary = sources_by_node.get(node.id, {})
         outcome_id = outcome_by_title.get(node.title)
-        graph_nodes.append({
-            "id": node.id,
-            "type": node.type,
-            "title": node.title,
-            "week": node.week,
-            "est_minutes": node.duration_minutes,
-            "due_at": node.due_at,
-            "outcome_ids": [outcome_id] if outcome_id else [],
-            "source_pages": json.loads(concept.source_pages or "[]") if concept else [],
-            "status": task.status if task else "pending",
-            "source_count": summary.get("source_count", 0),
-            "user_material_count": summary.get("user_material_count", 0),
-            "sources_status": summary.get("status", "insufficient"),
-            "layer": layer_of[node.id],
-        })
+        graph_nodes.append(
+            {
+                "id": node.id,
+                "type": node.type,
+                "title": node.title,
+                "week": node.week,
+                "est_minutes": node.duration_minutes,
+                "due_at": node.due_at,
+                "outcome_ids": [outcome_id] if outcome_id else [],
+                "source_pages": json.loads(concept.source_pages or "[]")
+                if concept
+                else [],
+                "status": task.status if task else "pending",
+                "source_count": summary.get("source_count", 0),
+                "user_material_count": summary.get("user_material_count", 0),
+                "sources_status": summary.get("status", "insufficient"),
+                "layer": layer_of[node.id],
+                "mastery": mastery_by_node.get(node.id, 0.0),
+            }
+        )
 
     return {
         "nodes": graph_nodes,
@@ -370,7 +401,9 @@ def get_roadmap_graph(
     reduce: bool = Query(False),
 ):
     """Retrieve full course roadmap graph (issue #103, spec 8, UC-03)."""
-    return _build_roadmap_graph(db, roadmap_id, user.id, request.app.state.now(), reduce=reduce)
+    return _build_roadmap_graph(
+        db, roadmap_id, user.id, request.app.state.now(), reduce=reduce
+    )
 
 
 @router.get("/roadmap-nodes/{node_id}/graph", response_model=RoadmapGraphOut)
@@ -428,9 +461,13 @@ EDGE_ERRORS = {
 
 # The /edges and /layout paths predate the spec 8 /graph/... ones; ui/src/api/core.ts
 # still calls them, so they stay as undocumented aliases.
-@router.post("/roadmaps/{roadmap_id}/graph/edges", status_code=201, responses=EDGE_ERRORS)
+@router.post(
+    "/roadmaps/{roadmap_id}/graph/edges", status_code=201, responses=EDGE_ERRORS
+)
 @router.post("/roadmaps/{roadmap_id}/edges", status_code=201, include_in_schema=False)
-def add_edge(roadmap_id: str, data: EdgeIn, request: Request, db: DB, user: CurrentUser):
+def add_edge(
+    roadmap_id: str, data: EdgeIn, request: Request, db: DB, user: CurrentUser
+):
     """Add a prerequisite edge; one that would close a cycle is a 409 with its path."""
     _check_edge_rate_limit(user.id, request.app.state.now().timestamp())
     _owned_roadmap(db, roadmap_id, user.id)
@@ -465,12 +502,19 @@ def add_edge(roadmap_id: str, data: EdgeIn, request: Request, db: DB, user: Curr
     include_in_schema=False,
 )
 def remove_edge(
-    roadmap_id: str, parent_id: str, child_id: str, request: Request, db: DB, user: CurrentUser
+    roadmap_id: str,
+    parent_id: str,
+    child_id: str,
+    request: Request,
+    db: DB,
+    user: CurrentUser,
 ):
     _check_edge_rate_limit(user.id, request.app.state.now().timestamp())
     _owned_roadmap(db, roadmap_id, user.id)
     # Same roadmap row lock as additions; deletion cannot race a cycle check.
-    db.execute(update(Roadmap).where(Roadmap.id == roadmap_id).values(title=Roadmap.title))
+    db.execute(
+        update(Roadmap).where(Roadmap.id == roadmap_id).values(title=Roadmap.title)
+    )
     db.execute(
         delete(RoadmapEdge).where(
             RoadmapEdge.roadmap_id == roadmap_id,

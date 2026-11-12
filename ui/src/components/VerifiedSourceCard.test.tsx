@@ -97,8 +97,50 @@ describe("VerifiedSourceCard component (Issue #104, #58, #94)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Hữu ích/ }));
     expect(feedbackSpy).toHaveBeenCalledWith(true);
 
-    fireEvent.click(screen.getByRole("button", { name: /Không phù hợp/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Không hữu ích|Không phù hợp/ }));
     expect(feedbackSpy).toHaveBeenCalledWith(false);
+  });
+
+  it("never shows 'Đã xác minh' badge for an external source even if verification_status is set (Issue #159)", () => {
+    const externalSource: VerifiedSource = {
+      ...sampleSource,
+      kind: "external",
+      verification_status: "verified",
+    };
+    render(<VerifiedSourceCard source={externalSource} />);
+    expect(screen.queryByRole("button", { name: /tiêu chí thẩm định/ })).toBeNull();
+    expect(screen.queryByText(/✓ Đã xác minh/)).toBeNull();
+    expect(screen.getByText(/Nguồn ngoài/)).toBeTruthy();
+  });
+
+  it("never shows 'Đã xác minh' badge for web kind sources", () => {
+    const webSource: VerifiedSource = {
+      ...sampleSource,
+      kind: "web",
+      verification_status: "verified",
+    };
+    render(<VerifiedSourceCard source={webSource} />);
+    expect(screen.queryByRole("button", { name: /tiêu chí thẩm định/ })).toBeNull();
+    expect(screen.queryByText(/✓ Đã xác minh/)).toBeNull();
+    expect(screen.getByText(/Nguồn ngoài/)).toBeTruthy();
+  });
+
+  it("shows user material badge for user_material kind", () => {
+    const userMaterial: VerifiedSource = {
+      ...sampleSource,
+      kind: "user_material",
+    };
+    render(<VerifiedSourceCard source={userMaterial} />);
+    expect(screen.getByText(/Tài liệu của bạn/)).toBeTruthy();
+  });
+
+  it("triggers pin callback when pin button is clicked", () => {
+    const pinSpy = vi.fn();
+    render(<VerifiedSourceCard source={sampleSource} onPin={pinSpy} />);
+    const pinBtn = screen.getByRole("button", { name: /Ghim/ });
+    expect(pinBtn).toBeTruthy();
+    fireEvent.click(pinBtn);
+    expect(pinSpy).toHaveBeenCalledWith(true);
   });
 
   it("renders InsufficientSourcesNotice with exact spec text 'Chưa tìm được nguồn đủ tốt'", () => {

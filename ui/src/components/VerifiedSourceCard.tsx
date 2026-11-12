@@ -3,6 +3,7 @@ import "./VerifiedSourceCard.css";
 
 export type VerifiedSource = {
   id: string;
+  source_id?: string | null;
   title: string;
   url?: string | null;
   domain?: string;
@@ -18,13 +19,15 @@ export type VerifiedSource = {
   reason?: string;
   evidence_quote?: string;
   pages?: number[];
-  kind?: "user_material" | "catalog" | "web";
+  kind?: "user_material" | "catalog" | "web" | "external";
+  pinned?: boolean;
 };
 
 export type VerifiedSourceCardProps = {
   source: VerifiedSource;
   compact?: boolean;
   onFeedback?: (helpful: boolean) => void;
+  onPin?: (pinned: boolean) => void;
   actions?: ReactNode;
   className?: string;
 };
@@ -51,6 +54,7 @@ export function VerifiedSourceCard({
   source,
   compact = false,
   onFeedback,
+  onPin,
   actions,
   className = "",
 }: VerifiedSourceCardProps) {
@@ -92,14 +96,17 @@ export function VerifiedSourceCard({
       : "");
 
   const institutionOrProvider = source.institution || source.provider;
-  // Only a resource the catalog checks passed carries the badge; web results do not.
-  const isVerified = source.verification_status === "verified";
+  const isExternal = source.kind === "external" || source.kind === "web";
+  const isUserMaterial = source.kind === "user_material";
+  // CRITICAL RULE: External or web sources NEVER carry the verified badge!
+  const isVerified =
+    !isExternal && !isUserMaterial && source.verification_status === "verified";
   const breakdownEntries = Object.entries(source.breakdown || {});
   const hasBreakdown = breakdownEntries.length > 0;
 
   return (
     <article
-      className={`verified-source-card ${compact ? "compact" : ""} ${className}`}
+      className={`verified-source-card ${compact ? "compact" : ""} ${source.pinned ? "pinned" : ""} ${className}`}
       aria-label={`Nguồn học: ${source.title}`}
     >
       <div className="vsc-header">
@@ -125,6 +132,25 @@ export function VerifiedSourceCard({
         </div>
 
         <div className="vsc-badges">
+          {isUserMaterial && (
+            <span
+              className="vsc-badge vsc-badge-user-material"
+              title="Tài liệu do bạn tải lên"
+            >
+              📂 Tài liệu của bạn
+            </span>
+          )}
+
+          {isExternal && (
+            <span
+              className="vsc-badge vsc-badge-external"
+              title="Nguồn ngoài chưa qua thẩm định nội dung"
+              aria-label="Nguồn ngoài (chưa xác minh)"
+            >
+              🌐 Nguồn ngoài (chưa xác minh)
+            </span>
+          )}
+
           {isVerified && (
             <div className="vsc-criteria-popover" ref={popoverRef}>
               <button
@@ -237,22 +263,38 @@ export function VerifiedSourceCard({
         </blockquote>
       )}
 
-      {onFeedback && (
+      {(onFeedback || onPin) && (
         <div className="vsc-actions">
-          <button
-            type="button"
-            className="vsc-feedback-btn"
-            onClick={() => onFeedback(true)}
-          >
-            👍 Hữu ích
-          </button>
-          <button
-            type="button"
-            className="vsc-feedback-btn"
-            onClick={() => onFeedback(false)}
-          >
-            👎 Không phù hợp
-          </button>
+          {onFeedback && (
+            <>
+              <button
+                type="button"
+                className="vsc-feedback-btn"
+                onClick={() => onFeedback(true)}
+                title="Đánh giá nguồn học này là hữu ích"
+              >
+                👍 Hữu ích
+              </button>
+              <button
+                type="button"
+                className="vsc-feedback-btn"
+                onClick={() => onFeedback(false)}
+                title="Đánh giá nguồn học này là không phù hợp"
+              >
+                👎 Không phù hợp
+              </button>
+            </>
+          )}
+          {onPin && (
+            <button
+              type="button"
+              className={`vsc-pin-btn ${source.pinned ? "pinned" : ""}`}
+              onClick={() => onPin(!source.pinned)}
+              title={source.pinned ? "Bỏ ghim" : "Ghim lên đầu"}
+            >
+              {source.pinned ? "📌 Đã ghim" : "📌 Ghim"}
+            </button>
+          )}
         </div>
       )}
 

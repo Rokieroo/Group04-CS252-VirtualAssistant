@@ -117,6 +117,11 @@
         ],
         "summary": "Profile",
         "operationId": "profile_api_v1_me_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -128,12 +133,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       },
       "patch": {
         "tags": [
@@ -141,15 +141,20 @@
         ],
         "summary": "Update Profile",
         "operationId": "update_profile_api_v1_me_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ProfilePatch"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -169,6 +174,66 @@
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
                 }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Delete Account",
+        "description": "Hard-delete current user and all related records with explicit confirmation.",
+        "operationId": "delete_account_api_v1_me_delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "confirm",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Confirm"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/export": {
+      "get": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Export User Data",
+        "description": "Export complete personal data in JSON format (Issue #164, GDPR/Child Safety).",
+        "operationId": "export_user_data_api_v1_me_export_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           }
@@ -2447,442 +2512,6 @@
         }
       }
     },
-    "/api/v1/teams": {
-      "get": {
-        "tags": [
-          "Team workspaces"
-        ],
-        "summary": "List Teams",
-        "operationId": "list_teams_api_v1_teams_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/TeamOut"
-                  },
-                  "type": "array",
-                  "title": "Response List Teams Api V1 Teams Get"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      },
-      "post": {
-        "tags": [
-          "Team workspaces"
-        ],
-        "summary": "Create Team",
-        "operationId": "create_team_api_v1_teams_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TeamCreate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TeamOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/teams/{team_id}/members": {
-      "get": {
-        "tags": [
-          "Team workspaces"
-        ],
-        "summary": "Members",
-        "operationId": "members_api_v1_teams__team_id__members_get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "team_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Team Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MemberOut"
-                  },
-                  "title": "Response Members Api V1 Teams  Team Id  Members Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/teams/{team_id}/invitations": {
-      "post": {
-        "tags": [
-          "Team workspaces"
-        ],
-        "summary": "Invite",
-        "operationId": "invite_api_v1_teams__team_id__invitations_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "team_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Team Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/InviteCreate"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InvitationCreated"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/invitations": {
-      "get": {
-        "tags": [
-          "Team workspaces"
-        ],
-        "summary": "Invitations",
-        "operationId": "invitations_api_v1_invitations_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/InvitationOut"
-                  },
-                  "type": "array",
-                  "title": "Response Invitations Api V1 Invitations Get"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
-      }
-    },
-    "/api/v1/invitations/{invitation_id}/accept": {
-      "post": {
-        "tags": [
-          "Team workspaces"
-        ],
-        "summary": "Accept",
-        "operationId": "accept_api_v1_invitations__invitation_id__accept_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "invitation_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Invitation Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/InvitationAccept"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TeamOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/teams/{team_id}/members/{member_id}": {
-      "delete": {
-        "tags": [
-          "Team workspaces"
-        ],
-        "summary": "Remove Member",
-        "operationId": "remove_member_api_v1_teams__team_id__members__member_id__delete",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "team_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Team Id"
-            }
-          },
-          {
-            "name": "member_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Member Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/tasks/{task_id}/share": {
-      "post": {
-        "tags": [
-          "Team workspaces"
-        ],
-        "summary": "Share",
-        "operationId": "share_api_v1_tasks__task_id__share_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "task_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Task Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ShareTask"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TaskOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/teams/{team_id}/coordinate": {
-      "post": {
-        "tags": [
-          "Team workspaces"
-        ],
-        "summary": "Coordinate",
-        "operationId": "coordinate_api_v1_teams__team_id__coordinate_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "team_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Team Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CoordinateRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/CommonSlot"
-                  },
-                  "title": "Response Coordinate Api V1 Teams  Team Id  Coordinate Post"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/ai/chat": {
       "post": {
         "tags": [
@@ -3810,6 +3439,285 @@
         }
       }
     },
+    "/api/v1/reviews/due": {
+      "get": {
+        "tags": [
+          "FSRS Spaced Repetition Reviews"
+        ],
+        "summary": "Get Due Reviews",
+        "description": "Retrieve review cards due for the current user (issue #162, UC-11).",
+        "operationId": "get_due_reviews_api_v1_reviews_due_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewCardOut"
+                  },
+                  "title": "Response Get Due Reviews Api V1 Reviews Due Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reviews/{item_id}": {
+      "post": {
+        "tags": [
+          "FSRS Spaced Repetition Reviews"
+        ],
+        "summary": "Submit Review",
+        "description": "Submit a rating (1-4) for an item review card (issue #162, UC-11).",
+        "operationId": "submit_review_api_v1_reviews__item_id__post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewSubmitIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResultOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmap-nodes/{node_id}/recommendations": {
+      "get": {
+        "tags": [
+          "Recommendations"
+        ],
+        "summary": "Get Node Recommendations",
+        "description": "Retrieve recommendations for a roadmap node, recalculating if stale (>24h).",
+        "operationId": "get_node_recommendations_api_v1_roadmap_nodes__node_id__recommendations_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Node Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 20,
+              "minimum": 1,
+              "default": 5,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeRecommendationsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/recommendations/{recommendation_id}/events": {
+      "post": {
+        "tags": [
+          "Recommendations"
+        ],
+        "summary": "Submit Recommendation Event",
+        "description": "Log an interaction event for a recommendation (shown, opened, helpful, not_helpful, pinned).",
+        "operationId": "submit_recommendation_event_api_v1_recommendations__recommendation_id__events_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "recommendation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Recommendation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecommendationEventCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationEventOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmaps/{roadmap_id}/recommendations:summary": {
+      "get": {
+        "tags": [
+          "Recommendations"
+        ],
+        "summary": "Get Roadmap Recommendations Summary",
+        "description": "Summarize recommendation metrics across all nodes of a roadmap.",
+        "operationId": "get_roadmap_recommendations_summary_api_v1_roadmaps__roadmap_id__recommendations_summary_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roadmap_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Roadmap Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoadmapRecommendationsSummaryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/catalog/review-queue": {
       "get": {
         "tags": [
@@ -4452,6 +4360,11 @@
               }
             ],
             "title": "Fallback Reason"
+          },
+          "safety_flag": {
+            "type": "boolean",
+            "title": "Safety Flag",
+            "default": false
           }
         },
         "type": "object",
@@ -4518,26 +4431,6 @@
           "status"
         ],
         "title": "CheckIn"
-      },
-      "CommonSlot": {
-        "properties": {
-          "starts_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Starts At"
-          },
-          "ends_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Ends At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "starts_at",
-          "ends_at"
-        ],
-        "title": "CommonSlot"
       },
       "ConceptGraphOut": {
         "properties": {
@@ -4661,34 +4554,6 @@
           "last_error"
         ],
         "title": "ConnectorHealth"
-      },
-      "CoordinateRequest": {
-        "properties": {
-          "starts_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Starts At"
-          },
-          "ends_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Ends At"
-          },
-          "duration_minutes": {
-            "type": "integer",
-            "maximum": 240.0,
-            "minimum": 1.0,
-            "title": "Duration Minutes",
-            "default": 60
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "starts_at",
-          "ends_at"
-        ],
-        "title": "CoordinateRequest"
       },
       "CostReport": {
         "properties": {
@@ -5519,6 +5384,11 @@
             "type": "integer",
             "title": "Layer",
             "default": 1
+          },
+          "mastery": {
+            "type": "number",
+            "title": "Mastery",
+            "default": 0.0
           }
         },
         "type": "object",
@@ -5541,110 +5411,6 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
-      },
-      "InvitationAccept": {
-        "properties": {
-          "code": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Code"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "code"
-        ],
-        "title": "InvitationAccept"
-      },
-      "InvitationCreated": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "team_id": {
-            "type": "string",
-            "title": "Team Id"
-          },
-          "team_name": {
-            "type": "string",
-            "title": "Team Name"
-          },
-          "email": {
-            "type": "string",
-            "title": "Email"
-          },
-          "accepted": {
-            "type": "boolean",
-            "title": "Accepted"
-          },
-          "code": {
-            "type": "string",
-            "title": "Code",
-            "description": "Shown once. The owner sends it to the invitee, who must enter it to join; re-inviting the same email issues a new code."
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "team_id",
-          "team_name",
-          "email",
-          "accepted",
-          "code"
-        ],
-        "title": "InvitationCreated"
-      },
-      "InvitationOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "team_id": {
-            "type": "string",
-            "title": "Team Id"
-          },
-          "team_name": {
-            "type": "string",
-            "title": "Team Name"
-          },
-          "email": {
-            "type": "string",
-            "title": "Email"
-          },
-          "accepted": {
-            "type": "boolean",
-            "title": "Accepted"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "team_id",
-          "team_name",
-          "email",
-          "accepted"
-        ],
-        "title": "InvitationOut"
-      },
-      "InviteCreate": {
-        "properties": {
-          "email": {
-            "type": "string",
-            "maxLength": 254,
-            "pattern": "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
-            "title": "Email"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "email"
-        ],
-        "title": "InviteCreate"
       },
       "ItemOut": {
         "properties": {
@@ -5973,24 +5739,6 @@
         ],
         "title": "MaterialPageOut"
       },
-      "MemberOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name"
-        ],
-        "title": "MemberOut"
-      },
       "MessageOut": {
         "properties": {
           "id": {
@@ -6101,6 +5849,26 @@
           "files"
         ],
         "title": "NodeMaterialsOut"
+      },
+      "NodeRecommendationsOut": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "recommendations": {
+            "items": {
+              "$ref": "#/components/schemas/RecommendationOut"
+            },
+            "type": "array",
+            "title": "Recommendations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node_id"
+        ],
+        "title": "NodeRecommendationsOut"
       },
       "NodeResourcesOut": {
         "properties": {
@@ -6676,6 +6444,139 @@
         ],
         "title": "RankedSourceOut"
       },
+      "RecommendationEventCreate": {
+        "properties": {
+          "event": {
+            "type": "string",
+            "enum": [
+              "shown",
+              "opened",
+              "helpful",
+              "not_helpful",
+              "pinned"
+            ],
+            "title": "Event"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "event"
+        ],
+        "title": "RecommendationEventCreate"
+      },
+      "RecommendationEventOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "recommendation_id": {
+            "type": "string",
+            "title": "Recommendation Id"
+          },
+          "event": {
+            "type": "string",
+            "title": "Event"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "recommendation_id",
+          "event",
+          "created_at"
+        ],
+        "title": "RecommendationEventOut"
+      },
+      "RecommendationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "resource_ref": {
+            "type": "string",
+            "title": "Resource Ref"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "dismissed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dismissed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "node_id",
+          "resource_ref",
+          "kind",
+          "rank",
+          "score",
+          "reason",
+          "created_at"
+        ],
+        "title": "RecommendationOut"
+      },
       "Register": {
         "properties": {
           "email": {
@@ -6713,6 +6614,11 @@
             "type": "string",
             "title": "Timezone",
             "default": "Asia/Ho_Chi_Minh"
+          },
+          "parental_consent": {
+            "type": "boolean",
+            "title": "Parental Consent",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -6940,6 +6846,217 @@
           "run_id"
         ],
         "title": "ResourceSearchOut"
+      },
+      "ReviewCardOut": {
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "title": "Item Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Due At"
+          },
+          "stability": {
+            "type": "number",
+            "title": "Stability",
+            "default": 0.0
+          },
+          "difficulty": {
+            "type": "number",
+            "title": "Difficulty",
+            "default": 0.0
+          },
+          "state": {
+            "type": "integer",
+            "title": "State",
+            "default": 0
+          },
+          "step": {
+            "type": "integer",
+            "title": "Step",
+            "default": 0
+          },
+          "last_review": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Review"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt",
+            "default": ""
+          },
+          "choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choices"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "mcq"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item_id",
+          "user_id",
+          "due_at"
+        ],
+        "title": "ReviewCardOut"
+      },
+      "ReviewResultOut": {
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "title": "Item Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          },
+          "rating": {
+            "type": "integer",
+            "title": "Rating"
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Due At"
+          },
+          "stability": {
+            "type": "number",
+            "title": "Stability"
+          },
+          "difficulty": {
+            "type": "number",
+            "title": "Difficulty"
+          },
+          "state": {
+            "type": "integer",
+            "title": "State"
+          },
+          "step": {
+            "type": "integer",
+            "title": "Step"
+          },
+          "last_review": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Review"
+          },
+          "elapsed_days": {
+            "type": "number",
+            "title": "Elapsed Days"
+          },
+          "scheduled_days": {
+            "type": "number",
+            "title": "Scheduled Days"
+          },
+          "retrievability": {
+            "type": "number",
+            "title": "Retrievability"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item_id",
+          "user_id",
+          "rating",
+          "due_at",
+          "stability",
+          "difficulty",
+          "state",
+          "step",
+          "last_review",
+          "elapsed_days",
+          "scheduled_days",
+          "retrievability"
+        ],
+        "title": "ReviewResultOut"
+      },
+      "ReviewSubmitIn": {
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "maximum": 4.0,
+            "minimum": 1.0,
+            "title": "Rating",
+            "description": "Rating from 1 (Again) to 4 (Easy)"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id",
+            "description": "Optional roadmap node ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rating"
+        ],
+        "title": "ReviewSubmitIn"
       },
       "RoadmapGenerateIn": {
         "properties": {
@@ -7286,6 +7403,48 @@
         ],
         "title": "RoadmapOut"
       },
+      "RoadmapRecommendationsSummaryOut": {
+        "properties": {
+          "roadmap_id": {
+            "type": "string",
+            "title": "Roadmap Id"
+          },
+          "total_nodes": {
+            "type": "integer",
+            "title": "Total Nodes"
+          },
+          "total_recommendations": {
+            "type": "integer",
+            "title": "Total Recommendations"
+          },
+          "by_kind": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By Kind"
+          },
+          "events_summary": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Events Summary"
+          },
+          "pinned_count": {
+            "type": "integer",
+            "title": "Pinned Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "roadmap_id",
+          "total_nodes",
+          "total_recommendations",
+          "pinned_count"
+        ],
+        "title": "RoadmapRecommendationsSummaryOut"
+      },
       "RoadmapReplanIn": {
         "properties": {
           "approve": {
@@ -7436,31 +7595,6 @@
           "roadmap_id"
         ],
         "title": "RoadmapScheduleOut"
-      },
-      "ShareTask": {
-        "properties": {
-          "team_id": {
-            "type": "string",
-            "title": "Team Id"
-          },
-          "assignee_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Assignee Id"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "team_id"
-        ],
-        "title": "ShareTask"
       },
       "SourceOut": {
         "properties": {
@@ -8042,45 +8176,6 @@
         "type": "object",
         "title": "TaskPatch"
       },
-      "TeamCreate": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 100,
-            "minLength": 1,
-            "title": "Name"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "name"
-        ],
-        "title": "TeamCreate"
-      },
-      "TeamOut": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "owner_id": {
-            "type": "string",
-            "title": "Owner Id"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "owner_id"
-        ],
-        "title": "TeamOut"
-      },
       "TimeRange": {
         "properties": {
           "starts_at": {
@@ -8268,6 +8363,22 @@
               "girlfriend"
             ],
             "title": "Companion Mode"
+          },
+          "parental_consent": {
+            "type": "boolean",
+            "title": "Parental Consent",
+            "default": false
+          },
+          "parental_consent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parental Consent At"
           }
         },
         "type": "object",

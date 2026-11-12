@@ -84,9 +84,14 @@ _TABLES = (
     "node_exercises",
     "cards",
     "reviews",
+    "review_cards",
+    "review_logs",
     "search_runs",
     "schedule_entries",
     "notifications",
+    "external_results",
+    "recommendations",
+    "recommendation_events",
 )
 
 
