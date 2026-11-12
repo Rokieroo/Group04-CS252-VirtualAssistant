@@ -3387,6 +3387,119 @@
         }
       }
     },
+    "/api/v1/reviews/due": {
+      "get": {
+        "tags": [
+          "FSRS Spaced Repetition Reviews"
+        ],
+        "summary": "Get Due Reviews",
+        "description": "Retrieve review cards due for the current user (issue #162, UC-11).",
+        "operationId": "get_due_reviews_api_v1_reviews_due_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewCardOut"
+                  },
+                  "title": "Response Get Due Reviews Api V1 Reviews Due Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reviews/{item_id}": {
+      "post": {
+        "tags": [
+          "FSRS Spaced Repetition Reviews"
+        ],
+        "summary": "Submit Review",
+        "description": "Submit a rating (1-4) for an item review card (issue #162, UC-11).",
+        "operationId": "submit_review_api_v1_reviews__item_id__post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewSubmitIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResultOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/roadmap-nodes/{node_id}/recommendations": {
       "get": {
         "tags": [
@@ -5219,6 +5332,11 @@
             "type": "integer",
             "title": "Layer",
             "default": 1
+          },
+          "mastery": {
+            "type": "number",
+            "title": "Mastery",
+            "default": 0.0
           }
         },
         "type": "object",
@@ -6676,6 +6794,217 @@
           "run_id"
         ],
         "title": "ResourceSearchOut"
+      },
+      "ReviewCardOut": {
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "title": "Item Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Due At"
+          },
+          "stability": {
+            "type": "number",
+            "title": "Stability",
+            "default": 0.0
+          },
+          "difficulty": {
+            "type": "number",
+            "title": "Difficulty",
+            "default": 0.0
+          },
+          "state": {
+            "type": "integer",
+            "title": "State",
+            "default": 0
+          },
+          "step": {
+            "type": "integer",
+            "title": "Step",
+            "default": 0
+          },
+          "last_review": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Review"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt",
+            "default": ""
+          },
+          "choices": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choices"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "default": "mcq"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item_id",
+          "user_id",
+          "due_at"
+        ],
+        "title": "ReviewCardOut"
+      },
+      "ReviewResultOut": {
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "title": "Item Id"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          },
+          "rating": {
+            "type": "integer",
+            "title": "Rating"
+          },
+          "due_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Due At"
+          },
+          "stability": {
+            "type": "number",
+            "title": "Stability"
+          },
+          "difficulty": {
+            "type": "number",
+            "title": "Difficulty"
+          },
+          "state": {
+            "type": "integer",
+            "title": "State"
+          },
+          "step": {
+            "type": "integer",
+            "title": "Step"
+          },
+          "last_review": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Review"
+          },
+          "elapsed_days": {
+            "type": "number",
+            "title": "Elapsed Days"
+          },
+          "scheduled_days": {
+            "type": "number",
+            "title": "Scheduled Days"
+          },
+          "retrievability": {
+            "type": "number",
+            "title": "Retrievability"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item_id",
+          "user_id",
+          "rating",
+          "due_at",
+          "stability",
+          "difficulty",
+          "state",
+          "step",
+          "last_review",
+          "elapsed_days",
+          "scheduled_days",
+          "retrievability"
+        ],
+        "title": "ReviewResultOut"
+      },
+      "ReviewSubmitIn": {
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "maximum": 4.0,
+            "minimum": 1.0,
+            "title": "Rating",
+            "description": "Rating from 1 (Again) to 4 (Easy)"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id",
+            "description": "Optional roadmap node ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rating"
+        ],
+        "title": "ReviewSubmitIn"
       },
       "RoadmapGenerateIn": {
         "properties": {

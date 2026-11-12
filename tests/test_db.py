@@ -1,4 +1,5 @@
 """Schema + migration contract tests for the Study Companion database."""
+
 from __future__ import annotations
 
 import pytest
@@ -53,10 +54,17 @@ EXPECTED_TABLES = {
     "notifications",
     "chat_messages",
     "alembic_version",
-    "catalog_embeddings", "roadmap_edges", "graph_layouts", "node_materials", "node_source_status",
-    "exercises", "exercise_subjects", "node_exercises",
+    "catalog_embeddings",
+    "roadmap_edges",
+    "graph_layouts",
+    "node_materials",
+    "node_source_status",
+    "exercises",
+    "exercise_subjects",
+    "node_exercises",
     "source_subjects",
-    # Recommendations and feedback (migration 0014)
+    "review_cards",
+    "review_logs",
     "external_results",
     "recommendations",
     "recommendation_events",
@@ -81,16 +89,22 @@ def session(database_url):
         session.close()
 
 
-def insert_user(session, user_id: str = "u_1", email: str = "user1@example.com") -> None:
+def insert_user(
+    session, user_id: str = "u_1", email: str = "user1@example.com"
+) -> None:
     session.execute(
-        text("INSERT INTO users (id, email, password_hash) VALUES (:id, :email, :password_hash)"),
+        text(
+            "INSERT INTO users (id, email, password_hash) VALUES (:id, :email, :password_hash)"
+        ),
         {"id": user_id, "email": email, "password_hash": "argon2-placeholder"},
     )
 
 
 def insert_course(session, course_id: str = "c_1", owner_id: str = "u_1") -> None:
     session.execute(
-        text("INSERT INTO courses (id, owner_id, title) VALUES (:id, :owner_id, :title)"),
+        text(
+            "INSERT INTO courses (id, owner_id, title) VALUES (:id, :owner_id, :title)"
+        ),
         {"id": course_id, "owner_id": owner_id, "title": "CSC10014"},
     )
 
@@ -144,7 +158,10 @@ def test_init_db_creates_all_tables(database_url):
 def test_cards_due_index_exists(database_url):
     init_db(database_url=database_url, reset=True)
 
-    indexes = {index["name"] for index in inspect(get_engine(database_url)).get_indexes("cards")}
+    indexes = {
+        index["name"]
+        for index in inspect(get_engine(database_url)).get_indexes("cards")
+    }
     assert "idx_cards_user_due" in indexes
 
 
@@ -207,14 +224,18 @@ def test_user_defaults(session):
     insert_user(session, user_id="u_defaults", email="defaults@example.com")
     session.commit()
 
-    row = session.execute(
-        text(
-            "SELECT role, account_level, companion_mode, adult_verified, "
-            "failed_login_attempts, birth_year, locked_until "
-            "FROM users WHERE id = :id"
-        ),
-        {"id": "u_defaults"},
-    ).mappings().one()
+    row = (
+        session.execute(
+            text(
+                "SELECT role, account_level, companion_mode, adult_verified, "
+                "failed_login_attempts, birth_year, locked_until "
+                "FROM users WHERE id = :id"
+            ),
+            {"id": "u_defaults"},
+        )
+        .mappings()
+        .one()
+    )
 
     assert row["role"] == "student"
     assert row["account_level"] == "university"

@@ -657,7 +657,9 @@ class ResourceVerification(Base):
     )
     # fetch | domain | license | metadata, or admin (a reviewer's rejection)
     check_name: Mapped[str] = mapped_column(Text)
-    result: Mapped[str] = mapped_column(Text)  # pass | fail | review | error (no answer)
+    result: Mapped[str] = mapped_column(
+        Text
+    )  # pass | fail | review | error (no answer)
     details: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
     checked_at: Mapped[datetime] = mapped_column(
         UTCDateTime(), default=utcnow, server_default=func.current_timestamp()
@@ -670,6 +672,55 @@ class ResourceVerification(Base):
             "checked_at",
         ),
     )
+
+
+class ReviewCard(Base):
+    __tablename__ = "review_cards"
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    item_id: Mapped[str] = mapped_column(
+        ForeignKey("items.id", ondelete="CASCADE"), primary_key=True
+    )
+    node_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("roadmap_nodes.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    due_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    stability: Mapped[float] = mapped_column(Float, default=0.0, server_default="0.0")
+    difficulty: Mapped[float] = mapped_column(Float, default=0.0, server_default="0.0")
+    state: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    step: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    last_review: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+
+
+class ReviewLog(Base):
+    __tablename__ = "review_logs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    item_id: Mapped[str] = mapped_column(ForeignKey("items.id", ondelete="CASCADE"))
+    node_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("roadmap_nodes.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    rating: Mapped[int] = mapped_column(Integer)
+    reviewed_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), default=utcnow, server_default=func.current_timestamp()
+    )
+    elapsed_days: Mapped[float] = mapped_column(
+        Float, default=0.0, server_default="0.0"
+    )
+    scheduled_days: Mapped[float] = mapped_column(
+        Float, default=0.0, server_default="0.0"
+    )
+    stability: Mapped[float] = mapped_column(Float)
+    difficulty: Mapped[float] = mapped_column(Float)
+
+    __table_args__ = (Index("ix_review_logs_user_item", "user_id", "item_id"),)
 
 
 class Recommendation(Base):

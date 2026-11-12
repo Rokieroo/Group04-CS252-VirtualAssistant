@@ -20,6 +20,7 @@ from . import (
     routes_learning,
     routes_recommendations,
     routes_resources,
+    routes_reviews,
     routes_schedule,
     routes_tasks,
 )
@@ -98,6 +99,7 @@ def create_app(settings: Settings | None = None, *, now=utcnow, ai_transport=Non
         routes_ai.router,
         routes_jobs.router,
         routes_learning.router,
+        routes_reviews.router,
         routes_recommendations.router,
         routes_admin.router,
     ):

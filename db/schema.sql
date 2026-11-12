@@ -510,6 +510,36 @@ CREATE TABLE IF NOT EXISTS reviews (
     reviewed_at  TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS review_cards (
+    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    item_id     TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    node_id     VARCHAR(36) REFERENCES roadmap_nodes(id) ON DELETE SET NULL,
+    due_at      TIMESTAMP NOT NULL,
+    stability   REAL NOT NULL DEFAULT 0.0,
+    difficulty  REAL NOT NULL DEFAULT 0.0,
+    state       INTEGER NOT NULL DEFAULT 0,
+    step        INTEGER NOT NULL DEFAULT 0,
+    last_review TIMESTAMP,
+    PRIMARY KEY (user_id, item_id)
+);
+CREATE INDEX IF NOT EXISTS ix_review_cards_due_at ON review_cards (due_at);
+CREATE INDEX IF NOT EXISTS ix_review_cards_node_id ON review_cards (node_id);
+
+CREATE TABLE IF NOT EXISTS review_logs (
+    id             VARCHAR(36) PRIMARY KEY,
+    user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    item_id        TEXT NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    node_id        VARCHAR(36) REFERENCES roadmap_nodes(id) ON DELETE SET NULL,
+    rating         INTEGER NOT NULL,
+    reviewed_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    elapsed_days   REAL NOT NULL DEFAULT 0.0,
+    scheduled_days REAL NOT NULL DEFAULT 0.0,
+    stability      REAL NOT NULL,
+    difficulty     REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_review_logs_user_item ON review_logs (user_id, item_id);
+CREATE INDEX IF NOT EXISTS ix_review_logs_node_id ON review_logs (node_id);
+
 CREATE TABLE IF NOT EXISTS search_runs (
     id             VARCHAR(36) PRIMARY KEY,
     user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -675,7 +705,7 @@ CREATE INDEX IF NOT EXISTS ix_recommendation_events_recommendation_id ON recomme
 CREATE INDEX IF NOT EXISTS ix_external_results_fetched_at ON external_results (fetched_at);
 
 INSERT INTO alembic_version (version_num)
-SELECT '0015_k12_safety'
+SELECT '0016_fsrs_reviews'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);
 
 CREATE INDEX IF NOT EXISTS ix_roadmap_edges_roadmap_id ON roadmap_edges (roadmap_id);
