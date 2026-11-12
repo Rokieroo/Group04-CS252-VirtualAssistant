@@ -15,6 +15,15 @@ def _with_psycopg_driver(url: str) -> str:
     return url
 
 
+def _flag(value: str) -> bool:
+    normalized = value.strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError("RUN_MIGRATIONS must be 1/0, true/false, yes/no or on/off")
+
+
 @dataclass(frozen=True)
 class Settings:
     database_url: str = "sqlite:///./local.db"
@@ -27,6 +36,9 @@ class Settings:
     # Search providers for the resource finder (spec 11.2); empty disables them.
     youtube_api_key: str = field(default="", repr=False)
     search_api_key: str = field(default="", repr=False)
+    # Off when a separate one-shot `alembic upgrade head` (run as the schema owner)
+    # migrates first, so the API can log in as a role that cannot change the schema.
+    run_migrations: bool = True
 
     def __post_init__(self):
         if not 5 <= self.session_minutes <= 43200:
@@ -62,4 +74,5 @@ class Settings:
             llm_timeout_seconds=float(os.getenv("COMPANION_LLM_TIMEOUT_SECONDS", "20")),
             youtube_api_key=os.getenv("YOUTUBE_API_KEY", ""),
             search_api_key=os.getenv("SEARCH_API_KEY", ""),
+            run_migrations=_flag(os.getenv("RUN_MIGRATIONS", "1")),
         )
