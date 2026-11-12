@@ -1,0 +1,270 @@
+{
+  "id": "KG-03",
+  "syllabus_id": "SYL-03",
+  "course_code": "CS201",
+  "course_name": "Data Structures and Algorithms",
+  "source_file": "03_cs201_data_structures.txt",
+  "raters": ["rater_1", "rater_2"],
+  "cohens_kappa": 0.912,
+  "concepts": [
+    {
+      "slug": "algorithmic-analysis-and-asymptotic-notation",
+      "title": "Algorithmic Analysis and Asymptotic Notation",
+      "aliases": ["Big-O Omega Theta", "Time and Space Complexity", "Master Theorem"],
+      "week": 1,
+      "source_page": 1,
+      "clo_codes": ["CLO1"]
+    },
+    {
+      "slug": "recursion",
+      "title": "Recursion",
+      "aliases": ["Recurrence Relations", "Recursive Algorithms"],
+      "week": 1,
+      "source_page": 1,
+      "clo_codes": ["CLO1"]
+    },
+    {
+      "slug": "arrays-and-dynamic-vectors",
+      "title": "Arrays and Dynamic Vectors",
+      "aliases": ["Contiguous Arrays", "Dynamic Arrays"],
+      "week": 2,
+      "source_page": 1,
+      "clo_codes": ["CLO2"]
+    },
+    {
+      "slug": "linked-lists",
+      "title": "Singly and Doubly Linked Lists",
+      "aliases": ["Linked Lists", "Singly/Doubly Linked Lists"],
+      "week": 2,
+      "source_page": 1,
+      "clo_codes": ["CLO2"]
+    },
+    {
+      "slug": "stacks-and-queues",
+      "title": "Stacks, Queues, and Applications in Parsing",
+      "aliases": ["Stacks and Queues", "LIFO and FIFO Structures"],
+      "week": 3,
+      "source_page": 1,
+      "clo_codes": ["CLO2"]
+    },
+    {
+      "slug": "comparison-sorts",
+      "title": "Comparison Sorts (MergeSort, QuickSort)",
+      "aliases": ["MergeSort and QuickSort", "Divide and Conquer Sorting"],
+      "week": 4,
+      "source_page": 1,
+      "clo_codes": ["CLO1", "CLO2"]
+    },
+    {
+      "slug": "non-comparison-sorts",
+      "title": "Non-Comparison Sorts (Radix, Counting)",
+      "aliases": ["Linear Time Sorting", "Radix and Counting Sort"],
+      "week": 4,
+      "source_page": 1,
+      "clo_codes": ["CLO1"]
+    },
+    {
+      "slug": "binary-search-trees",
+      "title": "Binary Search Trees",
+      "aliases": ["BST", "Ordered Binary Trees"],
+      "week": 5,
+      "source_page": 1,
+      "clo_codes": ["CLO2"]
+    },
+    {
+      "slug": "avl-trees-and-balancing",
+      "title": "Tree Balancing and AVL Rotations",
+      "aliases": ["AVL Trees", "Self-Balancing Binary Search Trees"],
+      "week": 5,
+      "source_page": 1,
+      "clo_codes": ["CLO2"]
+    },
+    {
+      "slug": "priority-queues-and-heaps",
+      "title": "Priority Queues, Binary Heaps, and Huffman Coding",
+      "aliases": ["Binary Heaps", "Priority Queues", "Huffman Coding"],
+      "week": 7,
+      "source_page": 1,
+      "clo_codes": ["CLO2"]
+    },
+    {
+      "slug": "hash-tables",
+      "title": "Hash Tables, Collision Resolution, and Universal Hashing",
+      "aliases": ["Hash Tables", "Collision Resolution Strategies"],
+      "week": 8,
+      "source_page": 1,
+      "clo_codes": ["CLO2"]
+    },
+    {
+      "slug": "graph-representation-and-traversal",
+      "title": "Graph Representation, BFS, and DFS",
+      "aliases": ["Breadth-First Search", "Depth-First Search", "Graph Traversal"],
+      "week": 9,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    },
+    {
+      "slug": "minimum-spanning-trees",
+      "title": "Minimum Spanning Trees (Prim, Kruskal)",
+      "aliases": ["MST", "Prim and Kruskal Algorithms"],
+      "week": 10,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    },
+    {
+      "slug": "shortest-paths",
+      "title": "Single-Source Shortest Paths (Dijkstra, Bellman-Ford)",
+      "aliases": ["Dijkstra Algorithm", "Bellman-Ford", "Shortest Paths"],
+      "week": 10,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    }
+  ],
+  "edges": [
+    {
+      "parent": "algorithmic-analysis-and-asymptotic-notation",
+      "child": "recursion",
+      "kind": "strict",
+      "confidence": 0.9,
+      "reason": "Analyzing recurrence relations relies on asymptotic notation.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "algorithmic-analysis-and-asymptotic-notation",
+      "child": "arrays-and-dynamic-vectors",
+      "kind": "strict",
+      "confidence": 0.88,
+      "reason": "Amortized analysis explains dynamic vector resizing bounds.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "arrays-and-dynamic-vectors",
+      "child": "linked-lists",
+      "kind": "soft",
+      "confidence": 0.78,
+      "reason": "Pointer-based lists contrast with contiguous array allocation.",
+      "rater_1": "soft",
+      "rater_2": "soft"
+    },
+    {
+      "parent": "arrays-and-dynamic-vectors",
+      "child": "stacks-and-queues",
+      "kind": "strict",
+      "confidence": 0.93,
+      "reason": "Stacks and queues are implemented over arrays or linked lists.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "linked-lists",
+      "child": "stacks-and-queues",
+      "kind": "strict",
+      "confidence": 0.92,
+      "reason": "Linked nodes provide O(1) push/pop and enqueue/dequeue operations.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "recursion",
+      "child": "comparison-sorts",
+      "kind": "strict",
+      "confidence": 0.95,
+      "reason": "MergeSort and QuickSort are recursive divide-and-conquer algorithms.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "comparison-sorts",
+      "child": "non-comparison-sorts",
+      "kind": "soft",
+      "confidence": 0.8,
+      "reason": "Non-comparison sorts bypass the Omega(n log n) comparison lower bound.",
+      "rater_1": "soft",
+      "rater_2": "soft"
+    },
+    {
+      "parent": "recursion",
+      "child": "binary-search-trees",
+      "kind": "strict",
+      "confidence": 0.92,
+      "reason": "Tree traversal and search operations are naturally recursive.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "linked-lists",
+      "child": "binary-search-trees",
+      "kind": "strict",
+      "confidence": 0.89,
+      "reason": "Binary tree nodes generalize pointer-based node linking.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "binary-search-trees",
+      "child": "avl-trees-and-balancing",
+      "kind": "strict",
+      "confidence": 0.96,
+      "reason": "AVL rotations maintain logarithmic height on binary search trees.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "arrays-and-dynamic-vectors",
+      "child": "priority-queues-and-heaps",
+      "kind": "strict",
+      "confidence": 0.9,
+      "reason": "Binary heaps are stored compactly in level-order arrays.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "arrays-and-dynamic-vectors",
+      "child": "hash-tables",
+      "kind": "strict",
+      "confidence": 0.91,
+      "reason": "Hash tables index into bucket arrays with linked chaining or probing.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "stacks-and-queues",
+      "child": "graph-representation-and-traversal",
+      "kind": "strict",
+      "confidence": 0.95,
+      "reason": "BFS uses a FIFO queue and DFS uses a LIFO stack or recursion.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "graph-representation-and-traversal",
+      "child": "minimum-spanning-trees",
+      "kind": "strict",
+      "confidence": 0.93,
+      "reason": "MST algorithms operate on weighted graph representations.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "priority-queues-and-heaps",
+      "child": "shortest-paths",
+      "kind": "strict",
+      "confidence": 0.94,
+      "reason": "Dijkstra and Prim extract minimum-weight frontier vertices via a heap.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "graph-representation-and-traversal",
+      "child": "shortest-paths",
+      "kind": "strict",
+      "confidence": 0.95,
+      "reason": "Single-source shortest path generalizes BFS to weighted graphs.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    }
+  ]
+}
+

@@ -1,0 +1,515 @@
+{
+  "id": "KG-01",
+  "syllabus_id": "SYL-01",
+  "course_code": "CSC10014",
+  "course_name": "Problem Framing and Solution Architecture",
+  "source_file": "01_csc10014_problem_framing.txt",
+  "raters": ["rater_1", "rater_2"],
+  "cohens_kappa": 0.905,
+  "concepts": [
+    {
+      "slug": "problem-framing",
+      "title": "Problem Framing",
+      "aliases": ["Enterprise Problem Framing", "Frame Business Problems"],
+      "week": 1,
+      "source_page": 1,
+      "clo_codes": ["CLO1"]
+    },
+    {
+      "slug": "solution-ladder",
+      "title": "Solution Ladder",
+      "aliases": ["Solution Tiers", "Optimal Solution Tiers"],
+      "week": 1,
+      "source_page": 1,
+      "clo_codes": ["CLO2"]
+    },
+    {
+      "slug": "functional-vs-non-functional-requirements",
+      "title": "Functional vs Non-Functional Requirements",
+      "aliases": ["Functional Requirements", "Non-Functional Requirements"],
+      "week": 1,
+      "source_page": 1,
+      "clo_codes": ["CLO1"]
+    },
+    {
+      "slug": "product-risks",
+      "title": "Product Risks",
+      "aliases": ["4 Product Risks", "Value Usability Feasibility Viability"],
+      "week": 1,
+      "source_page": 1,
+      "clo_codes": ["CLO1"]
+    },
+    {
+      "slug": "task-decomposition",
+      "title": "Task Decomposition",
+      "aliases": ["Decompose Tasks", "Decomposition"],
+      "week": 2,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    },
+    {
+      "slug": "anatomy-of-a-task",
+      "title": "Anatomy of a Task",
+      "aliases": ["Task Anatomy"],
+      "week": 2,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    },
+    {
+      "slug": "use-case-diagram",
+      "title": "Use Case Diagram",
+      "aliases": ["Use Cases", "UML Use Case Include vs Extend"],
+      "week": 2,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    },
+    {
+      "slug": "moscow-prioritisation",
+      "title": "MoSCoW Prioritisation",
+      "aliases": ["MoSCoW Prioritization", "Requirement Prioritisation"],
+      "week": 2,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    },
+    {
+      "slug": "pitfalls-and-success-pipelines",
+      "title": "Pitfalls & Success Pipelines",
+      "aliases": ["Success Pipelines", "End-to-End Success Pipelines"],
+      "week": 3,
+      "source_page": 1,
+      "clo_codes": ["CLO4"]
+    },
+    {
+      "slug": "human-in-the-loop",
+      "title": "Human-in-the-loop",
+      "aliases": ["Human in the Loop", "HITL Pipelines"],
+      "week": 3,
+      "source_page": 1,
+      "clo_codes": ["CLO4"]
+    },
+    {
+      "slug": "checkpoints",
+      "title": "Checkpoints",
+      "aliases": ["Pipeline Checkpoints", "Trigger Steps Checkpoint Result Saving"],
+      "week": 3,
+      "source_page": 1,
+      "clo_codes": ["CLO4"]
+    },
+    {
+      "slug": "pipeline-patterns",
+      "title": "4 Pipeline Patterns",
+      "aliases": ["Pipeline Patterns", "Automated Pipeline Patterns"],
+      "week": 3,
+      "source_page": 1,
+      "clo_codes": ["CLO4"]
+    },
+    {
+      "slug": "system-architecture",
+      "title": "System Architecture",
+      "aliases": ["Solution Architecture", "Architecture Design"],
+      "week": 4,
+      "source_page": 1,
+      "clo_codes": ["CLO3", "CLO4"]
+    },
+    {
+      "slug": "api-design",
+      "title": "API Design",
+      "aliases": ["REST API Design", "API Contracts"],
+      "week": 4,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    },
+    {
+      "slug": "data-modeling",
+      "title": "Data Modeling",
+      "aliases": ["Database Schema Design", "Domain Data Modeling"],
+      "week": 4,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    },
+    {
+      "slug": "defensive-safeguards",
+      "title": "Defensive Safeguards",
+      "aliases": ["Safety Guardrails", "Defensive Design"],
+      "week": 4,
+      "source_page": 1,
+      "clo_codes": ["CLO4"]
+    },
+    {
+      "slug": "engineering-quality",
+      "title": "Engineering Quality",
+      "aliases": ["Software Quality Assurance", "Quality Engineering"],
+      "week": 5,
+      "source_page": 1,
+      "clo_codes": ["CLO4"]
+    },
+    {
+      "slug": "red-teaming",
+      "title": "Red-teaming",
+      "aliases": ["Red Teaming", "Adversarial Testing"],
+      "week": 5,
+      "source_page": 1,
+      "clo_codes": ["CLO4"]
+    },
+    {
+      "slug": "benchmark-dataset-construction",
+      "title": "Benchmark Dataset Construction",
+      "aliases": ["Benchmark Construction", "Gold Dataset Creation"],
+      "week": 5,
+      "source_page": 1,
+      "clo_codes": ["CLO4"]
+    },
+    {
+      "slug": "ai-evaluation",
+      "title": "AI Evaluation",
+      "aliases": ["LLM Evaluation", "Model Evaluation Metrics"],
+      "week": 5,
+      "source_page": 1,
+      "clo_codes": ["CLO4"]
+    },
+    {
+      "slug": "midterm-milestone-report",
+      "title": "Midterm Milestone Report",
+      "aliases": ["Phase 1 Project Presentation", "Midterm Project Milestone"],
+      "week": 6,
+      "source_page": 1,
+      "clo_codes": ["CLO1", "CLO2", "CLO3"]
+    },
+    {
+      "slug": "retrieval-integration",
+      "title": "Retrieval Integration",
+      "aliases": ["BM25 Retrieval", "Information Retrieval Integration"],
+      "week": 7,
+      "source_page": 1,
+      "clo_codes": ["CLO2", "CLO4"]
+    },
+    {
+      "slug": "llm-interface",
+      "title": "LLM Interface",
+      "aliases": ["LLM Client Abstraction", "Language Model Integration"],
+      "week": 7,
+      "source_page": 1,
+      "clo_codes": ["CLO2"]
+    },
+    {
+      "slug": "cite-or-refuse-citation-strategies",
+      "title": "Cite-or-Refuse Citation Strategies",
+      "aliases": ["Cite or Refuse", "Grounded Citation Strategies"],
+      "week": 7,
+      "source_page": 1,
+      "clo_codes": ["CLO4"]
+    },
+    {
+      "slug": "performance-optimization",
+      "title": "Performance Optimization",
+      "aliases": ["Latency Optimization", "System Performance"],
+      "week": 8,
+      "source_page": 1,
+      "clo_codes": ["CLO4"]
+    },
+    {
+      "slug": "caching",
+      "title": "Caching",
+      "aliases": ["Response Caching", "Resource Cache"],
+      "week": 8,
+      "source_page": 1,
+      "clo_codes": ["CLO4"]
+    },
+    {
+      "slug": "asynchronous-job-queues",
+      "title": "Asynchronous Job Queues",
+      "aliases": ["Job Queues", "Background Workers", "Async Workers"],
+      "week": 8,
+      "source_page": 1,
+      "clo_codes": ["CLO4"]
+    },
+    {
+      "slug": "staging-deployment",
+      "title": "Staging Deployment",
+      "aliases": ["CI/CD", "Containerization with Docker Compose"],
+      "week": 9,
+      "source_page": 1,
+      "clo_codes": ["CLO4"]
+    },
+    {
+      "slug": "runtime-monitoring",
+      "title": "Runtime Monitoring",
+      "aliases": ["Observability", "Cost and Health Monitoring"],
+      "week": 9,
+      "source_page": 1,
+      "clo_codes": ["CLO4"]
+    },
+    {
+      "slug": "final-capstone-project-defense",
+      "title": "Final Capstone Project Defense",
+      "aliases": ["Real-world Evaluation", "Capstone Defense"],
+      "week": 10,
+      "source_page": 1,
+      "clo_codes": ["CLO1", "CLO2", "CLO3", "CLO4"]
+    }
+  ],
+  "edges": [
+    {
+      "parent": "problem-framing",
+      "child": "solution-ladder",
+      "kind": "strict",
+      "confidence": 0.95,
+      "reason": "Selecting a solution tier requires framing the underlying problem first.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "problem-framing",
+      "child": "functional-vs-non-functional-requirements",
+      "kind": "strict",
+      "confidence": 0.92,
+      "reason": "Requirements are derived directly from the framed problem statement.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "problem-framing",
+      "child": "product-risks",
+      "kind": "strict",
+      "confidence": 0.9,
+      "reason": "Evaluating product risks depends on understanding the problem context.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "functional-vs-non-functional-requirements",
+      "child": "task-decomposition",
+      "kind": "strict",
+      "confidence": 0.94,
+      "reason": "System requirements must be defined before decomposing them into tasks.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "task-decomposition",
+      "child": "anatomy-of-a-task",
+      "kind": "strict",
+      "confidence": 0.9,
+      "reason": "Decomposing work produces individual tasks whose anatomy is analyzed.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "task-decomposition",
+      "child": "use-case-diagram",
+      "kind": "strict",
+      "confidence": 0.93,
+      "reason": "Use cases model the decomposed functional tasks and user interactions.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "use-case-diagram",
+      "child": "moscow-prioritisation",
+      "kind": "soft",
+      "confidence": 0.75,
+      "reason": "Prioritization typically orders the catalog of identified use cases.",
+      "rater_1": "soft",
+      "rater_2": "soft"
+    },
+    {
+      "parent": "anatomy-of-a-task",
+      "child": "pitfalls-and-success-pipelines",
+      "kind": "strict",
+      "confidence": 0.91,
+      "reason": "Success pipelines chain atomic tasks into end-to-end workflows.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "pitfalls-and-success-pipelines",
+      "child": "human-in-the-loop",
+      "kind": "strict",
+      "confidence": 0.88,
+      "reason": "Human-in-the-loop is a core control mechanism within success pipelines.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "pitfalls-and-success-pipelines",
+      "child": "checkpoints",
+      "kind": "strict",
+      "confidence": 0.9,
+      "reason": "Checkpoints validate intermediate states inside a pipeline.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "checkpoints",
+      "child": "pipeline-patterns",
+      "kind": "strict",
+      "confidence": 0.86,
+      "reason": "Pipeline patterns combine triggers, steps, and verification checkpoints.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "use-case-diagram",
+      "child": "system-architecture",
+      "kind": "strict",
+      "confidence": 0.92,
+      "reason": "System architecture realizes the specified use cases and requirements.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "system-architecture",
+      "child": "api-design",
+      "kind": "strict",
+      "confidence": 0.91,
+      "reason": "API contracts define boundaries between architectural components.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "system-architecture",
+      "child": "data-modeling",
+      "kind": "strict",
+      "confidence": 0.9,
+      "reason": "Data models support the persistence layer of the system architecture.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "checkpoints",
+      "child": "defensive-safeguards",
+      "kind": "strict",
+      "confidence": 0.87,
+      "reason": "Defensive safeguards enforce safety invariants at pipeline checkpoints.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "defensive-safeguards",
+      "child": "engineering-quality",
+      "kind": "soft",
+      "confidence": 0.78,
+      "reason": "Safeguards form the baseline for broader engineering quality practices.",
+      "rater_1": "soft",
+      "rater_2": "soft"
+    },
+    {
+      "parent": "defensive-safeguards",
+      "child": "red-teaming",
+      "kind": "strict",
+      "confidence": 0.89,
+      "reason": "Red-teaming stress-tests defensive safeguards against adversarial inputs.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "engineering-quality",
+      "child": "benchmark-dataset-construction",
+      "kind": "strict",
+      "confidence": 0.88,
+      "reason": "Quality standards define what gold benchmark datasets must measure.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "benchmark-dataset-construction",
+      "child": "ai-evaluation",
+      "kind": "strict",
+      "confidence": 0.95,
+      "reason": "Quantitative AI evaluation requires a constructed benchmark dataset.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "ai-evaluation",
+      "child": "midterm-milestone-report",
+      "kind": "soft",
+      "confidence": 0.8,
+      "reason": "Week 6 milestone synthesizes Phase 1 architecture and evaluation.",
+      "rater_1": "soft",
+      "rater_2": "soft"
+    },
+    {
+      "parent": "solution-ladder",
+      "child": "retrieval-integration",
+      "kind": "strict",
+      "confidence": 0.9,
+      "reason": "Retrieval corresponds to the search rung on the Solution Ladder.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "retrieval-integration",
+      "child": "llm-interface",
+      "kind": "strict",
+      "confidence": 0.89,
+      "reason": "Retrieved chunks feed into the LLM interface for grounded generation.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "llm-interface",
+      "child": "cite-or-refuse-citation-strategies",
+      "kind": "strict",
+      "confidence": 0.94,
+      "reason": "Cite-or-refuse constrains LLM responses to retrieved source pages.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "api-design",
+      "child": "performance-optimization",
+      "kind": "soft",
+      "confidence": 0.74,
+      "reason": "Performance tuning refines existing API and query paths.",
+      "rater_1": "soft",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "performance-optimization",
+      "child": "caching",
+      "kind": "strict",
+      "confidence": 0.88,
+      "reason": "Caching is a primary technique for latency and cost optimization.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "performance-optimization",
+      "child": "asynchronous-job-queues",
+      "kind": "strict",
+      "confidence": 0.87,
+      "reason": "Async job queues offload slow tasks from request-response paths.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "asynchronous-job-queues",
+      "child": "staging-deployment",
+      "kind": "strict",
+      "confidence": 0.85,
+      "reason": "Staging deployment orchestrates API, database, and background workers.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "staging-deployment",
+      "child": "runtime-monitoring",
+      "kind": "strict",
+      "confidence": 0.9,
+      "reason": "Runtime monitoring tracks health and costs of deployed staging services.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "runtime-monitoring",
+      "child": "final-capstone-project-defense",
+      "kind": "soft",
+      "confidence": 0.82,
+      "reason": "Final defense demonstrates the deployed and monitored system end-to-end.",
+      "rater_1": "soft",
+      "rater_2": "soft"
+    }
+  ]
+}
+

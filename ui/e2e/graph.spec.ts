@@ -230,6 +230,57 @@ async function backend(page: Page, courseNodes = nodes) {
       return route.fulfill({
         json: [{ id: "c1", title: "CS252 - Computational Thinking" }],
       });
+    if (path.endsWith("syllabus:parse"))
+      return route.fulfill({
+        json: {
+          parsed: {
+            course: {
+              code: { value: "CSC10014", source_page: 1 },
+              title: { value: "Graph course", source_page: 1 },
+            },
+            outcomes: [
+              {
+                code: "CLO1",
+                text: "Understand the foundations",
+                bloom_level: "understand",
+                source_page: 1,
+              },
+            ],
+            weeks: [
+              { week: 1, topics: ["Z Foundations"], source_page: 1 },
+              { week: 2, topics: ["A Retrieval"], source_page: 1 },
+              { week: 3, topics: ["Other topic"], source_page: 1 },
+            ],
+            assessments: [
+              {
+                title: "Midterm",
+                weight: 100,
+                due: "week 3",
+                kind: "midterm",
+                source_page: 1,
+              },
+            ],
+            textbooks: [],
+          },
+          pages: 1,
+          source_pages: { 1: "Syllabus page one: Foundations and Retrieval" },
+          status: "draft",
+          warnings: [],
+        },
+      });
+    if (path.endsWith("/roadmap:generate"))
+      return route.fulfill({
+        status: 201,
+        json: {
+          id: "rm",
+          roadmap_id: "rm",
+          course_id: "c1",
+          user_id: "u1",
+          title: "Graph course",
+          created_at: "2026-11-11T00:00:00Z",
+          nodes: courseNodes,
+        },
+      });
     if (path.includes("/concepts/") && path.endsWith("/sources")) {
       const personal = path.includes("/b/");
       return route.fulfill({
@@ -310,6 +361,7 @@ async function backend(page: Page, courseNodes = nodes) {
         ...n,
         status: i === 0 ? "completed" : "pending",
         outcome_ids: [i < 2 ? "CLO1" : "CLO2"],
+        source_pages: [1],
         source_count: i < 2 ? 2 : 0,
         user_material_count: i === 1 ? 2 : 0,
         sources_status: i < 2 ? "ready" : "insufficient",
@@ -741,3 +793,126 @@ test("node panel remains accessible with source metadata and inactive gateways",
       })),
   ).toEqual([]);
 });
+
+test("upload syllabus -> open graph -> click node shows syllabus page; cycle edge is blocked and highlighted in red", async ({
+  page,
+}, info) => {
+  test.skip(
+    info.project.name.includes("mobile"),
+    "Shift+drag cycle edge creation is a desktop pointer gesture.",
+  );
+  await backend(page);
+  await page.goto("/");
+
+  // 1. Upload syllabus and confirm
+  await page.getByLabel("Syllabus file", { exact: true }).setInputFiles({
+    name: "CSC10014.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.7"),
+  });
+  await page.getByRole("button", { name: "Continue to review" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Review your syllabus", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Xác nhận đề cương", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Tạo roadmap →", exact: true }),
+  ).toBeEnabled();
+  await page
+    .getByRole("button", { name: "Tạo roadmap →", exact: true })
+    .click();
+
+  // 2. Open Knowledge Graph tab
+  await page.getByRole("tab", { name: "Graph tiên quyết" }).click();
+  const canvas = page.locator("canvas.graph-canvas");
+  await expect(canvas).toBeVisible();
+  await canvas.scrollIntoViewIfNeeded();
+  await page.getByRole("button", { name: "Đặt lại góc nhìn" }).click();
+
+  // 3. Click node 'a' (Z Foundations at canvas 80,80 -> screen +140,+140) -> see syllabus page
+  const rect = (await canvas.boundingBox())!;
+  await page.mouse.click(rect.x + 140, rect.y + 140);
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Z Foundations");
+  const syllabusBtn = dialog.getByRole("button", {
+    name: /Trang syllabus: 1/,
+  });
+  await expect(syllabusBtn).toBeVisible();
+  await syllabusBtn.click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "Syllabus page one: Foundations and Retrieval",
+  );
+  await page.getByRole("button", { name: "Đóng", exact: true }).click();
+  await page.getByRole("button", { name: "Đặt lại góc nhìn" }).click();
+
+  // 4. Add edge that creates a cycle (b -> a when a -> b exists) via Shift+drag on canvas
+  await page.keyboard.down("Shift");
+  await page.mouse.move(rect.x + 320, rect.y + 140);
+  await page.mouse.down();
+  await page.mouse.move(rect.x + 140, rect.y + 140, { steps: 5 });
+  await page.mouse.up();
+  await page.keyboard.up("Shift");
+
+  // Cycle alert banner is shown and cycle path is highlighted in red
+  const cycleAlert = page.locator(".graph-cycle-alert[role='alert']");
+  await expect(cycleAlert).toBeVisible();
+  await expect(cycleAlert).toContainText("Chu trình tiên quyết bị chặn");
+  await expect(cycleAlert).toContainText("b → a → b");
+});
+
+for (const count of [30, 100] as const) {
+  test(`${count}-node graph pan and zoom FPS benchmark`, async ({
+    page,
+  }, info) => {
+    test.skip(
+      info.project.name.includes("mobile"),
+      "Desktop canvas pan/zoom FPS benchmark.",
+    );
+    const graphNodes = Array.from({ length: count }, (_, i) => ({
+      ...nodes[0],
+      id: `n${i}`,
+      title: `Concept ${i}`,
+      week: (i % 10) + 1,
+    }));
+    await backend(page, graphNodes);
+    await page.goto("/?kg_roadmap=rm#roadmap");
+    const canvas = page.locator("canvas.graph-canvas");
+    await expect(canvas).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "CLO:" })).toBeVisible();
+    await canvas.scrollIntoViewIfNeeded();
+    const r = (await canvas.boundingBox())!;
+
+    const sample = page.evaluate(
+      () =>
+        new Promise<{ fps: number; frames: number }>((resolve) => {
+          const start = performance.now();
+          let frames = 0;
+          function step(now: number) {
+            frames++;
+            if (now - start < 1000) requestAnimationFrame(step);
+            else resolve({ fps: (frames * 1000) / (now - start), frames });
+          }
+          requestAnimationFrame(step);
+        }),
+    );
+
+    await page.mouse.move(r.x + 40, r.y + 200);
+    await page.mouse.down();
+    for (let i = 0; i < 20; i++) {
+      await page.mouse.move(r.x + 40 + i * 6, r.y + 200 + (i % 5) * 4);
+      await page.waitForTimeout(16);
+    }
+    await page.mouse.up();
+    await page.mouse.wheel(0, -120);
+    await page.mouse.wheel(0, 120);
+
+    const result = await sample;
+    await info.attach(`graph-fps-${count}-nodes.json`, {
+      body: JSON.stringify({ nodes: count, ...result }),
+      contentType: "application/json",
+    });
+    expect(result.fps).toBeGreaterThanOrEqual(24);
+  });
+}

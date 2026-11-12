@@ -1,0 +1,278 @@
+{
+  "id": "KG-02",
+  "syllabus_id": "SYL-02",
+  "course_code": "CS102",
+  "course_name": "Database Systems and Architecture",
+  "source_file": "02_cs102_database_systems.txt",
+  "raters": ["rater_1", "rater_2"],
+  "cohens_kappa": 0.889,
+  "concepts": [
+    {
+      "slug": "data-models",
+      "title": "Introduction to Data Models",
+      "aliases": ["Data Models", "Entity-Relationship Models", "ER Models"],
+      "week": 1,
+      "source_page": 1,
+      "clo_codes": ["CLO1"]
+    },
+    {
+      "slug": "relational-databases",
+      "title": "Relational Databases",
+      "aliases": ["Relational Data Model", "Relational Schemas"],
+      "week": 1,
+      "source_page": 1,
+      "clo_codes": ["CLO1"]
+    },
+    {
+      "slug": "relational-algebra",
+      "title": "Relational Algebra",
+      "aliases": ["Algebraic Query Operations"],
+      "week": 2,
+      "source_page": 1,
+      "clo_codes": ["CLO1", "CLO2"]
+    },
+    {
+      "slug": "tuple-relational-calculus",
+      "title": "Tuple Relational Calculus",
+      "aliases": ["Relational Calculus", "TRC"],
+      "week": 2,
+      "source_page": 1,
+      "clo_codes": ["CLO2"]
+    },
+    {
+      "slug": "sql-ddl",
+      "title": "Data Definition Language (DDL)",
+      "aliases": ["Basic SQL DDL", "Schema Definition SQL"],
+      "week": 3,
+      "source_page": 1,
+      "clo_codes": ["CLO1", "CLO2"]
+    },
+    {
+      "slug": "sql-dml-queries",
+      "title": "Basic SQL Queries (DML)",
+      "aliases": ["Basic SQL", "Data Manipulation Language", "SQL Joins"],
+      "week": 3,
+      "source_page": 1,
+      "clo_codes": ["CLO2"]
+    },
+    {
+      "slug": "sql-grouping-and-aggregations",
+      "title": "Advanced SQL: Grouping and Aggregations",
+      "aliases": ["Grouping and Aggregations", "Window Functions"],
+      "week": 4,
+      "source_page": 1,
+      "clo_codes": ["CLO2"]
+    },
+    {
+      "slug": "correlated-subqueries",
+      "title": "Correlated Subqueries",
+      "aliases": ["Nested Subqueries", "Advanced SQL Subqueries"],
+      "week": 4,
+      "source_page": 1,
+      "clo_codes": ["CLO2"]
+    },
+    {
+      "slug": "functional-dependencies",
+      "title": "Functional Dependencies",
+      "aliases": ["FD Closure", "Attribute Dependencies"],
+      "week": 5,
+      "source_page": 1,
+      "clo_codes": ["CLO1"]
+    },
+    {
+      "slug": "normalization-theory",
+      "title": "Normalization Theory (1NF, 2NF, 3NF, BCNF)",
+      "aliases": ["Database Normalization", "BCNF and 3NF"],
+      "week": 5,
+      "source_page": 1,
+      "clo_codes": ["CLO1"]
+    },
+    {
+      "slug": "storage-architecture",
+      "title": "Storage Architecture",
+      "aliases": ["Disk Organization", "Buffer Pool Management"],
+      "week": 7,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    },
+    {
+      "slug": "b-plus-tree-indexing",
+      "title": "B+ Tree Indexing Structures",
+      "aliases": ["B-Trees", "Hash Indices", "Database Indexing"],
+      "week": 7,
+      "source_page": 1,
+      "clo_codes": ["CLO2", "CLO3"]
+    },
+    {
+      "slug": "query-execution-and-optimization",
+      "title": "Query Execution, Cost Estimation, and Relational Optimization",
+      "aliases": ["Query Optimization", "Cost Estimation"],
+      "week": 8,
+      "source_page": 1,
+      "clo_codes": ["CLO2"]
+    },
+    {
+      "slug": "transactions-and-concurrency-control",
+      "title": "Transactions, Concurrency Control, and Isolation Levels",
+      "aliases": ["ACID Properties", "Serializability", "Two-Phase Locking (2PL)"],
+      "week": 9,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    },
+    {
+      "slug": "database-recovery-and-distributed-datastores",
+      "title": "Database Recovery Mechanisms and Distributed Datastores",
+      "aliases": ["Crash Recovery (ARIES)", "Distributed Databases"],
+      "week": 10,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    }
+  ],
+  "edges": [
+    {
+      "parent": "data-models",
+      "child": "relational-databases",
+      "kind": "strict",
+      "confidence": 0.95,
+      "reason": "Conceptual data models map directly into relational tables.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "relational-databases",
+      "child": "relational-algebra",
+      "kind": "strict",
+      "confidence": 0.94,
+      "reason": "Relational algebra operates on relations and tuples.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "relational-algebra",
+      "child": "tuple-relational-calculus",
+      "kind": "soft",
+      "confidence": 0.78,
+      "reason": "Declarative calculus complements procedural relational algebra.",
+      "rater_1": "soft",
+      "rater_2": "soft"
+    },
+    {
+      "parent": "relational-databases",
+      "child": "sql-ddl",
+      "kind": "strict",
+      "confidence": 0.92,
+      "reason": "DDL defines relational schemas, keys, and constraints.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "relational-algebra",
+      "child": "sql-dml-queries",
+      "kind": "strict",
+      "confidence": 0.93,
+      "reason": "SQL SELECT-PROJECT-JOIN queries implement relational algebra operations.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "sql-ddl",
+      "child": "sql-dml-queries",
+      "kind": "strict",
+      "confidence": 0.89,
+      "reason": "Tables must be created via DDL before querying with DML.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "sql-dml-queries",
+      "child": "sql-grouping-and-aggregations",
+      "kind": "strict",
+      "confidence": 0.94,
+      "reason": "GROUP BY and aggregations extend foundational SELECT queries.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "sql-dml-queries",
+      "child": "correlated-subqueries",
+      "kind": "strict",
+      "confidence": 0.91,
+      "reason": "Correlated subqueries nest basic SQL queries across outer bindings.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "relational-databases",
+      "child": "functional-dependencies",
+      "kind": "strict",
+      "confidence": 0.9,
+      "reason": "Functional dependencies formalize constraints over relational attributes.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "functional-dependencies",
+      "child": "normalization-theory",
+      "kind": "strict",
+      "confidence": 0.96,
+      "reason": "1NF-BCNF normalization decomposes schemas using functional dependencies.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "normalization-theory",
+      "child": "storage-architecture",
+      "kind": "soft",
+      "confidence": 0.72,
+      "reason": "Physical storage follows logical schema design in the course sequence.",
+      "rater_1": "soft",
+      "rater_2": "soft"
+    },
+    {
+      "parent": "storage-architecture",
+      "child": "b-plus-tree-indexing",
+      "kind": "strict",
+      "confidence": 0.93,
+      "reason": "B+ tree nodes map onto physical disk pages and buffer frames.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "b-plus-tree-indexing",
+      "child": "query-execution-and-optimization",
+      "kind": "strict",
+      "confidence": 0.92,
+      "reason": "Query optimizers select between index scans and sequential scans.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "sql-grouping-and-aggregations",
+      "child": "query-execution-and-optimization",
+      "kind": "strict",
+      "confidence": 0.85,
+      "reason": "Cost estimation evaluates join, sort, and aggregation plans.",
+      "rater_1": "strict",
+      "rater_2": "soft"
+    },
+    {
+      "parent": "query-execution-and-optimization",
+      "child": "transactions-and-concurrency-control",
+      "kind": "soft",
+      "confidence": 0.76,
+      "reason": "Concurrent query execution motivates transaction isolation and locking.",
+      "rater_1": "soft",
+      "rater_2": "soft"
+    },
+    {
+      "parent": "transactions-and-concurrency-control",
+      "child": "database-recovery-and-distributed-datastores",
+      "kind": "strict",
+      "confidence": 0.94,
+      "reason": "ARIES crash recovery and distributed commit build on ACID transactions.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    }
+  ]
+}
+

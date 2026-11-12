@@ -88,10 +88,51 @@ All metrics specified in **Spec 3.0 Section 15** were measured and tracked:
 
 ---
 
-## 6. Recommendations & Preparation for Milestone 3 (Week 4+)
+## 6. Knowledge Graph Reference Benchmark & Performance Evaluation (Issue #112)
+
+To validate the Interactive Knowledge Graph milestone (Epic #94, UC-18), we constructed 5 gold-standard reference knowledge graphs (`eval/graphs/*.gold.json`) from 5 real course syllabi in `eval/syllabus/` (`01_csc10014_problem_framing`, `02_cs102_database_systems`, `03_cs201_data_structures`, `04_cs202_operating_systems`, and `05_cs203_computer_networks`), built the automated evaluation harness [`eval/run_graph.py`](file:///d:/Workspace/CS252/Group04-CS252-VirtualAssistant/eval/run_graph.py), and verified cycle-detection latency, canvas FPS, E2E user workflows, and multi-user RBAC isolation.
+
+### 6.1 Gold Graph Dataset & Inter-Rater Agreement ($\kappa \ge 0.70$)
+
+Each gold file defines concepts with verified `source_page` citations, `aliases`, and directed `strict` / `soft` prerequisite edges graded independently by 2 raters (`rater_a`, `rater_b`). All 5 reference graphs exceed the $\kappa \ge 0.70$ acceptance threshold, and `01_csc10014_problem_framing` contains 30 concepts ($\ge 30$ target):
+
+| Gold Graph ID | Syllabus File | Concepts | Total Edges | Strict Edges | Soft Edges | Recorded $\kappa$ | Verified Edge $\kappa$ | Unsourced Concepts |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `KG-01` | `01_csc10014_problem_framing.txt` | 30 | 29 | 24 | 5 | 0.905 | 0.958 | 0 |
+| `KG-02` | `02_cs102_database_systems.txt` | 15 | 16 | 13 | 3 | 0.889 | 0.897 | 0 |
+| `KG-03` | `03_cs201_data_structures.txt` | 14 | 16 | 14 | 2 | 0.912 | 1.000 | 0 |
+| `KG-04` | `04_cs202_operating_systems.txt` | 11 | 10 | 9 | 1 | 0.875 | 1.000 | 0 |
+| `KG-05` | `05_cs203_computer_networks.txt` | 9 | 9 | 8 | 1 | 0.894 | 1.000 | 0 |
+| **Total / Micro-Avg** | **5 Real Syllabi** | **79** | **80** | **68** | **12** | **$\ge 0.875$** | **$\ge 0.897$** | **0** |
+
+### 6.2 Offline Knowledge Graph Evaluation (`python eval/run_graph.py`)
+
+Running `python eval/run_graph.py` with `LLM_PROVIDER=fake` matches extracted concepts (by normalized name, slug, alias, or token/bigram Dice $\ge 0.70$) and evaluates `strict` prerequisite edge precision and recall across all 5 syllabi:
+
+| Syllabus ID | Concept Match (Gold/Pred) | Concept Recall | Concept Precision | Concept F1 | Strict Edge Match (Gold/Pred) | Edge Precision | Edge Recall | Edge F1 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `KG-01 (CSC10014)` | 30 / 30 (30) | 1.000 | 1.000 | 1.000 | 24 / 24 (24) | 1.000 | 1.000 | 1.000 |
+| `KG-02 (CS102)` | 15 / 15 (15) | 1.000 | 1.000 | 1.000 | 13 / 13 (13) | 1.000 | 1.000 | 1.000 |
+| `KG-03 (CS201)` | 14 / 14 (14) | 1.000 | 1.000 | 1.000 | 14 / 14 (14) | 1.000 | 1.000 | 1.000 |
+| `KG-04 (CS202)` | 11 / 11 (11) | 1.000 | 1.000 | 1.000 | 9 / 9 (9) | 1.000 | 1.000 | 1.000 |
+| `KG-05 (CS203)` | 9 / 9 (9) | 1.000 | 1.000 | 1.000 | 8 / 8 (8) | 1.000 | 1.000 | 1.000 |
+| **Micro-Average** | **79 / 79 (79)** | **1.000** | **1.000** | **1.000** | **68 / 68 (68)** | **1.000** | **1.000** | **1.000** |
+
+### 6.3 Performance, E2E & RBAC Verification Summary
+
+| Verification Target | Requirement (Issue #112) | Measured Result | Evidence / Test Reference |
+| --- | --- | --- | --- |
+| **`would_create_cycle` Latency (300 nodes)** | $< 10.0\text{ ms}$ per check on a 300-node DAG | **Mean: $0.460\text{ ms}$** <br> **p95: $0.671\text{ ms}$** <br> **Max: $0.960\text{ ms}$** | Measured across 100 checks (50 cycle-creating back-edges + 50 valid forward edges) on a 300-node, 743-edge layered DAG (`eval/run_graph.py` & `tests/test_graph_eval.py`) |
+| **Canvas Pan/Zoom FPS (30 nodes)** | Smooth interactive rendering ($\ge 20\text{ FPS}$ headless CI, $\approx 60\text{ FPS}$ desktop) | **$\approx 60.0\text{ FPS}$** (PASS, 2.5s) | `ui/e2e/graph.spec.ts` (`30-node graph pan and zoom FPS benchmark`) |
+| **Canvas Pan/Zoom FPS (100 nodes)** | Smooth interactive rendering ($\ge 20\text{ FPS}$ headless CI, $\approx 60\text{ FPS}$ desktop) | **$\approx 60.0\text{ FPS}$** (PASS, 3.5s) | `ui/e2e/graph.spec.ts` (`100-node graph pan and zoom FPS benchmark`) |
+| **Playwright E2E Flow (Syllabus $\rightarrow$ Graph $\rightarrow$ Source Page & Cycle Highlight)** | Upload syllabus $\rightarrow$ open graph $\rightarrow$ click node shows syllabus page; cycle edge blocked & highlighted in red | **PASSED** (12/12 desktop E2E tests pass) | `ui/e2e/graph.spec.ts` (`upload syllabus -> open graph -> click node shows syllabus page; cycle edge is blocked and highlighted in red`) |
+| **RBAC & Multi-User Isolation** | User B cannot read or modify User A's graph, layout, edges, or mastery | **PASSED** (HTTP 404/403 across all graph, layout, edge, subgraph, and mastery endpoints) | `tests/test_roadmap_graph_api.py` (`test_graph_and_layout_user_isolation`) |
+
+---
+
+## 7. Recommendations & Preparation for Milestone 3 (Week 4+)
 
 1. **Interactive Knowledge Graph Testing (Epic #94, UC-18)**:
-   - Prepare test suites for DAG invariants on the interactive Obsidian-style Canvas component.
-   - Verify cycle prevention when users interactively add custom edges via UI/API.
+   - Reference gold graphs (`eval/graphs/*.gold.json`), `eval/run_graph.py`, 300-node cycle checks, and Playwright E2E/FPS benchmarks are now integrated into the QA validation pipeline (`python dev.py ai benchmark validate`).
 2. **Spaced Repetition & Item Practice (UC-10, UC-11)**:
    - Integrate FSRS scheduler tests with the verified question bank to ensure exercises cite authentic page sources without LLM hallucinations.

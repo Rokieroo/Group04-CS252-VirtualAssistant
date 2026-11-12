@@ -15,8 +15,6 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from uuid import uuid4
 
-from sqlalchemy import text
-
 from app.llm import LLMClient, RetryableError
 from app.llm.blocks import BLOCKS
 
@@ -207,6 +205,8 @@ def save_concepts(db, course_id: str, concepts: list[dict],
     ``source_refs`` too, since two decks of one course share page numbers.
     ``db`` is a SQLAlchemy Session or Connection; the caller commits.
     """
+    from sqlalchemy import text
+
     rows = db.execute(text(
         "SELECT id, slug, title, summary, bloom_level, source_pages, source_refs, confirmed "
         "FROM concepts WHERE course_id = :course_id"), {"course_id": course_id}).mappings()
