@@ -55,7 +55,7 @@ export default function Workspace() {
         api.request<User>("/api/v1/me"), api.request<Task[]>("/api/v1/tasks?limit=500"),
         api.request<Goal[]>("/api/v1/goals"), api.request<FreeWindow[]>("/api/v1/availability"),
         api.request<BusyBlock[]>("/api/v1/busy-blocks"), api.request<Entry[]>("/api/v1/schedule"),
-        api.request<Team[]>("/api/v1/teams"), api.request<Invitation[]>("/api/v1/invitations"),
+        Promise.resolve([] as Team[]), Promise.resolve([] as Invitation[]),
         api.request<Notification[]>("/api/v1/notifications"), api.request<Report>("/api/v1/reports/weekly"),
         api.request<Message[]>("/api/v1/ai/messages"),
         teamId ? api.request<Member[]>(`/api/v1/teams/${teamId}/members`) : Promise.resolve([] as Member[]),
@@ -169,7 +169,7 @@ export default function Workspace() {
           <div className="card"><b>{data.report.missed_sessions}</b><p>Missed sessions this week</p></div>
         </div>
         <nav className="workspace-tabs" aria-label="Workspace sections">
-          {["Planner", "Team", "Companion"].map(value => <button key={value} className={`button ${tab === value ? "primary" : ""}`}
+          {["Planner", "Companion"].map(value => <button key={value} className={`button ${tab === value ? "primary" : ""}`}
             aria-current={tab === value ? "page" : undefined} onClick={() => setTab(value)}>{value}</button>)}
         </nav>
         {tab === "Planner" && <>
@@ -322,65 +322,6 @@ export default function Workspace() {
             </li>)}</ul>
           </section>
         </>}
-        {tab === "Team" && <div className="workspace-grid">
-          <section className="card"><h3>Team workspaces</h3>
-            <form onSubmit={event => submit(event, async (values, form) => {
-              const team = await api.request<Team>("/api/v1/teams", "POST", { name: text(values, "name") });
-              setTeamId(team.id); form.reset();
-            }, "Workspace created.")}>
-              <label>Workspace name<input name="name" required maxLength={100} /></label><button className="button">Create workspace</button>
-            </form>
-            <label>Selected workspace<select value={teamId} onChange={event => setTeamId(event.target.value)}>
-              <option value="">Choose a workspace</option>{data.teams.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}
-            </select></label>
-            {members.length > 0 && <p>Members: {members.map(member => member.name).join(", ")}</p>}
-            {teamId && data.teams.find(team => team.id === teamId)?.owner_id === data.user.id && <form onSubmit={event => submit(event, async values => {
-              const created = await api.request<{ code: string }>(`/api/v1/teams/${teamId}/invitations`, "POST", { email: text(values, "email") });
-              setInviteCode(created.code);
-            }, "Invitation created. Send the code below to the invitee.")}>
-              <label>Invite by email<input type="email" name="email" required /></label><button className="button">Create invitation</button>
-            </form>}
-            {inviteCode && <p>Invitation code (shown once): <code>{inviteCode}</code></p>}
-            <h4>Your invitations</h4>
-            {!data.invitations.length && <p>No pending invitations.</p>}
-            {data.invitations.map(invite => <form key={invite.id} className="workspace-row" onSubmit={event => submit(event, async values => {
-              const team = await api.request<Team>(`/api/v1/invitations/${invite.id}/accept`, "POST", { code: text(values, "code") });
-              setTeamId(team.id);
-            }, "Invitation accepted.")}><p>Invitation to {invite.team_name}</p>
-              <label>Code from the owner<input name="code" required maxLength={100} autoComplete="off" /></label>
-              <button className="button">Accept invitation</button></form>)}
-          </section>
-          {teamId && <section className="card"><h3>Share or assign a task</h3>
-            <p>Sharing makes a task visible to this workspace and removes its personal goal link. Previous unchecked sessions are cleared.</p>
-            <form onSubmit={event => submit(event, values => api.request(`/api/v1/tasks/${text(values, "task")}/share`, "POST", {
-              team_id: teamId, assignee_id: text(values, "member"),
-            }), "Task shared. The assignee can now schedule it.")}>
-              <label>Task<select name="task" required><option value="">Choose your task</option>
-                {data.tasks.filter(task => task.owner_id === data.user.id && task.completed_minutes === 0 && task.status === "pending")
-                  .map(task => <option key={task.id} value={task.id}>{task.title}</option>)}</select></label>
-              <label>Assignee<select name="member" required><option value="">Choose a member</option>
-                {members.map(member => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label>
-              <button className="button primary">Share task</button>
-            </form>
-            <ul className="workspace-list">{data.tasks.filter(task => task.team_id === teamId).map(task => <li key={task.id}>
-              <span>{task.title} · {members.find(member => member.id === task.assignee_id)?.name || "Member"} · {task.status}</span>
-            </li>)}</ul>
-          </section>}
-          {teamId && <section className="card"><h3>Find common free time</h3><p>Uses every member's availability, busy time, and scheduled sessions.</p>
-            <form onChange={() => setCommon(null)} onSubmit={event => submit(event, async values => {
-              const slots = await api.request<{ starts_at: string; ends_at: string }[]>(`/api/v1/teams/${teamId}/coordinate`, "POST", {
-                starts_at: iso(values, "start"), ends_at: iso(values, "end"), duration_minutes: number(values, "minutes"),
-              }); setCommon(slots);
-            }, "Common availability checked.")}>
-              <label>Search from<input name="start" type="datetime-local" defaultValue={localAfter(1)} required /></label>
-              <label>Search until<input name="end" type="datetime-local" defaultValue={localAfter(7 * 1440)} required /></label>
-              <label>Minimum meeting length<input name="minutes" type="number" defaultValue={30} min={1} max={240} required /></label>
-              <button className="button">Find free time</button>
-            </form>
-            {common && (common.length ? <ul className="workspace-list">{common.map((slot, index) => <li key={index}>{format(slot.starts_at)} – {format(slot.ends_at)}</li>)}</ul>
-              : <p>No shared window fits. Ask each member to add availability.</p>)}
-          </section>}
-        </div>}
         {tab === "Companion" && <div className="workspace-grid">
           <section className="card"><h3>Your study companion</h3><p>Talk through your progress or mood. Schedule changes are reviewed in Planner.</p>
             <div className="workspace-chat" role="log" aria-label="Companion conversation" aria-live="polite">

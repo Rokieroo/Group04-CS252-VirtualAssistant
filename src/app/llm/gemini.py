@@ -15,7 +15,14 @@ RETRY_DELAYS = (1, 3)  # seconds before retry 1 and retry 2
 MAX_WAIT = 60  # a longer server-requested wait is a daily quota: retrying now cannot succeed
 # USD per 1M tokens (input, output).
 # shortcut: unknown models log cost 0, add their price here when the team switches model.
-PRICES = {"gemini-3.8-flash": (0.75, 3.75)}  # standard tier, Oct 2026
+PRICES = {
+    "gemini-3.8-flash": (0.75, 3.75),  # standard tier, Oct 2026
+    "gemini-3.5-flash-lite": (0.10, 0.40),
+    "gemini-3.1-flash-lite": (0.075, 0.30),
+    "gemini-2.5-flash": (0.15, 0.60),
+    "gemini-2.0-flash": (0.10, 0.40),
+    "gemini-1.5-flash": (0.075, 0.30),
+}
 
 __all__ = ["GeminiClient", "RetryableError"]
 

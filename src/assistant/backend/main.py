@@ -18,10 +18,10 @@ from . import (
     routes_courses,
     routes_jobs,
     routes_learning,
+    routes_recommendations,
     routes_resources,
     routes_schedule,
     routes_tasks,
-    routes_teams,
 )
 from .config import Settings
 from .database import Database
@@ -95,10 +95,10 @@ def create_app(settings: Settings | None = None, *, now=utcnow, ai_transport=Non
         routes_resources.router,
         routes_tasks.router,
         routes_schedule.router,
-        routes_teams.router,
         routes_ai.router,
         routes_jobs.router,
         routes_learning.router,
+        routes_recommendations.router,
         routes_admin.router,
     ):
         application.include_router(router, prefix=API)

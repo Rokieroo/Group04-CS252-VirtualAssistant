@@ -16,8 +16,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "0014_k12_safety"
-down_revision: str | None = "0013_concept_source_refs"
+revision: str = "0015_k12_safety"
+down_revision: str | None = "0014_recommendations"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

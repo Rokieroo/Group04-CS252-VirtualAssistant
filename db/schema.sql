@@ -545,6 +545,34 @@ CREATE TABLE IF NOT EXISTS notifications (
     read        BOOLEAN NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS external_results (
+    query_hash VARCHAR(64) NOT NULL,
+    provider VARCHAR(64) NOT NULL,
+    payload TEXT NOT NULL,
+    fetched_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (query_hash, provider)
+);
+
+CREATE TABLE IF NOT EXISTS recommendations (
+    id VARCHAR(36) PRIMARY KEY,
+    user_id VARCHAR(36) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    node_id VARCHAR(36) NOT NULL REFERENCES roadmap_nodes(id) ON DELETE CASCADE,
+    resource_ref TEXT NOT NULL,
+    kind VARCHAR(32) NOT NULL,
+    rank INTEGER NOT NULL DEFAULT 1,
+    score REAL NOT NULL DEFAULT 0.0,
+    reason TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    dismissed_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS recommendation_events (
+    id VARCHAR(36) PRIMARY KEY,
+    recommendation_id VARCHAR(36) NOT NULL REFERENCES recommendations(id) ON DELETE CASCADE,
+    event VARCHAR(32) NOT NULL CHECK (event IN ('shown', 'opened', 'helpful', 'not_helpful', 'pinned')),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE INDEX IF NOT EXISTS idx_cards_user_due ON cards (user_id, due_at);
 
 CREATE INDEX IF NOT EXISTS idx_reviews_user ON reviews (user_id, reviewed_at);
@@ -636,8 +664,18 @@ CREATE INDEX IF NOT EXISTS ix_notifications_user_id ON notifications (user_id);
 
 CREATE INDEX IF NOT EXISTS ix_chat_messages_user_id ON chat_messages (user_id);
 
+CREATE INDEX IF NOT EXISTS ix_recommendations_user_id ON recommendations (user_id);
+
+CREATE INDEX IF NOT EXISTS ix_recommendations_node_id ON recommendations (node_id);
+
+CREATE INDEX IF NOT EXISTS ix_recommendations_user_node ON recommendations (user_id, node_id);
+
+CREATE INDEX IF NOT EXISTS ix_recommendation_events_recommendation_id ON recommendation_events (recommendation_id);
+
+CREATE INDEX IF NOT EXISTS ix_external_results_fetched_at ON external_results (fetched_at);
+
 INSERT INTO alembic_version (version_num)
-SELECT '0014_k12_safety'
+SELECT '0015_k12_safety'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);
 
 CREATE INDEX IF NOT EXISTS ix_roadmap_edges_roadmap_id ON roadmap_edges (roadmap_id);
