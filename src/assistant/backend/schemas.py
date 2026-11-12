@@ -786,3 +786,46 @@ class RoadmapReplanOut(Output):
     diff: PlanDiffOut
     committed: bool
     sessions: list[ProposedEntry] = Field(default_factory=list)
+
+
+# --- Recommendations and Feedback (issue #156, Phase 4) -----------------------
+
+
+class RecommendationOut(Output):
+    id: str
+    node_id: str
+    resource_ref: str
+    kind: str
+    rank: int
+    score: float
+    reason: str
+    title: str | None = None
+    url: str | None = None
+    created_at: Timestamp
+    dismissed_at: Timestamp | None = None
+
+
+class NodeRecommendationsOut(Output):
+    node_id: str
+    recommendations: list[RecommendationOut] = Field(default_factory=list)
+
+
+class RecommendationEventCreate(Input):
+    event: Literal["shown", "opened", "helpful", "not_helpful", "pinned"]
+
+
+class RecommendationEventOut(Output):
+    id: str
+    recommendation_id: str
+    event: str
+    created_at: Timestamp
+
+
+class RoadmapRecommendationsSummaryOut(Output):
+    roadmap_id: str
+    total_nodes: int
+    total_recommendations: int
+    by_kind: dict[str, int] = Field(default_factory=dict)
+    events_summary: dict[str, int] = Field(default_factory=dict)
+    pinned_count: int
+
