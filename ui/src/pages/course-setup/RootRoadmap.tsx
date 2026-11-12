@@ -12,6 +12,7 @@ import "./root-graph.css";
 export type RootCourse = {
   id: string;
   title: string;
+  actionLabel?: string;
   edges?: { parent_id: string; child_id: string }[];
   nodes: {
     id: string;
@@ -53,8 +54,12 @@ export function orderRootCourse(course: RootCourse) {
 const colors = ["#7c5bf0", "#0caaa0", "#e99b36", "#3d8eea", "#e96da2"];
 export function RootRoadmap({
   courses: inputCourses,
+  activeId,
+  onOpen,
 }: {
   courses: RootCourse[];
+  activeId?: string;
+  onOpen?: (id: string) => void;
 }) {
   const courses = useMemo(
     () => inputCourses.map(orderRootCourse),
@@ -81,7 +86,8 @@ export function RootRoadmap({
         geo.origin.y - scroll.current.clientHeight / 2,
       );
   }, [geo.height]);
-  const active = courses.find((c) => c.id === selected) || courses[0];
+  const active =
+    courses.find((c) => c.id === (selected ?? activeId)) || courses[0];
   const total = courses.reduce((n, c) => n + c.nodes.length, 0);
   const showNode = (course: RootCourse, node: RootCourse["nodes"][number]) => {
     setSelected(course.id);
@@ -169,6 +175,10 @@ export function RootRoadmap({
                 );
                 const color = colors[i % colors.length];
                 const last = points.at(-1);
+                const zone = layout.courses[i];
+                const linePoints = points.length
+                  ? points
+                  : [geo.point((zone.lowAngle + zone.highAngle) / 2, 42)];
                 return (
                   <g
                     key={course.id}
@@ -180,7 +190,7 @@ export function RootRoadmap({
                       stroke={color}
                       fill="none"
                       strokeWidth={active?.id === course.id ? 3.5 : 2.5}
-                      d={`M84 ${geo.origin.y} ${points.map((p) => `L${p.x} ${p.y}`).join(" ")}`}
+                      d={`M84 ${geo.origin.y} ${linePoints.map((p) => `L${p.x} ${p.y}`).join(" ")}`}
                     />
                     {course.nodes.map((node, j) => {
                       const key = course.id + ":" + node.id;
@@ -342,7 +352,10 @@ export function RootRoadmap({
                   } as CSSProperties
                 }
                 aria-pressed={active?.id === c.id}
-                onClick={() => setSelected(c.id)}
+                onClick={() => {
+                  setSelected(c.id);
+                  onOpen?.(c.id);
+                }}
               >
                 <strong>
                   <span className="root-swatch" />
@@ -350,6 +363,7 @@ export function RootRoadmap({
                 </strong>
                 <small>
                   {done}/{c.nodes.length} checkpoints completed
+                  {c.actionLabel && <> · {c.actionLabel}</>}
                 </small>
                 <progress max={c.nodes.length || 1} value={done} />
               </button>

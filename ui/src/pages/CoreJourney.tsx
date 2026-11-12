@@ -13,6 +13,8 @@ import {
   filterGraphNodes,
 } from "../api/graphState";
 import { RootRoadmap, type RootCourse } from "./course-setup/RootRoadmap";
+import { AccountRoadmap } from "./course-setup/AccountRoadmap";
+import type { OwnedCourse } from "./CourseLibrary";
 import { tutorial } from "./TutorialCourses";
 import { StageDetails } from "./course-setup/StageDetails";
 import { SourcePageDialog } from "./course-setup/SourcePageDialog";
@@ -60,6 +62,7 @@ export function CoreJourney({
   mock = false,
   courseId,
   courseTitle,
+  onOpenCourse,
   resumeSyllabus = false,
 }: {
   page: Page;
@@ -67,6 +70,11 @@ export function CoreJourney({
   mock?: boolean;
   courseId?: string;
   courseTitle?: string;
+  onOpenCourse?: (
+    course: OwnedCourse,
+    roadmapId?: string,
+    resume?: boolean,
+  ) => void;
   resumeSyllabus?: boolean;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -629,7 +637,13 @@ export function CoreJourney({
         />
       )}
 
-      {page === "Roadmap" && (
+      {page === "Roadmap" && !mock && (
+        <AccountRoadmap
+          current={roadmapApproved ? roadmap : null}
+          onOpen={onOpenCourse}
+        />
+      )}
+      {page === "Roadmap" && mock && (
         <RootRoadmap
           courses={
             [

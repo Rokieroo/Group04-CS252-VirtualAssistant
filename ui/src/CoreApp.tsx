@@ -162,6 +162,7 @@ export default function CoreApp({ mock = false }: { mock?: boolean }) {
         </>
       )}
       {(mock ||
+        page === "Roadmap" ||
         selectedCourse ||
         new URLSearchParams(location.search).has("kg_roadmap")) && (
         <CoreJourney
@@ -171,19 +172,10 @@ export default function CoreApp({ mock = false }: { mock?: boolean }) {
           mock={mock}
           courseId={selectedCourse?.id}
           courseTitle={selectedCourse?.title}
+          onOpenCourse={openCourse}
           resumeSyllabus={resumeSyllabus}
         />
       )}
-      {!mock &&
-        page === "Roadmap" &&
-        !selectedCourse &&
-        !new URLSearchParams(location.search).has("kg_roadmap") && (
-          <section className="card core-panel">
-            <h1>Lộ trình của bạn</h1>
-            <p>Chọn môn học để mở lộ trình đã lưu.</p>
-            <button onClick={() => go("Library")}>Mở danh sách môn học</button>
-          </section>
-        )}
       {/* The sample preview has no backend for slides or the calendar. */}
       {!mock && (
         <>

@@ -235,3 +235,58 @@ test("browser back restores the previous course instead of keeping another cours
     page.getByRole("heading", { name: "Review your syllabus", exact: true }),
   ).toBeVisible();
 });
+
+test("creating a course preserves every path and switching graphs survives reload", async ({
+  page,
+}) => {
+  const { recover, requested } = await backend(page);
+  await page.route("**/course-b/roadmaps", (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: "b-map",
+          course_id: "course-b",
+          nodes: [{ id: "b1", title: "B checkpoint" }],
+        },
+      ],
+    }),
+  );
+  await page.route("**/roadmaps/b-map", (route) =>
+    route.fulfill({
+      json: {
+        id: "b-map",
+        course_id: "course-b",
+        title: "B roadmap",
+        nodes: [{ id: "b1", title: "B checkpoint" }],
+      },
+    }),
+  );
+  await page.route("**/created-course/roadmaps", (route) =>
+    route.fulfill({ json: [] }),
+  );
+  await openList(page, recover);
+  await page.getByLabel("Tên môn học", { exact: true }).fill("Third course");
+  await page.getByRole("button", { name: "Tạo môn học", exact: true }).click();
+  await expect(page).toHaveURL(/course=created-course/);
+  await navigate(page, "Roadmap");
+  const cards = page.locator(".root-course-card");
+  await expect(page.locator("[data-course-path]")).toHaveCount(3);
+  await expect(cards.nth(2)).toContainText("Continue course setup");
+  for (const [index, id] of [
+    [1, "b-map"],
+    [0, "new"],
+  ] as const) {
+    await cards.nth(index).click();
+    await expect(page).toHaveURL(new RegExp("kg_roadmap=" + id));
+    await expect
+      .poll(() => requested.includes("GET /api/v1/roadmaps/" + id + "/graph"))
+      .toBe(true);
+    await expect(page.locator("[data-course-path]")).toHaveCount(3);
+  }
+  await page.reload();
+  await expect(page.locator("[data-course-path]")).toHaveCount(3);
+  await expect(
+    page.getByRole("button", { name: "Edit course syllabus" }),
+  ).toBeVisible();
+  await expect(cards.first()).toHaveAttribute("aria-pressed", "true");
+});
