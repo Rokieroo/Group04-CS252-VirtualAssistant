@@ -595,6 +595,7 @@ class GraphNodeOut(BaseModel):
     user_material_count: int = 0
     sources_status: Literal["ready", "insufficient"] = "insufficient"
     layer: int = 1
+    mastery: float = 0.0
 
 
 class GraphEdgeOut(BaseModel):
@@ -786,3 +787,45 @@ class RoadmapReplanOut(Output):
     diff: PlanDiffOut
     committed: bool
     sessions: list[ProposedEntry] = Field(default_factory=list)
+
+
+# --- FSRS Spaced Repetition (UC-11, issue #162) -----------------------------
+
+
+class ReviewCardOut(BaseModel):
+    item_id: str
+    user_id: str
+    node_id: str | None = None
+    due_at: datetime
+    stability: float = 0.0
+    difficulty: float = 0.0
+    state: int = 0
+    step: int = 0
+    last_review: datetime | None = None
+    prompt: str = ""
+    choices: list[str] | None = None
+    type: str = "mcq"
+    source_id: str | None = None
+
+
+class ReviewSubmitIn(BaseModel):
+    rating: int = Field(
+        ..., ge=1, le=4, description="Rating from 1 (Again) to 4 (Easy)"
+    )
+    node_id: str | None = Field(default=None, description="Optional roadmap node ID")
+
+
+class ReviewResultOut(BaseModel):
+    item_id: str
+    user_id: str
+    node_id: str | None = None
+    rating: int
+    due_at: datetime
+    stability: float
+    difficulty: float
+    state: int
+    step: int
+    last_review: datetime
+    elapsed_days: float
+    scheduled_days: float
+    retrievability: float

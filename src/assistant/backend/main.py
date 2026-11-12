@@ -19,6 +19,7 @@ from . import (
     routes_jobs,
     routes_learning,
     routes_resources,
+    routes_reviews,
     routes_schedule,
     routes_tasks,
     routes_teams,
@@ -99,6 +100,7 @@ def create_app(settings: Settings | None = None, *, now=utcnow, ai_transport=Non
         routes_ai.router,
         routes_jobs.router,
         routes_learning.router,
+        routes_reviews.router,
         routes_admin.router,
     ):
         application.include_router(router, prefix=API)
