@@ -449,13 +449,25 @@ def test_merge_normalizes_titles_once_and_indexes_slugs(monkeypatch):
         return orig_normalize(title)
 
     monkeypatch.setattr(norm_mod, "normalize", tracked_normalize)
-    base = [concept(f"topic-{i}", [1], title=f"Distinct Topic Number {i}") for i in range(40)]
+    base = [
+        concept(
+            f"topic-{i}",
+            [1],
+            title=f"{WORDS[i % len(WORDS)]} {WORDS[(i * 7 + 3) % len(WORDS)]} Topic",
+        )
+        for i in range(25)
+    ]
     incoming = [concept("topic-0", [2], title="Totally Renamed Slug Match")] + [
-        concept(f"extra-{i}", [3], title=f"Another Concept {i}") for i in range(40)
+        concept(
+            f"extra-{i}",
+            [3],
+            title=f"Advanced {WORDS[(i + 5) % len(WORDS)]} {WORDS[(i * 11 + 1) % len(WORDS)]} Theory",
+        )
+        for i in range(15)
     ]
 
     result = merge(incoming, into=base)
-    assert len(result) == 80
+    assert len(result) == len(base) + len(incoming) - 1
     assert result[0]["source_pages"] == [1, 2]
     # Slug match skips normalize completely, and every unmatched title is normalized once (not O(N^2)).
     assert calls <= len(base) + len(incoming)
