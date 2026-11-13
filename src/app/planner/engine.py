@@ -180,15 +180,13 @@ class Planner:
         free,
         daily_used,
         plan,
-        weekly_used: dict[date, int] | None = None,
+        weekly_used: dict[date, int],
     ) -> int:
         """Place sessions inside [not_before, deadline), removing the time used from
         ``free`` in place; return the minutes left unplaced."""
         remaining = task.remaining
         if remaining <= 0:
             return 0
-        if weekly_used is None:
-            weekly_used = self._weekly_usage(daily_used)
         limits = self.limits
         weekly_limit = getattr(limits, "weekly_limit_minutes", 10080)
         kept: list[Interval] = []
