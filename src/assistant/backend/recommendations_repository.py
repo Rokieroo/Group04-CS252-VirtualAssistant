@@ -12,7 +12,7 @@ import json
 from collections import Counter
 from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.catalog.privacy import build_safe_external_query
@@ -75,48 +75,103 @@ def set_external_cache(
     return row
 
 
+def _parse_external_title_url(payload: str) -> tuple[str | None, str | None]:
+    try:
+        data = json.loads(payload)
+        if isinstance(data, dict):
+            return data.get("title"), data.get("url")
+    except (json.JSONDecodeError, TypeError, ValueError):
+        pass
+    return None, None
+
+
+def enrich_recommendations(
+    db: Session, recs: list[Recommendation]
+) -> list[RecommendationOut]:
+    """Batch-populate title and URL on RecommendationOut without N+1 queries."""
+    if not recs:
+        return []
+
+    catalog_ids: set[str] = set()
+    material_ids: set[str] = set()
+    external_keys: set[str] = set()
+    for rec in recs:
+        if rec.resource_ref.startswith("catalog:"):
+            catalog_ids.add(rec.resource_ref.removeprefix("catalog:"))
+        elif rec.resource_ref.startswith("material:"):
+            material_ids.add(rec.resource_ref.removeprefix("material:"))
+        elif rec.resource_ref.startswith("external:"):
+            external_keys.add(rec.resource_ref.removeprefix("external:"))
+
+    resources = (
+        {
+            r.id: r
+            for r in db.scalars(select(Resource).where(Resource.id.in_(catalog_ids)))
+        }
+        if catalog_ids
+        else {}
+    )
+    sources = (
+        {
+            s.id: s
+            for s in db.scalars(select(Source).where(Source.id.in_(material_ids)))
+        }
+        if material_ids
+        else {}
+    )
+    externals = (
+        {
+            e.query_hash: e
+            for e in db.scalars(
+                select(ExternalResult).where(
+                    ExternalResult.provider == "recommender",
+                    ExternalResult.query_hash.in_(external_keys),
+                )
+            )
+        }
+        if external_keys
+        else {}
+    )
+
+    out: list[RecommendationOut] = []
+    for rec in recs:
+        title: str | None = None
+        url: str | None = None
+        if rec.resource_ref.startswith("catalog:"):
+            resource = resources.get(rec.resource_ref.removeprefix("catalog:"))
+            if resource:
+                title = resource.title
+                url = resource.canonical_url or resource.url
+        elif rec.resource_ref.startswith("material:"):
+            source = sources.get(rec.resource_ref.removeprefix("material:"))
+            if source:
+                title = source.file_name
+        elif rec.resource_ref.startswith("external:"):
+            cached = externals.get(rec.resource_ref.removeprefix("external:"))
+            if cached:
+                title, url = _parse_external_title_url(cached.payload)
+
+        out.append(
+            RecommendationOut(
+                id=rec.id,
+                node_id=rec.node_id,
+                resource_ref=rec.resource_ref,
+                kind=rec.kind,
+                rank=rec.rank,
+                score=round(rec.score, 3),
+                reason=rec.reason,
+                title=title,
+                url=url,
+                created_at=rec.created_at,
+                dismissed_at=rec.dismissed_at,
+            )
+        )
+    return out
+
+
 def enrich_recommendation(db: Session, rec: Recommendation) -> RecommendationOut:
     """Populate title and URL on RecommendationOut based on resource reference."""
-    title: str | None = None
-    url: str | None = None
-
-    if rec.resource_ref.startswith("catalog:"):
-        res_id = rec.resource_ref.removeprefix("catalog:")
-        resource = db.get(Resource, res_id)
-        if resource:
-            title = resource.title
-            url = resource.canonical_url or resource.url
-    elif rec.resource_ref.startswith("material:"):
-        src_id = rec.resource_ref.removeprefix("material:")
-        source = db.get(Source, src_id)
-        if source:
-            title = source.title
-    elif rec.resource_ref.startswith("external:"):
-        ext_key = rec.resource_ref.removeprefix("external:")
-        cached = db.get(ExternalResult, (ext_key, "recommender"))
-        if cached:
-            try:
-                data = json.loads(cached.payload)
-                if isinstance(data, dict):
-                    title = data.get("title")
-                    url = data.get("url")
-            except (json.JSONDecodeError, TypeError, ValueError):
-                title = None
-                url = None
-
-    return RecommendationOut(
-        id=rec.id,
-        node_id=rec.node_id,
-        resource_ref=rec.resource_ref,
-        kind=rec.kind,
-        rank=rec.rank,
-        score=round(rec.score, 3),
-        reason=rec.reason,
-        title=title,
-        url=url,
-        created_at=rec.created_at,
-        dismissed_at=rec.dismissed_at,
-    )
+    return enrich_recommendations(db, [rec])[0]
 
 
 def get_or_generate_node_recommendations(
@@ -140,7 +195,7 @@ def get_or_generate_node_recommendations(
     if active_recs:
         newest = max(r.created_at for r in active_recs)
         if utcnow() - newest < RECOMMENDATION_TTL:
-            return [enrich_recommendation(db, r) for r in active_recs[:limit]]
+            return enrich_recommendations(db, active_recs[:limit])
 
     # Otherwise, clean stale undismissed recommendations and generate fresh candidates
     if active_recs:
@@ -253,7 +308,7 @@ def get_or_generate_node_recommendations(
         created_rows.append(rec)
 
     db.commit()
-    return [enrich_recommendation(db, r) for r in created_rows]
+    return enrich_recommendations(db, created_rows)
 
 
 def record_recommendation_event(
@@ -320,18 +375,17 @@ def summarize_roadmap_recommendations(
 
     by_kind = Counter(r.kind for r in active_recs)
 
-    # Events summary
-    rec_ids = [r.id for r in active_recs]
-    events = (
-        db.scalars(
-            select(RecommendationEvent.event).where(
-                RecommendationEvent.recommendation_id.in_(rec_ids)
-            )
-        ).all()
-        if rec_ids
-        else []
-    )
-    events_summary = Counter(events)
+    # Events summary across all recommendations (including dismissed/not_helpful ones)
+    event_counts = db.execute(
+        select(RecommendationEvent.event, func.count())
+        .join(Recommendation, Recommendation.id == RecommendationEvent.recommendation_id)
+        .where(
+            Recommendation.node_id.in_(node_ids),
+            Recommendation.user_id == user_id,
+        )
+        .group_by(RecommendationEvent.event)
+    ).all()
+    events_summary = {event: int(count) for event, count in event_counts}
     pinned_count = events_summary.get("pinned", 0)
 
     return RoadmapRecommendationsSummaryOut(
@@ -339,6 +393,6 @@ def summarize_roadmap_recommendations(
         total_nodes=len(node_ids),
         total_recommendations=len(active_recs),
         by_kind=dict(by_kind),
-        events_summary=dict(events_summary),
+        events_summary=events_summary,
         pinned_count=pinned_count,
     )

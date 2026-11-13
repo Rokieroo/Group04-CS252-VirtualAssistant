@@ -190,6 +190,16 @@ def test_recommendation_lifecycle_events_and_summary(
     )
     assert dismiss_resp.status_code == 201
 
+    after_dismiss = client.get(
+        f"/api/v1/roadmaps/{roadmap_id}/recommendations:summary",
+        headers=headers_a,
+    )
+    assert after_dismiss.status_code == 200
+    after_data = after_dismiss.json()
+    assert after_data["total_recommendations"] == len(recs) - 1
+    assert after_data["events_summary"].get("not_helpful") == 1
+    assert after_data["events_summary"].get("helpful") == 1
+
 
 # --- External Cache Tests (acceptance criterion: 7-day cache) -----------------
 
@@ -213,3 +223,115 @@ def test_external_results_7_day_cache(client, app):
 
         # Expired cache returns None
         assert get_external_cached(db, query_hash, provider) is None
+
+
+def test_enrich_recommendations_batches_queries(app, user_a):
+    """Enriching a list of recommendations uses one query per reference source type."""
+    import json
+    from uuid import uuid4
+
+    from sqlalchemy import event
+
+    from assistant.backend.models import Recommendation, Resource, Roadmap, Source
+    from assistant.backend.recommendations_repository import enrich_recommendations
+
+    user_id = user_a["user"]["id"]
+    roadmap_id, node_id = _seed_user_a_roadmap_node(app, user_id)
+
+    with app.state.database.sessions() as db:
+        roadmap = db.get(Roadmap, roadmap_id)
+        assert roadmap is not None
+        r1 = Resource(
+            id=str(uuid4()),
+            title="Catalog Book 1",
+            url="https://example.org/book1",
+            canonical_url="https://example.org/book1",
+            verification_status="verified",
+        )
+        r2 = Resource(
+            id=str(uuid4()),
+            title="Catalog Book 2",
+            url="https://example.org/book2",
+            canonical_url="https://example.org/book2",
+            verification_status="verified",
+        )
+        s1 = Source(
+            id=str(uuid4()),
+            course_id=roadmap.course_id,
+            file_name="slides1.pdf",
+            page=1,
+            text="Dynamic programming recurrence",
+        )
+        e1 = ExternalResult(
+            query_hash="h1" + "0" * 62,
+            provider="recommender",
+            payload=json.dumps({"title": "External Guide", "url": "https://openstax.org/g1"}),
+            fetched_at=utcnow(),
+        )
+        db.add_all([r1, r2, s1, e1])
+        recs = [
+            Recommendation(
+                user_id=user_id,
+                node_id=node_id,
+                resource_ref=f"catalog:{r1.id}",
+                kind="verified",
+                rank=1,
+                score=0.95,
+                reason="Catalog",
+                created_at=utcnow(),
+            ),
+            Recommendation(
+                user_id=user_id,
+                node_id=node_id,
+                resource_ref=f"catalog:{r2.id}",
+                kind="verified",
+                rank=2,
+                score=0.90,
+                reason="Catalog",
+                created_at=utcnow(),
+            ),
+            Recommendation(
+                user_id=user_id,
+                node_id=node_id,
+                resource_ref=f"material:{s1.id}",
+                kind="material",
+                rank=3,
+                score=0.88,
+                reason="Slides",
+                created_at=utcnow(),
+            ),
+            Recommendation(
+                user_id=user_id,
+                node_id=node_id,
+                resource_ref=f"external:{e1.query_hash}",
+                kind="external",
+                rank=4,
+                score=0.82,
+                reason="Open",
+                created_at=utcnow(),
+            ),
+        ]
+        db.add_all(recs)
+        db.commit()
+
+        queries: list[str] = []
+
+        def _track(conn, cursor, statement, parameters, context, executemany):
+            queries.append(statement)
+
+        engine = db.get_bind()
+        event.listen(engine, "before_cursor_execute", _track)
+        try:
+            enriched = enrich_recommendations(db, recs)
+        finally:
+            event.remove(engine, "before_cursor_execute", _track)
+
+    assert len(queries) == 3  # 1 Resource IN + 1 Source IN + 1 ExternalResult IN
+    assert [item.title for item in enriched] == [
+        "Catalog Book 1",
+        "Catalog Book 2",
+        "slides1.pdf",
+        "External Guide",
+    ]
+    assert enriched[0].url == "https://example.org/book1"
+    assert enriched[3].url == "https://openstax.org/g1"

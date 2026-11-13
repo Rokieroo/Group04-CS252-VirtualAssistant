@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NodePanel, type ExtendedNode } from "./NodePanel";
 import * as materialsApi from "../api/materials";
 import * as exercisesApi from "../api/exercises";
+import * as resourcesApi from "../api/resources";
 import type { Edge } from "../api/core";
 import type { RoadmapNode } from "../api/types";
 
@@ -563,5 +564,113 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
     await waitFor(() => {
       expect(screen.queryByText(/Wikipedia Binary Search Tree/)).toBeNull();
     });
+  });
+
+  it("opens safely from closed state and isolates retry errors per node", async () => {
+    const emptySources = {
+      node_id: "node-2",
+      status: "insufficient" as const,
+      user_material_count: 0,
+      sources: [],
+    };
+    const nextNodeSources = {
+      node_id: "node-3",
+      status: "ready" as const,
+      user_material_count: 0,
+      sources: [],
+    };
+
+    vi.spyOn(materialsApi, "nodeSources").mockImplementation(async (nodeId) =>
+      nodeId === "node-3" ? nextNodeSources : emptySources,
+    );
+
+    let rejectRetry: (err: Error) => void = () => {};
+    vi.spyOn(resourcesApi, "searchNodeResources").mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          rejectRetry = reject;
+        }),
+    );
+
+    const { rerender } = render(
+      <NodePanel
+        roadmapId="rm-1"
+        node={null}
+        allNodes={allNodes}
+        edges={edges}
+        isOpen={false}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    rerender(
+      <NodePanel
+        roadmapId="rm-1"
+        node={sampleNode}
+        allNodes={allNodes}
+        edges={edges}
+        isOpen={true}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const retryBtn = await screen.findByRole("button", { name: /Tìm lại/i });
+    fireEvent.click(retryBtn);
+
+    const nextNode: ExtendedNode = {
+      ...sampleNode,
+      id: "node-3",
+      title: "Balanced Trees (AVL)",
+    };
+    rerender(
+      <NodePanel
+        roadmapId="rm-1"
+        node={nextNode}
+        allNodes={allNodes}
+        edges={edges}
+        isOpen={true}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByText(/Balanced Trees \(AVL\)/);
+    rejectRetry(new Error("Stale retry error"));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Stale retry error")).toBeNull();
+    });
+  });
+
+  it("clears pending dismiss timers on unmount without firing after unmount", async () => {
+    const { unmount } = render(
+      <NodePanel
+        roadmapId="rm-1"
+        node={sampleNode}
+        allNodes={allNodes}
+        edges={edges}
+        isOpen={true}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByText(/MIT OCW 6.006 Trees Lecture/);
+
+    vi.useFakeTimers();
+    const clearSpy = vi.spyOn(globalThis, "clearTimeout");
+    try {
+      const notHelpfulBtns = screen.getAllByRole("button", {
+        name: /Không phù hợp|Không hữu ích/i,
+      });
+      fireEvent.click(notHelpfulBtns[0]);
+      const clearsBeforeUnmount = clearSpy.mock.calls.length;
+      unmount();
+
+      expect(clearSpy.mock.calls.length).toBeGreaterThan(clearsBeforeUnmount);
+      vi.advanceTimersByTime(300);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
