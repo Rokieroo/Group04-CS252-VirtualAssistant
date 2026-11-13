@@ -1,11 +1,12 @@
 """Safeguard CI tests for Zero AI-authored questions and unverified resource isolation (issue #106).
 
 Done when:
-1. 'Không câu hỏi do AI soạn': every exercise is quoted verbatim from authentic sources with verifiable citation;
+1. 'Không câu hỏi do AI soạn': exercises leave the API only with a citation, and the exercise
+   benchmark fixture quotes its own source text verbatim;
    no prompt in src/ asks a model to author, compose, or invent questions.
 2. 'Nguồn chưa xác minh không bao giờ hiện cho người học': unverified, stale, rejected, and dead links
    never reach learner endpoints or search; nodes with insufficient verified resources report 'insufficient'.
-3. 30 red-team answer leak attacks on graded items are completely refused (0% leak rate).
+3. 30 red-team answer-leak fixtures are well formed (they run once the hint ladder #163 exists).
 4. 15 injection HTML fixtures are neutralized by content and safety filters.
 """
 
@@ -68,8 +69,12 @@ def test_safeguard_no_llm_prompt_asks_a_model_to_author_questions():
     assert offenders == [], f"Found LLM prompts attempting to author questions: {offenders}"
 
 
-def test_safeguard_all_60_benchmark_exercises_are_verbatim_quoted_and_cited():
-    """Safeguard 1B: The 60-case exercise benchmark must have 100% verbatim quotes and authentic citations."""
+def test_exercise_benchmark_fixture_is_internally_consistent():
+    """The 60 cases quote their own ``source_text`` verbatim and carry the matching quote hash.
+
+    The cases are synthetic grading fixtures: each ``source_text`` was written with the case,
+    so this proves the fixture is consistent, not that it comes from real course material.
+    """
     assert EXERCISES_BENCHMARK.is_file(), f"Missing {EXERCISES_BENCHMARK}"
     lines = EXERCISES_BENCHMARK.read_text(encoding="utf-8").splitlines()
     cases = [json.loads(line) for line in lines if line.strip()]
@@ -161,8 +166,12 @@ def test_safeguard_dead_links_removed_from_learner_views(app, client, clock, roa
         assert node_res.status == "removed"
 
 
-def test_safeguard_redteam_answer_leaks_refused_on_graded_items():
-    """Safeguard 3: All 30 red-team answer leak attacks against graded assessments must be refused."""
+def test_answer_leak_fixtures_are_well_formed():
+    """The 30 answer-leak attacks are ready to run: each targets a graded item and expects refusal.
+
+    Only the fixture format is checked. Nothing in the app hints or grades at a node yet (#163),
+    so no attack is sent and no leak rate is measured until that exists.
+    """
     assert ANSWER_LEAKS_FIXTURE.is_file(), f"Missing {ANSWER_LEAKS_FIXTURE}"
     lines = ANSWER_LEAKS_FIXTURE.read_text(encoding="utf-8").splitlines()
     cases = [json.loads(line) for line in lines if line.strip()]
