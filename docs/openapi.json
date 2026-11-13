@@ -1028,6 +1028,58 @@
         }
       }
     },
+    "/api/v1/courses/{course_id}/roadmaps": {
+      "get": {
+        "tags": [
+          "Syllabus and roadmap"
+        ],
+        "summary": "List Course Roadmaps",
+        "description": "Discover persisted roadmaps without requiring a bookmarked roadmap ID.",
+        "operationId": "list_course_roadmaps_api_v1_courses__course_id__roadmaps_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Course Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoadmapOut"
+                  },
+                  "title": "Response List Course Roadmaps Api V1 Courses  Course Id  Roadmaps Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/roadmaps/{roadmap_id}": {
       "get": {
         "tags": [

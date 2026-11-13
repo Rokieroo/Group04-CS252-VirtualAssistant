@@ -73,7 +73,8 @@ async function backend<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     return await call<T>(path, init);
   } catch (err) {
-    if (err instanceof BackendError && CODES.includes(err.code)) throw new ApiError(err.code as Code);
+    if (err instanceof BackendError && CODES.includes(err.code))
+      throw new ApiError(err.code as Code);
     throw err;
   }
 }
@@ -87,10 +88,12 @@ export function courseId(title: string): Promise<string> {
     id = backend<{ id: string; title: string }[]>("/courses").then(
       async (courses) =>
         courses.find((c) => c.title === title)?.id ??
-        (await backend<{ id: string }>("/courses", {
-          method: "POST",
-          body: JSON.stringify({ title }),
-        })).id,
+        (
+          await backend<{ id: string }>("/courses", {
+            method: "POST",
+            body: JSON.stringify({ title }),
+          })
+        ).id,
     );
     id.catch(() => courseIds.delete(key)); // retry the lookup next time
     courseIds.set(key, id);
@@ -98,30 +101,48 @@ export function courseId(title: string): Promise<string> {
   return id;
 }
 
-export async function generateItems(course: string, conceptId: string): Promise<Item[]> {
-  const id = await courseId(course);
+export async function generateItems(
+  course: string,
+  conceptId: string,
+  selectedCourseId?: string,
+): Promise<Item[]> {
+  const id = selectedCourseId || (await courseId(course));
   return backend<Item[]>(
     `/courses/${id}/concepts/${encodeURIComponent(conceptId)}/items:generate`,
     { method: "POST" },
   );
 }
 
-export async function uploadSource(course: string, file: File): Promise<UploadResult> {
+export async function uploadSource(
+  course: string,
+  file: File,
+  selectedCourseId?: string,
+): Promise<UploadResult> {
   const rejected = checkFile(file);
   if (rejected) throw new ApiError(rejected);
   const form = new FormData();
   form.append("file", file);
   // Slow on purpose: the vision model reads the slides before this returns.
-  const result = await backend<UploadResult>(`/courses/${await courseId(course)}/sources`, {
-    method: "POST",
-    body: form,
-  });
+  const result = await backend<UploadResult>(
+    `/courses/${selectedCourseId || (await courseId(course))}/sources`,
+    {
+      method: "POST",
+      body: form,
+    },
+  );
   return { ...result, warning: result.warning ?? undefined };
 }
 
-export async function proposeConcepts(course: string, fileName: string): Promise<Graph> {
-  const id = await courseId(course);
-  const graph = await backend<{ concepts: Omit<Concept, "source_file">[]; prereqs: Prereq[] }>(
+export async function proposeConcepts(
+  course: string,
+  fileName: string,
+  selectedCourseId?: string,
+): Promise<Graph> {
+  const id = selectedCourseId || (await courseId(course));
+  const graph = await backend<{
+    concepts: Omit<Concept, "source_file">[];
+    prereqs: Prereq[];
+  }>(
     `/courses/${id}/concepts:propose?file_name=${encodeURIComponent(fileName)}`,
     { method: "POST" },
   );
@@ -132,9 +153,13 @@ export async function proposeConcepts(course: string, fileName: string): Promise
   };
 }
 
-export async function deleteSource(course: string, fileName: string): Promise<void> {
+export async function deleteSource(
+  course: string,
+  fileName: string,
+  selectedCourseId?: string,
+): Promise<void> {
   await backend<void>(
-    `/courses/${await courseId(course)}/sources/${encodeURIComponent(fileName)}`,
+    `/courses/${selectedCourseId || (await courseId(course))}/sources/${encodeURIComponent(fileName)}`,
     { method: "DELETE" },
   );
 }
@@ -146,3 +171,14 @@ export const backendCourses: CourseService = {
   generateItems,
   deleteSource,
 };
+
+/** Bind materials to a course ID: titles are editable labels, not identifiers. */
+export function courseServiceFor(id: string): CourseService {
+  return {
+    live: true,
+    uploadSource: (title, file) => uploadSource(title, file, id),
+    proposeConcepts: (title, file) => proposeConcepts(title, file, id),
+    generateItems: (title, concept) => generateItems(title, concept, id),
+    deleteSource: (title, file) => deleteSource(title, file, id),
+  };
+}

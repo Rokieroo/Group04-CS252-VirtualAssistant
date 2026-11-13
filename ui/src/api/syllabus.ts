@@ -217,10 +217,13 @@ export function checkSyllabusInput(input: File | string): void {
 }
 export async function uploadSyllabus(
   input: File | string,
-  { goals = false }: { goals?: boolean } = {},
+  {
+    goals = false,
+    courseId: selectedCourseId,
+  }: { goals?: boolean; courseId?: string } = {},
 ): Promise<SyllabusDraft> {
   checkSyllabusInput(input);
-  const id = await courseId(currentCourse.name);
+  const id = selectedCourseId || (await courseId(currentCourse.name));
   let file_name = "Nội dung đã dán";
   if (typeof input !== "string") {
     const body = new FormData();

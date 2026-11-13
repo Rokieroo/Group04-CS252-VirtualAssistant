@@ -65,12 +65,13 @@ export type NodeStatus =
   "locked" | "available" | "in_progress" | "done" | "needs_review";
 export type RoadmapDraft = {
   id: string;
+  title?: string;
   course_id?: string;
   nodes: (RoadmapNode & { status?: NodeStatus })[];
   edges: Edge[];
   overloaded_weeks: number[];
 };
-export type UploadOptions = { goals?: boolean };
+export type UploadOptions = { goals?: boolean; courseId?: string };
 export type CoreService = {
   /** ``goals``: pasted goals or a table of contents, from a learner with no syllabus. */
   upload(file: File | string, options?: UploadOptions): Promise<SyllabusDraft>;
