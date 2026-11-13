@@ -258,7 +258,9 @@ export function GraphMinimap({
       <canvas
         ref={canvasRef}
         className="graph-minimap-canvas"
-        aria-label="Thu nhỏ đồ thị — nhấn hoặc kéo để di chuyển góc nhìn"
+        // A pointer shortcut only; keyboard and screen-reader users have the list view.
+        aria-hidden="true"
+        title="Nhấn hoặc kéo để di chuyển góc nhìn"
         style={{ touchAction: "none" }}
         onPointerDown={(e) => {
           e.stopPropagation();

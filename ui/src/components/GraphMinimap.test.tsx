@@ -145,9 +145,7 @@ describe("GraphMinimap (#108)", () => {
     render(<GraphCanvas nodes={makeNodes(32)} edges={[]} />);
     flushFrame();
 
-    const miniCanvas = screen.getByLabelText(
-      "Thu nhỏ đồ thị — nhấn hoặc kéo để di chuyển góc nhìn",
-    );
+    const miniCanvas = screen.getByTitle("Nhấn hoặc kéo để di chuyển góc nhìn");
 
     translateCalls = [];
     fireEvent.pointerDown(miniCanvas, {
