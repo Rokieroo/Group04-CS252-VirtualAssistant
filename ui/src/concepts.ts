@@ -22,21 +22,18 @@ export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 export const UPLOAD_TYPES = /\.(pdf|docx|pptx|jpe?g|png)$/i;
 export const UPLOAD_ACCEPT = ".pdf,.docx,.pptx,.jpg,.jpeg,.png";
 export const ERRORS = {
-  not_pdf: "Only PDF, Word (DOCX), PowerPoint (PPTX) or photo (JPG/PNG) files are supported.",
-  file_too_large: "This file is larger than 20 MB. Split or compress it first.",
-  invalid_pdf: "This PDF is damaged or cannot be opened.",
+  not_pdf: "Chỉ hỗ trợ tệp PDF, Word (DOCX), PowerPoint (PPTX) hoặc ảnh (JPG/PNG).",
+  file_too_large: "Tệp lớn hơn 20 MB. Hãy chia nhỏ hoặc nén tệp trước.",
+  invalid_pdf: "Tệp PDF bị hỏng hoặc không mở được.",
   // Backend codes for any upload type (#49, #114): PDF, DOCX, PPTX, JPG/PNG and .txt.
-  unsupported_type:
-    "Only PDF, DOCX, PPTX, JPG/PNG photos and plain-text (.txt) files are supported.",
-  invalid_file: "This file is damaged or has no readable text.",
-  scanned_pdf:
-    "No readable text in this file. You can paste the page content instead.",
+  unsupported_type: "Chỉ hỗ trợ tệp PDF, DOCX, PPTX, ảnh JPG/PNG và văn bản thuần (.txt).",
+  invalid_file: "Tệp bị hỏng hoặc không có chữ đọc được.",
+  scanned_pdf: "Tệp này không có chữ đọc được. Bạn có thể dán nội dung trang thay thế.",
   concepts_unavailable:
-    "The AI could not read this file right now (busy or out of daily quota). Try again later.",
-  items_unavailable:
-    "The AI could not write cited questions for this concept right now. Try again later.",
-  upload_in_progress: "This file is already being uploaded. Wait for it to finish.",
-  cycle: "This link would create a loop. Remove one link first.",
+    "AI chưa đọc được tệp này (đang bận hoặc hết lượt trong ngày). Hãy thử lại sau.",
+  items_unavailable: "AI chưa viết được câu hỏi có trích dẫn cho khái niệm này. Hãy thử lại sau.",
+  upload_in_progress: "Tệp này đang được tải lên. Hãy chờ tải xong.",
+  cycle: "Liên kết này sẽ tạo thành vòng lặp. Hãy gỡ một liên kết trước.",
 } as const;
 
 /** Client-side check before any upload call; returns an error key or null. */

@@ -109,6 +109,7 @@ export function Shell({
             <>
               <IconButton icon="chat" label="Bạn học" onClick={onCompanion} />
               <IconButton icon="bell" label={bell} onClick={onNotifications}>
+                {unread > 0 && <span className="badge-dot">{unread}</span>}
               </IconButton>
             </>
           )}

@@ -1,5 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const PREVIEW = "http://127.0.0.1:5178";
+const LIVE = "http://127.0.0.1:5180";
+const desktop = { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } };
+const phone = { ...devices["Pixel 7"], viewport: { width: 390, height: 844 } };
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -13,78 +18,28 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    {
-      name: "desktop-demo",
-      testMatch: /demo\.spec\.ts/,
-      use: {
-        ...devices["Desktop Chrome"],
-        viewport: { width: 1440, height: 900 },
-        baseURL: "http://127.0.0.1:5178",
-      },
-    },
-    {
-      name: "mobile-demo",
-      testMatch: /demo\.spec\.ts/,
-      use: {
-        ...devices["Pixel 7"],
-        viewport: { width: 390, height: 844 },
-        baseURL: "http://127.0.0.1:5178",
-      },
-    },
-    {
-      name: "api-contract",
-      testMatch: /api\.spec\.ts/,
-      use: { ...devices["Desktop Chrome"], baseURL: "http://127.0.0.1:5179" },
-    },
-    {
-      name: "backend-ui",
-      testMatch: /(concepts|syllabus|graph)\.spec\.ts/,
-      use: { ...devices["Desktop Chrome"], baseURL: "http://127.0.0.1:5180" },
-    },
-    {
-      name: "backend-ui-mobile",
-      testMatch: /(syllabus|graph)\.spec\.ts/,
-      use: {
-        ...devices["Pixel 7"],
-        viewport: { width: 390, height: 844 },
-        baseURL: "http://127.0.0.1:5180",
-      },
-    },
+    { name: "preview", testMatch: /preview\.spec\.ts/, use: { ...desktop, baseURL: PREVIEW } },
+    { name: "preview-mobile", testMatch: /preview\.spec\.ts/, use: { ...phone, baseURL: PREVIEW } },
+    { name: "live", testMatch: /live\.spec\.ts/, use: { ...desktop, baseURL: LIVE } },
+    { name: "live-mobile", testMatch: /live\.spec\.ts/, use: { ...phone, baseURL: LIVE } },
   ],
   webServer: [
     {
-      command:
-        "npx --no-install vite --host 127.0.0.1 --port 5178 --strictPort",
-      url: "http://127.0.0.1:5178",
+      command: "npx --no-install vite --host 127.0.0.1 --port 5178 --strictPort",
+      url: PREVIEW,
       reuseExistingServer: false,
       // Explicit modes: a developer's ui/.env.local must not switch the suites.
-      env: {
-        VITE_CHECK_MODE: "demo",
-        VITE_BACKEND_MODE: "legacy-demo",
-        VITE_CACHE_DIR: "node_modules/.vite-e2e-demo",
-      },
+      env: { VITE_BACKEND_MODE: "demo", VITE_CACHE_DIR: "node_modules/.vite-e2e-preview" },
     },
     {
-      command:
-        "npx --no-install vite --host 127.0.0.1 --port 5179 --strictPort",
-      url: "http://127.0.0.1:5179",
+      command: "npx --no-install vite --host 127.0.0.1 --port 5180 --strictPort",
+      url: LIVE,
       reuseExistingServer: false,
-      env: {
-        VITE_CHECK_MODE: "api",
-        VITE_API_BASE_URL: "http://127.0.0.1:5179/api/v1",
-        VITE_BACKEND_MODE: "legacy-demo",
-        VITE_CACHE_DIR: "node_modules/.vite-e2e-api",
-      },
-    },
-    {
-      command:
-        "npx --no-install vite --host 127.0.0.1 --port 5180 --strictPort",
-      url: "http://127.0.0.1:5180",
-      reuseExistingServer: false,
+      // The live spec answers every /api/v1 call with page.route, so no server runs behind it.
       env: {
         VITE_BACKEND_MODE: "api",
-        VITE_API_URL: "http://127.0.0.1:5180",
-        VITE_CACHE_DIR: "node_modules/.vite-e2e-backend",
+        VITE_API_URL: LIVE,
+        VITE_CACHE_DIR: "node_modules/.vite-e2e-live",
       },
     },
   ],

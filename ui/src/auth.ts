@@ -16,13 +16,12 @@ export function validateAuth(
   now = new Date(),
 ): AuthErrors {
   const errors: AuthErrors = {};
-  if (!EMAIL.test(form.email.trim())) errors.email = "Enter a valid email address.";
-  if (form.password.length < 8)
-    errors.password = "Password must be at least 8 characters.";
+  if (!EMAIL.test(form.email.trim())) errors.email = "Hãy nhập một địa chỉ email hợp lệ.";
+  if (form.password.length < 8) errors.password = "Mật khẩu cần ít nhất 8 ký tự.";
   if (mode === "register") {
     const year = Number(form.birthYear);
     if (!Number.isInteger(year) || year < 1900 || year > now.getFullYear())
-      errors.birthYear = `Birth year must be between 1900 and ${now.getFullYear()}.`;
+      errors.birthYear = `Năm sinh phải từ 1900 đến ${now.getFullYear()}.`;
   }
   return errors;
 }

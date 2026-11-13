@@ -38,7 +38,6 @@ jobs:
       # Relative asset paths serve from the /<repo>/ sub-path; hash routes need no server rewrites.
       - run: pnpm run build:pages
         env:
-          VITE_CHECK_MODE: demo
           VITE_BACKEND_MODE: demo
       - uses: actions/upload-pages-artifact@v5
         with:

@@ -48,6 +48,7 @@ const fixture: SyllabusDraft = {
 };
 const cloneFixture = () => structuredClone(fixture);
 let mockConfirmed = cloneFixture();
+let mockSaved: RoadmapDraft | null = null;
 export const mockCoreService: CoreService = {
   async upload(file, options) {
     checkSyllabusInput(file);
@@ -69,19 +70,35 @@ export const mockCoreService: CoreService = {
   async generate() {
     return roadmapFrom(mockConfirmed);
   },
-  async save(roadmap) { return structuredClone(roadmap); },
+  async save(roadmap) {
+    mockSaved = structuredClone(roadmap);
+    return structuredClone(roadmap);
+  },
   async schedule() {
-    return {
-      sessions: [
-        {
-          id: "session_1",
-          title: "Problem framing",
-          starts_at: "2026-11-05T09:00:00+07:00",
-        },
-      ],
-    };
+    return { sessions: mockSaved ? previewSessions(mockSaved) : [] };
   },
 };
+
+/**
+ * The preview has no calendar to fit: one 19:00 session per topic, a day apart inside its
+ * week, starting the Monday after ``now``. The server plans around real free time instead.
+ */
+export function previewSessions(roadmap: RoadmapDraft, now = new Date()) {
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + ((8 - now.getDay()) % 7 || 7));
+  monday.setHours(19, 0, 0, 0);
+  const topics = roadmap.nodes.filter((n) => n.type === "topic");
+  const first = Math.min(...topics.map((n) => n.week ?? 1));
+  const inWeek = new Map<number, number>();
+  return topics.map((n) => {
+    const week = n.week ?? 1;
+    const day = inWeek.get(week) ?? 0;
+    inWeek.set(week, day + 1);
+    const start = new Date(monday);
+    start.setDate(monday.getDate() + (week - first) * 7 + (day % 7));
+    return { id: `s_${n.id}`, title: n.title, starts_at: start.toISOString() };
+  });
+}
 
 /** Pasted learning goals, one per line, become one week each (the server drafts these with its LLM). */
 function goalsDraft(text: string): SyllabusDraft {

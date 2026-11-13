@@ -37,11 +37,13 @@ export function IconButton({
   icon,
   label,
   className = "",
+  children,
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & { icon: IconName; label: string }) {
   return (
     <button type="button" className={`icon-btn ${className}`} aria-label={label} title={label} {...rest}>
       <Icon name={icon} size={18} />
+      {children}
     </button>
   );
 }
