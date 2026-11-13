@@ -646,3 +646,45 @@ def test_export_batches_roadmaps_with_feedback_reviews_goals_and_delete_handles_
         assert db.query(Job).filter(Job.user_id == user_id).count() == 0
         assert db.query(Availability).filter(Availability.user_id == user_id).count() == 0
         assert db.query(BusyBlock).filter(BusyBlock.user_id == user_id).count() == 0
+
+
+def test_delete_account_keeps_other_members_tasks_in_an_owned_team(app, client):
+    """Deleting a team owner must not delete what another member owns; the task only loses its team."""
+    tokens = {}
+    for name in ("owner", "member"):
+        reg = client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": f"team_{name}@example.com",
+                "password": "Password123",
+                "name": name,
+                "account_level": "university",
+                "birth_year": 2002,
+            },
+        )
+        assert reg.status_code == 201
+        tokens[name] = (reg.json()["access_token"], reg.json()["user"]["id"])
+    owner_id, member_id = tokens["owner"][1], tokens["member"][1]
+    with app.state.database.sessions() as db:
+        db.add(Team(id="team-shared", owner_id=owner_id, name="Shared"))
+        db.flush()
+        db.add(
+            Task(
+                id="member-task",
+                owner_id=member_id,
+                assignee_id=member_id,
+                team_id="team-shared",
+                title="My part",
+                duration_minutes=30,
+                due_at=datetime.now(UTC),
+            )
+        )
+        db.commit()
+
+    deleted = client.delete("/api/v1/me?confirm=true", headers=_auth(tokens["owner"][0]))
+    assert deleted.status_code == 204
+
+    with app.state.database.sessions() as db:
+        task = db.get(Task, "member-task")
+        assert task is not None and task.team_id is None
+        assert db.get(Team, "team-shared") is None

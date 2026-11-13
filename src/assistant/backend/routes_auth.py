@@ -6,7 +6,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request, Response
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 
 from app.companion import girlfriend_mode_allowed
@@ -407,11 +407,11 @@ async def delete_account(
     owned_team_ids = select(Team.id).where(Team.owner_id == user_id)
     db.execute(delete(ScheduleEntry).where(ScheduleEntry.user_id == user_id))
     db.execute(
-        delete(Task).where(
-            (Task.owner_id == user_id)
-            | (Task.assignee_id == user_id)
-            | (Task.team_id.in_(owned_team_ids))
-        )
+        delete(Task).where((Task.owner_id == user_id) | (Task.assignee_id == user_id))
+    )
+    # Other members' tasks in a team this user owned are their data: keep them, drop the team.
+    db.execute(
+        update(Task).where(Task.team_id.in_(owned_team_ids)).values(team_id=None)
     )
     db.execute(delete(Membership).where(Membership.user_id == user_id))
     db.execute(delete(Team).where(Team.owner_id == user_id))
