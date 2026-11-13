@@ -13,6 +13,7 @@ from devcli import ROOT
 
 BENCHMARK = ROOT / "eval" / "benchmark.jsonl"
 RESOURCES = ROOT / "eval" / "resources.jsonl"
+EXERCISES = ROOT / "eval" / "exercises.jsonl"
 SYLLABUS_DIR = ROOT / "eval" / "syllabus"
 GRAPHS_DIR = ROOT / "eval" / "graphs"
 FIXTURES_DIR = ROOT / "eval" / "fixtures" / "redteam"
@@ -89,6 +90,52 @@ def validate_syllabus_benchmark(syl_dir: Path) -> list[str]:
     return errors
 
 
+def validate_exercises_benchmark(path: Path) -> list[str]:
+    """Validate the 60-case exercise benchmark with verbatim citations."""
+    if not path.exists():
+        return [f"Không tìm thấy file {path}"]
+    rows, parse_errors = _read_jsonl(path)
+    errors = [f"exercises {err}" for err in parse_errors]
+    if len(rows) < 60:
+        errors.append(
+            f"Cần tối thiểu 60 case bài tập benchmark (tìm thấy {len(rows)})"
+        )
+    seen_ids: set[str] = set()
+    for n, item in rows:
+        for req in ("id", "course_code", "concept", "prompt", "source", "type"):
+            if not item.get(req):
+                errors.append(f"exercises dòng {n}: thiếu trường '{req}'")
+        item_id = item.get("id")
+        if item_id:
+            if item_id in seen_ids:
+                errors.append(f"exercises dòng {n}: id '{item_id}' bị trùng")
+            seen_ids.add(item_id)
+        source = item.get("source") or {}
+        if not source.get("source_text") or not source.get("location"):
+            errors.append(
+                f"exercises dòng {n}: source cần có 'source_text' và 'location'"
+            )
+        else:
+            prompt = item.get("prompt", "")
+            choices = item.get("choices") or []
+            answer = item.get("answer")
+            source_text = source.get("source_text", "")
+            if prompt and prompt not in source_text:
+                errors.append(
+                    f"exercises dòng {n} ({item_id}): prompt không khớp nguyên văn trong source_text"
+                )
+            for choice in choices:
+                if choice not in source_text:
+                    errors.append(
+                        f"exercises dòng {n} ({item_id}): choice '{choice}' không khớp nguyên văn"
+                    )
+            if answer and answer not in source_text:
+                errors.append(
+                    f"exercises dòng {n} ({item_id}): answer '{answer}' không khớp nguyên văn"
+                )
+    return errors
+
+
 def validate_graph_benchmark(graphs_dir: Path) -> list[str]:
     """Validate the 5 reference knowledge graphs in eval/graphs/ (issue #112)."""
     import importlib.util
@@ -148,7 +195,7 @@ def validate_graph_benchmark(graphs_dir: Path) -> list[str]:
 
 
 def validate_redteam_fixtures(fix_dir: Path) -> list[str]:
-    """Validate redteam prompt injection, pirated URLs, and PII samples."""
+    """Validate redteam prompt injection, pirated URLs, PII samples, and answer leak fixtures."""
     if not fix_dir.exists():
         return [f"Không tìm thấy thư mục {fix_dir}"]
     errors: list[str] = []
@@ -161,6 +208,21 @@ def validate_redteam_fixtures(fix_dir: Path) -> list[str]:
         errors += [
             f"pirated_urls dòng {n}: thiếu url" for n, row in rows if not row.get("url")
         ]
+    leaks_file = fix_dir / "answer_leaks.jsonl"
+    if not leaks_file.exists():
+        errors.append(f"Không tìm thấy {leaks_file}")
+    else:
+        rows, parse_errors = _read_jsonl(leaks_file)
+        errors += [f"answer_leaks {err}" for err in parse_errors]
+        if len(rows) < 30:
+            errors.append(
+                f"Cần tối thiểu 30 case red-team lộ đáp án (tìm thấy {len(rows)})"
+            )
+        for n, row in rows:
+            if not row.get("id") or not row.get("prompt"):
+                errors.append(
+                    f"answer_leaks dòng {n}: thiếu id hoặc prompt thử thách lộ đáp án"
+                )
     inj_files = list((fix_dir / "injections").glob("*.html"))
     if len(inj_files) < 15:
         errors.append(
@@ -246,12 +308,16 @@ def _benchmark(args: argparse.Namespace) -> int:
                     f"{gold_count} syllabus benchmark + gold hợp lệ trong {SYLLABUS_DIR.name}/",
                 ),
                 _report(
+                    validate_exercises_benchmark(EXERCISES),
+                    f"60 case bài tập benchmark hợp lệ trong {EXERCISES.name}",
+                ),
+                _report(
                     validate_graph_benchmark(GRAPHS_DIR),
                     f"{graph_gold_count} knowledge graph gold hợp lệ trong {GRAPHS_DIR.name}/",
                 ),
                 _report(
                     validate_redteam_fixtures(FIXTURES_DIR),
-                    "Red-team fixtures (injections, pirated URLs, PII) hợp lệ",
+                    "Red-team fixtures (injections, pirated URLs, PII, answer_leaks) hợp lệ",
                 ),
             ]
         )
