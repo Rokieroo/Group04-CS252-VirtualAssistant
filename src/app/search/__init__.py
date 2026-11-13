@@ -5,6 +5,9 @@ from __future__ import annotations
 from app.search.base import Candidate, SearchProvider
 from app.search.catalog import CatalogProvider, CatalogSearch
 from app.search.fake import FakeSearch
+from app.search.khan_academy import KhanAcademyProvider, KhanAcademySearch
+from app.search.openalex import OpenAlexProvider, OpenAlexSearch
+from app.search.openstax import OpenStaxProvider, OpenStaxSearch
 from app.search.pii_filter import contains_pii, filter_pii, strip_pii
 from app.search.service import (
     SearchRunRecord,
@@ -16,6 +19,7 @@ from app.search.service import (
 )
 from app.search.signature import node_signature
 from app.search.web import WebProvider, WebSearch, WebSearchProvider
+from app.search.wikipedia import WikipediaProvider, WikipediaSearch
 from app.search.youtube import YouTubeProvider, YouTubeSearch
 
 __all__ = [
@@ -23,12 +27,20 @@ __all__ = [
     "CatalogProvider",
     "CatalogSearch",
     "FakeSearch",
+    "KhanAcademyProvider",
+    "KhanAcademySearch",
+    "OpenAlexProvider",
+    "OpenAlexSearch",
+    "OpenStaxProvider",
+    "OpenStaxSearch",
     "SearchProvider",
     "SearchRunRecord",
     "SearchService",
     "WebProvider",
     "WebSearch",
     "WebSearchProvider",
+    "WikipediaProvider",
+    "WikipediaSearch",
     "YouTubeProvider",
     "YouTubeSearch",
     "canonical_url",

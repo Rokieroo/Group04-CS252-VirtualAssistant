@@ -49,6 +49,7 @@ Nguồn chuẩn là [`data/policy/catalog_sources.yaml`](../../data/policy/catal
 | `edx` | Giữ mọi quyền; chỉ link | Thêm tay sau khi đọc ToS | Không truy cập tự động | Terms 11.6 cấm "spiders, robots, crawlers" | Khi cần |
 | `ror` | CC0 (bản dump trên Zenodo, `cc-zero`) | Bản dump có phiên bản trên Zenodo, không gọi API theo từng trường | 1 lần tải mỗi lần dựng | API: 2.000 req/5 phút có `Client-Id`, 50 không có (chưa áp dụng ngày 2026-11-05) | Chỉ authority (#96) |
 | `openalex` | CC0 ("Our data is CC0") | API `institutions`, lưu snapshot JSON | 10 req/s; không key: $0,10/ngày dùng chung theo IP; key miễn phí: $1/ngày | — | Chỉ authority (#96) |
+| `wikipedia` | CC BY-SA 4.0 | MediaWiki Action API (`action=query&list=search`) | Không công bố → 1 req/s | Tuân thủ User-Agent policy | 4 (#157) |
 
 Ghi chú khi đối chiếu với giả định ban đầu của issue:
 

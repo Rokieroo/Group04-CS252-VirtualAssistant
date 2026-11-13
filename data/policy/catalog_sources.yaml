@@ -222,3 +222,17 @@ providers:
     attribution: "OpenAlex institutions, retrieved {date}."
     evidence: https://openalex.org/about
     checked_on: 2026-11-05
+
+  - id: wikipedia
+    name: Wikipedia
+    use: source
+    levels: [k12, undergrad, grad]
+    domains: [wikipedia.org]
+    license: CC-BY-SA-4.0
+    method: api
+    endpoint: https://en.wikipedia.org/w/api.php
+    automated: true
+    rate_limit_per_sec: 1
+    attribution: "{title}, Wikipedia, {url}. CC BY-SA 4.0."
+    evidence: https://en.wikipedia.org/wiki/Wikipedia:Copyrights
+    checked_on: 2026-11-13

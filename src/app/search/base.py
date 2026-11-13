@@ -18,6 +18,8 @@ class Candidate:
     kind: str
     lang: str
     snippet: str = ""
+    license: str = ""
+    institution: str = ""
 
 
 class SearchProvider(ABC):
