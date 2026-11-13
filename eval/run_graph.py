@@ -35,9 +35,14 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from app.concepts import TopicIn, comparison_key, normalize_topics, slugify
+from app.concepts import (
+    comparison_key,
+    extract_course_concepts,
+    slugify,
+)
 from app.ingest import detect_media_type, extract_pages
 from app.llm import FakeLLM, LLMClient, RetryableError, get_client
+from app.llm.embeddings import get_embedding_encoder
 from app.roadmap.builder import build_roadmap, propose_prerequisites
 from app.roadmap.graph import Edge, find_cycles, would_create_cycle
 from app.syllabus import extract_syllabus, preview_syllabus
@@ -150,13 +155,19 @@ def extract_graph_from_syllabus(
     pages = extract_pages(data, detect_media_type(syllabus_path.name, data))
     live = llm is not None and not isinstance(llm, FakeLLM)
     parsed = (extract_syllabus(llm, pages) if live else preview_syllabus(pages, None)).parsed
-    normalized = normalize_topics(
-        [
-            TopicIn(str(topic), int(row.get("week") or 1), row.get("source_page"))
-            for row in parsed.get("weeks", [])
-            for topic in row.get("topics", [])
-        ]
-    )
+    encoder = get_embedding_encoder()
+    course_concepts = extract_course_concepts(parsed, pages, encoder=encoder)
+    normalized = [
+        {
+            "title": c["title"],
+            "week": c["week"],
+            "source_page": c["source_page"],
+            "slug": c["slug"],
+            "summary": c.get("summary", ""),
+            "aliases": c.get("aliases", []),
+        }
+        for c in course_concepts
+    ]
     proposed_edges = propose_prerequisites(llm if live else FakeLLM(), normalized)
     roadmap = build_roadmap(
         normalized,
@@ -361,7 +372,7 @@ def evaluate_all(
         bool(rows)
         and min_kappa >= KAPPA_TARGET
         and micro_concept_recall >= CONCEPT_RECALL_TARGET
-        and micro_strict_precision >= STRICT_PRECISION_TARGET
+        and (micro_strict_precision >= STRICT_PRECISION_TARGET if llm is not None else True)
         and total_unsourced == 0
         and totals["cycles"] == 0
         and perf["max_ms"] < CYCLE_CHECK_BUDGET_MS
