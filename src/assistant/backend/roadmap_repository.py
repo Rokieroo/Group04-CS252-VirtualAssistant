@@ -258,13 +258,40 @@ def persist_built_edges(db, roadmap_id, edges, *, created_by=None):
     _add_roadmap_edges(db, roadmap_id, specs)
 
 
-def save_layout(db, user_id, node_id, x, y, pinned=False):
-    owned_node(db, node_id, user_id)
-    if not all(math.isfinite(v) and abs(v) <= 1e7 for v in (x, y)):
+def save_layouts(db, user_id, roadmap_id, positions):
+    """Upsert one user's node positions on one roadmap in two queries (#103).
+
+    ``positions`` are dicts with node_id, x, y, pinned; the last one per node wins.
+    Raises LookupError with the first node id that is not on the roadmap.
+    """
+    latest = {p["node_id"]: p for p in positions}
+    if not latest:
+        return
+    if not all(
+        math.isfinite(v) and abs(v) <= 1e7 for p in latest.values() for v in (p["x"], p["y"])
+    ):
         raise ValueError("invalid_coordinates")
-    row = db.get(GraphLayout, (user_id, node_id))
-    if row is None:
-        row = GraphLayout(user_id=user_id, node_id=node_id, x=x, y=y, pinned=pinned)
-        db.add(row)
-    row.x, row.y, row.pinned, row.updated_at = x, y, pinned, utcnow()
-    return row
+    on_roadmap = set(
+        db.scalars(
+            select(RoadmapNode.id).where(
+                RoadmapNode.roadmap_id == roadmap_id, RoadmapNode.id.in_(latest)
+            )
+        )
+    )
+    if missing := [node_id for node_id in latest if node_id not in on_roadmap]:
+        raise LookupError(missing[0])
+    existing = {
+        row.node_id: row
+        for row in db.scalars(
+            select(GraphLayout).where(
+                GraphLayout.user_id == user_id, GraphLayout.node_id.in_(latest)
+            )
+        )
+    }
+    now = utcnow()
+    for node_id, p in latest.items():
+        row = existing.get(node_id)
+        if row is None:
+            row = GraphLayout(user_id=user_id, node_id=node_id)
+            db.add(row)
+        row.x, row.y, row.pinned, row.updated_at = p["x"], p["y"], p["pinned"], now

@@ -1,6 +1,7 @@
 """Node learning sources, quoted exercises and graph write contracts."""
 
 import json
+import threading
 from collections import defaultdict
 from datetime import datetime
 from typing import Annotated, Literal
@@ -27,25 +28,39 @@ from .models import (
     Source,
     Task,
 )
-from .roadmap_repository import CycleError, add_roadmap_edge, owned_node, save_layout
+from .roadmap_repository import CycleError, add_roadmap_edge, owned_node, save_layouts
 from .routes_core import _latest_syllabus, _owned_roadmap
 from .schemas import RoadmapGraphOut
 
 router = APIRouter(tags=["Node learning and graph"])
 
 EDGE_EDITS_PER_MINUTE = 120  # issue #103
+_EDGE_EDIT_WINDOW_SECONDS = 60
+_EDGE_EDIT_CACHE_CAP = 1024
 # shortcut: counted per worker process, so N workers allow N x 120/min and a restart
 # forgets; move to a shared store (an edge-edit log table or Redis) if edits get abused.
 _edge_edits: dict[str, list[float]] = defaultdict(list)
+_edge_edits_lock = threading.Lock()
 
 
 def _check_edge_rate_limit(user_id: str, now_ts: float):
-    recent = [t for t in _edge_edits[user_id] if t > now_ts - 60]
-    if len(recent) >= EDGE_EDITS_PER_MINUTE:
-        raise HTTPException(
-            429, "Edge edit rate limit reached (120/min)", headers={"Retry-After": "60"}
-        )
-    _edge_edits[user_id] = [*recent, now_ts]
+    cutoff = now_ts - _EDGE_EDIT_WINDOW_SECONDS
+    with _edge_edits_lock:
+        if len(_edge_edits) > _EDGE_EDIT_CACHE_CAP:
+            stale_users = [
+                uid
+                for uid, timestamps in _edge_edits.items()
+                if not any(t > cutoff for t in timestamps)
+            ]
+            for uid in stale_users:
+                del _edge_edits[uid]
+        recent = [t for t in _edge_edits.get(user_id, ()) if t > cutoff]
+        if len(recent) >= EDGE_EDITS_PER_MINUTE:
+            _edge_edits[user_id] = recent
+            raise HTTPException(
+                429, "Edge edit rate limit reached (120/min)", headers={"Retry-After": "60"}
+            )
+        _edge_edits[user_id] = [*recent, now_ts]
 
 
 def _mark_replan_needed(db, user_id: str, roadmap_id: str) -> None:
@@ -547,11 +562,11 @@ def put_layout(roadmap_id: str, data: Positions | LayoutIn, db: DB, user: Curren
     """Save this user's node positions: a bare list (spec 8) or the older {positions}."""
     _owned_roadmap(db, roadmap_id, user.id)
     positions = data if isinstance(data, list) else data.positions
-    for position in positions:
-        node, _, _ = _node(db, position.node_id, user.id)
-        if node.roadmap_id != roadmap_id:
-            raise HTTPException(422, "node_outside_roadmap")
-        save_layout(db, user.id, **position.model_dump())
+    try:
+        save_layouts(db, user.id, roadmap_id, [p.model_dump() for p in positions])
+    except LookupError as error:
+        _node(db, error.args[0], user.id)  # 404 unless the user owns it on another roadmap
+        raise HTTPException(422, "node_outside_roadmap") from None
     db.commit()
     return {"saved": len(positions)}
 
