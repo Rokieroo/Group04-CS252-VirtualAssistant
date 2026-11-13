@@ -10,11 +10,9 @@ EVAL = Path(__file__).resolve().parents[1] / "eval"
 sys.path.insert(0, str(EVAL))
 
 from run_graph import (
-    CONCEPT_RECALL_TARGET,
     CYCLE_CHECK_BUDGET_MS,
     GRAPHS_DIR,
     KAPPA_TARGET,
-    STRICT_PRECISION_TARGET,
     SYLLABUS_DIR,
     benchmark_cycle_check_300_nodes,
     compute_cohens_kappa,
@@ -92,16 +90,19 @@ def test_score_graph_matches_aliases_and_strict_edges():
     assert metrics["cycles"] == 0
 
 
-def test_run_graph_offline_evaluation_meets_all_targets():
-    """Offline evaluation across all 5 syllabi must pass recall, precision, and citation targets."""
+def test_run_graph_offline_scores_the_shipped_pipeline_without_an_answer_key():
+    """Offline runs the rule-based parser with no model; the targets are judged on --llm runs.
+
+    No strict edge can appear without an LLM, so any offline edge credit would mean the
+    harness had learned the gold graph again.
+    """
     report = evaluate_all(GRAPHS_DIR, SYLLABUS_DIR, use_llm=False)
     assert report["syllabi_evaluated"] == 5
-    assert report["passed"] is True
-
     summary = report["summary"]
     assert summary["min_cohens_kappa"] >= KAPPA_TARGET
-    assert summary["concept_recall"] >= CONCEPT_RECALL_TARGET
-    assert summary["strict_edge_precision"] >= STRICT_PRECISION_TARGET
+    assert 0.0 <= summary["concept_recall"] <= 1.0
+    assert summary["strict_edge_precision"] == 0.0
+    assert all(row["strict_tp"] == 0 for row in report["results"])
     assert summary["unsourced_concepts"] == 0
     assert summary["cycles"] == 0
 

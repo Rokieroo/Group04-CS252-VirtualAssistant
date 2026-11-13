@@ -804,7 +804,8 @@ test("upload syllabus -> open graph -> click node shows syllabus page; cycle edg
   await backend(page);
   await page.goto("/");
 
-  // 1. Upload syllabus and confirm
+  // 1. Upload syllabus and confirm (the account already has a course, so open its upload)
+  await page.getByRole("button", { name: "Thêm đề cương", exact: true }).click();
   await page.getByLabel("Syllabus file", { exact: true }).setInputFiles({
     name: "CSC10014.pdf",
     mimeType: "application/pdf",

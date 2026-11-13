@@ -2,13 +2,18 @@
 
 Usage::
 
-    python eval/run_graph.py                     # offline evaluation on all 5 *.gold.json
+    python eval/run_graph.py                     # shipped pipeline, no model (CI)
     python eval/run_graph.py --limit 3           # evaluate first N syllabi
     python eval/run_graph.py --llm               # use configured LLM_PROVIDER from .env
     python eval/run_graph.py --output out.json   # write JSON report
 
+The recall/precision targets are judged on ``--llm`` runs: offline there is no model, so
+concepts are the week topics and no strict edge is proposed. Nothing in this file may encode
+the gold graphs; that would turn the benchmark into a check against its own answer key.
+
 Measures per syllabus and macro/micro-averaged across all 5 courses:
-- Inter-rater agreement: Cohen's kappa (>= 0.70 target) between 2 independent raters;
+- Inter-rater agreement: Cohen's kappa (>= 0.70 target) from the rater labels stored in
+  each gold file (who labelled and whether independently is not recorded there);
 - Concept Recall, Precision, and F1 (matched by normalized name, slug, alias, or Dice >= 0.7);
 - Strict Prerequisite Edge Precision, Recall, and F1;
 - Citation coverage: share of extracted concepts citing a valid syllabus source_page (100%);
@@ -21,7 +26,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import sys
 import time
 from collections import Counter
@@ -46,16 +50,6 @@ CONCEPT_RECALL_TARGET = 0.90
 STRICT_PRECISION_TARGET = 0.80
 CYCLE_CHECK_BUDGET_MS = 10.0
 SIMILAR_THRESHOLD = 0.70
-
-# Standard academic topic phrase normalization rules used by the offline extractor
-# to split multi-topic syllabus week lines into atomic concepts without an LLM call.
-_SKIP_TOPICS = {
-    "orientation",
-    "midterm exam",
-    "midterm milestone report and phase 1 project presentation",
-    "midterm milestone exam",
-    "real world evaluation",
-}
 
 
 def dice_similar(a: str, b: str) -> bool:
@@ -140,577 +134,30 @@ def match_concept_to_gold(
     return None
 
 
-def _split_atomic_concepts(
-    week: int, raw_topic: str, source_page: int, course_code: str
-) -> list[TopicIn]:
-    """Decompose a weekly syllabus line into atomic TopicIn records for offline extraction."""
-    cleaned = raw_topic.strip().rstrip(".")
-    if re.search(
-        r"\bmidterm\s+(?:exam|written|in-class|milestone\s+exam)\b",
-        cleaned,
-        re.IGNORECASE,
-    ):
-        return []
-
-    # Course-specific atomic decomposition rules grounded in syllabus text
-    code = course_code.upper()
-    if code == "CSC10014":
-        parts = [p.strip() for p in re.split(r",\s*(?:and\s+)?|\s+and\s+", cleaned) if p.strip()]
-        results: list[TopicIn] = []
-        skip_parts = {
-            *_SKIP_TOPICS,
-            "phase 1 project presentation",
-            "background workers",
-            "ci cd",
-            "containerization with docker compose",
-        }
-        for part in parts:
-            low = comparison_key(part)
-            if low in skip_parts:
-                continue
-            part = re.sub(r"\s*\(include vs extend\)", "", part, flags=re.IGNORECASE)
-            results.append(TopicIn(title=part, week=week, source_page=source_page))
-        if week == 1:
-            results.append(TopicIn(title="Product Risks", week=1, source_page=source_page))
-        return results
-
-    if code == "CS102":
-        if week == 1:
-            return [
-                TopicIn("Introduction to Data Models", week, source_page),
-                TopicIn("Relational Databases", week, source_page),
-            ]
-        if week == 2:
-            return [
-                TopicIn("Relational Algebra", week, source_page),
-                TopicIn("Tuple Relational Calculus", week, source_page),
-            ]
-        if week == 3:
-            return [
-                TopicIn("Data Definition Language (DDL)", week, source_page),
-                TopicIn("Basic SQL Queries (DML)", week, source_page),
-            ]
-        if week == 4:
-            return [
-                TopicIn("Advanced SQL: Grouping and Aggregations", week, source_page),
-                TopicIn("Correlated Subqueries", week, source_page),
-            ]
-        if week == 5:
-            return [
-                TopicIn("Functional Dependencies", week, source_page),
-                TopicIn("Normalization Theory (1NF, 2NF, 3NF, BCNF)", week, source_page),
-            ]
-        if week == 7:
-            return [
-                TopicIn("Storage Architecture", week, source_page),
-                TopicIn("B+ Tree Indexing Structures", week, source_page),
-            ]
-        return [TopicIn(cleaned, week, source_page)]
-
-    if code == "CS201":
-        if week == 1:
-            return [
-                TopicIn("Algorithmic Analysis and Asymptotic Notation", week, source_page),
-                TopicIn("Recursion", week, source_page),
-            ]
-        if week == 2:
-            return [
-                TopicIn("Arrays and Dynamic Vectors", week, source_page),
-                TopicIn("Singly and Doubly Linked Lists", week, source_page),
-            ]
-        if week == 3:
-            return [TopicIn("Stacks, Queues, and Applications in Parsing", week, source_page)]
-        if week == 4:
-            return [
-                TopicIn("Comparison Sorts (MergeSort, QuickSort)", week, source_page),
-                TopicIn("Non-Comparison Sorts (Radix, Counting)", week, source_page),
-            ]
-        if week == 5:
-            return [
-                TopicIn("Binary Search Trees", week, source_page),
-                TopicIn("Tree Balancing and AVL Rotations", week, source_page),
-            ]
-        if week == 10:
-            return [
-                TopicIn("Minimum Spanning Trees (Prim, Kruskal)", week, source_page),
-                TopicIn("Single-Source Shortest Paths (Dijkstra, Bellman-Ford)", week, source_page),
-            ]
-        return [TopicIn(cleaned, week, source_page)]
-
-    if code == "CS202":
-        if week == 2:
-            return [
-                TopicIn("Process Management and Process Control Blocks (PCB)", week, source_page),
-                TopicIn("Inter-Process Communication (IPC)", week, source_page),
-            ]
-        if week == 5:
-            return [
-                TopicIn(
-                    "Synchronization Primitives and Critical Section Problem", week, source_page
-                ),
-                TopicIn("Deadlocks", week, source_page),
-            ]
-        return [TopicIn(cleaned, week, source_page)]
-
-    return [TopicIn(cleaned, week, source_page)]
-
-
-# Curated domain prerequisite knowledge base used when LLM_PROVIDER=fake so offline CI runs
-# validate the full `propose_prerequisites` -> `build_roadmap` pipeline deterministically.
-_OFFLINE_PREREQ_KB: dict[str, list[tuple[str, str, float, str]]] = {
-    "CSC10014": [
-        ("problem-framing", "solution-ladder", 0.95, "Problem framing precedes tier selection."),
-        (
-            "problem-framing",
-            "functional-vs-non-functional-requirements",
-            0.92,
-            "Requirements derive from the framed problem.",
-        ),
-        ("problem-framing", "product-risks", 0.90, "Risks depend on the framed problem."),
-        (
-            "functional-vs-non-functional-requirements",
-            "task-decomposition",
-            0.94,
-            "Requirements are decomposed into tasks.",
-        ),
-        ("task-decomposition", "anatomy-of-a-task", 0.90, "Task anatomy analyzes decomposed tasks."),
-        ("task-decomposition", "use-case-diagram", 0.93, "Tasks map to UML use cases."),
-        (
-            "anatomy-of-a-task",
-            "pitfalls-success-pipelines",
-            0.91,
-            "Tasks chain into automated pipelines.",
-        ),
-        (
-            "pitfalls-success-pipelines",
-            "human-in-the-loop",
-            0.88,
-            "HITL gates supervise pipeline steps.",
-        ),
-        (
-            "pitfalls-success-pipelines",
-            "checkpoints",
-            0.90,
-            "Checkpoints validate intermediate pipeline state.",
-        ),
-        (
-            "checkpoints",
-            "4-pipeline-patterns",
-            0.86,
-            "Pipeline patterns compose triggers, steps, and checkpoints.",
-        ),
-        (
-            "use-case-diagram",
-            "system-architecture",
-            0.92,
-            "System architecture realizes specified use cases.",
-        ),
-        (
-            "system-architecture",
-            "api-design",
-            0.91,
-            "API contracts expose architectural components.",
-        ),
-        (
-            "system-architecture",
-            "data-modeling",
-            0.90,
-            "Data models persist architectural state.",
-        ),
-        (
-            "checkpoints",
-            "defensive-safeguards",
-            0.87,
-            "Safeguards enforce safety invariants at checkpoints.",
-        ),
-        (
-            "defensive-safeguards",
-            "red-teaming",
-            0.89,
-            "Red-teaming stress-tests defensive safeguards.",
-        ),
-        (
-            "engineering-quality",
-            "benchmark-dataset-construction",
-            0.88,
-            "Quality targets require gold benchmarks.",
-        ),
-        (
-            "benchmark-dataset-construction",
-            "ai-evaluation",
-            0.95,
-            "AI evaluation runs metrics over benchmark datasets.",
-        ),
-        (
-            "solution-ladder",
-            "retrieval-integration",
-            0.90,
-            "Retrieval corresponds to the search rung on the Solution Ladder.",
-        ),
-        (
-            "retrieval-integration",
-            "llm-interface",
-            0.89,
-            "Retrieved chunks feed into the LLM interface.",
-        ),
-        (
-            "llm-interface",
-            "cite-or-refuse-citation-strategies",
-            0.94,
-            "Cite-or-refuse grounds LLM answers in retrieved pages.",
-        ),
-        ("performance-optimization", "caching", 0.88, "Caching reduces repeated work."),
-        (
-            "performance-optimization",
-            "asynchronous-job-queues",
-            0.87,
-            "Async queues decouple slow tasks.",
-        ),
-        (
-            "asynchronous-job-queues",
-            "staging-deployment",
-            0.85,
-            "Staging orchestrates API, DB, and background workers.",
-        ),
-        (
-            "staging-deployment",
-            "runtime-monitoring",
-            0.90,
-            "Monitoring tracks live staging health.",
-        ),
-    ],
-    "CS102": [
-        (
-            "introduction-to-data-models",
-            "relational-databases",
-            0.95,
-            "Conceptual data models map into relational schemas.",
-        ),
-        (
-            "relational-databases",
-            "relational-algebra",
-            0.94,
-            "Relational algebra operates on relations.",
-        ),
-        ("relational-databases", "data-definition-language-ddl", 0.92, "DDL defines tables."),
-        (
-            "relational-algebra",
-            "basic-sql-queries-dml",
-            0.93,
-            "SQL queries implement relational algebra.",
-        ),
-        (
-            "data-definition-language-ddl",
-            "basic-sql-queries-dml",
-            0.89,
-            "Tables are defined with DDL before DML queries.",
-        ),
-        (
-            "basic-sql-queries-dml",
-            "advanced-sql-grouping-and-aggregations",
-            0.94,
-            "Grouping extends basic SELECT queries.",
-        ),
-        (
-            "basic-sql-queries-dml",
-            "correlated-subqueries",
-            0.91,
-            "Correlated subqueries nest basic SQL queries.",
-        ),
-        (
-            "relational-databases",
-            "functional-dependencies",
-            0.90,
-            "Functional dependencies constrain relational attributes.",
-        ),
-        (
-            "functional-dependencies",
-            "normalization-theory-1nf-2nf-3nf-bcnf",
-            0.96,
-            "Normalization uses functional dependencies.",
-        ),
-        (
-            "storage-architecture",
-            "b-tree-indexing-structures",
-            0.93,
-            "B+ trees organize disk blocks and pages.",
-        ),
-        (
-            "b-tree-indexing-structures",
-            "query-execution-cost-estimation-and-relational-optimization",
-            0.92,
-            "Query plans choose between index and sequential scans.",
-        ),
-        (
-            "advanced-sql-grouping-and-aggregations",
-            "query-execution-cost-estimation-and-relational-optimization",
-            0.85,
-            "Cost estimation evaluates join, sort, and aggregation plans.",
-        ),
-        (
-            "transactions-concurrency-control-and-isolation-levels",
-            "database-recovery-mechanisms-and-distributed-datastores",
-            0.95,
-            "ARIES recovery restores ACID transaction durability.",
-        ),
-    ],
-    "CS201": [
-        (
-            "algorithmic-analysis-and-asymptotic-notation",
-            "recursion",
-            0.90,
-            "Recurrences are bounded with asymptotic notation.",
-        ),
-        (
-            "algorithmic-analysis-and-asymptotic-notation",
-            "arrays-and-dynamic-vectors",
-            0.88,
-            "Amortized complexity bounds dynamic array resizing.",
-        ),
-        (
-            "arrays-and-dynamic-vectors",
-            "stacks-queues-and-applications-in-parsing",
-            0.93,
-            "Stacks and queues build on arrays.",
-        ),
-        (
-            "singly-and-doubly-linked-lists",
-            "stacks-queues-and-applications-in-parsing",
-            0.92,
-            "Linked lists support O(1) stack/queue operations.",
-        ),
-        (
-            "recursion",
-            "comparison-sorts-mergesort-quicksort",
-            0.95,
-            "MergeSort and QuickSort are recursive divide-and-conquer sorts.",
-        ),
-        (
-            "recursion",
-            "binary-search-trees",
-            0.92,
-            "BST operations recurse over subtrees.",
-        ),
-        (
-            "singly-and-doubly-linked-lists",
-            "binary-search-trees",
-            0.89,
-            "Tree nodes generalize pointer-based linked nodes.",
-        ),
-        (
-            "binary-search-trees",
-            "tree-balancing-and-avl-rotations",
-            0.96,
-            "AVL rotations balance binary search trees.",
-        ),
-        (
-            "arrays-and-dynamic-vectors",
-            "priority-queues-binary-heaps-and-huffman-coding",
-            0.90,
-            "Binary heaps store complete trees in arrays.",
-        ),
-        (
-            "arrays-and-dynamic-vectors",
-            "hash-tables-collision-resolution-strategies-and-universal-hashing",
-            0.91,
-            "Hash tables index into bucket arrays.",
-        ),
-        (
-            "stacks-queues-and-applications-in-parsing",
-            "graph-representation-breadth-first-search-bfs-and-depth-first-search-dfs",
-            0.95,
-            "BFS uses a queue and DFS uses a stack.",
-        ),
-        (
-            "graph-representation-breadth-first-search-bfs-and-depth-first-search-dfs",
-            "minimum-spanning-trees-prim-kruskal",
-            0.93,
-            "MST algorithms traverse weighted graphs.",
-        ),
-        (
-            "priority-queues-binary-heaps-and-huffman-coding",
-            "single-source-shortest-paths-dijkstra-bellman-ford",
-            0.94,
-            "Dijkstra extracts minimum-weight frontier vertices via a binary heap.",
-        ),
-        (
-            "graph-representation-breadth-first-search-bfs-and-depth-first-search-dfs",
-            "single-source-shortest-paths-dijkstra-bellman-ford",
-            0.94,
-            "Shortest-path algorithms generalize graph traversal.",
-        ),
-    ],
-    "CS202": [
-        (
-            "introduction-to-operating-system-architectures-and-system-calls",
-            "process-management-and-process-control-blocks-pcb",
-            0.95,
-            "Processes invoke OS kernel services via system calls.",
-        ),
-        (
-            "process-management-and-process-control-blocks-pcb",
-            "inter-process-communication-ipc",
-            0.91,
-            "IPC exchanges data between isolated processes.",
-        ),
-        (
-            "process-management-and-process-control-blocks-pcb",
-            "threads-concurrency-and-multithreaded-programming-models",
-            0.94,
-            "Threads execute within a process context.",
-        ),
-        (
-            "process-management-and-process-control-blocks-pcb",
-            "cpu-scheduling-algorithms-fcfs-sjf-round-robin-multi-level-queues",
-            0.92,
-            "CPU scheduling switches ready processes.",
-        ),
-        (
-            "threads-concurrency-and-multithreaded-programming-models",
-            "synchronization-primitives-and-critical-section-problem",
-            0.96,
-            "Concurrent threads synchronize access to shared state.",
-        ),
-        (
-            "synchronization-primitives-and-critical-section-problem",
-            "deadlocks",
-            0.93,
-            "Cyclic lock acquisition leads to deadlocks.",
-        ),
-        (
-            "process-management-and-process-control-blocks-pcb",
-            "main-memory-organization-address-translation-and-segmentation",
-            0.89,
-            "Each process owns a virtual address space.",
-        ),
-        (
-            "main-memory-organization-address-translation-and-segmentation",
-            "virtual-memory-demand-paging-and-page-replacement-algorithms",
-            0.95,
-            "Demand paging builds on hardware address translation.",
-        ),
-        (
-            "mass-storage-systems-raid-levels-and-disk-scheduling",
-            "file-system-interface-directory-implementation-and-file-allocation",
-            0.92,
-            "File systems allocate blocks on mass storage devices.",
-        ),
-    ],
-    "CS203": [
-        (
-            "computer-networks-overview-physical-media-and-packet-switching",
-            "application-layer-architecture-http-1-1-vs-http-2-and-dns-resolution",
-            0.92,
-            "Application protocols run over the packet-switched stack.",
-        ),
-        (
-            "application-layer-architecture-http-1-1-vs-http-2-and-dns-resolution",
-            "transport-layer-fundamentals-multiplexing-and-udp-datagrams",
-            0.91,
-            "Application sockets bind to transport ports.",
-        ),
-        (
-            "transport-layer-fundamentals-multiplexing-and-udp-datagrams",
-            "reliable-data-transfer-tcp-segment-structure-and-flow-control",
-            0.95,
-            "TCP adds reliability and flow control over transport datagrams.",
-        ),
-        (
-            "reliable-data-transfer-tcp-segment-structure-and-flow-control",
-            "tcp-congestion-control-and-congestion-avoidance-algorithms",
-            0.96,
-            "TCP congestion control regulates the sliding send window.",
-        ),
-        (
-            "computer-networks-overview-physical-media-and-packet-switching",
-            "network-layer-data-plane-ipv4-ipv6-subnetting-and-nat",
-            0.90,
-            "IP packets implement network-layer packet switching.",
-        ),
-        (
-            "network-layer-data-plane-ipv4-ipv6-subnetting-and-nat",
-            "network-layer-control-plane-routing-algorithms-link-state-distance-vector",
-            0.94,
-            "Routing protocols compute forwarding tables for the IP data plane.",
-        ),
-        (
-            "network-layer-data-plane-ipv4-ipv6-subnetting-and-nat",
-            "link-layer-error-detection-crc-ethernet-and-wireless-networks",
-            0.89,
-            "Link-layer frames carry IP datagrams across local links.",
-        ),
-        (
-            "reliable-data-transfer-tcp-segment-structure-and-flow-control",
-            "network-security-tls-ssl-handshake-firewalls-and-cryptographic-protocols",
-            0.91,
-            "TLS secures reliable TCP byte streams.",
-        ),
-    ],
-}
-
-
-def build_offline_fake_llm(course_code: str) -> FakeLLM:
-    """Create a FakeLLM seeded with deterministic prerequisite JSON for `course_code`."""
-    entries = _OFFLINE_PREREQ_KB.get(course_code.upper(), [])
-    payload = json.dumps(
-        {
-            "prerequisites": [
-                {
-                    "parent_slug": parent,
-                    "child_slug": child,
-                    "confidence": conf,
-                    "reason": reason,
-                }
-                for parent, child, conf, reason in entries
-            ]
-        }
-    )
-    return FakeLLM(responses={"<candidates>": payload})
-
-
 def extract_graph_from_syllabus(
     syllabus_path: Path,
     course_code: str,
     *,
     llm: LLMClient | None = None,
 ) -> tuple[list[dict[str, Any]], list[Edge], int]:
-    """Extract normalized concepts and build a roadmap DAG from a syllabus document.
+    """Run the product's own pipeline on a syllabus: parse, normalize topics, propose edges.
 
-    In offline mode (``llm is None``), uses ``preview_syllabus`` + atomic topic splitting
-    and ``FakeLLM`` prerequisites so the full ``build_roadmap`` pipeline is exercised
-    without network calls.
+    Offline (``llm`` is None or a FakeLLM) this is the rule-based ``preview_syllabus`` and a
+    FakeLLM with no canned answers, so it measures exactly what ships without a model:
+    week topics as concepts and no LLM prerequisites. Nothing here may know the gold graph.
     """
     data = syllabus_path.read_bytes()
     pages = extract_pages(data, detect_media_type(syllabus_path.name, data))
-
-    if llm is not None and not isinstance(llm, FakeLLM):
-        draft = extract_syllabus(llm, pages)
-        parsed = draft.parsed
-        topic_inputs: list[TopicIn] = []
-        for week_row in parsed.get("weeks", []):
-            w_num = int(week_row.get("week") or 1)
-            s_page = week_row.get("source_page")
-            for t_str in week_row.get("topics", []):
-                topic_inputs.extend(
-                    _split_atomic_concepts(w_num, str(t_str), s_page, course_code)
-                )
-        normalized = normalize_topics(topic_inputs)
-        prereq_client: LLMClient = llm
-    else:
-        preview = preview_syllabus(pages, None)
-        parsed = preview.parsed
-        topic_inputs = []
-        for week_row in parsed.get("weeks", []):
-            w_num = int(week_row.get("week") or 1)
-            s_page = week_row.get("source_page")
-            for t_str in week_row.get("topics", []):
-                topic_inputs.extend(
-                    _split_atomic_concepts(w_num, str(t_str), s_page, course_code)
-                )
-        normalized = normalize_topics(topic_inputs)
-        prereq_client = build_offline_fake_llm(course_code)
-
-    proposed_edges = propose_prerequisites(prereq_client, normalized)
+    live = llm is not None and not isinstance(llm, FakeLLM)
+    parsed = (extract_syllabus(llm, pages) if live else preview_syllabus(pages, None)).parsed
+    normalized = normalize_topics(
+        [
+            TopicIn(str(topic), int(row.get("week") or 1), row.get("source_page"))
+            for row in parsed.get("weeks", [])
+            for topic in row.get("topics", [])
+        ]
+    )
+    proposed_edges = propose_prerequisites(llm if live else FakeLLM(), normalized)
     roadmap = build_roadmap(
         normalized,
         milestones=parsed.get("assessments", []),
@@ -745,7 +192,7 @@ def score_graph(
     concept_pred = len(predicted_concepts)
     concept_gold = len(gold_concepts)
     concept_recall = concept_tp / concept_gold if concept_gold else 1.0
-    concept_precision = concept_tp / concept_pred if concept_pred else 1.0
+    concept_precision = concept_tp / concept_pred if concept_pred else 0.0
     concept_f1 = (
         2 * concept_tp / (concept_pred + concept_gold)
         if (concept_pred + concept_gold)
@@ -768,7 +215,7 @@ def score_graph(
     strict_tp = len(pred_strict & gold_strict)
     strict_pred = len(pred_strict)
     strict_gold = len(gold_strict)
-    strict_precision = strict_tp / strict_pred if strict_pred else 1.0
+    strict_precision = strict_tp / strict_pred if strict_pred else 0.0
     strict_recall = strict_tp / strict_gold if strict_gold else 1.0
     strict_f1 = (
         2 * strict_tp / (strict_pred + strict_gold)

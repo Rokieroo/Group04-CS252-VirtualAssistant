@@ -37,7 +37,7 @@ This report summarizes testing, quality assurance, benchmark validation, staging
 
 ## 3. End-to-End Core Loop Verification Breakdown (Issue #67)
 
-The new integration suite [`tests/test_e2e_core_loop.py`](file:///d:/Workspace/CS252/Group04-CS252-VirtualAssistant/tests/test_e2e_core_loop.py) exercises every step of the core loop using mock adapters (`FakeSearch`, `E2EJudgeLLM`, `make_e2e_safe_fetcher`):
+The new integration suite [`tests/test_e2e_core_loop.py`](../../../../tests/test_e2e_core_loop.py) exercises every step of the core loop using mock adapters (`FakeSearch`, `E2EJudgeLLM`, `make_e2e_safe_fetcher`):
 
 1. **UC-01 & UC-02 (Syllabus Ingestion & Preview)**:
    - Ingests `01_csc10014_problem_framing.txt`.
@@ -90,33 +90,39 @@ All metrics specified in **Spec 3.0 Section 15** were measured and tracked:
 
 ## 6. Knowledge Graph Reference Benchmark & Performance Evaluation (Issue #112)
 
-To validate the Interactive Knowledge Graph milestone (Epic #94, UC-18), we constructed 5 gold-standard reference knowledge graphs (`eval/graphs/*.gold.json`) from 5 real course syllabi in `eval/syllabus/` (`01_csc10014_problem_framing`, `02_cs102_database_systems`, `03_cs201_data_structures`, `04_cs202_operating_systems`, and `05_cs203_computer_networks`), built the automated evaluation harness [`eval/run_graph.py`](file:///d:/Workspace/CS252/Group04-CS252-VirtualAssistant/eval/run_graph.py), and verified cycle-detection latency, canvas FPS, E2E user workflows, and multi-user RBAC isolation.
+To validate the Interactive Knowledge Graph milestone (Epic #94, UC-18), we constructed 5 gold-standard reference knowledge graphs (`eval/graphs/*.gold.json`) from the 5 sample syllabi in `eval/syllabus/` (`01_csc10014_problem_framing`, `02_cs102_database_systems`, `03_cs201_data_structures`, `04_cs202_operating_systems`, and `05_cs203_computer_networks`), built the automated evaluation harness `eval/run_graph.py`, and verified cycle-detection latency, canvas FPS, E2E user workflows, and multi-user RBAC isolation.
 
-### 6.1 Gold Graph Dataset & Inter-Rater Agreement ($\kappa \ge 0.70$)
+### 6.1 Gold Graph Dataset & Inter-Rater Agreement
 
-Each gold file defines concepts with verified `source_page` citations, `aliases`, and directed `strict` / `soft` prerequisite edges graded independently by 2 raters (`rater_a`, `rater_b`). All 5 reference graphs exceed the $\kappa \ge 0.70$ acceptance threshold, and `01_csc10014_problem_framing` contains 30 concepts ($\ge 30$ target):
+Each gold file defines concepts with `source_page` citations, `aliases`, and directed `strict` / `soft` prerequisite edges, plus per-edge labels from two raters (`rater_a`, `rater_b`). `python eval/run_graph.py` recomputes Cohen's kappa from those stored labels. **The files do not record who the raters were or that they labelled independently**, so the kappa below is self-reported. Issue #112 still needs a second team member to re-label at least one graph blind and the kappa recomputed from that.
 
-| Gold Graph ID | Syllabus File | Concepts | Total Edges | Strict Edges | Soft Edges | Recorded $\kappa$ | Verified Edge $\kappa$ | Unsourced Concepts |
-| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `KG-01` | `01_csc10014_problem_framing.txt` | 30 | 29 | 24 | 5 | 0.905 | 0.958 | 0 |
-| `KG-02` | `02_cs102_database_systems.txt` | 15 | 16 | 13 | 3 | 0.889 | 0.897 | 0 |
-| `KG-03` | `03_cs201_data_structures.txt` | 14 | 16 | 14 | 2 | 0.912 | 1.000 | 0 |
-| `KG-04` | `04_cs202_operating_systems.txt` | 11 | 10 | 9 | 1 | 0.875 | 1.000 | 0 |
-| `KG-05` | `05_cs203_computer_networks.txt` | 9 | 9 | 8 | 1 | 0.894 | 1.000 | 0 |
-| **Total / Micro-Avg** | **5 Real Syllabi** | **79** | **80** | **68** | **12** | **$\ge 0.875$** | **$\ge 0.897$** | **0** |
+| Gold Graph ID | Syllabus File | Concepts | Strict Edges | Kappa from stored labels |
+| --- | --- | ---: | ---: | ---: |
+| `KG-01` | `01_csc10014_problem_framing.txt` | 30 | 24 | 0.958 |
+| `KG-02` | `02_cs102_database_systems.txt` | 15 | 13 | 0.897 |
+| `KG-03` | `03_cs201_data_structures.txt` | 14 | 14 | 1.000 |
+| `KG-04` | `04_cs202_operating_systems.txt` | 11 | 9 | 1.000 |
+| `KG-05` | `05_cs203_computer_networks.txt` | 9 | 8 | 1.000 |
 
 ### 6.2 Offline Knowledge Graph Evaluation (`python eval/run_graph.py`)
 
-Running `python eval/run_graph.py` with `LLM_PROVIDER=fake` matches extracted concepts (by normalized name, slug, alias, or token/bigram Dice $\ge 0.70$) and evaluates `strict` prerequisite edge precision and recall across all 5 syllabi:
+Offline the harness runs exactly what ships without a model: the rule-based `preview_syllabus`, `normalize_topics` on the week topics, and `propose_prerequisites` with a `FakeLLM` that has no canned answers. It has no knowledge of the gold graphs. (An earlier version of this section reported 1.000 everywhere; that run used per-course topic splitting rules and a hand-written prerequisite list taken from the gold graphs, so it measured the answer key, not the product. Both were removed.)
 
-| Syllabus ID | Concept Match (Gold/Pred) | Concept Recall | Concept Precision | Concept F1 | Strict Edge Match (Gold/Pred) | Edge Precision | Edge Recall | Edge F1 |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `KG-01 (CSC10014)` | 30 / 30 (30) | 1.000 | 1.000 | 1.000 | 24 / 24 (24) | 1.000 | 1.000 | 1.000 |
-| `KG-02 (CS102)` | 15 / 15 (15) | 1.000 | 1.000 | 1.000 | 13 / 13 (13) | 1.000 | 1.000 | 1.000 |
-| `KG-03 (CS201)` | 14 / 14 (14) | 1.000 | 1.000 | 1.000 | 14 / 14 (14) | 1.000 | 1.000 | 1.000 |
-| `KG-04 (CS202)` | 11 / 11 (11) | 1.000 | 1.000 | 1.000 | 9 / 9 (9) | 1.000 | 1.000 | 1.000 |
-| `KG-05 (CS203)` | 9 / 9 (9) | 1.000 | 1.000 | 1.000 | 8 / 8 (8) | 1.000 | 1.000 | 1.000 |
-| **Micro-Average** | **79 / 79 (79)** | **1.000** | **1.000** | **1.000** | **68 / 68 (68)** | **1.000** | **1.000** | **1.000** |
+| Syllabus ID | Concepts (TP / Gold) | Concept Recall | Concept Precision | Strict Edges (TP / Pred / Gold) |
+| --- | ---: | ---: | ---: | ---: |
+| `KG-01 (CSC10014)` | 0 / 30 | 0.00 | 0.00 | 0 / 0 / 24 |
+| `KG-02 (CS102)` | 8 / 15 | 0.53 | 0.80 | 0 / 0 / 13 |
+| `KG-03 (CS201)` | 8 / 14 | 0.57 | 0.80 | 0 / 0 / 14 |
+| `KG-04 (CS202)` | 9 / 11 | 0.82 | 0.90 | 0 / 0 / 9 |
+| `KG-05 (CS203)` | 9 / 9 | 1.00 | 0.90 | 0 / 0 / 8 |
+| **Micro-average** | **34 / 79** | **0.430** | **0.680** | **0 / 0 / 68** |
+
+What this shows:
+- Without a model, concepts are the syllabus week topics, so recall is bounded by how finely the syllabus lists topics. The rule-based parser finds no weeks at all in the CSC10014 sample (0 / 30), which is a parser gap worth a separate issue.
+- No `strict` edge is proposed without an LLM, by design.
+- The #97 / #112 targets (concept recall ≥ 0.90, strict precision ≥ 0.80) apply to `python eval/run_graph.py --llm`, which this report has **not** run yet (free-tier Gemini quota). Until it is run and recorded here, those two targets are unmeasured.
+
+Reproduce: `python eval/run_graph.py` (offline) or `python eval/run_graph.py --llm` (uses `LLM_PROVIDER` from `.env`).
 
 ### 6.3 Performance, E2E & RBAC Verification Summary
 
