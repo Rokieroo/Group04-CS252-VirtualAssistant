@@ -13,9 +13,11 @@ Verifies:
 
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import event, text
 
 from app.companion import companion_mode, girlfriend_mode_allowed
 from app.safety import (
@@ -26,14 +28,24 @@ from app.safety import (
     redact_crisis_content,
 )
 from app.vetting.filters import Learner, content_failure
+from assistant.backend.catalog_models import RoadmapEdge
 from assistant.backend.models import (
     AuthSession,
+    Availability,
+    BusyBlock,
     ChatMessage,
     Course,
+    Goal,
+    Job,
+    Resource,
+    ResourceFeedback,
+    ReviewCard,
+    ReviewLog,
     Roadmap,
     RoadmapNode,
     ScheduleEntry,
     Task,
+    Team,
     User,
 )
 
@@ -418,3 +430,261 @@ def test_export_and_delete_account_lifecycle(client, app):
             == 0
         )
         assert db.query(ChatMessage).filter(ChatMessage.user_id == user_id).count() == 0
+
+
+def test_export_batches_roadmaps_with_feedback_reviews_goals_and_delete_handles_teams_and_reviews(
+    app, client
+):
+    """Export runs O(1) roadmap node/edge queries, includes feedback/goals/reviews, and DELETE cleans Team/Review FKs."""
+    reg = client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "full_cleanup@example.com",
+            "password": "Password123",
+            "name": "Full Cleanup",
+            "account_level": "university",
+            "birth_year": 2002,
+        },
+    )
+    assert reg.status_code == 201
+    token = reg.json()["access_token"]
+    user_id = reg.json()["user"]["id"]
+    now_utc = datetime.now(UTC)
+
+    with app.state.database.sessions() as db:
+        course = Course(
+            id="course-batch-1", owner_id=user_id, title="Batch Course", level="university"
+        )
+        db.add(course)
+        db.flush()
+
+        first_node_id = None
+        for idx in range(5):
+            r = Roadmap(
+                id=f"rm-batch-{idx}",
+                course_id=course.id,
+                user_id=user_id,
+                title=f"Map {idx}",
+            )
+            n1 = RoadmapNode(
+                id=f"rm-node-a-{idx}",
+                roadmap_id=r.id,
+                title=f"Node A {idx}",
+                type="topic",
+                week=1,
+            )
+            n2 = RoadmapNode(
+                id=f"rm-node-b-{idx}",
+                roadmap_id=r.id,
+                title=f"Node B {idx}",
+                type="topic",
+                week=2,
+            )
+            e = RoadmapEdge(
+                roadmap_id=r.id,
+                parent_id=n1.id,
+                child_id=n2.id,
+                kind="strict",
+                origin="user",
+                confidence=1.0,
+            )
+            db.add(r)
+            db.flush()
+            db.add_all([n1, n2])
+            db.flush()
+            db.add(e)
+            if first_node_id is None:
+                first_node_id = n1.id
+
+        resource_id = str(uuid4())
+        db.add(
+            Resource(
+                id=resource_id,
+                url=f"https://example.edu/{resource_id}",
+                canonical_url=f"https://example.edu/{resource_id}",
+                title="Verified Guide",
+                verification_status="verified",
+            )
+        )
+        db.flush()
+        db.add(
+            ResourceFeedback(
+                id="fb-test-1",
+                user_id=user_id,
+                resource_id=resource_id,
+                rating=1,
+                comment="Helpful",
+            )
+        )
+
+        goal = Goal(id="goal-test-1", owner_id=user_id, title="Finish CS252")
+        team = Team(id="team-test-1", owner_id=user_id, name="Study Group")
+        db.add_all([goal, team])
+        db.flush()
+        db.add(
+            Task(
+                id="team-task-1",
+                owner_id=user_id,
+                assignee_id=user_id,
+                team_id=team.id,
+                goal_id=goal.id,
+                title="Group review",
+                duration_minutes=30,
+                due_at=now_utc,
+            )
+        )
+        db.add(
+            Availability(
+                id="avail-1",
+                user_id=user_id,
+                starts_at=now_utc,
+                ends_at=now_utc + timedelta(hours=1),
+            )
+        )
+        db.add(
+            BusyBlock(
+                id="busy-1",
+                user_id=user_id,
+                starts_at=now_utc + timedelta(hours=2),
+                ends_at=now_utc + timedelta(hours=3),
+                title="Class",
+            )
+        )
+        db.add(Job(id="job-1", kind="test_job", user_id=user_id))
+
+        concept_id = str(uuid4())
+        source_id = str(uuid4())
+        item_id = str(uuid4())
+        db.execute(
+            text(
+                "INSERT INTO concepts (id, course_id, slug, title, source_pages) "
+                "VALUES (:cid, :c, 'batch-c', 'Batch Concept', '[1]')"
+            ),
+            {"cid": concept_id, "c": course.id},
+        )
+        db.execute(
+            text(
+                "INSERT INTO sources (id, course_id, file_name, page, text) "
+                "VALUES (:sid, :c, 'ch1.pdf', 1, 'Notes')"
+            ),
+            {"sid": source_id, "c": course.id},
+        )
+        db.execute(
+            text(
+                "INSERT INTO items (id, concept_id, source_id, type, prompt, choices, answer, status) "
+                "VALUES (:id, :cid, :sid, 'mcq', 'Q?', '[\"A\"]', 'A', 'ready')"
+            ),
+            {"id": item_id, "cid": concept_id, "sid": source_id},
+        )
+        db.add(
+            ReviewCard(
+                user_id=user_id,
+                item_id=item_id,
+                node_id=first_node_id,
+                due_at=now_utc,
+                stability=1.2,
+                difficulty=4.0,
+                state=1,
+                step=0,
+            )
+        )
+        db.add(
+            ReviewLog(
+                id="rlog-1",
+                user_id=user_id,
+                item_id=item_id,
+                node_id=first_node_id,
+                rating=3,
+                reviewed_at=now_utc,
+                stability=1.2,
+                difficulty=4.0,
+            )
+        )
+        db.commit()
+
+    executed_sql: list[str] = []
+
+    def _track(conn, cursor, statement, parameters, context, executemany):
+        executed_sql.append(statement)
+
+    engine = app.state.database.engine
+    event.listen(engine, "before_cursor_execute", _track)
+    try:
+        export_resp = client.get("/api/v1/me/export", headers=_auth(token))
+    finally:
+        event.remove(engine, "before_cursor_execute", _track)
+
+    assert export_resp.status_code == 200
+    payload = export_resp.json()
+    assert len(payload["roadmaps"]) == 5
+    node_queries = [q for q in executed_sql if "FROM roadmap_nodes" in q]
+    edge_queries = [q for q in executed_sql if "FROM roadmap_edges" in q]
+    assert len(node_queries) == 1
+    assert len(edge_queries) == 1
+
+    assert payload["resource_feedback"] == [
+        {
+            "id": "fb-test-1",
+            "resource_id": resource_id,
+            "rating": 1,
+            "comment": "Helpful",
+        }
+    ]
+    assert len(payload["goals"]) == 1
+    assert len(payload["review_cards"]) == 1
+    assert len(payload["review_logs"]) == 1
+
+    del_resp = client.delete("/api/v1/me?confirm=true", headers=_auth(token))
+    assert del_resp.status_code == 204
+    with app.state.database.sessions() as db:
+        assert db.get(User, user_id) is None
+        assert db.query(Team).filter(Team.owner_id == user_id).count() == 0
+        assert db.query(Goal).filter(Goal.owner_id == user_id).count() == 0
+        assert db.query(Task).filter(Task.owner_id == user_id).count() == 0
+        assert db.query(ReviewCard).filter(ReviewCard.user_id == user_id).count() == 0
+        assert db.query(ReviewLog).filter(ReviewLog.user_id == user_id).count() == 0
+        assert db.query(Job).filter(Job.user_id == user_id).count() == 0
+        assert db.query(Availability).filter(Availability.user_id == user_id).count() == 0
+        assert db.query(BusyBlock).filter(BusyBlock.user_id == user_id).count() == 0
+
+
+def test_delete_account_keeps_other_members_tasks_in_an_owned_team(app, client):
+    """Deleting a team owner must not delete what another member owns; the task only loses its team."""
+    tokens = {}
+    for name in ("owner", "member"):
+        reg = client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": f"team_{name}@example.com",
+                "password": "Password123",
+                "name": name,
+                "account_level": "university",
+                "birth_year": 2002,
+            },
+        )
+        assert reg.status_code == 201
+        tokens[name] = (reg.json()["access_token"], reg.json()["user"]["id"])
+    owner_id, member_id = tokens["owner"][1], tokens["member"][1]
+    with app.state.database.sessions() as db:
+        db.add(Team(id="team-shared", owner_id=owner_id, name="Shared"))
+        db.flush()
+        db.add(
+            Task(
+                id="member-task",
+                owner_id=member_id,
+                assignee_id=member_id,
+                team_id="team-shared",
+                title="My part",
+                duration_minutes=30,
+                due_at=datetime.now(UTC),
+            )
+        )
+        db.commit()
+
+    deleted = client.delete("/api/v1/me?confirm=true", headers=_auth(tokens["owner"][0]))
+    assert deleted.status_code == 204
+
+    with app.state.database.sessions() as db:
+        task = db.get(Task, "member-task")
+        assert task is not None and task.team_id is None
+        assert db.get(Team, "team-shared") is None
