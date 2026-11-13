@@ -155,34 +155,58 @@ def store_private(db, source, owner_id):
     """Model-free persistence used by HTTP ingest and the legacy FSRS bridge."""
     import json
 
-    from sqlalchemy import text
+    from sqlalchemy import bindparam, text
 
     owner = db.scalar(text("SELECT owner_id FROM courses WHERE id=:course_id"), source)
     if owner != owner_id:
         raise LookupError("Source not found")
-    result = []
-    for item in extract_numbered(source["text"]):
-        identifier = str(uuid5(NAMESPACE_URL, source["id"] + ":" + item["quote_hash"]))
-        if not db.scalar(
-            text("SELECT id FROM exercises WHERE id=:id"), {"id": identifier}
-        ):
-            values = {
+
+    items = extract_numbered(source["text"])
+    if not items:
+        return []
+
+    source_hash = hashlib.sha256(source["text"].encode()).hexdigest()
+    candidates = [
+        (str(uuid5(NAMESPACE_URL, source["id"] + ":" + item["quote_hash"])), item)
+        for item in items
+    ]
+    candidate_ids = list({identifier for identifier, _ in candidates})
+
+    lookup_stmt = text("SELECT id FROM exercises WHERE id IN :ids").bindparams(
+        bindparam("ids", expanding=True)
+    )
+    existing: set[str] = set()
+    for start in range(0, len(candidate_ids), 500):
+        existing.update(
+            db.scalars(lookup_stmt, {"ids": candidate_ids[start : start + 500]})
+        )
+
+    insert_rows = []
+    for identifier, item in candidates:
+        if identifier in existing:
+            continue
+        existing.add(identifier)
+        insert_rows.append(
+            {
                 **item,
                 "id": identifier,
                 "source_id": source["id"],
                 "page": source["page"],
                 "owner_id": owner_id,
-                "source_hash": hashlib.sha256(source["text"].encode()).hexdigest(),
+                "source_hash": source_hash,
                 "choices": json.dumps(item["choices"], ensure_ascii=False),
             }
-            db.execute(
-                text(
-                    "INSERT INTO exercises (id,origin,source_id,page,owner_id,type,prompt,choices,answer,"
-                    "location,quote_hash,source_hash,license,difficulty,bloom_level,verification_status) "
-                    "VALUES (:id,'user_material',:source_id,:page,:owner_id,:type,:prompt,:choices,:answer,"
-                    ":location,:quote_hash,:source_hash,'private',:difficulty,:bloom_level,'verified')"
-                ),
-                values,
-            )
-        result.append({**item, "id": identifier})
-    return result
+        )
+
+    if insert_rows:
+        db.execute(
+            text(
+                "INSERT INTO exercises (id,origin,source_id,page,owner_id,type,prompt,choices,answer,"
+                "location,quote_hash,source_hash,license,difficulty,bloom_level,verification_status) "
+                "VALUES (:id,'user_material',:source_id,:page,:owner_id,:type,:prompt,:choices,:answer,"
+                ":location,:quote_hash,:source_hash,'private',:difficulty,:bloom_level,'verified')"
+            ),
+            insert_rows,
+        )
+
+    return [{**item, "id": identifier} for identifier, item in candidates]

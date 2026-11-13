@@ -348,3 +348,45 @@ def test_reviews_validation_errors(client, headers):
         json={"rating": 0},
     )
     assert res_422_low.status_code == 422
+
+
+def test_fsrs_accepts_naive_db_datetimes_with_utc_reference():
+    """Naive SQLite datetimes for due_at and last_review must not raise TypeError."""
+    naive_last = datetime(2026, 11, 10, 9, 0)  # tzinfo=None as read from SQLite
+    naive_due = datetime(2026, 11, 12, 9, 0)
+    aware_now = datetime(2026, 11, 12, 12, 0, tzinfo=UTC)
+
+    res = schedule_card_review(
+        rating=3,
+        reviewed_at=aware_now,
+        current_state=2,
+        current_step=0,
+        stability=5.0,
+        difficulty=4.0,
+        due_at=naive_due,
+        last_review=naive_last,
+    )
+    assert res.elapsed_days == pytest.approx(2.125, abs=1e-4)
+    assert res.due_at > aware_now
+
+    card = {
+        "state": 2,
+        "step": 0,
+        "stability": 5.0,
+        "difficulty": 4.0,
+        "due_at": naive_due,
+        "last_review": naive_last,
+    }
+    retrievability = compute_card_retrievability(card, aware_now)
+    assert 0.0 < retrievability < 1.0
+    assert retrievability == pytest.approx(
+        compute_card_retrievability(
+            {
+                **card,
+                "due_at": naive_due.replace(tzinfo=UTC),
+                "last_review": naive_last.replace(tzinfo=UTC),
+            },
+            aware_now.replace(tzinfo=None),
+        ),
+        abs=1e-6,
+    )
