@@ -445,3 +445,106 @@ def test_course_roadmap_discovery_is_owned_and_persistent(client, headers, heade
     assert client.get("/api/v1/courses/missing/roadmaps", headers=headers).status_code == 404
     empty = client.post("/api/v1/courses", headers=headers, json={"title": "Empty course"}).json()
     assert client.get(f"/api/v1/courses/{empty['id']}/roadmaps", headers=headers).json() == []
+
+
+def test_put_layout_batches_sql_and_validates_node_ownership(
+    app, client, headers, course_and_roadmap
+):
+    from sqlalchemy import event
+
+    course_id, roadmap = course_and_roadmap
+    roadmap_id = roadmap["id"]
+    nodes = roadmap["nodes"]
+
+    # Create a second roadmap owned by the same user to verify 422 node_outside_roadmap.
+    other_res = client.post(
+        f"/api/v1/courses/{course_id}/roadmap:generate",
+        headers=headers,
+        json={
+            "nodes": [
+                {"title": "Other Track", "week": 1, "type": "topic", "est_minutes": 45}
+            ]
+        },
+    )
+    assert other_res.status_code == 201
+    other_node_id = other_res.json()["nodes"][0]["id"]
+
+    outside = client.put(
+        f"/api/v1/roadmaps/{roadmap_id}/graph/layout",
+        headers=headers,
+        json=[{"node_id": other_node_id, "x": 10, "y": 20, "pinned": True}],
+    )
+    assert outside.status_code == 422
+    assert outside.json()["detail"] == "node_outside_roadmap"
+
+    unknown = client.put(
+        f"/api/v1/roadmaps/{roadmap_id}/graph/layout",
+        headers=headers,
+        json=[{"node_id": "nonexistent-node", "x": 10, "y": 20, "pinned": False}],
+    )
+    assert unknown.status_code == 404
+
+    # Seed node 0 first so the next batch exercises both update and insert in one PUT.
+    first = client.put(
+        f"/api/v1/roadmaps/{roadmap_id}/graph/layout",
+        headers=headers,
+        json=[{"node_id": nodes[0]["id"], "x": 1, "y": 2, "pinned": False}],
+    )
+    assert first.status_code == 200
+
+    statements: list[str] = []
+
+    def _track(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+
+    engine = app.state.database.engine
+    event.listen(engine, "before_cursor_execute", _track)
+    try:
+        payload = [
+            {"node_id": n["id"], "x": float(idx * 50), "y": float(idx * 25), "pinned": idx % 2 == 0}
+            for idx, n in enumerate(nodes)
+        ]
+        res = client.put(
+            f"/api/v1/roadmaps/{roadmap_id}/graph/layout",
+            headers=headers,
+            json=payload,
+        )
+    finally:
+        event.remove(engine, "before_cursor_execute", _track)
+
+    assert res.status_code == 200
+    assert res.json()["saved"] == len(nodes)
+    # Bounded SQL regardless of position count (auth + roadmap + node check + layout select + writes).
+    assert len(statements) <= 12
+
+    saved = client.get(f"/api/v1/roadmaps/{roadmap_id}/graph/layout", headers=headers).json()
+    by_id = {p["node_id"]: p for p in saved["positions"]}
+    assert by_id[nodes[0]["id"]]["pinned"] is True
+    assert by_id[nodes[-1]["id"]]["x"] == float((len(nodes) - 1) * 50)
+
+
+def test_edge_rate_limit_evicts_stale_users_and_is_thread_safe(monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+
+    from assistant.backend import routes_learning
+
+    routes_learning._edge_edits.clear()
+    try:
+        monkeypatch.setattr(routes_learning, "_EDGE_EDIT_CACHE_CAP", 4)
+        for i in range(6):
+            routes_learning._edge_edits[f"stale-{i}"] = [100.0]
+
+        routes_learning._check_edge_rate_limit("active-user", 1000.0)
+        assert "active-user" in routes_learning._edge_edits
+        assert all(not uid.startswith("stale-") for uid in routes_learning._edge_edits)
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            futures = [
+                pool.submit(routes_learning._check_edge_rate_limit, "concurrent-user", 2000.0)
+                for _ in range(40)
+            ]
+            for f in futures:
+                f.result()
+        assert len(routes_learning._edge_edits["concurrent-user"]) == 40
+    finally:
+        routes_learning._edge_edits.clear()

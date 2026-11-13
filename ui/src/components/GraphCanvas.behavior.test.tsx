@@ -150,22 +150,70 @@ it("restores week positions for unpinned nodes after force layout", () => {
   ).toBe(true);
 });
 
-it("wheel zoom glides around the cursor and an idle graph stops redrawing", () => {
+it("wheel zoom glides around the cursor and an idle graph schedules no requestAnimationFrame", () => {
   const view = render(<GraphCanvas nodes={nodes} edges={[]} />);
   frame();
+  // Idle graph stops scheduling animation frames completely.
+  expect(frames.size).toBe(0);
   // jsdom puts the canvas at 0,0: the world point under (100, 100) is (40, 40) at zoom 1.
   fireEvent.wheel(view.container.querySelector("canvas")!, {
     deltaY: -100,
     clientX: 100,
     clientY: 100,
   });
+  expect(frames.size).toBeGreaterThan(0);
   frame();
   expect(ctx.scale.mock.lastCall[0]).toBeLessThan(1.1);
-  for (let i = 0; i < 60; i++) frame();
+  for (let i = 0; i < 60 && frames.size > 0; i++) frame();
+  expect(frames.size).toBe(0);
   expect(ctx.scale.mock.lastCall[0]).toBeCloseTo(1.1);
   expect(ctx.translate.mock.lastCall[0]).toBeCloseTo(100 - 40 * 1.1);
   expect(ctx.translate.mock.lastCall[1]).toBeCloseTo(100 - 40 * 1.1);
   ctx.clearRect.mockClear();
   for (let i = 0; i < 5; i++) frame();
   expect(ctx.clearRect).not.toHaveBeenCalled();
+  expect(frames.size).toBe(0);
+});
+
+it("prefers-reduced-motion snaps view and layout transitions in one frame without looping", () => {
+  let changeListener: ((e: MediaQueryListEvent) => void) | undefined;
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: query === "(prefers-reduced-motion: reduce)",
+    media: query,
+    onchange: null,
+    addEventListener: (_: string, cb: (e: MediaQueryListEvent) => void) => {
+      if (query === "(prefers-reduced-motion: reduce)") changeListener = cb;
+    },
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+
+  const view = render(<GraphCanvas nodes={nodes} edges={[]} layout="week" />);
+  frame();
+  expect(frames.size).toBe(0);
+
+  // Wheel zoom completes immediately in one animation step instead of easing over 20+ frames.
+  fireEvent.wheel(view.container.querySelector("canvas")!, {
+    deltaY: -100,
+    clientX: 100,
+    clientY: 100,
+  });
+  frame(); // view step snaps to goal zoom & pan and clears viewFrame
+  frame(); // redraw tick paints snapped view and goes idle
+  expect(ctx.scale.mock.lastCall[0]).toBeCloseTo(1.1);
+  expect(frames.size).toBe(0);
+
+  // Layout transition from force back to week snaps without multi-frame glide when reduced motion is active.
+  view.rerender(<GraphCanvas nodes={nodes} edges={[]} layout="force" />);
+  frame();
+  view.rerender(<GraphCanvas nodes={nodes} edges={[]} layout="week" />);
+  ctx.arc.mockClear();
+  frame();
+  expect(
+    ctx.arc.mock.calls.some((c: number[]) => c[0] === 80 && c[1] === 80),
+  ).toBe(true);
+  expect(frames.size).toBe(0);
+  expect(changeListener).toBeTypeOf("function");
 });

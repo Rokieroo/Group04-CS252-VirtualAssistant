@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Page } from "../navigation";
 import type { RoadmapNode } from "../api/types";
 import { fetchDueReviews, type DueReviewCard } from "../api/reviews";
@@ -22,23 +22,32 @@ export function TodayPage({
   const [reviews, setReviews] = useState<DueReviewCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const requestVersion = useRef(0);
 
   const loadReviews = useCallback(async () => {
+    const version = ++requestVersion.current;
     try {
       setLoading(true);
       setError("");
       const dueCards = await fetchDueReviews(20);
+      if (version !== requestVersion.current) return;
       setReviews(dueCards);
     } catch {
+      if (version !== requestVersion.current) return;
       // Graceful fallback for mock or demo mode
       setReviews([]);
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     void loadReviews();
+    return () => {
+      ++requestVersion.current;
+    };
   }, [loadReviews]);
 
   const openNode = (nodeId: string) => {
@@ -53,15 +62,17 @@ export function TodayPage({
     }
   };
 
-  // 1. Due topics: topics due today or active week topics
-  const dueTopics = nodes.filter(
-    (n) => n.type === "topic" || n.kind === "topic",
-  );
-
-  // 2. Milestones: upcoming checkpoints and exams
-  const milestones = nodes.filter(
-    (n) => n.type === "milestone" || n.kind === "milestone",
-  );
+  // Partition due topics and upcoming milestones in one pass when nodes change
+  const { dueTopics, milestones } = useMemo(() => {
+    const topics: RoadmapNode[] = [];
+    const checks: RoadmapNode[] = [];
+    for (const node of nodes) {
+      if (node.type === "topic" || node.kind === "topic") topics.push(node);
+      else if (node.type === "milestone" || node.kind === "milestone")
+        checks.push(node);
+    }
+    return { dueTopics: topics, milestones: checks };
+  }, [nodes]);
 
   const formattedDate = today().toLocaleDateString("vi-VN", {
     weekday: "long",

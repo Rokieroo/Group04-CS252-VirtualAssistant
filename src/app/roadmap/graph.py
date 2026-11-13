@@ -228,15 +228,12 @@ def find_cycles(nodes: Iterable[Any], edges: Iterable[Any]) -> list[Any]:
     return result
 
 
-def would_create_cycle(edges: Iterable[Any], parent: str, child: str) -> list[str] | None:
-    """The closed path introduced by parent → child, or None (#97/#100).
-
-    Iterative DFS avoids recursion limits on long, valid prerequisite chains.
-    """
-    adjacency: dict[str, list[str]] = {}
-    for edge in edges:
-        start, end = edge_pair(edge)
-        adjacency.setdefault(start, []).append(end)
+def would_create_cycle_adjacency(
+    adjacency: dict[str, list[str]], parent: str, child: str
+) -> list[str] | None:
+    """Return the cycle path if adding ``parent -> child`` closes a cycle in ``adjacency``."""
+    if parent != child and not adjacency.get(child):
+        return None
     stack = [child]
     previous: dict[str, str | None] = {child: None}
     while stack:
@@ -252,6 +249,18 @@ def would_create_cycle(edges: Iterable[Any], parent: str, child: str) -> list[st
                 previous[target] = current
                 stack.append(target)
     return None
+
+
+def would_create_cycle(edges: Iterable[Any], parent: str, child: str) -> list[str] | None:
+    """The closed path introduced by parent → child, or None (#97/#100).
+
+    Iterative DFS avoids recursion limits on long, valid prerequisite chains.
+    """
+    adjacency: dict[str, list[str]] = {}
+    for edge in edges:
+        start, end = edge_pair(edge)
+        adjacency.setdefault(start, []).append(end)
+    return would_create_cycle_adjacency(adjacency, parent, child)
 
 
 def transitive_reduction(

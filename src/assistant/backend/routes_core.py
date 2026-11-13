@@ -7,6 +7,7 @@ app.roadmap, and scheduling goes through services.schedule_roadmap to the shared
 from __future__ import annotations
 
 import json
+from collections import defaultdict
 from dataclasses import asdict
 from datetime import timedelta
 from zoneinfo import ZoneInfo
@@ -375,7 +376,15 @@ def list_course_roadmaps(course_id: str, db: DB, user: CurrentUser):
         .where(Roadmap.course_id == course_id, Roadmap.user_id == user.id)
         .order_by(Roadmap.created_at.desc(), Roadmap.id)
     ).all()
-    return [_roadmap_payload(roadmap, _roadmap_nodes(db, roadmap.id)) for roadmap in roadmaps]
+    # One node query for every saved version, not one per roadmap.
+    nodes = defaultdict(list)
+    for node in db.scalars(
+        select(RoadmapNode)
+        .where(RoadmapNode.roadmap_id.in_([r.id for r in roadmaps]))
+        .order_by(RoadmapNode.week, RoadmapNode.id)
+    ):
+        nodes[node.roadmap_id].append(node)
+    return [_roadmap_payload(roadmap, nodes[roadmap.id]) for roadmap in roadmaps]
 
 
 @router.get("/roadmaps/{roadmap_id}", response_model=RoadmapOut)

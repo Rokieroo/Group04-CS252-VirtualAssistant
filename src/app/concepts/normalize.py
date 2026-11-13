@@ -117,19 +117,44 @@ def normalize_topics(topics: list[TopicIn]) -> list[dict]:
 def merge(concepts: list[dict], into: list[dict] | None = None) -> list[dict]:
     """Merge by equal slug or near-equal title; the concept seen first keeps its fields."""
     merged = [dict(c) for c in into or []]
+    by_slug: dict[str, dict] = {}
+    for entry in merged:
+        by_slug.setdefault(entry["slug"], entry)
+    norm_titles = [normalize(entry["title"]) for entry in merged]
+    matcher = SequenceMatcher(None)
+
     for concept in concepts:
-        same = next((m for m in merged if m["slug"] == concept["slug"] or SequenceMatcher(
-            None, normalize(m["title"]), normalize(concept["title"])).ratio() >= SIMILAR_TITLE),
-            None)
+        same = by_slug.get(concept["slug"])
+        norm: str | None = None
         if same is None:
-            merged.append(dict(concept))
+            norm = normalize(concept["title"])
+            matcher.set_seq2(norm)
+            for candidate, existing_norm in zip(merged, norm_titles, strict=True):
+                matcher.set_seq1(existing_norm)
+                if (
+                    matcher.real_quick_ratio() >= SIMILAR_TITLE
+                    and matcher.quick_ratio() >= SIMILAR_TITLE
+                    and matcher.ratio() >= SIMILAR_TITLE
+                ):
+                    same = candidate
+                    break
+        if same is None:
+            entry = dict(concept)
+            merged.append(entry)
+            by_slug.setdefault(entry["slug"], entry)
+            norm_titles.append(norm if norm is not None else normalize(concept["title"]))
         else:
-            same["source_pages"] = sorted(set(same["source_pages"]) | set(concept["source_pages"]))
+            same["source_pages"] = sorted(
+                set(same["source_pages"]) | set(concept["source_pages"])
+            )
             if "source_refs" in same or "source_refs" in concept:
                 same["source_refs"] = sorted(
-                    {(r["file_name"], r["page"]): r for r in
-                     [*same.get("source_refs", []), *concept.get("source_refs", [])]}.values(),
-                    key=lambda r: (r["file_name"], r["page"]))
+                    {
+                        (r["file_name"], r["page"]): r
+                        for r in [*same.get("source_refs", []), *concept.get("source_refs", [])]
+                    }.values(),
+                    key=lambda r: (r["file_name"], r["page"]),
+                )
     return merged
 
 

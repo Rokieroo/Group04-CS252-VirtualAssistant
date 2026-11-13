@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -74,6 +75,16 @@ export function NodePanel({
   const [exitingSourceIds, setExitingSourceIds] = useState<Set<string>>(new Set());
   const panelRef = useRef<HTMLDivElement>(null);
   const loadVersion = useRef(0);
+  const feedbackTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map(),
+  );
+
+  const clearFeedbackTimers = useCallback(() => {
+    for (const timer of feedbackTimersRef.current.values()) {
+      clearTimeout(timer);
+    }
+    feedbackTimersRef.current.clear();
+  }, []);
 
   // Update URL hash for deep-linking: /roadmaps/{id}/graph/{node} (Issue #109 requirement 1)
   useEffect(() => {
@@ -115,6 +126,15 @@ export function NodePanel({
       setExercisesCount(exerciseResult.value.count);
     }
   }, []);
+
+  useEffect(() => {
+    clearFeedbackTimers();
+    setPinnedSourceIds(new Set());
+    setHiddenSourceIds(new Set());
+    setExitingSourceIds(new Set());
+    setSearching(false);
+    return () => clearFeedbackTimers();
+  }, [node?.id, clearFeedbackTimers]);
 
   useEffect(() => {
     if (node && isOpen) void loadData(node.id);
@@ -162,6 +182,21 @@ export function NodePanel({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
+  const nodeById = useMemo(
+    () => new Map(allNodes.map((item) => [item.id, item])),
+    [allNodes],
+  );
+
+  const parentsByChild = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const edge of edges) {
+      const list = map.get(edge.child_id);
+      if (list) list.push(edge.parent_id);
+      else map.set(edge.child_id, [edge.parent_id]);
+    }
+    return map;
+  }, [edges]);
+
   if (!isOpen || !node) return null;
 
   // Prerequisite and dependent connections
@@ -169,48 +204,55 @@ export function NodePanel({
   const unlockEdges = edges.filter((e) => e.parent_id === node.id);
 
   const prereqNodes = prereqEdges
-    .map((e) => allNodes.find((n) => n.id === e.parent_id))
+    .map((e) => nodeById.get(e.parent_id))
     .filter((n): n is RoadmapNode => Boolean(n));
 
   const unlockNodes = unlockEdges
-    .map((e) => allNodes.find((n) => n.id === e.child_id))
+    .map((e) => nodeById.get(e.child_id))
     .filter((n): n is RoadmapNode => Boolean(n));
 
   // Compute learning path (ancestors leading to this node)
   const handleHighlightPath = () => {
     const visited = new Set<string>();
     const queue = [node.id];
-    while (queue.length > 0) {
-      const curr = queue.shift()!;
+    for (let head = 0; head < queue.length; head++) {
+      const curr = queue[head];
       if (!visited.has(curr)) {
         visited.add(curr);
-        const parents = edges
-          .filter((e) => e.child_id === curr)
-          .map((e) => e.parent_id);
-        queue.push(...parents);
+        const parents = parentsByChild.get(curr);
+        if (parents) queue.push(...parents);
       }
     }
     onHighlightPath?.(Array.from(visited));
   };
 
   const handleRetrySearch = async () => {
+    const targetNodeId = node.id;
+    const searchVersion = loadVersion.current;
     setSearching(true);
     try {
-      await searchNodeResources(node.id);
-      await loadData(node.id);
+      await searchNodeResources(targetNodeId);
+      if (searchVersion !== loadVersion.current) return;
+      await loadData(targetNodeId);
     } catch (err) {
+      if (searchVersion !== loadVersion.current) return;
       setLoadError(
         err instanceof Error ? err.message : "Không bắt đầu tìm lại được.",
       );
     } finally {
-      setSearching(false);
+      if (searchVersion === loadVersion.current) {
+        setSearching(false);
+      }
     }
   };
 
   const handleFeedback = (sourceId: string, helpful: boolean) => {
     if (!helpful) {
+      const prevTimer = feedbackTimersRef.current.get(sourceId);
+      if (prevTimer) clearTimeout(prevTimer);
       setExitingSourceIds((prev) => new Set(prev).add(sourceId));
-      setTimeout(() => {
+      const timer = setTimeout(() => {
+        feedbackTimersRef.current.delete(sourceId);
         setHiddenSourceIds((prev) => new Set(prev).add(sourceId));
         setExitingSourceIds((prev) => {
           const next = new Set(prev);
@@ -218,6 +260,7 @@ export function NodePanel({
           return next;
         });
       }, 250);
+      feedbackTimersRef.current.set(sourceId, timer);
     }
   };
 
@@ -245,17 +288,21 @@ export function NodePanel({
     }))
     .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
 
-  const ownMaterials = visibleSources.filter((s) => s.kind === "user_material");
-  const catalogSources = visibleSources.filter((s) => s.kind === "catalog");
-  const externalSources = visibleSources.filter(
-    (s) => s.kind === "external" || s.kind === "web",
-  );
+  const ownMaterials: VerifiedSource[] = [];
+  const catalogSources: VerifiedSource[] = [];
+  const externalSources: VerifiedSource[] = [];
+  for (const source of visibleSources) {
+    if (source.kind === "user_material") ownMaterials.push(source);
+    else if (source.kind === "catalog") catalogSources.push(source);
+    else if (source.kind === "external" || source.kind === "web")
+      externalSources.push(source);
+  }
 
   const isInsufficient = sourcesData?.status === "insufficient";
 
   const isMilestone = node.type === "milestone" || node.kind === "milestone";
   const coveredNodes = (node.covers || [])
-    .map((cid: string) => allNodes.find((n: RoadmapNode) => n.id === cid))
+    .map((cid: string) => nodeById.get(cid))
     .filter((n): n is RoadmapNode => Boolean(n));
 
   return (
