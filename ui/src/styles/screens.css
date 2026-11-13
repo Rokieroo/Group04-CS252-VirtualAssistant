@@ -742,7 +742,6 @@ a.btn {
   max-width: 40rem;
   padding: 1rem 1.125rem;
   border: 1px solid var(--line);
-  border-left: 3px solid var(--signal);
   border-radius: var(--r-md);
   background: var(--surface);
 }
