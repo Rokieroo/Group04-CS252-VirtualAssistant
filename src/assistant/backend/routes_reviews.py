@@ -25,55 +25,33 @@ def _resolve_user_node_id(
     card: ReviewCard | None,
     item: Item,
 ) -> str | None:
-    """Resolve and verify that any associated roadmap node belongs to `user_id`."""
+    """The node this review counts toward; only ever one of ``user_id``'s own roadmaps."""
+    owned = (
+        select(RoadmapNode.id)
+        .join(Roadmap, Roadmap.id == RoadmapNode.roadmap_id)
+        .where(Roadmap.user_id == user_id)
+    )
     if requested_node_id:
-        owned = db.scalar(
-            select(RoadmapNode.id)
-            .join(Roadmap, Roadmap.id == RoadmapNode.roadmap_id)
-            .where(
-                RoadmapNode.id == requested_node_id,
-                Roadmap.user_id == user_id,
-            )
-        )
-        if not owned:
+        node_id = db.scalar(owned.where(RoadmapNode.id == requested_node_id))
+        if not node_id:
             raise HTTPException(status_code=404, detail="Roadmap node not found")
-        return owned
+        return node_id
 
+    # Otherwise infer it, most specific first: the card's node, the exercise's, the concept's.
+    candidates = []
     if card and card.node_id:
-        owned_card_node = db.scalar(
-            select(RoadmapNode.id)
-            .join(Roadmap, Roadmap.id == RoadmapNode.roadmap_id)
-            .where(
-                RoadmapNode.id == card.node_id,
-                Roadmap.user_id == user_id,
-            )
-        )
-        if owned_card_node:
-            return owned_card_node
-
+        candidates.append(RoadmapNode.id == card.node_id)
     if item.exercise_id:
-        node_id = db.scalar(
-            select(NodeExercise.node_id)
-            .join(RoadmapNode, RoadmapNode.id == NodeExercise.node_id)
-            .join(Roadmap, Roadmap.id == RoadmapNode.roadmap_id)
-            .where(
-                NodeExercise.exercise_id == item.exercise_id,
-                Roadmap.user_id == user_id,
+        candidates.append(
+            RoadmapNode.id.in_(
+                select(NodeExercise.node_id).where(NodeExercise.exercise_id == item.exercise_id)
             )
         )
-        if node_id:
-            return node_id
-
     if item.concept_id:
-        return db.scalar(
-            select(RoadmapNode.id)
-            .join(Roadmap, Roadmap.id == RoadmapNode.roadmap_id)
-            .where(
-                RoadmapNode.concept_id == item.concept_id,
-                Roadmap.user_id == user_id,
-            )
-        )
-
+        candidates.append(RoadmapNode.concept_id == item.concept_id)
+    for condition in candidates:
+        if node_id := db.scalar(owned.where(condition).limit(1)):
+            return node_id
     return None
 
 
