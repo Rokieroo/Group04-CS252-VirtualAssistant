@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { authenticate } from "../api/account";
 import { BackendError } from "../api/backend";
 import { explain } from "../app/text";
-import { validateAuth, type AuthErrors, type AuthForm } from "../auth";
+import { isMinor, validateAuth, type AuthErrors, type AuthForm } from "../auth";
 import { Icon } from "../ui/icons";
 import { Button, Field, Notice } from "../ui/kit";
 
@@ -15,7 +15,8 @@ export function AuthScreen({ onAuth }: { onAuth: (token: string) => void }) {
   const [errors, setErrors] = useState<AuthErrors>({});
   const [failure, setFailure] = useState("");
   const [busy, setBusy] = useState(false);
-  const set = (key: keyof AuthForm, value: string) => setForm((f) => ({ ...f, [key]: value }));
+  const set = (key: "email" | "password" | "birthYear" | "level", value: string) =>
+    setForm((f) => ({ ...f, [key]: value }));
   const login = mode === "login";
 
   const submit = async (event: FormEvent) => {
@@ -97,6 +98,25 @@ export function AuthScreen({ onAuth }: { onAuth: (token: string) => void }) {
                 <option value="k12">Phổ thông</option>
               </select>
             </Field>
+            {isMinor(form.birthYear) && (
+              <div className="field">
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(form.consent)}
+                    aria-invalid={Boolean(errors.consent)}
+                    aria-describedby={errors.consent ? "consent-error" : undefined}
+                    onChange={(event) => setForm((f) => ({ ...f, consent: event.target.checked }))}
+                  />
+                  <span>Cha mẹ hoặc người giám hộ của tôi đồng ý cho tôi dùng Pathly.</span>
+                </label>
+                {errors.consent && (
+                  <span className="field-error" id="consent-error" role="alert">
+                    {errors.consent}
+                  </span>
+                )}
+              </div>
+            )}
           </>
         )}
         {failure && <Notice tone="error">{failure}</Notice>}

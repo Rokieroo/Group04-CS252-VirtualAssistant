@@ -23,7 +23,12 @@ describe("validateAuth", () => {
     for (const birthYear of ["1899", "2027", "abc", ""])
       expect(validateAuth({ ...ok, birthYear }, "register", now).birthYear).toBeTruthy();
     expect(validateAuth({ ...ok, birthYear: "1900" }, "register", now)).toEqual({});
-    expect(validateAuth({ ...ok, birthYear: "2026" }, "register", now)).toEqual({});
+    expect(validateAuth({ ...ok, birthYear: "2026", consent: true }, "register", now)).toEqual({});
+  });
+  it("asks for guardian consent under 18, by calendar year like the server", () => {
+    expect(validateAuth({ ...ok, birthYear: "2009" }, "register", now).consent).toBeTruthy();
+    expect(validateAuth({ ...ok, birthYear: "2009", consent: true }, "register", now)).toEqual({});
+    expect(validateAuth({ ...ok, birthYear: "2008" }, "register", now)).toEqual({});
   });
   it("does not require a birth year to log in", () => {
     expect(validateAuth({ ...ok, birthYear: "" }, "login", now)).toEqual({});

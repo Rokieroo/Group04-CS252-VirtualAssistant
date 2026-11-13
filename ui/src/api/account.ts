@@ -26,6 +26,7 @@ export const authenticate: Authenticate = async (form, mode) => {
           name: email.split("@")[0],
           birth_year: Number(form.birthYear),
           account_level: form.level,
+          parental_consent: Boolean(form.consent),
         };
   const auth = await call<{ access_token: string }>(
     mode === "login" ? "/auth/login" : "/auth/register",

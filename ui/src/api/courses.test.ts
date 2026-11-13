@@ -87,6 +87,7 @@ describe("concept extraction against the real backend", () => {
       name: "ana",
       birth_year: 2005,
       account_level: "university",
+      parental_consent: false,
     });
     expect(api.store.get("pathly.session")).toBe("tok-1");
 

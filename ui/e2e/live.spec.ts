@@ -178,6 +178,7 @@ async function backend(page: Page, options: { role?: string; signedIn?: boolean;
       "GET /admin/catalog/review-queue": queue,
       "POST /admin/catalog/resources/q1:verify": { id: "q1", verification_status: "verified", license: null },
       "POST /auth/login": { access_token: "test-token" },
+      "POST /auth/register": { access_token: "test-token" },
     };
     if (key === "POST /schedule/e1/check-in") entryStatus = "completed";
     if (key === "POST /auth/login" && options.loginStatus)
@@ -212,6 +213,24 @@ test("a due review card is rated and the next one takes its place", async ({ pag
   await page.getByRole("button", { name: "Được" }).click();
   await expect(page.getByRole("heading", { name: "Ôn tập đến hạn" })).toHaveCount(0);
   expect(sent.find((s) => s.key === "POST /reviews/i1")?.body).toEqual({ rating: 3, node_id: "n1" });
+});
+
+test("a learner under 18 registers only with a guardian's consent", async ({ page }) => {
+  const sent = await backend(page, { signedIn: false });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Chưa có tài khoản? Tạo tài khoản" }).click();
+  await page.getByLabel("Email").fill("an@example.test");
+  await page.getByLabel("Mật khẩu").fill("mat-khau-thu");
+  await page.getByLabel("Năm sinh").fill(String(new Date().getFullYear() - 15));
+  await page.getByRole("button", { name: "Tạo tài khoản" }).click();
+  await expect(page.getByRole("alert")).toContainText("người giám hộ");
+  expect(sent.some((s) => s.key === "POST /auth/register")).toBe(false);
+  await accessible(page);
+
+  await page.getByLabel(/người giám hộ của tôi đồng ý/).check();
+  await page.getByRole("button", { name: "Tạo tài khoản" }).click();
+  await expect(page.getByText("1/2 bước đã xong")).toBeVisible();
+  expect(sent.find((s) => s.key === "POST /auth/register")?.body).toMatchObject({ parental_consent: true });
 });
 
 test("a wrong password says so instead of talking about sessions", async ({ page }) => {
