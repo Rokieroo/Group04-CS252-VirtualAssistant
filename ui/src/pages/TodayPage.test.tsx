@@ -134,4 +134,26 @@ describe("TodayPage component (Issue #159, UC-11, Spec 8)", () => {
     expect(await screen.findByRole("heading", { name: "Hôm nay" })).toBeTruthy();
     expect(screen.getByText("Binary Search Trees")).toBeTruthy();
   });
+
+  it("ignores late review responses that resolve after unmount", async () => {
+    let resolvePending: (cards: Awaited<ReturnType<typeof reviewsApi.fetchDueReviews>>) => void =
+      () => {};
+    vi.spyOn(reviewsApi, "fetchDueReviews").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePending = resolve;
+        }),
+    );
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { unmount } = render(
+      <TodayPage go={vi.fn()} roadmapId="rm-1" nodes={sampleNodes} />,
+    );
+
+    unmount();
+    resolvePending([]);
+    await Promise.resolve();
+
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
 });
