@@ -1,0 +1,167 @@
+{
+  "id": "KG-05",
+  "syllabus_id": "SYL-05",
+  "course_code": "CS203",
+  "course_name": "Computer Networks and Distributed Systems",
+  "source_file": "05_cs203_computer_networks.txt",
+  "raters": ["rater_1", "rater_2"],
+  "cohens_kappa": 0.894,
+  "concepts": [
+    {
+      "slug": "networks-overview-and-packet-switching",
+      "title": "Computer Networks Overview, Physical Media, and Packet Switching",
+      "aliases": ["Packet Switching", "5-Layer TCP/IP Stack", "Protocol Encapsulation"],
+      "week": 1,
+      "source_page": 1,
+      "clo_codes": ["CLO1"]
+    },
+    {
+      "slug": "application-layer-http-and-dns",
+      "title": "Application Layer Architecture, HTTP/1.1 vs HTTP/2, and DNS",
+      "aliases": ["HTTP and DNS", "Application Layer Protocols", "Socket APIs"],
+      "week": 2,
+      "source_page": 1,
+      "clo_codes": ["CLO1", "CLO2"]
+    },
+    {
+      "slug": "transport-layer-and-udp",
+      "title": "Transport Layer Fundamentals, Multiplexing, and UDP Datagrams",
+      "aliases": ["UDP Datagrams", "Transport Multiplexing"],
+      "week": 3,
+      "source_page": 1,
+      "clo_codes": ["CLO1", "CLO2"]
+    },
+    {
+      "slug": "reliable-data-transfer-and-tcp-flow-control",
+      "title": "Reliable Data Transfer, TCP Segment Structure, and Flow Control",
+      "aliases": ["TCP Flow Control", "Reliable Data Transfer"],
+      "week": 4,
+      "source_page": 1,
+      "clo_codes": ["CLO1", "CLO3"]
+    },
+    {
+      "slug": "tcp-congestion-control",
+      "title": "TCP Congestion Control and Congestion Avoidance Algorithms",
+      "aliases": ["Congestion Control", "TCP AIMD and Slow Start"],
+      "week": 5,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    },
+    {
+      "slug": "network-layer-data-plane-ip-and-nat",
+      "title": "Network Layer Data Plane: IPv4, IPv6, Subnetting, and NAT",
+      "aliases": ["IPv4 IPv6 Subnetting", "Network Layer Data Plane"],
+      "week": 7,
+      "source_page": 1,
+      "clo_codes": ["CLO1", "CLO3"]
+    },
+    {
+      "slug": "network-layer-control-plane-routing",
+      "title": "Network Layer Control Plane: Routing Algorithms (Link-State, Distance-Vector)",
+      "aliases": ["Routing Algorithms", "OSPF and BGP", "Inter-domain Routing"],
+      "week": 8,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    },
+    {
+      "slug": "link-layer-ethernet-and-wireless",
+      "title": "Link Layer, Error Detection (CRC), Ethernet, and Wireless Networks",
+      "aliases": ["Link Layer and Ethernet", "CRC Error Detection"],
+      "week": 9,
+      "source_page": 1,
+      "clo_codes": ["CLO1"]
+    },
+    {
+      "slug": "network-security-tls-and-firewalls",
+      "title": "Network Security: TLS/SSL Handshake, Firewalls, and Cryptographic Protocols",
+      "aliases": ["Network Security", "TLS/SSL Handshake"],
+      "week": 10,
+      "source_page": 1,
+      "clo_codes": ["CLO1", "CLO2"]
+    }
+  ],
+  "edges": [
+    {
+      "parent": "networks-overview-and-packet-switching",
+      "child": "application-layer-http-and-dns",
+      "kind": "strict",
+      "confidence": 0.92,
+      "reason": "Application protocols exchange messages over the layered packet-switched stack.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "application-layer-http-and-dns",
+      "child": "transport-layer-and-udp",
+      "kind": "strict",
+      "confidence": 0.91,
+      "reason": "Application sockets bind to transport ports for multiplexing.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "transport-layer-and-udp",
+      "child": "reliable-data-transfer-and-tcp-flow-control",
+      "kind": "strict",
+      "confidence": 0.95,
+      "reason": "TCP adds sequence numbers, ACKs, and flow control atop unreliable datagrams.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "reliable-data-transfer-and-tcp-flow-control",
+      "child": "tcp-congestion-control",
+      "kind": "strict",
+      "confidence": 0.96,
+      "reason": "Congestion window control builds on TCP reliable sliding-window mechanics.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "networks-overview-and-packet-switching",
+      "child": "network-layer-data-plane-ip-and-nat",
+      "kind": "strict",
+      "confidence": 0.9,
+      "reason": "IP forwarding and addressing realize packet switching across routers.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "network-layer-data-plane-ip-and-nat",
+      "child": "network-layer-control-plane-routing",
+      "kind": "strict",
+      "confidence": 0.94,
+      "reason": "Control-plane routing algorithms populate data-plane forwarding tables.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "network-layer-data-plane-ip-and-nat",
+      "child": "link-layer-ethernet-and-wireless",
+      "kind": "strict",
+      "confidence": 0.89,
+      "reason": "Link-layer frames encapsulate IP datagrams across single-hop physical links.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "reliable-data-transfer-and-tcp-flow-control",
+      "child": "network-security-tls-and-firewalls",
+      "kind": "strict",
+      "confidence": 0.91,
+      "reason": "TLS handshakes establish encrypted channels over reliable TCP connections.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "application-layer-http-and-dns",
+      "child": "network-security-tls-and-firewalls",
+      "kind": "soft",
+      "confidence": 0.79,
+      "reason": "HTTPS secures HTTP application traffic using TLS certificates.",
+      "rater_1": "soft",
+      "rater_2": "soft"
+    }
+  ]
+}
+

@@ -13,6 +13,7 @@ export interface RoadmapGraphNode {
   layer?: number | null;
   est_minutes?: number;
   outcome_ids?: string[];
+  source_pages?: number[];
   sources_count?: number;
   verified_sources_count?: number;
   status?:

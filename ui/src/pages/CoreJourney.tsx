@@ -337,10 +337,21 @@ export function CoreJourney({
   const selectedMeta = graphData.nodes.find(
     (n) => n.id === selectedGraphNodeId,
   );
+  const selectedSyllabusPage =
+    selectedMeta?.source_pages?.[0] ??
+    (selectedBase && draft
+      ? (draft.weeks.find((w) => w.week === selectedBase.week)?.source_page ??
+        draft.outcomes.find((o) => o.description === selectedBase.title)
+          ?.source_page ??
+        draft.assessments.find((a) => a.name === selectedBase.title)
+          ?.source_page ??
+        draft.outcomes[0]?.source_page)
+      : undefined);
   const selectedNodeObj = selectedBase
     ? {
         ...selectedBase,
         outcome_ids: selectedMeta?.outcome_ids,
+        syllabus_page: selectedSyllabusPage,
         status:
           (
             {
@@ -1035,12 +1046,21 @@ export function CoreJourney({
                         setFilters((f) => ({ ...f, viewMode: "graph" }));
                       }}
                       onOpenSyllabusPage={
-                        draft
-                          ? (page) => {
-                              setNodePanelOpen(false);
-                              setSourcePage(page);
-                            }
-                          : undefined
+                        (page) => {
+                          setNodePanelOpen(false);
+                          if (!draft && roadmap.course_id) {
+                            void fetchSavedSyllabus(roadmap.course_id)
+                              .then((saved) => {
+                                setDraft(saved);
+                                setSourcePage(page);
+                              })
+                              .catch(() => {
+                                setSourcePage(page);
+                              });
+                          } else {
+                            setSourcePage(page);
+                          }
+                        }
                       }
                       onOpenMaterialPage={
                         roadmap.course_id || draft?.course_id

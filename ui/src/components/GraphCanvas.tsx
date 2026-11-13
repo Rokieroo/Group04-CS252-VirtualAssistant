@@ -1545,6 +1545,10 @@ export function GraphCanvas({
             type="button"
             className="graph-zoom-text"
             onClick={() => {
+              viewGoal.current = null;
+              cancelAnimationFrame(viewFrame.current);
+              viewFrame.current = 0;
+              view.current = { zoom: 1, pan: { x: 60, y: 60 } };
               setZoom(1);
               setPan({ x: 60, y: 60 });
             }}
