@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import "./GraphCanvas.css";
+import {
+  GraphMinimap,
+  MINIMAP_THRESHOLD,
+  drawMinimap,
+  minimapPointToWorld,
+} from "./GraphMinimap";
 
 export interface GraphNode {
   id: string;
@@ -274,6 +280,7 @@ export function GraphCanvas({
   className = "",
 }: GraphCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const minimapRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Transform states
@@ -964,6 +971,21 @@ export function GraphCanvas({
       }
       ctx.restore();
     }
+
+    const minimapCanvas = minimapRef.current;
+    if (minimapCanvas && nodeMap.size >= MINIMAP_THRESHOLD) {
+      drawMinimap(minimapCanvas, {
+        nodes: Array.from(nodeMap.values()),
+        edges,
+        viewW,
+        viewH,
+        pan,
+        zoom,
+        palette: c,
+        selectedId,
+        highlightedIds,
+      });
+    }
   }, [
     pan,
     zoom,
@@ -977,6 +999,12 @@ export function GraphCanvas({
   ]);
 
   drawRef.current = draw;
+
+  useEffect(() => {
+    if (nodes.length >= MINIMAP_THRESHOLD && minimapRef.current) {
+      drawRef.current?.();
+    }
+  }, [nodes.length]);
 
   useEffect(
     () => () => {
@@ -1122,6 +1150,46 @@ export function GraphCanvas({
     if (!framed.current && nodes.length && !selectedId)
       framed.current = fitView(false);
   }, [nodes.length]);
+
+  const handleMinimapNavigate = useCallback(
+    (
+      offsetX: number,
+      offsetY: number,
+      miniWidth: number,
+      miniHeight: number,
+    ) => {
+      const canvas = canvasRef.current;
+      const list = Array.from(internalNodesRef.current.values());
+      if (!canvas || !list.length) return;
+      const rect = canvas.getBoundingClientRect();
+      const dpr =
+        typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+      const viewW = rect.width || canvas.width / dpr;
+      const viewH = rect.height || canvas.height / dpr;
+      if (!viewW || !viewH) return;
+      const world = minimapPointToWorld(
+        offsetX,
+        offsetY,
+        list,
+        miniWidth,
+        miniHeight,
+      );
+      if (!world) return;
+      if (viewFrame.current) {
+        cancelAnimationFrame(viewFrame.current);
+        viewFrame.current = 0;
+        viewGoal.current = null;
+      }
+      const nextPan = {
+        x: viewW / 2 - world.x * view.current.zoom,
+        y: viewH / 2 - world.y * view.current.zoom,
+      };
+      view.current = { ...view.current, pan: nextPan };
+      needsDraw.current = true;
+      setPan(nextPan);
+    },
+    [],
+  );
 
   // Mouse & Touch Interaction Handlers
   const pointers = useRef(new Map<number, { x: number; y: number }>());
@@ -1576,6 +1644,13 @@ export function GraphCanvas({
         }}
         onWheel={handleWheel}
       />
+      {nodes.length >= MINIMAP_THRESHOLD && (
+        <GraphMinimap
+          canvasRef={minimapRef}
+          nodeCount={nodes.length}
+          onNavigate={handleMinimapNavigate}
+        />
+      )}
     </div>
   );
 }
