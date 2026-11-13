@@ -311,6 +311,37 @@
   border-top-style: dashed;
 }
 
+.graph-minimap {
+  position: absolute;
+  right: 12px;
+  bottom: 58px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--graph-chrome);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  box-shadow: 0 2px 10px color-mix(in oklab, var(--graph-ink) 10%, transparent);
+  z-index: 11;
+}
+.graph-minimap-label {
+  color: var(--graph-muted);
+  font: 600 10.5px/1.1 var(--font-body);
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}
+.graph-minimap-canvas {
+  display: block;
+  width: 168px;
+  height: 104px;
+  border-radius: 6px;
+  background: color-mix(in oklab, var(--graph-surface) 92%, var(--graph-band));
+  border: 1px solid color-mix(in oklab, var(--color-line) 80%, transparent);
+  cursor: crosshair;
+}
+
 @keyframes graph-alert-in {
   from {
     opacity: 0;
@@ -328,6 +359,14 @@
   }
   .graph-legend-hint {
     display: none;
+  }
+  .graph-minimap {
+    bottom: 72px;
+    padding: 4px;
+  }
+  .graph-minimap-canvas {
+    width: 136px;
+    height: 84px;
   }
 }
 
