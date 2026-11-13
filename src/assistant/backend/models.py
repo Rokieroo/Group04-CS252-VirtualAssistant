@@ -95,6 +95,10 @@ class User(Base):
     personality: Mapped[str] = mapped_column(
         String(16), default="warm", server_default="warm"
     )
+    parental_consent: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0"
+    )
+    parental_consent_at: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Course(Base):
@@ -274,6 +278,9 @@ class ChatMessage(Entity, Base):
     )
     role: Mapped[str] = mapped_column(String(16))
     content: Mapped[str] = mapped_column(Text)
+    safety_flag: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0"
+    )
 
 
 class Syllabus(Base):
@@ -650,7 +657,9 @@ class ResourceVerification(Base):
     )
     # fetch | domain | license | metadata, or admin (a reviewer's rejection)
     check_name: Mapped[str] = mapped_column(Text)
-    result: Mapped[str] = mapped_column(Text)  # pass | fail | review | error (no answer)
+    result: Mapped[str] = mapped_column(
+        Text
+    )  # pass | fail | review | error (no answer)
     details: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
     checked_at: Mapped[datetime] = mapped_column(
         UTCDateTime(), default=utcnow, server_default=func.current_timestamp()
@@ -662,6 +671,134 @@ class ResourceVerification(Base):
             "resource_id",
             "checked_at",
         ),
+    )
+
+
+class ReviewCard(Base):
+    __tablename__ = "review_cards"
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    item_id: Mapped[str] = mapped_column(
+        ForeignKey("items.id", ondelete="CASCADE"), primary_key=True
+    )
+    node_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("roadmap_nodes.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    due_at: Mapped[datetime] = mapped_column(UTCDateTime(), index=True)
+    stability: Mapped[float] = mapped_column(Float, default=0.0, server_default="0.0")
+    difficulty: Mapped[float] = mapped_column(Float, default=0.0, server_default="0.0")
+    state: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    step: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    last_review: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+
+
+class ReviewLog(Base):
+    __tablename__ = "review_logs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    item_id: Mapped[str] = mapped_column(ForeignKey("items.id", ondelete="CASCADE"))
+    node_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("roadmap_nodes.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    rating: Mapped[int] = mapped_column(Integer)
+    reviewed_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(), default=utcnow, server_default=func.current_timestamp()
+    )
+    elapsed_days: Mapped[float] = mapped_column(
+        Float, default=0.0, server_default="0.0"
+    )
+    scheduled_days: Mapped[float] = mapped_column(
+        Float, default=0.0, server_default="0.0"
+    )
+    stability: Mapped[float] = mapped_column(Float)
+    difficulty: Mapped[float] = mapped_column(Float)
+
+    __table_args__ = (Index("ix_review_logs_user_item", "user_id", "item_id"),)
+
+
+class Recommendation(Base):
+    """Recommendations for a roadmap node presented to a learner (issue #156)."""
+
+    __tablename__ = "recommendations"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    node_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("roadmap_nodes.id", ondelete="CASCADE"), nullable=False
+    )
+    resource_ref: Mapped[str] = mapped_column(Text, nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    rank: Mapped[int] = mapped_column(
+        Integer, default=1, server_default="1", nullable=False
+    )
+    score: Mapped[float] = mapped_column(
+        Float, default=0.0, server_default="0.0", nullable=False
+    )
+    reason: Mapped[str] = mapped_column(
+        Text, default="", server_default="", nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(),
+        default=utcnow,
+        server_default=func.current_timestamp(),
+        nullable=False,
+    )
+    dismissed_at: Mapped[datetime | None] = mapped_column(
+        UTCDateTime(), default=None, nullable=True
+    )
+    __table_args__ = (
+        Index("ix_recommendations_user_id", "user_id"),
+        Index("ix_recommendations_node_id", "node_id"),
+        Index("ix_recommendations_user_node", "user_id", "node_id"),
+    )
+
+
+class RecommendationEvent(Base):
+    """Feedback events on recommendations (shown, opened, helpful, not_helpful, pinned)."""
+
+    __tablename__ = "recommendation_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    recommendation_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("recommendations.id", ondelete="CASCADE"), nullable=False
+    )
+    event: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(),
+        default=utcnow,
+        server_default=func.current_timestamp(),
+        nullable=False,
+    )
+    __table_args__ = (
+        CheckConstraint(
+            "event IN ('shown', 'opened', 'helpful', 'not_helpful', 'pinned')"
+        ),
+        Index("ix_recommendation_events_recommendation_id", "recommendation_id"),
+    )
+
+
+class ExternalResult(Base):
+    """External provider cache entries with 7-day validity (issue #156)."""
+
+    __tablename__ = "external_results"
+    query_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    provider: Mapped[str] = mapped_column(String(64), primary_key=True)
+    payload: Mapped[str] = mapped_column(Text, nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(
+        UTCDateTime(),
+        default=utcnow,
+        server_default=func.current_timestamp(),
+        nullable=False,
+    )
+    __table_args__ = (
+        Index("ix_external_results_fetched_at", "fetched_at"),
     )
 
 

@@ -87,6 +87,7 @@ class Register(Input):
     birth_year: int
     account_level: AccountLevel = "university"
     timezone: str = "Asia/Ho_Chi_Minh"
+    parental_consent: bool = False
 
     @field_validator("password")
     @classmethod
@@ -123,6 +124,8 @@ class UserOut(Output):
     account_level: AccountLevel
     birth_year: int | None
     companion_mode: CompanionMode
+    parental_consent: bool = False
+    parental_consent_at: str | None = None
 
 
 class TokenOut(Output):
@@ -362,6 +365,7 @@ class ChatOut(Output):
     reply: str
     provider: Literal["llm", "offline"]
     fallback_reason: str | None = None
+    safety_flag: bool = False
 
 
 class MessageOut(Output):
@@ -595,6 +599,7 @@ class GraphNodeOut(BaseModel):
     user_material_count: int = 0
     sources_status: Literal["ready", "insufficient"] = "insufficient"
     layer: int = 1
+    mastery: float = 0.0
 
 
 class GraphEdgeOut(BaseModel):
@@ -786,3 +791,88 @@ class RoadmapReplanOut(Output):
     diff: PlanDiffOut
     committed: bool
     sessions: list[ProposedEntry] = Field(default_factory=list)
+
+
+# --- FSRS Spaced Repetition (UC-11, issue #162) -----------------------------
+
+
+class ReviewCardOut(BaseModel):
+    item_id: str
+    user_id: str
+    node_id: str | None = None
+    due_at: datetime
+    stability: float = 0.0
+    difficulty: float = 0.0
+    state: int = 0
+    step: int = 0
+    last_review: datetime | None = None
+    prompt: str = ""
+    choices: list[str] | None = None
+    type: str = "mcq"
+    source_id: str | None = None
+
+
+class ReviewSubmitIn(BaseModel):
+    rating: int = Field(
+        ..., ge=1, le=4, description="Rating from 1 (Again) to 4 (Easy)"
+    )
+    node_id: str | None = Field(default=None, description="Optional roadmap node ID")
+
+
+class ReviewResultOut(BaseModel):
+    item_id: str
+    user_id: str
+    node_id: str | None = None
+    rating: int
+    due_at: datetime
+    stability: float
+    difficulty: float
+    state: int
+    step: int
+    last_review: datetime
+    elapsed_days: float
+    scheduled_days: float
+    retrievability: float
+
+
+# --- Recommendations and Feedback (issue #156, Phase 4) -----------------------
+
+
+class RecommendationOut(Output):
+    id: str
+    node_id: str
+    resource_ref: str
+    kind: str
+    rank: int
+    score: float
+    reason: str
+    title: str | None = None
+    url: str | None = None
+    created_at: Timestamp
+    dismissed_at: Timestamp | None = None
+
+
+class NodeRecommendationsOut(Output):
+    node_id: str
+    recommendations: list[RecommendationOut] = Field(default_factory=list)
+
+
+class RecommendationEventCreate(Input):
+    event: Literal["shown", "opened", "helpful", "not_helpful", "pinned"]
+
+
+class RecommendationEventOut(Output):
+    id: str
+    recommendation_id: str
+    event: str
+    created_at: Timestamp
+
+
+class RoadmapRecommendationsSummaryOut(Output):
+    roadmap_id: str
+    total_nodes: int
+    total_recommendations: int
+    by_kind: dict[str, int] = Field(default_factory=dict)
+    events_summary: dict[str, int] = Field(default_factory=dict)
+    pinned_count: int
+

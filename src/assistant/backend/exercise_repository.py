@@ -218,16 +218,15 @@ def _candidate_ids(db, node_ids, role):
     return linked
 
 
-def _private_citation(db, exercise, item, roadmap, course):
+def _private_citation(exercise, item, roadmap, course, source, source_hash):
     """Only the owner sees it, and only while the page still says it word for word."""
-    source = db.get(Source, exercise.source_id)
     if (
         exercise.owner_id != roadmap.user_id
         or not source
         or source.course_id != course.id
         or exercise.page != source.page
         or not exact(item, source.text)
-        or _sha256(source.text) != exercise.source_hash
+        or source_hash != exercise.source_hash
     ):
         return None
     return {
@@ -241,10 +240,9 @@ def _private_citation(db, exercise, item, roadmap, course):
     }
 
 
-def _catalog_citation(db, exercise, item, public, licenses):
+def _catalog_citation(exercise, item, public, licenses, original):
     """Only while the resource is verified tier 1-2 and unchanged since the quote."""
     resource = public.get(exercise.resource_id)
-    original = db.get(Resource, exercise.resource_id)
     if (
         not resource
         or resource["tier"] > 2
@@ -262,7 +260,7 @@ def _catalog_citation(db, exercise, item, public, licenses):
     return citation
 
 
-def _shown(db, exercise, roadmap, course, public, licenses):
+def _shown(exercise, roadmap, course, public, licenses, sources, source_hashes, originals):
     """The exercise as a learner sees it, or None when its evidence does not hold."""
     item = {
         "prompt": exercise.prompt,
@@ -270,9 +268,14 @@ def _shown(db, exercise, roadmap, course, public, licenses):
         "answer": exercise.answer,
     }
     if exercise.origin == "user_material":
-        citation = _private_citation(db, exercise, item, roadmap, course)
+        source = sources.get(exercise.source_id)
+        citation = _private_citation(
+            exercise, item, roadmap, course, source, source_hashes.get(exercise.source_id)
+        )
     else:
-        citation = _catalog_citation(db, exercise, item, public, licenses)
+        citation = _catalog_citation(
+            exercise, item, public, licenses, originals.get(exercise.resource_id)
+        )
     if citation is None or (
         exercise.prompt
         and quote_hash(exercise.prompt, item["choices"], exercise.answer)
@@ -298,17 +301,71 @@ def exercises_for_node(db, node, roadmap, course, now, *, role="practice", limit
     Too few is reported as ``insufficient``; nothing is ever written to fill the gap.
     """
     candidates = _candidate_ids(db, _pool_nodes(db, node), role)
-    public = {r["id"]: r for r in verified_resources(db, now)}
-    licenses = load_sources().licenses
-    shown = [
-        value
-        for exercise in db.scalars(
+    exercises = (
+        db.scalars(
             select(Exercise).where(
-                Exercise.id.in_(candidates), Exercise.verification_status == "verified"
+                Exercise.id.in_(candidates),
+                Exercise.verification_status == "verified",
             )
+        ).all()
+        if candidates
+        else []
+    )
+    if not exercises:
+        shown = []
+    else:
+        source_ids = {
+            e.source_id
+            for e in exercises
+            if e.origin == "user_material" and e.source_id is not None
+        }
+        sources = (
+            {
+                s.id: s
+                for s in db.scalars(select(Source).where(Source.id.in_(source_ids)))
+            }
+            if source_ids
+            else {}
         )
-        if (value := _shown(db, exercise, roadmap, course, public, licenses))
-    ]
+        source_hashes = {sid: _sha256(src.text) for sid, src in sources.items()}
+
+        if any(e.origin != "user_material" for e in exercises):
+            public = {r["id"]: r for r in verified_resources(db, now)}
+            licenses = load_sources().licenses
+            resource_ids = {
+                e.resource_id
+                for e in exercises
+                if e.origin != "user_material" and e.resource_id is not None
+            }
+            originals = (
+                {
+                    r.id: r
+                    for r in db.scalars(
+                        select(Resource).where(Resource.id.in_(resource_ids))
+                    )
+                }
+                if resource_ids
+                else {}
+            )
+        else:
+            public, licenses, originals = {}, {}, {}
+
+        shown = [
+            value
+            for exercise in exercises
+            if (
+                value := _shown(
+                    exercise,
+                    roadmap,
+                    course,
+                    public,
+                    licenses,
+                    sources,
+                    source_hashes,
+                    originals,
+                )
+            )
+        ]
     result = order_for(role, shown)[:limit]
     required = REQUIRED[role]
     return {

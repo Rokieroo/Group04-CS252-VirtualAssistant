@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NodePanel, type ExtendedNode } from "./NodePanel";
 import * as materialsApi from "../api/materials";
 import * as exercisesApi from "../api/exercises";
+import * as resourcesApi from "../api/resources";
 import type { Edge } from "../api/core";
 import type { RoadmapNode } from "../api/types";
 
@@ -472,5 +473,204 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
       screen.getByRole("button", { name: /Xếp vào lịch \(S7\)/i }),
     );
     expect(schedSpy).toHaveBeenCalledWith("node-2");
+  });
+
+  it("divides recommendations into three distinct groups and supports pin and dismiss (Issue #159)", async () => {
+    vi.spyOn(materialsApi, "nodeSources").mockResolvedValue({
+      node_id: "node-2",
+      status: "ready",
+      user_material_count: 1,
+      sources: [
+        {
+          kind: "user_material",
+          id: "mat-1",
+          title: "Personal Tree Notes.pdf",
+          url: null,
+          pages: [1, 2],
+          provider: "User upload",
+          format: "pdf",
+          reason: "Ghi chú cá nhân",
+        },
+        {
+          kind: "catalog",
+          verification_status: "verified",
+          id: "cat-1",
+          title: "MIT OCW BST Lecture",
+          url: "https://ocw.mit.edu/trees",
+          pages: [],
+          provider: "MIT OCW",
+          institution: "MIT",
+          license: "CC-BY-4.0",
+          duration_min: 45,
+          score: 0.95,
+          format: "video",
+          reason: "Bài giảng chính quy",
+        },
+        {
+          kind: "external",
+          verification_status: "verified", // Should be ignored because kind is external!
+          id: "ext-1",
+          title: "Wikipedia Binary Search Tree",
+          url: "https://en.wikipedia.org/wiki/Binary_search_tree",
+          pages: [],
+          provider: "Wikipedia",
+          format: "article",
+          duration_min: 15,
+          license: "CC-BY-SA-3.0",
+          reason: "Tham khảo mở từ web",
+        },
+      ],
+    });
+
+    render(
+      <NodePanel
+        roadmapId="rm-1"
+        node={sampleNode}
+        allNodes={allNodes}
+        edges={edges}
+        isOpen={true}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // Group 1: User materials
+    expect(await screen.findByText(/Tài liệu của bạn/)).toBeTruthy();
+    expect(screen.getByText(/Personal Tree Notes.pdf/)).toBeTruthy();
+
+    // Group 2: Verified catalog
+    expect(screen.getByText(/Nguồn đã xác minh từ Catalog/)).toBeTruthy();
+    expect(screen.getByText(/MIT OCW BST Lecture/)).toBeTruthy();
+
+    // Group 3: External unverified recommendations
+    expect(screen.getByText(/Gợi ý từ nguồn ngoài/)).toBeTruthy();
+    expect(screen.getByText(/Wikipedia Binary Search Tree/)).toBeTruthy();
+
+    // Verify external source NEVER has '✓ Đã xác minh'
+    const wikiArticle = screen.getByText(/Wikipedia Binary Search Tree/).closest("article");
+    expect(wikiArticle).toBeTruthy();
+    expect(within(wikiArticle!).queryByText(/✓ Đã xác minh/)).toBeNull();
+    expect(within(wikiArticle!).getByText(/🌐 Nguồn ngoài/)).toBeTruthy();
+
+    // Test Pinning on catalog source
+    const pinBtns = screen.getAllByRole("button", { name: /Ghim/ });
+    expect(pinBtns.length).toBeGreaterThan(0);
+    fireEvent.click(pinBtns[0]);
+    // Should toggle to pinned
+    expect(screen.getByText(/📌 Đã ghim/)).toBeTruthy();
+
+    // Test Dismissing ("Không phù hợp")
+    const notHelpfulBtns = screen.getAllByRole("button", { name: /Không phù hợp|Không hữu ích/ });
+    fireEvent.click(notHelpfulBtns[notHelpfulBtns.length - 1]); // dismiss Wikipedia
+    await waitFor(() => {
+      expect(screen.queryByText(/Wikipedia Binary Search Tree/)).toBeNull();
+    });
+  });
+
+  it("opens safely from closed state and isolates retry errors per node", async () => {
+    const emptySources = {
+      node_id: "node-2",
+      status: "insufficient" as const,
+      user_material_count: 0,
+      sources: [],
+    };
+    const nextNodeSources = {
+      node_id: "node-3",
+      status: "ready" as const,
+      user_material_count: 0,
+      sources: [],
+    };
+
+    vi.spyOn(materialsApi, "nodeSources").mockImplementation(async (nodeId) =>
+      nodeId === "node-3" ? nextNodeSources : emptySources,
+    );
+
+    let rejectRetry: (err: Error) => void = () => {};
+    vi.spyOn(resourcesApi, "searchNodeResources").mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          rejectRetry = reject;
+        }),
+    );
+
+    const { rerender } = render(
+      <NodePanel
+        roadmapId="rm-1"
+        node={null}
+        allNodes={allNodes}
+        edges={edges}
+        isOpen={false}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    rerender(
+      <NodePanel
+        roadmapId="rm-1"
+        node={sampleNode}
+        allNodes={allNodes}
+        edges={edges}
+        isOpen={true}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const retryBtn = await screen.findByRole("button", { name: /Tìm lại/i });
+    fireEvent.click(retryBtn);
+
+    const nextNode: ExtendedNode = {
+      ...sampleNode,
+      id: "node-3",
+      title: "Balanced Trees (AVL)",
+    };
+    rerender(
+      <NodePanel
+        roadmapId="rm-1"
+        node={nextNode}
+        allNodes={allNodes}
+        edges={edges}
+        isOpen={true}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByText(/Balanced Trees \(AVL\)/);
+    rejectRetry(new Error("Stale retry error"));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Stale retry error")).toBeNull();
+    });
+  });
+
+  it("clears pending dismiss timers on unmount without firing after unmount", async () => {
+    const { unmount } = render(
+      <NodePanel
+        roadmapId="rm-1"
+        node={sampleNode}
+        allNodes={allNodes}
+        edges={edges}
+        isOpen={true}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByText(/MIT OCW 6.006 Trees Lecture/);
+
+    vi.useFakeTimers();
+    const clearSpy = vi.spyOn(globalThis, "clearTimeout");
+    try {
+      const notHelpfulBtns = screen.getAllByRole("button", {
+        name: /Không phù hợp|Không hữu ích/i,
+      });
+      fireEvent.click(notHelpfulBtns[0]);
+      const clearsBeforeUnmount = clearSpy.mock.calls.length;
+      unmount();
+
+      expect(clearSpy.mock.calls.length).toBeGreaterThan(clearsBeforeUnmount);
+      vi.advanceTimersByTime(300);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

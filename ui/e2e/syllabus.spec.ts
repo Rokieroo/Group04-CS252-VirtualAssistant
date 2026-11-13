@@ -112,6 +112,8 @@ async function backend(
         },
       });
     }
+    if (path.endsWith("/syllabus") && req.method() === "GET")
+      return route.fulfill({ status: 404, json: { detail: "Syllabus not found" } });
     if (path.endsWith("/syllabus"))
       return route.fulfill({
         status: 201,
@@ -149,6 +151,9 @@ test("PDF → four review tabs → citation → corrected confirmation payload",
 }) => {
   const requests = await backend(page);
   await page.goto("/");
+  await page
+    .getByRole("button", { name: "Thêm đề cương", exact: true })
+    .click();
   await page.getByLabel("Syllabus file", { exact: true }).setInputFiles({
     name: "CSC10014.pdf",
     mimeType: "application/pdf",
@@ -205,6 +210,9 @@ test("pasted text can be reviewed and confirmed using only keyboard", async ({
 }) => {
   await backend(page);
   await page.goto("/");
+  await page
+    .getByRole("button", { name: "Thêm đề cương", exact: true })
+    .click();
   await tabTo(page, page.getByRole("button", { name: "Prefer text?" }));
   await page.keyboard.press("Enter");
   await page.keyboard.press("Tab");
@@ -249,6 +257,9 @@ for (const [status, message] of [
       code: status === 422 ? "not_a_syllabus" : "failure",
     });
     await page.goto("/");
+    await page
+      .getByRole("button", { name: "Thêm đề cương", exact: true })
+      .click();
     await paste(page);
     await expect(page.getByRole("alert")).toContainText(message);
     await expect(page.getByRole("alert")).toBeFocused();
@@ -265,6 +276,9 @@ test("processing is indeterminate and prevents duplicate submission", async ({
   const delay = new Promise<void>((r) => (release = r));
   await backend(page, { delay });
   await page.goto("/");
+  await page
+    .getByRole("button", { name: "Thêm đề cương", exact: true })
+    .click();
   await paste(page);
   await expect(page.getByRole("progressbar")).not.toHaveAttribute("value");
   await expect(
@@ -335,6 +349,9 @@ test("roadmap edits survive approval and schedule opens S7", async ({
     });
   });
   await page.goto("/");
+  await page
+    .getByRole("button", { name: "Thêm đề cương", exact: true })
+    .click();
   await paste(page);
   await page.getByRole("tab", { name: "Đánh giá", exact: true }).click();
   await page.getByLabel("Trọng số %", { exact: true }).fill("100");
@@ -382,6 +399,9 @@ test("gradient fills survive scoped styles while account circles stay neutral", 
 }) => {
   await backend(page);
   await page.goto("/");
+  await page
+    .getByRole("button", { name: "Thêm đề cương", exact: true })
+    .click();
   const settings = page.getByRole("button", {
     name: "Account settings",
     exact: true,

@@ -1,4 +1,4 @@
-import { call } from "../api/backend";
+import { BackendError, call } from "../api/backend";
 import {
   fetchRoadmapGraph,
   fetchGraphLayout,
@@ -13,6 +13,8 @@ import {
   filterGraphNodes,
 } from "../api/graphState";
 import { RootRoadmap, type RootCourse } from "./course-setup/RootRoadmap";
+import { AccountRoadmap } from "./course-setup/AccountRoadmap";
+import type { OwnedCourse } from "./CourseLibrary";
 import { tutorial } from "./TutorialCourses";
 import { StageDetails } from "./course-setup/StageDetails";
 import { SourcePageDialog } from "./course-setup/SourcePageDialog";
@@ -58,10 +60,22 @@ export function CoreJourney({
   page,
   go,
   mock = false,
+  courseId,
+  courseTitle,
+  onOpenCourse,
+  resumeSyllabus = false,
 }: {
   page: Page;
   go: (p: Page) => void;
   mock?: boolean;
+  courseId?: string;
+  courseTitle?: string;
+  onOpenCourse?: (
+    course: OwnedCourse,
+    roadmapId?: string,
+    resume?: boolean,
+  ) => void;
+  resumeSyllabus?: boolean;
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
@@ -156,7 +170,7 @@ export function CoreJourney({
         }
       } catch (e) {
         if (!cancelled)
-          setGraphError(
+          setError(
             e instanceof Error ? e.message : "Could not restore roadmap.",
           );
       }
@@ -398,7 +412,10 @@ export function CoreJourney({
   const load = (file: File | string, options?: UploadOptions) => {
     if (busy) return;
     void run(async () => {
-      const result = await service.upload(file, options);
+      const result = await service.upload(file, {
+        ...options,
+        courseId: draft?.course_id || roadmap?.course_id || courseId,
+      });
       setDraft(result);
       setRoadmap(null);
       setRoadmapApproved(false);
@@ -406,6 +423,35 @@ export function CoreJourney({
       setStage("review");
     });
   };
+  useEffect(() => {
+    if (
+      mock ||
+      !courseId ||
+      !resumeSyllabus ||
+      new URLSearchParams(location.search).has("kg_roadmap")
+    )
+      return;
+    let cancelled = false;
+    setBusy(true);
+    fetchSavedSyllabus(courseId)
+      .then((saved) => {
+        if (!cancelled) {
+          setDraft(saved);
+          setStage("review");
+        }
+      })
+      .catch((e) => {
+        // A new course has no syllabus yet. Other errors must remain visible.
+        if (!cancelled && !(e instanceof BackendError && e.status === 404))
+          setError(syllabusError(e));
+      })
+      .finally(() => {
+        if (!cancelled) setBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mock, courseId, resumeSyllabus]);
   const update = (change: Partial<SyllabusDraft>) =>
     setDraft(
       (current) => current && { ...current, ...change, status: "draft" },
@@ -557,6 +603,12 @@ export function CoreJourney({
     ) : (
       <span className="core-no-source">Không có trang nguồn</span>
     );
+  const courseName =
+    draft?.course?.title?.value?.toString() ||
+    roadmap?.title ||
+    courseTitle ||
+    draft?.file_name ||
+    "Your course";
   const showingRoadmap =
     (page === "Library" && stage === "plan") ||
     (page === "Roadmap" && roadmapApproved);
@@ -596,7 +648,13 @@ export function CoreJourney({
         />
       )}
 
-      {page === "Roadmap" && (
+      {page === "Roadmap" && !mock && (
+        <AccountRoadmap
+          current={roadmapApproved ? roadmap : null}
+          onOpen={onOpenCourse}
+        />
+      )}
+      {page === "Roadmap" && mock && (
         <RootRoadmap
           courses={
             [
@@ -618,12 +676,12 @@ export function CoreJourney({
                 ? [
                     {
                       id: roadmap.id,
-                      title:
-                        draft?.course?.title?.value?.toString() ||
-                        draft?.file_name ||
-                        "Your course",
+                      title: courseName,
+                      edges: roadmap.edges,
                       nodes: roadmap.nodes.map((n) => ({
                         id: n.id,
+                        week: n.week,
+                        covers: n.covers,
                         title: n.title,
                         minutes:
                           n.est_minutes ?? n.duration_minutes ?? undefined,
@@ -647,7 +705,7 @@ export function CoreJourney({
       )}
       {page === "Roadmap" && roadmapApproved && (
         <section className="card core-panel">
-          <h2>{draft?.file_name || "Your course"}</h2>
+          <h2>{courseName}</h2>
           <p>User-created · Personal syllabus and roadmap</p>
           <div className="core-actions">
             <button disabled={busy} onClick={editCourse}>
@@ -906,7 +964,11 @@ export function CoreJourney({
                     <h3>Knowledge Graph môn học</h3>
                   </div>
                   {graphLoading && (
-                    <div role="status" aria-label="Loading course graph…" className="core-graph-loading" />
+                    <div
+                      role="status"
+                      aria-label="Loading course graph…"
+                      className="core-graph-loading"
+                    />
                   )}
                   <GraphFilterBar
                     nodes={graphData.nodes}

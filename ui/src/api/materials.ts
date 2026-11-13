@@ -4,7 +4,7 @@ import { call } from "./backend";
 // verified catalog sources. Only the real backend has them; the demo has none.
 
 export type RankedSource = {
-  kind: "user_material" | "catalog" | "web";
+  kind: "user_material" | "catalog" | "web" | "external";
   id: string;
   source_id?: string | null;
   institution?: string | null;

@@ -30,6 +30,7 @@ __all__ = [
     "CatalogCourse",
     "CatalogUnit",
     "Institution",
+    "Item",
     "NodeSubject",
     "ResourceSubject",
     "ResourceVerification",
@@ -234,3 +235,24 @@ class NodeExercise(Base):
             "role IN ('practice','checkpoint')", name="ck_node_exercise_role"
         ),
     )
+
+
+class Item(Base):
+    __tablename__ = "items"
+    id: Mapped[str] = mapped_column(Text, primary_key=True, default=_uuid)
+    exercise_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("exercises.id", ondelete="CASCADE"), nullable=True
+    )
+    concept_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("concepts.id", ondelete="CASCADE")
+    )
+    source_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("sources.id", ondelete="CASCADE")
+    )
+    type: Mapped[str] = mapped_column(Text)
+    prompt: Mapped[str] = mapped_column(Text)
+    choices: Mapped[str | None] = mapped_column(Text, nullable=True)
+    answer: Mapped[str] = mapped_column(Text)
+    rubric: Mapped[str | None] = mapped_column(Text, nullable=True)
+    graded: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    status: Mapped[str] = mapped_column(Text, default="draft", server_default="draft")
