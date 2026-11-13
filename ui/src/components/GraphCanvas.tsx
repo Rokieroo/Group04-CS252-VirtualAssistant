@@ -300,10 +300,25 @@ export function GraphCanvas({
   // or something is still moving, so an idle graph costs no canvas work.
   const needsDraw = useRef(true);
   needsDraw.current = true;
+  const animIdRef = useRef(0);
+  const scheduleTickRef = useRef<() => void>(() => {});
   const reducedMotion = useRef(
     typeof matchMedia === "function" &&
       matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
+  useEffect(() => {
+    const query =
+      typeof matchMedia === "function"
+        ? matchMedia("(prefers-reduced-motion: reduce)")
+        : null;
+    if (!query) return;
+    reducedMotion.current = query.matches;
+    const onChange = (e: MediaQueryListEvent) => {
+      reducedMotion.current = e.matches;
+    };
+    query.addEventListener?.("change", onChange);
+    return () => query.removeEventListener?.("change", onChange);
+  }, []);
 
   // Theme colours, re-read when the app theme, accent or OS scheme changes.
   const swatchesRef = useRef<HTMLDivElement | null>(null);
@@ -312,6 +327,7 @@ export function GraphCanvas({
     const refresh = () => {
       palette.current = readPalette(swatchesRef.current);
       needsDraw.current = true;
+      scheduleTickRef.current();
     };
     refresh();
     const observer =
@@ -434,13 +450,23 @@ export function GraphCanvas({
     });
 
     internalNodesRef.current = newMap;
+    needsDraw.current = true;
+    scheduleTickRef.current();
   }, [nodes, layout, getNodeRadius]);
 
-  // Force simulation animation loop
+  // Force simulation and transition animation loop (stops completely when idle)
   useEffect(() => {
-    let animId: number;
+    let cancelled = false;
+
+    const scheduleTick = () => {
+      if (!cancelled && animIdRef.current === 0) {
+        animIdRef.current = requestAnimationFrame(tick);
+      }
+    };
 
     const tick = () => {
+      animIdRef.current = 0;
+      if (cancelled) return;
       const nodeMap = internalNodesRef.current;
       const nodeList = Array.from(nodeMap.values());
       let moving = false;
@@ -522,20 +548,38 @@ export function GraphCanvas({
           n.displayX = n.targetX;
           n.displayY = n.targetY;
           n.targetX = n.targetY = undefined;
+          needsDraw.current = true;
+        } else {
+          moving = true;
         }
-        moving = true;
       }
 
       if (moving || needsDraw.current) {
         needsDraw.current = false;
         drawRef.current();
       }
-      animId = requestAnimationFrame(tick);
+      if (moving) {
+        scheduleTick();
+      }
     };
 
-    animId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(animId);
+    scheduleTickRef.current = scheduleTick;
+    scheduleTick();
+    return () => {
+      cancelled = true;
+      scheduleTickRef.current = () => {};
+      if (animIdRef.current) {
+        cancelAnimationFrame(animIdRef.current);
+        animIdRef.current = 0;
+      }
+    };
   }, [layout, edges]);
+
+  // Schedule a single redraw whenever props or React view/selection state change.
+  useEffect(() => {
+    needsDraw.current = true;
+    scheduleTickRef.current();
+  });
 
   // Main Canvas Render
   const draw = useCallback(() => {
@@ -1122,6 +1166,7 @@ export function GraphCanvas({
 
   const handleMouseMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     needsDraw.current = true;
+    scheduleTickRef.current();
     if (pointers.current.has(e.pointerId))
       pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pinch.current && pointers.current.size >= 2) {
@@ -1261,6 +1306,8 @@ export function GraphCanvas({
       isEdgeDragging.current = false;
       edgeDragSource.current = null;
       edgeDragPos.current = null;
+      needsDraw.current = true;
+      scheduleTickRef.current();
     }
 
     if (isDraggingNode.current) {
@@ -1268,10 +1315,14 @@ export function GraphCanvas({
         onSelect?.(draggedNodeId.current);
       isDraggingNode.current = false;
       draggedNodeId.current = null;
+      needsDraw.current = true;
+      scheduleTickRef.current();
     }
 
     if (isPanning.current) {
       isPanning.current = false;
+      needsDraw.current = true;
+      scheduleTickRef.current();
     }
   };
 
@@ -1335,6 +1386,7 @@ export function GraphCanvas({
         const ctx = canvas.getContext("2d");
         ctx?.scale(dpr, dpr);
         needsDraw.current = true;
+        scheduleTickRef.current();
       }
     };
     handleResize();
@@ -1508,11 +1560,19 @@ export function GraphCanvas({
           isDraggingNode.current = false;
           isPanning.current = false;
           isEdgeDragging.current = false;
+          edgeDragSource.current = null;
+          edgeDragPos.current = null;
+          needsDraw.current = true;
+          scheduleTickRef.current();
         }}
         onLostPointerCapture={() => {
           isDraggingNode.current = false;
           isPanning.current = false;
           isEdgeDragging.current = false;
+          edgeDragSource.current = null;
+          edgeDragPos.current = null;
+          needsDraw.current = true;
+          scheduleTickRef.current();
         }}
         onWheel={handleWheel}
       />
