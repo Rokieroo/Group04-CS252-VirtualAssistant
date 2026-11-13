@@ -27,9 +27,8 @@ from .models import (
     RoadmapNode,
     Source,
     Task,
-    utcnow,
 )
-from .roadmap_repository import CycleError, add_roadmap_edge, owned_node
+from .roadmap_repository import CycleError, add_roadmap_edge, owned_node, save_layouts
 from .routes_core import _latest_syllabus, _owned_roadmap
 from .schemas import RoadmapGraphOut
 
@@ -563,57 +562,11 @@ def put_layout(roadmap_id: str, data: Positions | LayoutIn, db: DB, user: Curren
     """Save this user's node positions: a bare list (spec 8) or the older {positions}."""
     _owned_roadmap(db, roadmap_id, user.id)
     positions = data if isinstance(data, list) else data.positions
-    if not positions:
-        return {"saved": 0}
-
-    requested_ids = {position.node_id for position in positions}
-    roadmap_node_ids = set(
-        db.scalars(
-            select(RoadmapNode.id).where(
-                RoadmapNode.roadmap_id == roadmap_id,
-                RoadmapNode.id.in_(requested_ids),
-            )
-        )
-    )
-    missing = requested_ids - roadmap_node_ids
-    if missing:
-        for position in positions:
-            if position.node_id in missing:
-                _node(db, position.node_id, user.id)
-                raise HTTPException(422, "node_outside_roadmap")
-
-    existing = {
-        row.node_id: row
-        for row in db.scalars(
-            select(GraphLayout).where(
-                GraphLayout.user_id == user.id,
-                GraphLayout.node_id.in_(requested_ids),
-            )
-        )
-    }
-    now = utcnow()
-    latest_by_node = {position.node_id: position for position in positions}
-    new_rows: list[GraphLayout] = []
-    for node_id, position in latest_by_node.items():
-        row = existing.get(node_id)
-        if row is None:
-            new_rows.append(
-                GraphLayout(
-                    user_id=user.id,
-                    node_id=node_id,
-                    x=position.x,
-                    y=position.y,
-                    pinned=position.pinned,
-                    updated_at=now,
-                )
-            )
-        else:
-            row.x = position.x
-            row.y = position.y
-            row.pinned = position.pinned
-            row.updated_at = now
-    if new_rows:
-        db.add_all(new_rows)
+    try:
+        save_layouts(db, user.id, roadmap_id, [p.model_dump() for p in positions])
+    except LookupError as error:
+        _node(db, error.args[0], user.id)  # 404 unless the user owns it on another roadmap
+        raise HTTPException(422, "node_outside_roadmap") from None
     db.commit()
     return {"saved": len(positions)}
 
