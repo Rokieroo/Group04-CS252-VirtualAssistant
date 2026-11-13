@@ -2,6 +2,7 @@
 
 import logging
 import secrets
+from collections import defaultdict
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -14,15 +15,25 @@ from .catalog_models import RoadmapEdge
 from .dependencies import DB, CurrentUser
 from .models import (
     AuthSession,
+    Availability,
+    BusyBlock,
     ChatMessage,
     Course,
+    Goal,
+    Job,
+    Membership,
     Notification,
+    Recommendation,
+    RecommendationEvent,
     ResourceFeedback,
+    ReviewCard,
+    ReviewLog,
     Roadmap,
     RoadmapNode,
     ScheduleEntry,
     Source,
     Task,
+    Team,
     User,
 )
 from .schemas import Login, ProfilePatch, Register, TokenOut, UserOut
@@ -169,11 +180,21 @@ def export_user_data(user: CurrentUser, db: DB, request: Request):
     ]
 
     roadmaps = db.scalars(select(Roadmap).where(Roadmap.user_id == user_id)).all()
-    roadmaps_data = []
-    for r in roadmaps:
-        nodes = db.scalars(select(RoadmapNode).where(RoadmapNode.roadmap_id == r.id)).all()
-        edges = db.scalars(select(RoadmapEdge).where(RoadmapEdge.roadmap_id == r.id)).all()
-        roadmaps_data.append({
+    roadmap_ids = [r.id for r in roadmaps]
+    nodes_by_roadmap: dict[str, list[RoadmapNode]] = defaultdict(list)
+    edges_by_roadmap: dict[str, list[RoadmapEdge]] = defaultdict(list)
+    if roadmap_ids:
+        for node in db.scalars(
+            select(RoadmapNode).where(RoadmapNode.roadmap_id.in_(roadmap_ids))
+        ):
+            nodes_by_roadmap[node.roadmap_id].append(node)
+        for edge in db.scalars(
+            select(RoadmapEdge).where(RoadmapEdge.roadmap_id.in_(roadmap_ids))
+        ):
+            edges_by_roadmap[edge.roadmap_id].append(edge)
+
+    roadmaps_data = [
+        {
             "id": r.id,
             "course_id": r.course_id,
             "title": r.title,
@@ -186,13 +207,15 @@ def export_user_data(user: CurrentUser, db: DB, request: Request):
                     "due_at": str(n.due_at) if n.due_at else None,
                     "duration_minutes": getattr(n, "duration_minutes", None),
                 }
-                for n in nodes
+                for n in nodes_by_roadmap[r.id]
             ],
             "edges": [
                 {"parent_id": e.parent_id, "child_id": e.child_id}
-                for e in edges
+                for e in edges_by_roadmap[r.id]
             ],
-        })
+        }
+        for r in roadmaps
+    ]
 
     tasks = db.scalars(
         select(Task).where((Task.owner_id == user_id) | (Task.assignee_id == user_id))
@@ -275,10 +298,56 @@ def export_user_data(user: CurrentUser, db: DB, request: Request):
         {
             "id": f.id,
             "resource_id": f.resource_id,
-            "vote": f.vote,
+            "rating": f.rating,
             "comment": f.comment,
         }
         for f in feedback
+    ]
+
+    goals = db.scalars(select(Goal).where(Goal.owner_id == user_id)).all()
+    goals_data = [
+        {
+            "id": g.id,
+            "title": g.title,
+            "description": g.description,
+            "due_at": str(g.due_at) if g.due_at else None,
+        }
+        for g in goals
+    ]
+
+    review_cards = db.scalars(
+        select(ReviewCard).where(ReviewCard.user_id == user_id)
+    ).all()
+    review_cards_data = [
+        {
+            "item_id": rc.item_id,
+            "node_id": rc.node_id,
+            "due_at": str(rc.due_at),
+            "stability": rc.stability,
+            "difficulty": rc.difficulty,
+            "state": rc.state,
+            "step": rc.step,
+            "last_review": str(rc.last_review) if rc.last_review else None,
+        }
+        for rc in review_cards
+    ]
+
+    review_logs = db.scalars(
+        select(ReviewLog)
+        .where(ReviewLog.user_id == user_id)
+        .order_by(ReviewLog.reviewed_at)
+    ).all()
+    review_logs_data = [
+        {
+            "id": rl.id,
+            "item_id": rl.item_id,
+            "node_id": rl.node_id,
+            "rating": rl.rating,
+            "reviewed_at": str(rl.reviewed_at),
+            "elapsed_days": rl.elapsed_days,
+            "scheduled_days": rl.scheduled_days,
+        }
+        for rl in review_logs
     ]
 
     return {
@@ -286,12 +355,15 @@ def export_user_data(user: CurrentUser, db: DB, request: Request):
         "user": profile_data,
         "courses": courses_data,
         "roadmaps": roadmaps_data,
+        "goals": goals_data,
         "tasks": tasks_data,
         "schedule_entries": schedule_data,
         "chat_messages": chat_data,
         "sources": sources_data,
         "notifications": notifications_data,
         "resource_feedback": feedback_data,
+        "review_cards": review_cards_data,
+        "review_logs": review_logs_data,
     }
 
 
@@ -321,22 +393,32 @@ async def delete_account(
     user_id = user.id
 
     db.execute(delete(ResourceFeedback).where(ResourceFeedback.user_id == user_id))
-    try:
-        from .models import Recommendation, RecommendationEvent
-
-        db.execute(
-            delete(RecommendationEvent).where(
-                RecommendationEvent.recommendation_id.in_(
-                    select(Recommendation.id).where(Recommendation.user_id == user_id)
-                )
+    db.execute(
+        delete(RecommendationEvent).where(
+            RecommendationEvent.recommendation_id.in_(
+                select(Recommendation.id).where(Recommendation.user_id == user_id)
             )
         )
-        db.execute(delete(Recommendation).where(Recommendation.user_id == user_id))
-    except (ImportError, AttributeError):
-        logger.debug("Recommendation models not available for deletion cascade")
+    )
+    db.execute(delete(Recommendation).where(Recommendation.user_id == user_id))
+    db.execute(delete(ReviewLog).where(ReviewLog.user_id == user_id))
+    db.execute(delete(ReviewCard).where(ReviewCard.user_id == user_id))
 
+    owned_team_ids = select(Team.id).where(Team.owner_id == user_id)
     db.execute(delete(ScheduleEntry).where(ScheduleEntry.user_id == user_id))
-    db.execute(delete(Task).where((Task.owner_id == user_id) | (Task.assignee_id == user_id)))
+    db.execute(
+        delete(Task).where(
+            (Task.owner_id == user_id)
+            | (Task.assignee_id == user_id)
+            | (Task.team_id.in_(owned_team_ids))
+        )
+    )
+    db.execute(delete(Membership).where(Membership.user_id == user_id))
+    db.execute(delete(Team).where(Team.owner_id == user_id))
+    db.execute(delete(Goal).where(Goal.owner_id == user_id))
+    db.execute(delete(Availability).where(Availability.user_id == user_id))
+    db.execute(delete(BusyBlock).where(BusyBlock.user_id == user_id))
+    db.execute(delete(Job).where(Job.user_id == user_id))
     db.execute(delete(ChatMessage).where(ChatMessage.user_id == user_id))
     db.execute(delete(Notification).where(Notification.user_id == user_id))
     db.execute(delete(Roadmap).where(Roadmap.user_id == user_id))
