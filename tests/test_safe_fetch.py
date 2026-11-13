@@ -358,3 +358,82 @@ def test_fetcher_throttles_robots_and_pages_alike():
         assert client.fetch("https://example.org/notes").ok
     # robots.txt once (then cached), the page twice: every request is spaced.
     assert waited == ["example.org"] * 3
+
+
+def test_throttle_concurrent_wait_serializes_reservations_and_enforces_hourly_budget():
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    from app.vetting.fetch import DomainThrottle, RateBudgetExceeded
+
+    delays: list[float] = []
+    delays_lock = threading.Lock()
+    barrier = threading.Barrier(4)
+
+    def record_sleep(seconds: float) -> None:
+        with delays_lock:
+            delays.append(round(seconds, 3))
+
+    throttle = DomainThrottle(
+        {"ocw.mit.edu": 1.0},
+        per_hour=4,
+        clock=lambda: 100.0,
+        sleep=record_sleep,
+    )
+
+    def worker():
+        barrier.wait()
+        throttle.wait("OCW.MIT.EDU")
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        for future in [pool.submit(worker) for _ in range(4)]:
+            future.result()
+
+    # Four simultaneous arrivals at t=100 reserve slots at t=100, 101, 102, 103.
+    assert sorted(delays) == [1.0, 2.0, 3.0]
+    with pytest.raises(RateBudgetExceeded):
+        throttle.wait("ocw.mit.edu")
+
+
+def test_robots_cache_and_fetch_are_thread_safe_under_eviction(monkeypatch):
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    from app.vetting import fetch as fetch_mod
+
+    monkeypatch.setattr(fetch_mod, "ROBOTS_CACHE_SIZE", 2)
+    routes = {
+        "example.org/robots.txt": httpx.Response(404),
+        "example.org/p": page(),
+        "docs.python.org/robots.txt": httpx.Response(404),
+        "docs.python.org/p": page(),
+        "ocw.mit.edu/robots.txt": httpx.Response(404),
+        "ocw.mit.edu/p": page(),
+    }
+    monkeypatch.setitem(DNS, "docs.python.org", [PUBLIC])
+    monkeypatch.setitem(DNS, "ocw.mit.edu", [PUBLIC])
+
+    barrier = threading.Barrier(6)
+
+    with fetcher(routes) as client, ThreadPoolExecutor(max_workers=6) as pool:
+        def run(host: str):
+            barrier.wait()
+            for _ in range(5):
+                assert client.fetch(f"https://{host}/p").ok
+
+        hosts = ["example.org", "docs.python.org", "ocw.mit.edu"] * 2
+        for future in [pool.submit(run, h) for h in hosts]:
+            future.result()
+
+
+def test_paywall_detects_uppercase_html_content_type():
+    routes = {
+        "example.org/gate": httpx.Response(
+            200,
+            content=b"<form><input type='password'></form>",
+            headers={"Content-Type": "TEXT/HTML; charset=utf-8"},
+        )
+    }
+    result = fetcher(routes).fetch("https://example.org/gate")
+    assert result.paywall == "login_form"
+    assert not result.ok

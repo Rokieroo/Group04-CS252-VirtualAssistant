@@ -238,3 +238,77 @@ def test_no_llm_prompt_asks_a_model_to_write_questions():
                 if any(a in words for a in AUTHORING) and any(q in words for q in QUESTION):
                     offenders.append(f"{path.relative_to(ROOT)}:{node.lineno}")
     assert offenders == []
+
+
+def test_exercises_for_node_preloads_sources_and_catalog_without_n_plus_1(
+    app, client, headers, clock, milestone_roadmap
+):
+    from sqlalchemy import event
+
+    from assistant.backend.catalog_models import NodeExercise
+    from assistant.backend.exercise_repository import exercises_for_node
+    from assistant.backend.models import Course, Roadmap, RoadmapNode
+
+    nodes = {n["title"]: n["id"] for n in milestone_roadmap["nodes"]}
+    topic_id = nodes["Solution ladder"]
+
+    with app.state.database.sessions() as db:
+        source = Source(
+            course_id=milestone_roadmap["course_id"],
+            file_name="problems.txt",
+            page=2,
+            text=PROBLEMS,
+        )
+        db.add(source)
+        resource = add_resource(db, clock[0])
+        db.flush()
+        source_id = source.id
+        verify_resource(db, resource.id, clock[0], fetcher=Fetcher(PROBLEMS.encode()))
+        catalog_exercises = db.scalars(
+            select(Exercise).where(Exercise.resource_id == resource.id)
+        ).all()
+        db.add_all(
+            [
+                NodeExercise(node_id=topic_id, exercise_id=ex.id, role="practice")
+                for ex in catalog_exercises
+            ]
+        )
+        db.commit()
+        resource_id = resource.id
+
+    attached = client.post(
+        f"/api/v1/roadmap-nodes/{topic_id}/materials",
+        headers=headers,
+        json={"source_id": source_id},
+    )
+    assert attached.status_code == 201, attached.text
+
+    with app.state.database.sessions() as db:
+        node = db.get(RoadmapNode, topic_id)
+        roadmap = db.get(Roadmap, milestone_roadmap["id"])
+        course = db.get(Course, milestone_roadmap["course_id"])
+        assert node is not None and roadmap is not None and course is not None
+
+        source_queries = []
+        resource_queries = []
+
+        def _track(conn, cursor, statement, parameters, context, executemany):
+            upper = statement.upper()
+            if "FROM SOURCES" in upper:
+                source_queries.append(statement)
+            if "FROM RESOURCES" in upper:
+                resource_queries.append(statement)
+
+        engine = db.get_bind()
+        event.listen(engine, "before_cursor_execute", _track)
+        try:
+            payload = exercises_for_node(db, node, roadmap, course, clock[0], limit=24)
+        finally:
+            event.remove(engine, "before_cursor_execute", _track)
+
+    assert payload["count"] >= 24
+    # 12 private + 12 catalog exercises -> 1 batched Source query and 2 Resource queries total (not 24+).
+    assert len(source_queries) == 1
+    assert len(resource_queries) <= 2
+    assert any(ex["citation"]["source_id"] == source_id for ex in payload["exercises"])
+    assert any(ex["citation"]["resource_id"] == resource_id for ex in payload["exercises"])

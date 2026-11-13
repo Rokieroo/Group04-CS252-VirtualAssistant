@@ -326,10 +326,30 @@ def refresh_node_sources(db, nodes, roadmap, course, now):
 def save_node_sources(db, nodes, roadmap, course, now, *, catalog=None):
     """Select sources for already-tagged nodes and record each node's status."""
     result = node_sources(db, nodes, roadmap, course, now, catalog=catalog)
+    if not result:
+        return result
+
+    node_ids = list(result.keys())
+    statuses_by_node = {
+        row.node_id: row
+        for row in db.scalars(
+            select(NodeSourceStatus).where(NodeSourceStatus.node_id.in_(node_ids))
+        )
+    }
+    existing_links = list(
+        db.scalars(select(NodeResource).where(NodeResource.node_id.in_(node_ids)))
+    )
+    links_by_pair = {(link.node_id, link.resource_id): link for link in existing_links}
+    shown_by_node: dict[str, list[NodeResource]] = defaultdict(list)
+    for link in existing_links:
+        if link.status == "shown":
+            shown_by_node[link.node_id].append(link)
+
+    new_rows: list[object] = []
     for node_id, value in result.items():
-        signal = db.get(NodeSourceStatus, node_id)
+        signal = statuses_by_node.get(node_id)
         if signal is None:
-            db.add(
+            new_rows.append(
                 NodeSourceStatus(
                     node_id=node_id, status=value["status"], updated_at=now
                 )
@@ -340,9 +360,9 @@ def save_node_sources(db, nodes, roadmap, course, now, *, catalog=None):
             r["id"]: r for r in value["sources"] if r["kind"] != "user_material"
         }
         for resource_id, resource in selected.items():
-            link = db.get(NodeResource, (node_id, resource_id))
+            link = links_by_pair.get((node_id, resource_id))
             if link is None:
-                db.add(
+                new_rows.append(
                     NodeResource(
                         node_id=node_id,
                         resource_id=resource_id,
@@ -352,13 +372,11 @@ def save_node_sources(db, nodes, roadmap, course, now, *, catalog=None):
             else:
                 link.status = "shown"
                 link.relevance_score = resource["score"]
-        for link in db.scalars(
-            select(NodeResource).where(
-                NodeResource.node_id == node_id, NodeResource.status == "shown"
-            )
-        ):
+        for link in shown_by_node.get(node_id, ()):
             if link.resource_id not in selected:
                 link.status = "removed"
+    if new_rows:
+        db.add_all(new_rows)
     return result
 
 
@@ -406,13 +424,37 @@ def rematch_insufficient(db, now) -> dict:
     # shortcut: one job re-matches every insufficient node; chain batches of roadmaps
     # once that nears the 10-minute job lease (thousands of roadmaps with gaps).
     nodes = list(db.scalars(select(RoadmapNode).where(RoadmapNode.id.in_(insufficient_nodes()))))
+    if not nodes:
+        return {"insufficient_before": 0, "insufficient_after": 0}
     by_roadmap = defaultdict(list)
     for node in nodes:
         by_roadmap[node.roadmap_id].append(node)
+    roadmaps_by_id = {
+        r.id: r
+        for r in db.scalars(select(Roadmap).where(Roadmap.id.in_(by_roadmap.keys())))
+    }
+    course_ids = {r.course_id for r in roadmaps_by_id.values()}
+    courses_by_id = (
+        {
+            c.id: c
+            for c in db.scalars(select(Course).where(Course.id.in_(course_ids)))
+        }
+        if course_ids
+        else {}
+    )
     catalog = verified_resources(db, now)
     for roadmap_id, group in by_roadmap.items():
-        roadmap = db.get(Roadmap, roadmap_id)
-        save_node_sources(db, group, roadmap, db.get(Course, roadmap.course_id), now, catalog=catalog)
+        roadmap = roadmaps_by_id.get(roadmap_id)
+        if roadmap is None:
+            continue
+        save_node_sources(
+            db,
+            group,
+            roadmap,
+            courses_by_id.get(roadmap.course_id),
+            now,
+            catalog=catalog,
+        )
     db.flush()
     after = db.scalar(select(func.count()).select_from(insufficient_nodes().subquery()))
     return {"insufficient_before": len(nodes), "insufficient_after": after}

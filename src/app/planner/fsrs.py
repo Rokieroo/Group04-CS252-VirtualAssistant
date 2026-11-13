@@ -8,6 +8,16 @@ from typing import Any
 
 from fsrs import Card, Rating, Scheduler, State
 
+_SCHEDULER = Scheduler()
+
+
+def _as_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
 
 @dataclass(frozen=True)
 class ReviewScheduleResult:
@@ -40,11 +50,9 @@ def schedule_card_review(
     if rating not in (1, 2, 3, 4):
         raise ValueError(f"Rating must be 1, 2, 3, or 4; got {rating}")
 
-    now = reviewed_at or datetime.now(UTC)
-    if now.tzinfo is None:
-        now = now.replace(tzinfo=UTC)
-
-    scheduler = Scheduler()
+    now = _as_utc(reviewed_at) or datetime.now(UTC)
+    norm_due = _as_utc(due_at)
+    norm_last_review = _as_utc(last_review)
 
     card_state = State(current_state) if current_state in (1, 2, 3) else State.Learning
 
@@ -56,18 +64,20 @@ def schedule_card_review(
         step=current_step,
         stability=stab,
         difficulty=diff,
-        due=due_at,
-        last_review=last_review,
+        due=norm_due,
+        last_review=norm_last_review,
     )
 
     fsrs_rating = Rating(rating)
-    updated_card, _ = scheduler.review_card(card, fsrs_rating, now)
+    updated_card, _ = _SCHEDULER.review_card(card, fsrs_rating, now)
 
     elapsed_days = (
-        max(0.0, (now - last_review).total_seconds() / 86400.0) if last_review else 0.0
+        max(0.0, (now - norm_last_review).total_seconds() / 86400.0)
+        if norm_last_review
+        else 0.0
     )
     scheduled_days = max(0.0, (updated_card.due - now).total_seconds() / 86400.0)
-    retrievability = float(scheduler.get_card_retrievability(updated_card, now))
+    retrievability = float(_SCHEDULER.get_card_retrievability(updated_card, now))
 
     return ReviewScheduleResult(
         due_at=updated_card.due,
@@ -87,9 +97,7 @@ def compute_card_retrievability(
     now: datetime | None = None,
 ) -> float:
     """Calculate the memory retrievability (probability of recall) for a card."""
-    ref_time = now or datetime.now(UTC)
-    if ref_time.tzinfo is None:
-        ref_time = ref_time.replace(tzinfo=UTC)
+    ref_time = _as_utc(now) or datetime.now(UTC)
 
     if isinstance(card_dict_or_obj, dict):
         state = card_dict_or_obj.get("state", 1)
@@ -118,11 +126,10 @@ def compute_card_retrievability(
         step=step,
         stability=stability,
         difficulty=difficulty if difficulty and difficulty > 0 else None,
-        due=due,
-        last_review=last_review,
+        due=_as_utc(due),
+        last_review=_as_utc(last_review),
     )
-    scheduler = Scheduler()
-    r = float(scheduler.get_card_retrievability(card, ref_time))
+    r = float(_SCHEDULER.get_card_retrievability(card, ref_time))
     return max(0.0, min(1.0, r))
 
 
