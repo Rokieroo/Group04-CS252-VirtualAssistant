@@ -12,10 +12,69 @@ from app.planner.fsrs import schedule_card_review
 
 from .catalog_models import Item, NodeExercise
 from .dependencies import DB, CurrentUser
-from .models import ReviewCard, ReviewLog, RoadmapNode
+from .models import ReviewCard, ReviewLog, Roadmap, RoadmapNode
 from .schemas import ReviewCardOut, ReviewResultOut, ReviewSubmitIn
 
 router = APIRouter(tags=["FSRS Spaced Repetition Reviews"])
+
+
+def _resolve_user_node_id(
+    db: DB,
+    user_id: str,
+    requested_node_id: str | None,
+    card: ReviewCard | None,
+    item: Item,
+) -> str | None:
+    """Resolve and verify that any associated roadmap node belongs to `user_id`."""
+    if requested_node_id:
+        owned = db.scalar(
+            select(RoadmapNode.id)
+            .join(Roadmap, Roadmap.id == RoadmapNode.roadmap_id)
+            .where(
+                RoadmapNode.id == requested_node_id,
+                Roadmap.user_id == user_id,
+            )
+        )
+        if not owned:
+            raise HTTPException(status_code=404, detail="Roadmap node not found")
+        return owned
+
+    if card and card.node_id:
+        owned_card_node = db.scalar(
+            select(RoadmapNode.id)
+            .join(Roadmap, Roadmap.id == RoadmapNode.roadmap_id)
+            .where(
+                RoadmapNode.id == card.node_id,
+                Roadmap.user_id == user_id,
+            )
+        )
+        if owned_card_node:
+            return owned_card_node
+
+    if item.exercise_id:
+        node_id = db.scalar(
+            select(NodeExercise.node_id)
+            .join(RoadmapNode, RoadmapNode.id == NodeExercise.node_id)
+            .join(Roadmap, Roadmap.id == RoadmapNode.roadmap_id)
+            .where(
+                NodeExercise.exercise_id == item.exercise_id,
+                Roadmap.user_id == user_id,
+            )
+        )
+        if node_id:
+            return node_id
+
+    if item.concept_id:
+        return db.scalar(
+            select(RoadmapNode.id)
+            .join(Roadmap, Roadmap.id == RoadmapNode.roadmap_id)
+            .where(
+                RoadmapNode.concept_id == item.concept_id,
+                Roadmap.user_id == user_id,
+            )
+        )
+
+    return None
 
 
 @router.get("/reviews/due", response_model=list[ReviewCardOut])
@@ -94,28 +153,7 @@ def submit_review(
 
     now = request.app.state.now()
     card = db.get(ReviewCard, (user.id, item_id))
-
-    node_id = data.node_id
-    if not node_id:
-        if card and card.node_id:
-            node_id = card.node_id
-        else:
-            if item.exercise_id:
-                ne = db.scalar(
-                    select(NodeExercise.node_id).where(
-                        NodeExercise.exercise_id == item.exercise_id
-                    )
-                )
-                if ne:
-                    node_id = ne
-            if not node_id and item.concept_id:
-                rn = db.scalar(
-                    select(RoadmapNode.id).where(
-                        RoadmapNode.concept_id == item.concept_id
-                    )
-                )
-                if rn:
-                    node_id = rn
+    node_id = _resolve_user_node_id(db, user.id, data.node_id, card, item)
 
     if card is None:
         result = schedule_card_review(
@@ -151,8 +189,7 @@ def submit_review(
         card.state = result.state
         card.step = result.step
         card.last_review = result.last_review
-        if node_id:
-            card.node_id = node_id
+        card.node_id = node_id
 
     review_log = ReviewLog(
         id=str(uuid4()),
