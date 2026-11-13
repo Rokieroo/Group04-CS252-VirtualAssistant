@@ -135,6 +135,8 @@ function Sources({ nodeId, courseId }: { nodeId: string; courseId?: string }) {
 
   const mine = own?.sources.filter((s) => s.kind === "user_material") ?? [];
   const catalog = own?.sources.filter((s) => s.kind === "catalog") ?? [];
+  // Outside sources the server matched (not from the catalog): shown with the web results, never verified.
+  const external = own?.sources.filter((s) => s.kind === "external" || s.kind === "web") ?? [];
   const suggested = files.filter((f) => f.status === "suggested");
   const pageButton = (sourceId: string, number: number) => (
     <button
@@ -243,9 +245,21 @@ function Sources({ nodeId, courseId }: { nodeId: string; courseId?: string }) {
             Chưa tìm đủ nguồn đạt chất lượng.{web.gaps.length > 0 && ` Còn thiếu: ${web.gaps.join("; ")}.`}
           </p>
         )}
-        {web?.status === "ready" && web.resources.length === 0 && (
+        {web?.status === "ready" && web.resources.length === 0 && external.length === 0 && (
           <p className="muted small">Chưa có nguồn nào trên web cho bước này.</p>
         )}
+        {external.map((s) => (
+          <SourceCard
+            key={s.id}
+            title={s.title}
+            url={s.url}
+            from={s.institution || s.provider}
+            format={s.format}
+            minutes={s.duration_min}
+            license={s.license}
+            reason={s.reason}
+          />
+        ))}
         {web?.resources.map((r) => (
           <SourceCard
             key={r.id}

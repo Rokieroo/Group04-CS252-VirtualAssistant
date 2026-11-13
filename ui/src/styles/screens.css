@@ -736,6 +736,26 @@ a.btn {
 .milestone-card .grow {
   display: grid;
 }
+.review-card {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 40rem;
+  padding: 1rem 1.125rem;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--signal);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+.review-prompt {
+  font-size: var(--t-lg);
+  font-weight: 500;
+}
+.review-choices {
+  display: grid;
+  gap: 0.25rem;
+  padding-left: 1.25rem;
+  color: var(--ink-2);
+}
 
 /* ---------- Schedule ---------- */
 .budget {

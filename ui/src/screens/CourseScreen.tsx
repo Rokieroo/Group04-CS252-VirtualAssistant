@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { fetchDueReviews, submitReview, type DueReviewCard } from "../api/reviews";
 import type { Route } from "../app/routes";
+import { explain } from "../app/text";
 import type { Course, Stage } from "../app/useCourse";
 import { Button, Chip, Dialog, Loading, Notice, PageHead } from "../ui/kit";
 import { RoadmapView } from "./RoadmapScreen";
@@ -54,6 +56,75 @@ function Stops({ course }: { course: Course }) {
 }
 
 /** The home of the course once its roadmap is approved: where you are and what comes next. */
+// FSRS ratings the server accepts (1-4), in the order a learner reads them.
+const RATINGS = [
+  { value: 1, label: "Quên" },
+  { value: 2, label: "Khó" },
+  { value: 3, label: "Được" },
+  { value: 4, label: "Dễ" },
+];
+
+/** Spaced-repetition cards due now, one at a time; hidden when nothing is due. */
+function DueReviews() {
+  const [cards, setCards] = useState<DueReviewCard[] | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let current = true;
+    fetchDueReviews(20).then(
+      (due) => current && setCards(due),
+      () => current && setCards([]),
+    );
+    return () => {
+      current = false;
+    };
+  }, []);
+  if (!cards?.length) return null;
+  const card = cards[0];
+  const rate = async (rating: number) => {
+    setBusy(true);
+    setError("");
+    try {
+      await submitReview(card.item_id, rating, card.node_id ?? undefined);
+      setCards((all) => all?.slice(1) ?? []);
+    } catch (e) {
+      setError(explain(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="section" aria-labelledby="review-title">
+      <div className="section-head">
+        <h2 id="review-title">Ôn tập đến hạn</h2>
+        <p className="muted">Còn {cards.length} thẻ</p>
+      </div>
+      <div className="review-card">
+        <p className="review-prompt">{card.prompt}</p>
+        {card.choices && card.choices.length > 0 && (
+          <ol className="review-choices">
+            {card.choices.map((choice) => (
+              <li key={choice}>{choice}</li>
+            ))}
+          </ol>
+        )}
+        <p className="muted small" id="review-ask">
+          Tự trả lời trong đầu, rồi chọn mức bạn nhớ được.
+        </p>
+        <div className="row" role="group" aria-labelledby="review-ask">
+          {RATINGS.map((r) => (
+            <Button key={r.value} size="sm" disabled={busy} onClick={() => void rate(r.value)}>
+              {r.label}
+            </Button>
+          ))}
+        </div>
+        {error && <Notice tone="error">{error}</Notice>}
+      </div>
+    </section>
+  );
+}
+
 function Overview({ course, go }: { course: Course; go: (route: Route) => void }) {
   const [resetting, setResetting] = useState(false);
   const steps = course.roadmap!.nodes;
@@ -138,6 +209,8 @@ function Overview({ course, go }: { course: Course; go: (route: Route) => void }
           )}
         </section>
       </div>
+
+      {!course.mock && <DueReviews />}
 
       <section className="section">
         <div className="row">

@@ -10,6 +10,12 @@ from app.planner.engine import (
     WorkItem,
     build_plan,
 )
+from app.planner.fsrs import (
+    ReviewScheduleResult,
+    compute_card_retrievability,
+    compute_node_mastery,
+    schedule_card_review,
+)
 from app.planner.intervals import (
     Interval,
     intersect,
@@ -26,13 +32,17 @@ __all__ = [
     "PlanLimits",
     "PlannedSession",
     "Planner",
+    "ReviewScheduleResult",
     "Shortfall",
     "WorkItem",
     "build_plan",
+    "compute_card_retrievability",
+    "compute_node_mastery",
     "diff",
     "intersect",
     "merge",
     "minutes",
+    "schedule_card_review",
     "split_days",
     "subtract",
 ]

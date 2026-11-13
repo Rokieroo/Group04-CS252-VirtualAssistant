@@ -102,7 +102,7 @@ In accordance with **ADR 002**, the staging infrastructure decouples frontend ho
                  ▼                                       ▼
         [ Vercel (Frontend) ]                   [ Render (Backend API) ]
         - Root: `ui`                            - Docker Environment
-        - Env: VITE_API_BASE_URL                - Env: DATABASE_URL, JWT_SECRET
+        - Env: VITE_API_URL                     - Env: DATABASE_URL, JWT_SECRET
 ```
 
 ### Step 1: Deploy PostgreSQL Managed Database
@@ -160,7 +160,8 @@ Slow work (syllabus parsing, resource search) and the daily link check run in th
    - **Build Command**: `npm run build`
    - **Output Directory**: `dist`
 4. Environment Variables:
-   - `VITE_API_BASE_URL`: The backend URL created in Step 2 (e.g., `https://study-companion-api.onrender.com`).
+   - `VITE_BACKEND_MODE`: `api` (without it the build is the in-browser preview).
+   - `VITE_API_URL`: The backend URL created in Step 2 (e.g., `https://study-companion-api.onrender.com`).
 5. Click **Deploy**. Vercel provisions a production domain: `https://<project-name>.vercel.app`.
 
 ---

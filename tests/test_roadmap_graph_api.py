@@ -226,6 +226,28 @@ def test_add_edge_cycle_rejection_409(client, headers, course_and_roadmap):
     assert res_self.json()["detail"]["error"] == "cycle"
 
 
+def test_edge_from_milestone_back_to_a_covered_topic_is_a_cycle(
+    client, headers, course_and_roadmap
+):
+    """The graph draws covered topic -> milestone; the reverse edge must be refused."""
+    _, roadmap = course_and_roadmap
+    roadmap_id = roadmap["id"]
+    graph = client.get(f"/api/v1/roadmaps/{roadmap_id}/graph", headers=headers).json()
+    covers = next(e for e in graph["edges"] if e["kind"] == "covers")
+
+    res = client.post(
+        f"/api/v1/roadmaps/{roadmap_id}/graph/edges",
+        headers=headers,
+        json={"parent": covers["child"], "child": covers["parent"], "kind": "strict"},
+    )
+    assert res.status_code == 409, res.text
+    assert res.json()["detail"]["error"] == "cycle"
+    edges = client.get(f"/api/v1/roadmaps/{roadmap_id}/graph", headers=headers).json()["edges"]
+    assert not any(
+        e["parent"] == covers["child"] and e["child"] == covers["parent"] for e in edges
+    )
+
+
 def test_edge_modifications_trigger_replan_notification(app, client, headers, course_and_roadmap):
     _, roadmap = course_and_roadmap
     roadmap_id = roadmap["id"]

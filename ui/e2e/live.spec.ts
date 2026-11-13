@@ -59,6 +59,17 @@ const sources = {
       reason: "Khớp chủ đề của bước",
       verification_status: "verified",
     },
+    {
+      kind: "external",
+      id: "x1",
+      title: "Greedy algorithms explained",
+      url: "https://example.net/greedy",
+      pages: [],
+      provider: "example.net",
+      format: "video",
+      reason: "Ví dụ trực quan",
+      verification_status: "verified",
+    },
   ],
 };
 const web = {
@@ -148,6 +159,22 @@ async function backend(page: Page, options: { role?: string; signedIn?: boolean;
         start_date: "2026-11-09",
         end_date: "2026-11-15",
       },
+      "GET /reviews/due": [
+        {
+          item_id: "i1",
+          user_id: "u1",
+          node_id: "n1",
+          due_at: ago(60),
+          stability: 1,
+          difficulty: 5,
+          state: 2,
+          step: 0,
+          prompt: "Phân rã bài toán là gì?",
+          choices: null,
+          type: "short",
+        },
+      ],
+      "POST /reviews/i1": {},
       "GET /admin/catalog/review-queue": queue,
       "POST /admin/catalog/resources/q1:verify": { id: "q1", verification_status: "verified", license: null },
       "POST /auth/login": { access_token: "test-token" },
@@ -177,6 +204,16 @@ test("signing in reopens the approved roadmap with its progress", async ({ page 
   await accessible(page);
 });
 
+test("a due review card is rated and the next one takes its place", async ({ page }) => {
+  const sent = await backend(page);
+  await page.goto("/");
+  await expect(page.getByText("Phân rã bài toán là gì?")).toBeVisible();
+  await accessible(page);
+  await page.getByRole("button", { name: "Được" }).click();
+  await expect(page.getByRole("heading", { name: "Ôn tập đến hạn" })).toHaveCount(0);
+  expect(sent.find((s) => s.key === "POST /reviews/i1")?.body).toEqual({ rating: 3, node_id: "n1" });
+});
+
 test("a wrong password says so instead of talking about sessions", async ({ page }) => {
   await backend(page, { signedIn: false, loginStatus: 401 });
   await page.goto("/");
@@ -193,7 +230,9 @@ test("a step lists own pages, verified sources and web results, in that order of
   const panel = page.getByRole("region", { name: "Chi tiết: Thiết kế thuật toán" });
   await expect(panel.getByText("Tuan2.pdf")).toBeVisible();
   await expect(panel.getByRole("button", { name: "tr. 3" })).toBeVisible();
-  // Only the catalog source carries the verified badge; the web result never does.
+  // Only the catalog source carries the verified badge; external and web results never do,
+  // even when the server marks them verified.
+  await expect(panel.getByRole("link", { name: /Greedy algorithms explained/ })).toBeVisible();
   await expect(panel.getByText("Đã kiểm chứng", { exact: true })).toHaveCount(1);
   await expect(panel.getByRole("link", { name: /Algorithm design basics/ })).toBeVisible();
   await accessible(page);
