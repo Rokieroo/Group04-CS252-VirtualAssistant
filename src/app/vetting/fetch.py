@@ -15,6 +15,7 @@ import ipaddress
 import re
 import socket
 import ssl
+import threading
 import time
 from collections import deque
 from collections.abc import Callable
@@ -178,6 +179,7 @@ class DomainThrottle:
         self.sleep = sleep
         self._next: dict[str, float] = {}
         self._sent: dict[str, deque[float]] = {}  # domain -> request times, oldest first
+        self._lock = threading.Lock()
 
     def _domain(self, host: str) -> str:
         """The listed domain that owns ``host``, else the host itself."""
@@ -188,19 +190,21 @@ class DomainThrottle:
         return 1.0 / self.rates.get(self._domain(host), self.default)
 
     def wait(self, host: str) -> None:
-        now = self.clock()
-        if self.per_hour is not None:
-            domain = self._domain(host)
-            sent = self._sent.setdefault(domain, deque())
-            while sent and sent[0] <= now - 3600:
-                sent.popleft()
-            if len(sent) >= self.per_hour:
-                raise RateBudgetExceeded(domain)
-            sent.append(now)
-        start = max(now, self._next.get(host, now))
+        host_key = host.lower().rstrip(".")
+        with self._lock:
+            now = self.clock()
+            if self.per_hour is not None:
+                domain = self._domain(host_key)
+                sent = self._sent.setdefault(domain, deque())
+                while sent and sent[0] <= now - 3600:
+                    sent.popleft()
+                if len(sent) >= self.per_hour:
+                    raise RateBudgetExceeded(domain)
+                sent.append(now)
+            start = max(now, self._next.get(host_key, now))
+            self._next[host_key] = start + self.interval(host_key)
         if start > now:
             self.sleep(start - now)
-        self._next[host] = start + self.interval(host)
 
 
 @dataclass(frozen=True)
@@ -264,6 +268,7 @@ class SafeFetcher:
         self.throttle = throttle
         self._client = pinned_client(transport)
         self._robots: dict[str, tuple[float, RobotFileParser]] = {}
+        self._robots_lock = threading.Lock()
 
     def __enter__(self) -> Self:
         return self
@@ -359,14 +364,16 @@ class SafeFetcher:
     def _robots_allow(self, target: httpx.URL, deadline: float) -> bool:
         origin = f"{target.scheme}://{target.netloc.decode('ascii')}"
         now = time.monotonic()
-        cached = self._robots.get(origin)
+        with self._robots_lock:
+            cached = self._robots.get(origin)
         if cached is None or cached[0] < now:
             rules, cacheable = self._load_robots(origin, deadline)
             if cacheable:
-                if len(self._robots) >= ROBOTS_CACHE_SIZE:
-                    # shortcut: drops the whole cache when full; use an LRU if hit rates suffer.
-                    self._robots.clear()
-                self._robots[origin] = (now + ROBOTS_TTL, rules)
+                with self._robots_lock:
+                    if len(self._robots) >= ROBOTS_CACHE_SIZE:
+                        # shortcut: drops the whole cache when full; use an LRU if hit rates suffer.
+                        self._robots.clear()
+                    self._robots[origin] = (now + ROBOTS_TTL, rules)
         else:
             rules = cached[1]
         return rules.can_fetch(ROBOTS_AGENT, str(target))
@@ -402,7 +409,7 @@ class SafeFetcher:
             return "known_domain"
         if final != requested and _LOGIN_PATH.search(final.path):
             return "login_redirect"
-        if "html" in result.content_type and _PASSWORD_INPUT.search(result.text):
+        if "html" in result.content_type.casefold() and _PASSWORD_INPUT.search(result.text):
             return "login_form"
         return None
 

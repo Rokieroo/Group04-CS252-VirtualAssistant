@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from collections import Counter
 from pathlib import Path
 
@@ -14,6 +15,7 @@ BENCHMARK = ROOT / "eval" / "benchmark.jsonl"
 RESOURCES = ROOT / "eval" / "resources.jsonl"
 EXERCISES = ROOT / "eval" / "exercises.jsonl"
 SYLLABUS_DIR = ROOT / "eval" / "syllabus"
+GRAPHS_DIR = ROOT / "eval" / "graphs"
 FIXTURES_DIR = ROOT / "eval" / "fixtures" / "redteam"
 
 REQUIRED = ("id", "use_case", "kind", "question", "expected")
@@ -134,6 +136,64 @@ def validate_exercises_benchmark(path: Path) -> list[str]:
     return errors
 
 
+def validate_graph_benchmark(graphs_dir: Path) -> list[str]:
+    """Validate the 5 reference knowledge graphs in eval/graphs/ (issue #112)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        "roadmap_graph", ROOT / "src" / "app" / "roadmap" / "graph.py"
+    )
+    graph_mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = graph_mod
+    spec.loader.exec_module(graph_mod)
+    find_cycles = graph_mod.find_cycles
+
+    errors: list[str] = []
+    if not graphs_dir.exists():
+        return [f"Không tìm thấy thư mục {graphs_dir}"]
+    gold_files = sorted(graphs_dir.glob("*.gold.json"))
+    if len(gold_files) < 5:
+        errors.append(
+            f"{graphs_dir}: cần tối thiểu 5 file .gold.json (tìm thấy {len(gold_files)})"
+        )
+    for gf in gold_files:
+        try:
+            data = json.loads(gf.read_text(encoding="utf-8"))
+            for req in (
+                "id",
+                "course_code",
+                "course_name",
+                "source_file",
+                "raters",
+                "cohens_kappa",
+                "concepts",
+                "edges",
+            ):
+                if req not in data:
+                    errors.append(f"{gf.name}: thiếu trường '{req}'")
+            if float(data.get("cohens_kappa", 0.0)) < 0.7:
+                errors.append(f"{gf.name}: cohens_kappa phải >= 0.7")
+            concepts = data.get("concepts") or []
+            if data.get("course_code") == "CSC10014" and len(concepts) < 30:
+                errors.append(f"{gf.name}: CSC10014 cần >= 30 concepts")
+            slugs = {c.get("slug") for c in concepts if c.get("slug")}
+            for c in concepts:
+                if not c.get("source_page"):
+                    errors.append(f"{gf.name}: concept '{c.get('slug')}' thiếu source_page")
+            for edge in data.get("edges") or []:
+                if edge.get("parent") not in slugs or edge.get("child") not in slugs:
+                    errors.append(
+                        f"{gf.name}: cạnh {edge.get('parent')}->{edge.get('child')} trỏ ngoài concepts"
+                    )
+                if edge.get("kind") not in ("strict", "soft"):
+                    errors.append(f"{gf.name}: kind '{edge.get('kind')}' không hợp lệ")
+            if find_cycles(list(slugs), data.get("edges") or []):
+                errors.append(f"{gf.name}: đồ thị chứa chu trình (cycle)")
+        except json.JSONDecodeError as exc:
+            errors.append(f"{gf.name}: JSON lỗi ({exc.msg})")
+    return errors
+
+
 def validate_redteam_fixtures(fix_dir: Path) -> list[str]:
     """Validate redteam prompt injection, pirated URLs, PII samples, and answer leak fixtures."""
     if not fix_dir.exists():
@@ -232,9 +292,10 @@ def _benchmark(args: argparse.Namespace) -> int:
 
     ok = _report(errors, f"{len(cases)} case hợp lệ trong {path.name}")
     if args.action == "validate" and path == BENCHMARK:
-        # The default run also checks the other #66 suites, so CI covers them too.
+        # The default run also checks the other #66 and #112 suites, so CI covers them too.
         nodes, resource_errors = load_resources(RESOURCES)
         gold_count = len(list(SYLLABUS_DIR.glob("*.gold.json")))
+        graph_gold_count = len(list(GRAPHS_DIR.glob("*.gold.json")))
         ok = all(
             [
                 ok,
@@ -249,6 +310,10 @@ def _benchmark(args: argparse.Namespace) -> int:
                 _report(
                     validate_exercises_benchmark(EXERCISES),
                     f"60 case bài tập benchmark hợp lệ trong {EXERCISES.name}",
+                ),
+                _report(
+                    validate_graph_benchmark(GRAPHS_DIR),
+                    f"{graph_gold_count} knowledge graph gold hợp lệ trong {GRAPHS_DIR.name}/",
                 ),
                 _report(
                     validate_redteam_fixtures(FIXTURES_DIR),

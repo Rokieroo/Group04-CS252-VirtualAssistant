@@ -37,7 +37,7 @@ This report summarizes testing, quality assurance, benchmark validation, staging
 
 ## 3. End-to-End Core Loop Verification Breakdown (Issue #67)
 
-The new integration suite [`tests/test_e2e_core_loop.py`](file:///d:/Workspace/CS252/Group04-CS252-VirtualAssistant/tests/test_e2e_core_loop.py) exercises every step of the core loop using mock adapters (`FakeSearch`, `E2EJudgeLLM`, `make_e2e_safe_fetcher`):
+The new integration suite [`tests/test_e2e_core_loop.py`](../../../../tests/test_e2e_core_loop.py) exercises every step of the core loop using mock adapters (`FakeSearch`, `E2EJudgeLLM`, `make_e2e_safe_fetcher`):
 
 1. **UC-01 & UC-02 (Syllabus Ingestion & Preview)**:
    - Ingests `01_csc10014_problem_framing.txt`.
@@ -88,10 +88,57 @@ All metrics specified in **Spec 3.0 Section 15** were measured and tracked:
 
 ---
 
-## 6. Recommendations & Preparation for Milestone 3 (Week 4+)
+## 6. Knowledge Graph Reference Benchmark & Performance Evaluation (Issue #112)
+
+To validate the Interactive Knowledge Graph milestone (Epic #94, UC-18), we constructed 5 gold-standard reference knowledge graphs (`eval/graphs/*.gold.json`) from the 5 sample syllabi in `eval/syllabus/` (`01_csc10014_problem_framing`, `02_cs102_database_systems`, `03_cs201_data_structures`, `04_cs202_operating_systems`, and `05_cs203_computer_networks`), built the automated evaluation harness `eval/run_graph.py`, and verified cycle-detection latency, canvas FPS, E2E user workflows, and multi-user RBAC isolation.
+
+### 6.1 Gold Graph Dataset & Inter-Rater Agreement
+
+Each gold file defines concepts with `source_page` citations, `aliases`, and directed `strict` / `soft` prerequisite edges, plus per-edge labels from two raters (`rater_a`, `rater_b`). `python eval/run_graph.py` recomputes Cohen's kappa from those stored labels. **The files do not record who the raters were or that they labelled independently**, so the kappa below is self-reported. Issue #112 still needs a second team member to re-label at least one graph blind and the kappa recomputed from that.
+
+| Gold Graph ID | Syllabus File | Concepts | Strict Edges | Kappa from stored labels |
+| --- | --- | ---: | ---: | ---: |
+| `KG-01` | `01_csc10014_problem_framing.txt` | 30 | 24 | 0.958 |
+| `KG-02` | `02_cs102_database_systems.txt` | 15 | 13 | 0.897 |
+| `KG-03` | `03_cs201_data_structures.txt` | 14 | 14 | 1.000 |
+| `KG-04` | `04_cs202_operating_systems.txt` | 11 | 9 | 1.000 |
+| `KG-05` | `05_cs203_computer_networks.txt` | 9 | 8 | 1.000 |
+
+### 6.2 Offline Knowledge Graph Evaluation (`python eval/run_graph.py`)
+
+Offline the harness runs exactly what ships without a model: the rule-based `preview_syllabus`, `normalize_topics` on the week topics, and `propose_prerequisites` with a `FakeLLM` that has no canned answers. It has no knowledge of the gold graphs. (An earlier version of this section reported 1.000 everywhere; that run used per-course topic splitting rules and a hand-written prerequisite list taken from the gold graphs, so it measured the answer key, not the product. Both were removed.)
+
+| Syllabus ID | Concepts (TP / Gold) | Concept Recall | Concept Precision | Strict Edges (TP / Pred / Gold) |
+| --- | ---: | ---: | ---: | ---: |
+| `KG-01 (CSC10014)` | 0 / 30 | 0.00 | 0.00 | 0 / 0 / 24 |
+| `KG-02 (CS102)` | 8 / 15 | 0.53 | 0.80 | 0 / 0 / 13 |
+| `KG-03 (CS201)` | 8 / 14 | 0.57 | 0.80 | 0 / 0 / 14 |
+| `KG-04 (CS202)` | 9 / 11 | 0.82 | 0.90 | 0 / 0 / 9 |
+| `KG-05 (CS203)` | 9 / 9 | 1.00 | 0.90 | 0 / 0 / 8 |
+| **Micro-average** | **34 / 79** | **0.430** | **0.680** | **0 / 0 / 68** |
+
+What this shows:
+- Without a model, concepts are the syllabus week topics, so recall is bounded by how finely the syllabus lists topics. The rule-based parser finds no weeks at all in the CSC10014 sample (0 / 30), which is a parser gap worth a separate issue.
+- No `strict` edge is proposed without an LLM, by design.
+- The #97 / #112 targets (concept recall ≥ 0.90, strict precision ≥ 0.80) apply to `python eval/run_graph.py --llm`, which this report has **not** run yet (free-tier Gemini quota). Until it is run and recorded here, those two targets are unmeasured.
+
+Reproduce: `python eval/run_graph.py` (offline) or `python eval/run_graph.py --llm` (uses `LLM_PROVIDER` from `.env`).
+
+### 6.3 Performance, E2E & RBAC Verification Summary
+
+| Verification Target | Requirement (Issue #112) | Measured Result | Evidence / Test Reference |
+| --- | --- | --- | --- |
+| **`would_create_cycle` Latency (300 nodes)** | $< 10.0\text{ ms}$ per check on a 300-node DAG | **Mean: $0.460\text{ ms}$** <br> **p95: $0.671\text{ ms}$** <br> **Max: $0.960\text{ ms}$** | Measured across 100 checks (50 cycle-creating back-edges + 50 valid forward edges) on a 300-node, 743-edge layered DAG (`eval/run_graph.py` & `tests/test_graph_eval.py`) |
+| **Canvas Pan/Zoom FPS (30 nodes)** | Smooth interactive rendering ($\ge 20\text{ FPS}$ headless CI, $\approx 60\text{ FPS}$ desktop) | **$\approx 60.0\text{ FPS}$** (PASS, 2.5s) | `ui/e2e/graph.spec.ts` (`30-node graph pan and zoom FPS benchmark`) |
+| **Canvas Pan/Zoom FPS (100 nodes)** | Smooth interactive rendering ($\ge 20\text{ FPS}$ headless CI, $\approx 60\text{ FPS}$ desktop) | **$\approx 60.0\text{ FPS}$** (PASS, 3.5s) | `ui/e2e/graph.spec.ts` (`100-node graph pan and zoom FPS benchmark`) |
+| **Playwright E2E Flow (Syllabus $\rightarrow$ Graph $\rightarrow$ Source Page & Cycle Highlight)** | Upload syllabus $\rightarrow$ open graph $\rightarrow$ click node shows syllabus page; cycle edge blocked & highlighted in red | **PASSED** (12/12 desktop E2E tests pass) | `ui/e2e/graph.spec.ts` (`upload syllabus -> open graph -> click node shows syllabus page; cycle edge is blocked and highlighted in red`) |
+| **RBAC & Multi-User Isolation** | User B cannot read or modify User A's graph, layout, edges, or mastery | **PASSED** (HTTP 404/403 across all graph, layout, edge, subgraph, and mastery endpoints) | `tests/test_roadmap_graph_api.py` (`test_graph_and_layout_user_isolation`) |
+
+---
+
+## 7. Recommendations & Preparation for Milestone 3 (Week 4+)
 
 1. **Interactive Knowledge Graph Testing (Epic #94, UC-18)**:
-   - Prepare test suites for DAG invariants on the interactive Obsidian-style Canvas component.
-   - Verify cycle prevention when users interactively add custom edges via UI/API.
+   - Reference gold graphs (`eval/graphs/*.gold.json`), `eval/run_graph.py`, 300-node cycle checks, and Playwright E2E/FPS benchmarks are now integrated into the QA validation pipeline (`python dev.py ai benchmark validate`).
 2. **Spaced Repetition & Item Practice (UC-10, UC-11)**:
    - Integrate FSRS scheduler tests with the verified question bank to ensure exercises cite authentic page sources without LLM hallucinations.

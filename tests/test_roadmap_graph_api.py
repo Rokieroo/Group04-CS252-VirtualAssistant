@@ -311,31 +311,103 @@ def test_rate_limiting_edge_edits(app, client, headers, course_and_roadmap):
     _edge_edits.clear()
 
 
-def test_graph_and_layout_user_isolation(client, headers, headers_b, course_and_roadmap):
+def test_graph_and_layout_user_isolation(app, client, headers, headers_b, course_and_roadmap):
     _, roadmap = course_and_roadmap
     roadmap_id = roadmap["id"]
     node_id = roadmap["nodes"][0]["id"]
+    node2_id = roadmap["nodes"][1]["id"]
 
-    # User B cannot read User A's graph
+    # User A creates an edge and saves layout + task mastery status
+    add_res = client.post(
+        f"/api/v1/roadmaps/{roadmap_id}/graph/edges",
+        headers=headers,
+        json={"parent": node_id, "child": node2_id, "kind": "strict"},
+    )
+    assert add_res.status_code == 201
+    assert (
+        client.put(
+            f"/api/v1/roadmaps/{roadmap_id}/graph/layout",
+            headers=headers,
+            json=[{"node_id": node_id, "x": 120, "y": 240, "pinned": True}],
+        ).status_code
+        == 200
+    )
+
+    # Create a completed task for User A on node_id so User A's graph shows mastery status
+    from assistant.backend.models import Task
+
+    with app.state.database.sessions() as db:
+        owner_id = roadmap["user_id"]
+        db.add(
+            Task(
+                owner_id=owner_id,
+                assignee_id=owner_id,
+                title="Mastery task",
+                duration_minutes=60,
+                due_at=app.state.now(),
+                status="completed",
+                roadmap_node_id=node_id,
+            )
+        )
+        db.commit()
+
+    # User A sees completed mastery status on node_id
+    graph_a = client.get(f"/api/v1/roadmaps/{roadmap_id}/graph", headers=headers).json()
+    node_a = next(n for n in graph_a["nodes"] if n["id"] == node_id)
+    assert node_a["status"] == "completed"
+
+    # User B cannot read User A's graph, edges, or node subgraph
     assert client.get(f"/api/v1/roadmaps/{roadmap_id}/graph", headers=headers_b).status_code == 404
-
-    # User B cannot read User A's node graph
+    assert client.get(f"/api/v1/roadmaps/{roadmap_id}/edges", headers=headers_b).status_code == 404
     assert client.get(f"/api/v1/roadmap-nodes/{node_id}/graph", headers=headers_b).status_code == 404
 
-    # User B cannot add edge to User A's roadmap
-    assert client.post(
-        f"/api/v1/roadmaps/{roadmap_id}/graph/edges",
-        headers=headers_b,
-        json={"parent": node_id, "child": roadmap["nodes"][1]["id"]},
-    ).status_code == 404
+    # User B cannot add or delete edges on User A's roadmap
+    assert (
+        client.post(
+            f"/api/v1/roadmaps/{roadmap_id}/graph/edges",
+            headers=headers_b,
+            json={"parent": node_id, "child": node2_id},
+        ).status_code
+        == 404
+    )
+    assert (
+        client.delete(
+            f"/api/v1/roadmaps/{roadmap_id}/graph/edges/{node_id}/{node2_id}",
+            headers=headers_b,
+        ).status_code
+        == 404
+    )
 
     # User B cannot get or put layout on User A's roadmap
-    assert client.get(f"/api/v1/roadmaps/{roadmap_id}/graph/layout", headers=headers_b).status_code == 404
-    assert client.put(
-        f"/api/v1/roadmaps/{roadmap_id}/graph/layout",
-        headers=headers_b,
-        json=[{"node_id": node_id, "x": 100, "y": 200, "pinned": False}],
-    ).status_code == 404
+    assert (
+        client.get(f"/api/v1/roadmaps/{roadmap_id}/graph/layout", headers=headers_b).status_code
+        == 404
+    )
+    assert (
+        client.put(
+            f"/api/v1/roadmaps/{roadmap_id}/graph/layout",
+            headers=headers_b,
+            json=[{"node_id": node_id, "x": 100, "y": 200, "pinned": False}],
+        ).status_code
+        == 404
+    )
+
+    # User B cannot read or modify User A's node sources, exercises, or materials
+    assert client.get(f"/api/v1/concepts/{node_id}/sources", headers=headers_b).status_code == 404
+    assert (
+        client.get(f"/api/v1/roadmap-nodes/{node_id}/exercises", headers=headers_b).status_code
+        == 404
+    )
+    assert (
+        client.get(f"/api/v1/roadmap-nodes/{node_id}/materials", headers=headers_b).status_code
+        == 404
+    )
+
+    # Verify User A's edge and layout remain intact after User B's rejected attempts
+    edges_a = client.get(f"/api/v1/roadmaps/{roadmap_id}/edges", headers=headers).json()
+    assert any(e["parent_id"] == node_id and e["child_id"] == node2_id for e in edges_a)
+    layout_a = client.get(f"/api/v1/roadmaps/{roadmap_id}/graph/layout", headers=headers).json()
+    assert layout_a["positions"][0]["x"] == 120.0
 
 
 def test_layout_endpoints_and_limits(client, headers, course_and_roadmap):
@@ -423,3 +495,128 @@ def test_graph_performance_300_nodes(app, client, headers):
 
     p95 = sorted(latencies)[8]
     assert p95 < 300.0, f"p95 latency was {p95:.1f}ms, expected < 300ms"
+
+
+def test_course_roadmap_discovery_is_owned_and_persistent(client, headers, headers_b, course_and_roadmap):
+    course_id, roadmap = course_and_roadmap
+    path = f"/api/v1/courses/{course_id}/roadmaps"
+    response = client.get(path, headers=headers)
+    assert response.status_code == 200
+    assert [r["id"] for r in response.json()] == [roadmap["id"]]
+    assert sorted(response.json()[0]["nodes"], key=lambda n: n["id"]) == sorted(roadmap["nodes"], key=lambda n: n["id"])
+    assert client.get(path, headers=headers).json() == response.json()
+    newer = client.post(
+        f"/api/v1/courses/{course_id}/roadmap:generate", headers=headers,
+        json={"nodes": [{"title": "Second saved plan", "week": 1, "type": "topic"}]},
+    )
+    assert newer.status_code == 201, newer.text
+    discovered = client.get(path, headers=headers).json()
+    assert [r["id"] for r in discovered] == [newer.json()["id"], roadmap["id"]]
+    assert client.get(path, headers=headers_b).status_code == 404
+    assert client.get(path).status_code == 401
+    assert client.get("/api/v1/courses/missing/roadmaps", headers=headers).status_code == 404
+    empty = client.post("/api/v1/courses", headers=headers, json={"title": "Empty course"}).json()
+    assert client.get(f"/api/v1/courses/{empty['id']}/roadmaps", headers=headers).json() == []
+
+
+def test_put_layout_batches_sql_and_validates_node_ownership(
+    app, client, headers, course_and_roadmap
+):
+    from sqlalchemy import event
+
+    course_id, roadmap = course_and_roadmap
+    roadmap_id = roadmap["id"]
+    nodes = roadmap["nodes"]
+
+    # Create a second roadmap owned by the same user to verify 422 node_outside_roadmap.
+    other_res = client.post(
+        f"/api/v1/courses/{course_id}/roadmap:generate",
+        headers=headers,
+        json={
+            "nodes": [
+                {"title": "Other Track", "week": 1, "type": "topic", "est_minutes": 45}
+            ]
+        },
+    )
+    assert other_res.status_code == 201
+    other_node_id = other_res.json()["nodes"][0]["id"]
+
+    outside = client.put(
+        f"/api/v1/roadmaps/{roadmap_id}/graph/layout",
+        headers=headers,
+        json=[{"node_id": other_node_id, "x": 10, "y": 20, "pinned": True}],
+    )
+    assert outside.status_code == 422
+    assert outside.json()["detail"] == "node_outside_roadmap"
+
+    unknown = client.put(
+        f"/api/v1/roadmaps/{roadmap_id}/graph/layout",
+        headers=headers,
+        json=[{"node_id": "nonexistent-node", "x": 10, "y": 20, "pinned": False}],
+    )
+    assert unknown.status_code == 404
+
+    # Seed node 0 first so the next batch exercises both update and insert in one PUT.
+    first = client.put(
+        f"/api/v1/roadmaps/{roadmap_id}/graph/layout",
+        headers=headers,
+        json=[{"node_id": nodes[0]["id"], "x": 1, "y": 2, "pinned": False}],
+    )
+    assert first.status_code == 200
+
+    statements: list[str] = []
+
+    def _track(conn, cursor, statement, parameters, context, executemany):
+        statements.append(statement)
+
+    engine = app.state.database.engine
+    event.listen(engine, "before_cursor_execute", _track)
+    try:
+        payload = [
+            {"node_id": n["id"], "x": float(idx * 50), "y": float(idx * 25), "pinned": idx % 2 == 0}
+            for idx, n in enumerate(nodes)
+        ]
+        res = client.put(
+            f"/api/v1/roadmaps/{roadmap_id}/graph/layout",
+            headers=headers,
+            json=payload,
+        )
+    finally:
+        event.remove(engine, "before_cursor_execute", _track)
+
+    assert res.status_code == 200
+    assert res.json()["saved"] == len(nodes)
+    # Bounded SQL regardless of position count (auth + roadmap + node check + layout select + writes).
+    assert len(statements) <= 12
+
+    saved = client.get(f"/api/v1/roadmaps/{roadmap_id}/graph/layout", headers=headers).json()
+    by_id = {p["node_id"]: p for p in saved["positions"]}
+    assert by_id[nodes[0]["id"]]["pinned"] is True
+    assert by_id[nodes[-1]["id"]]["x"] == float((len(nodes) - 1) * 50)
+
+
+def test_edge_rate_limit_evicts_stale_users_and_is_thread_safe(monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+
+    from assistant.backend import routes_learning
+
+    routes_learning._edge_edits.clear()
+    try:
+        monkeypatch.setattr(routes_learning, "_EDGE_EDIT_CACHE_CAP", 4)
+        for i in range(6):
+            routes_learning._edge_edits[f"stale-{i}"] = [100.0]
+
+        routes_learning._check_edge_rate_limit("active-user", 1000.0)
+        assert "active-user" in routes_learning._edge_edits
+        assert all(not uid.startswith("stale-") for uid in routes_learning._edge_edits)
+
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            futures = [
+                pool.submit(routes_learning._check_edge_rate_limit, "concurrent-user", 2000.0)
+                for _ in range(40)
+            ]
+            for f in futures:
+                f.result()
+        assert len(routes_learning._edge_edits["concurrent-user"]) == 40
+    finally:
+        routes_learning._edge_edits.clear()

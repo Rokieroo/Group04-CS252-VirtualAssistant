@@ -159,6 +159,7 @@ class Companion:
     @staticmethod
     def _messages(context: CompanionContext, message: str) -> list[dict]:
         system = (SYSTEM_PROMPT, MODES[context.mode], PERSONALITIES[context.personality])
+        safe_message = (message or "")[:MAX_REPLY_CHARS]
         return [
             {"role": "system", "content": "\n".join(system)},
             {
@@ -167,7 +168,7 @@ class Companion:
                 + json.dumps(context.facts(), ensure_ascii=False),
             },
             *[{"role": role, "content": content} for role, content in context.history],
-            {"role": "user", "content": message},
+            {"role": "user", "content": safe_message},
         ]
 
     @staticmethod

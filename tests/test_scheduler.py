@@ -254,3 +254,57 @@ def test_diff_reports_moved_added_and_dropped_tasks():
     assert change.added == ["added"]
     assert change.dropped == ["dropped"]
     assert diff(new, list(reversed(new))) == diff([], [])
+
+
+def test_weekly_limit_counts_fixed_work_and_resets_next_week():
+    from types import SimpleNamespace
+
+    start = datetime(2030, 1, 7, 7, tzinfo=UTC)  # Monday
+    windows = [
+        (start + i * DAY, start + i * DAY + timedelta(hours=2))
+        for i in range(10)
+    ]
+    limits = SimpleNamespace(
+        starts_at=start,
+        ends_at=start + 10 * DAY,
+        max_session_minutes=60,
+        min_session_minutes=15,
+        daily_limit_minutes=60,
+        weekly_limit_minutes=90,
+    )
+    fixed = [(start, start + timedelta(minutes=30))]  # 30m used in week 1
+    result = build_plan(
+        [WorkItem("course", 150, 1, start + 10 * DAY)],
+        windows,
+        [(start, start + timedelta(minutes=30))],
+        fixed,
+        limits,
+        "UTC",
+    )
+    assert result.unscheduled == []
+    week1_minutes = sum(
+        minutes(entry.starts_at, entry.ends_at)
+        for entry in result.entries
+        if entry.starts_at < start + 7 * DAY
+    )
+    week2_minutes = sum(
+        minutes(entry.starts_at, entry.ends_at)
+        for entry in result.entries
+        if entry.starts_at >= start + 7 * DAY
+    )
+    assert week1_minutes == 60
+    assert week2_minutes == 90
+
+
+def test_early_exit_preserves_future_slots_for_later_tasks():
+    data, windows = days(60, daily_limit_minutes=120)
+    tasks = [
+        WorkItem("early", 30, 1, START + 2 * DAY, release_at=START + 1 * DAY),
+        WorkItem("week8", 120, 2, START + 55 * DAY, release_at=START + 49 * DAY),
+    ]
+    result = build_plan(tasks, windows, [], [], data, "UTC")
+    assert result.unscheduled == []
+    assert [minutes(x.starts_at, x.ends_at) for x in sessions_of(result, "early")] == [30]
+    assert sessions_of(result, "early")[0].starts_at >= START + 1 * DAY
+    assert sum(minutes(x.starts_at, x.ends_at) for x in sessions_of(result, "week8")) == 120
+    assert sessions_of(result, "week8")[0].starts_at >= START + 49 * DAY

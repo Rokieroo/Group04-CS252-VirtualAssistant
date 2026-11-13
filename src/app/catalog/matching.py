@@ -73,7 +73,9 @@ def match_sources(node, resources, *, limit=5):
                     "breakdown": breakdown,
                     "reason": "Khớp chủ đề, trình độ và ngôn ngữ của chặng; nguồn đã được xác minh.",
                     "textbook": any(
-                        normalize(resource["title"]) in normalize(title)
+                        (norm_t := normalize(title))
+                        and (norm_r := normalize(resource["title"]))
+                        and norm_r in norm_t
                         for title in node.get("textbooks", [])
                     ),
                 }
@@ -85,23 +87,27 @@ def match_sources(node, resources, *, limit=5):
 
     def mmr(index):
         resource = ranked[index]
-        diversity = 0.05 if resource["format"] not in formats else 0
+        fmt = resource.get("format") or ""
+        diversity = 0.05 if fmt and fmt not in formats else 0
         return (
-            bool(resource["textbook"]),
+            bool(resource.get("textbook")),
             0.7 * resource["score"] - 0.3 * redundancy[index] + diversity,
             resource["id"],
         )
 
     while redundancy and len(chosen) < limit:
-        allowed = [i for i in redundancy if per_domain[ranked[i]["domain"]] < 2]
+        allowed = [i for i in redundancy if per_domain[ranked[i].get("domain") or ""] < 2]
         if not allowed:
             break
         pick = max(allowed, key=mmr)
         del redundancy[pick]
         best = ranked[pick]
         chosen.append(best)
-        per_domain[best["domain"]] += 1
-        formats.add(best["format"])
+        domain = best.get("domain") or ""
+        per_domain[domain] += 1
+        best_fmt = best.get("format") or ""
+        if best_fmt:
+            formats.add(best_fmt)
         for i in redundancy:
             similarity = cosine(ranked[i]["_match_vector"], best["_match_vector"])
             redundancy[i] = max(redundancy[i], similarity)

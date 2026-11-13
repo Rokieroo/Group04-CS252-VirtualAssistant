@@ -132,6 +132,23 @@
   font-weight: 700;
 }
 
+.vsc-badge-external {
+  background-color: var(--color-surface-alt);
+  color: var(--color-muted);
+  border-color: var(--color-line);
+}
+
+.vsc-badge-user-material {
+  background-color: light-dark(#e0f2fe, #075985);
+  color: light-dark(#0369a1, #e0f2fe);
+  border-color: light-dark(#bae6fd, #0284c7);
+}
+
+.verified-source-card.pinned {
+  border-color: var(--color-primary);
+  background: color-mix(in oklab, var(--color-primary) 4%, var(--color-surface));
+}
+
 /* Institution and Metadata */
 .vsc-meta-line {
   display: flex;
@@ -230,6 +247,50 @@
 .vsc-feedback-btn:hover {
   background: var(--color-tint);
   border-color: var(--color-primary);
+}
+
+.vsc-pin-btn {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.82rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.vsc-pin-btn:hover {
+  background: var(--color-tint);
+  border-color: var(--color-primary);
+}
+
+.vsc-pin-btn.pinned {
+  background: light-dark(#fef3c7, #78350f);
+  color: light-dark(#92400e, #fef3c7);
+  border-color: light-dark(#fde68a, #b45309);
+  font-weight: 600;
+}
+
+.vsc-card-animating-exit {
+  opacity: 0;
+  transform: translateX(20px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.vsc-card-animating-enter {
+  animation: vscSlideIn 0.25s ease;
+}
+
+@keyframes vscSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Insufficient State Banner */

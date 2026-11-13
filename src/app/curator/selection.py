@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.retrieval import tokenize_vi
+from app.search.service import canonical_url
 from app.vetting import THRESHOLD, ScoredResource
 
 __all__ = [
@@ -168,7 +169,12 @@ def replace(
 
     Raises ``KeyError`` when ``url`` is not shown.
     """
-    shown = [resource for resource in curation.resources if resource.url != url]
+    target_url = canonical_url(url) or url
+    shown = [
+        resource
+        for resource in curation.resources
+        if (canonical_url(resource.url) or resource.url) != target_url
+    ]
     if len(shown) == len(curation.resources):
         raise KeyError(url)
     shown, reserve = _select(

@@ -1,0 +1,192 @@
+{
+  "id": "KG-04",
+  "syllabus_id": "SYL-04",
+  "course_code": "CS202",
+  "course_name": "Operating Systems Concepts",
+  "source_file": "04_cs202_operating_systems.txt",
+  "raters": ["rater_1", "rater_2"],
+  "cohens_kappa": 0.875,
+  "concepts": [
+    {
+      "slug": "os-architectures-and-system-calls",
+      "title": "Operating System Architectures and System Calls",
+      "aliases": ["Introduction to OS Architectures", "System Calls", "Kernel Mode"],
+      "week": 1,
+      "source_page": 1,
+      "clo_codes": ["CLO1"]
+    },
+    {
+      "slug": "process-management-and-pcb",
+      "title": "Process Management and Process Control Blocks (PCB)",
+      "aliases": ["Process Life Cycles", "Context Switching", "PCB"],
+      "week": 2,
+      "source_page": 1,
+      "clo_codes": ["CLO1"]
+    },
+    {
+      "slug": "inter-process-communication",
+      "title": "Inter-Process Communication (IPC)",
+      "aliases": ["IPC", "Shared Memory and Message Passing"],
+      "week": 2,
+      "source_page": 1,
+      "clo_codes": ["CLO1"]
+    },
+    {
+      "slug": "threads-and-concurrency",
+      "title": "Threads, Concurrency, and Multithreaded Models",
+      "aliases": ["Multithreading Models", "Threads and Concurrency"],
+      "week": 3,
+      "source_page": 1,
+      "clo_codes": ["CLO1", "CLO2"]
+    },
+    {
+      "slug": "cpu-scheduling-algorithms",
+      "title": "CPU Scheduling Algorithms (FCFS, SJF, Round Robin, MLQ)",
+      "aliases": ["CPU Scheduling", "FCFS SJF Round Robin"],
+      "week": 4,
+      "source_page": 1,
+      "clo_codes": ["CLO1"]
+    },
+    {
+      "slug": "synchronization-primitives",
+      "title": "Synchronization Primitives and Critical Section Problem",
+      "aliases": ["Semaphores Mutexes Condition Variables", "Critical Section Problem"],
+      "week": 5,
+      "source_page": 1,
+      "clo_codes": ["CLO2"]
+    },
+    {
+      "slug": "deadlocks",
+      "title": "Deadlocks",
+      "aliases": ["Deadlock Prevention Avoidance Detection"],
+      "week": 5,
+      "source_page": 1,
+      "clo_codes": ["CLO2"]
+    },
+    {
+      "slug": "main-memory-and-address-translation",
+      "title": "Main Memory Organization, Address Translation, and Segmentation",
+      "aliases": ["Address Translation", "Memory Segmentation"],
+      "week": 7,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    },
+    {
+      "slug": "virtual-memory-and-paging",
+      "title": "Virtual Memory, Demand Paging, and Page Replacement",
+      "aliases": ["Virtual Memory", "LRU FIFO Clock Page Replacement"],
+      "week": 8,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    },
+    {
+      "slug": "mass-storage-and-disk-scheduling",
+      "title": "Mass Storage Systems, RAID Levels, and Disk Scheduling",
+      "aliases": ["Disk Scheduling", "RAID Levels"],
+      "week": 9,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    },
+    {
+      "slug": "file-systems",
+      "title": "File System Interface, Directory Implementation, and Allocation",
+      "aliases": ["File System Implementation", "File Allocation"],
+      "week": 10,
+      "source_page": 1,
+      "clo_codes": ["CLO3"]
+    }
+  ],
+  "edges": [
+    {
+      "parent": "os-architectures-and-system-calls",
+      "child": "process-management-and-pcb",
+      "kind": "strict",
+      "confidence": 0.95,
+      "reason": "Processes invoke kernel services through system calls and trap handlers.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "process-management-and-pcb",
+      "child": "inter-process-communication",
+      "kind": "strict",
+      "confidence": 0.91,
+      "reason": "IPC mechanisms coordinate state across isolated process address spaces.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "process-management-and-pcb",
+      "child": "threads-and-concurrency",
+      "kind": "strict",
+      "confidence": 0.94,
+      "reason": "Threads execute as lightweight units within a parent process context.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "process-management-and-pcb",
+      "child": "cpu-scheduling-algorithms",
+      "kind": "strict",
+      "confidence": 0.92,
+      "reason": "The CPU scheduler switches execution between ready processes and threads.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "threads-and-concurrency",
+      "child": "synchronization-primitives",
+      "kind": "strict",
+      "confidence": 0.96,
+      "reason": "Concurrent threads sharing memory require locks and semaphores to prevent races.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "synchronization-primitives",
+      "child": "deadlocks",
+      "kind": "strict",
+      "confidence": 0.93,
+      "reason": "Circular wait over mutually exclusive locks causes deadlocks.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "process-management-and-pcb",
+      "child": "main-memory-and-address-translation",
+      "kind": "strict",
+      "confidence": 0.89,
+      "reason": "Each process owns a logical address space translated to physical RAM.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "main-memory-and-address-translation",
+      "child": "virtual-memory-and-paging",
+      "kind": "strict",
+      "confidence": 0.95,
+      "reason": "Demand paging extends hardware address translation with page fault handling.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    },
+    {
+      "parent": "virtual-memory-and-paging",
+      "child": "mass-storage-and-disk-scheduling",
+      "kind": "soft",
+      "confidence": 0.77,
+      "reason": "Swap backing store relies on underlying disk I/O scheduling.",
+      "rater_1": "soft",
+      "rater_2": "soft"
+    },
+    {
+      "parent": "mass-storage-and-disk-scheduling",
+      "child": "file-systems",
+      "kind": "strict",
+      "confidence": 0.92,
+      "reason": "File systems organize directories and blocks on mass storage devices.",
+      "rater_1": "strict",
+      "rater_2": "strict"
+    }
+  ]
+}
+
