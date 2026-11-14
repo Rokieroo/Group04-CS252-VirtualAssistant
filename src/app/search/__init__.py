@@ -1,4 +1,9 @@
-"""Resource search: provider abstraction, PII filtering, and orchestration (spec 11)."""
+"""Resource search: provider abstraction, PII filtering, and orchestration (spec 11).
+
+The open providers backed by the source registry (``app.search.openalex``,
+``app.search.openstax``, ``app.search.wikipedia``) are imported from their own
+modules: they depend on ``app.catalog``, whose import chain reaches this package.
+"""
 
 from __future__ import annotations
 

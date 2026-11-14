@@ -49,12 +49,16 @@ Nguồn chuẩn là [`data/policy/catalog_sources.yaml`](../../data/policy/catal
 | `edx` | Giữ mọi quyền; chỉ link | Thêm tay sau khi đọc ToS | Không truy cập tự động | Terms 11.6 cấm "spiders, robots, crawlers" | Khi cần |
 | `ror` | CC0 (bản dump trên Zenodo, `cc-zero`) | Bản dump có phiên bản trên Zenodo, không gọi API theo từng trường | 1 lần tải mỗi lần dựng | API: 2.000 req/5 phút có `Client-Id`, 50 không có (chưa áp dụng ngày 2026-11-05) | Chỉ authority (#96) |
 | `openalex` | CC0 ("Our data is CC0") | API `institutions`, lưu snapshot JSON | 10 req/s; không key: $0,10/ngày dùng chung theo IP; key miễn phí: $1/ngày | — | Chỉ authority (#96) |
+| `wikipedia` | CC BY-SA 4.0 | Tìm trực tiếp qua MediaWiki Action API (`action=query&list=search`), `vi` hoặc `en` | Gọi tuần tự theo API Etiquette → 1 req/s | User-Agent có địa chỉ liên hệ; `robots.txt` chặn crawler ở `/w/`, Action API là đường truy cập dành cho chương trình | Phase 4 (#157) |
+| `wikibooks` | CC BY-SA 4.0 | Như `wikipedia` | Như `wikipedia` | Như `wikipedia` | Phase 4 (#157) |
+| `openalex_works` | Theo từng bản mở (`best_oa_location.license`): chỉ CC0, CC BY, CC BY-SA, CC BY-NC-SA; bản không ghi giấy phép, NC, ND, `other-oa` bị loại | Tìm trực tiếp qua API `works`, lọc `is_oa` và giấy phép ngay trong truy vấn | Như `openalex` | — | Phase 4 (#157) |
 
 Ghi chú khi đối chiếu với giả định ban đầu của issue:
 
 - **OpenStax không còn CC BY cho mọi sách.** Trung tâm trợ giúp của OpenStax nay ghi CC BY-NC-SA; API vẫn trả CC BY 4.0 cho các sách đã phát hành theo giấy phép đó (ví dụ *Statistics*, *Introductory Statistics* bản 1). Connector phải đọc giấy phép **từng sách**; sách không ghi giấy phép vào hàng chờ duyệt, không mặc định.
 - **Hành trang số đã dừng.** NXB Giáo dục Việt Nam chuyển SGK điện tử miễn phí sang `taphuan.nxbgd.vn`.
 - **Khan Academy** có trong spec 11.2 nhưng thiếu trong issue; được thêm với phương thức thêm tay vì điều khoản cấm scraping.
+- **Nguồn tìm trực tiếp (#157).** `wikipedia`, `wikibooks`, `openalex_works` và `openstax` có `SearchProvider` tìm trực tiếp theo truy vấn (`app/search`); đưa chúng vào chuỗi provider mặc định và chia quota thuộc #155 và #161. Provider đọc giấy phép được phép và cờ `automated` từ đúng hàng của mình trong YAML; kết quả thiếu URL hoặc giấy phép không có trong hàng bị loại. Khan Academy không có API công khai và cấm truy cập tự động, nên **Wikibooks** (sách mở có bài tập, CC BY-SA, có API) là nguồn tương đương.
 
 Thêm một provider mới = một PR sửa `catalog_sources.yaml` và bảng trên, được 2 thành viên duyệt, kèm link trang chính thức đã đọc.
 

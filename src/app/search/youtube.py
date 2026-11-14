@@ -2,39 +2,20 @@
 
 from __future__ import annotations
 
-import html
 import logging
 import os
-import re
 from typing import Any
 
 import httpx
 
 from app.search.base import Candidate, SearchProvider
+from app.search.http import error_code, plain_text
 
 log = logging.getLogger("app.search.youtube")
 
 YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
 DEFAULT_MAX_RESULTS = 5
 DEFAULT_TIMEOUT = 10.0
-_TAG_RE = re.compile(r"<[^>]+>")
-
-
-def _plain_text(value: Any) -> str:
-    text = html.unescape(str(value or ""))
-    return re.sub(r"\s+", " ", _TAG_RE.sub(" ", text)).strip()
-
-
-def _error_code(exc: Exception) -> str:
-    """A short, secret-free error label for logs and ``search_runs``."""
-
-    if isinstance(exc, httpx.HTTPStatusError):
-        return f"http_{exc.response.status_code}"
-    if isinstance(exc, httpx.TimeoutException):
-        return "timeout"
-    if isinstance(exc, httpx.TransportError):
-        return "network"
-    return type(exc).__name__
 
 
 class YouTubeSearch(SearchProvider):
@@ -99,7 +80,7 @@ class YouTubeSearch(SearchProvider):
             self.last_error = None
             return self._candidates(payload, lang=lang)
         except Exception as exc:  # noqa: BLE001 - network/key/quota/bad JSON never break search
-            self.last_error = _error_code(exc)
+            self.last_error = error_code(exc)
             log.warning("provider=youtube failed error=%s", self.last_error)
             return []
 
@@ -122,7 +103,7 @@ class YouTubeSearch(SearchProvider):
             snippet = item.get("snippet") or {}
             if not video_id or not isinstance(snippet, dict):
                 continue
-            title = _plain_text(snippet.get("title"))
+            title = plain_text(snippet.get("title"))
             if not title:
                 continue
             candidates.append(
@@ -132,7 +113,7 @@ class YouTubeSearch(SearchProvider):
                     provider="youtube",
                     kind="video",
                     lang=lang,
-                    snippet=_plain_text(snippet.get("description")),
+                    snippet=plain_text(snippet.get("description")),
                 )
             )
             if len(candidates) >= self.max_results:

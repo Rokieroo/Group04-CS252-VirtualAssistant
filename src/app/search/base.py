@@ -18,6 +18,8 @@ class Candidate:
     kind: str
     lang: str
     snippet: str = ""
+    license: str = ""  # a license id of catalog_sources.yaml; "" when unknown
+    institution: str = ""  # publisher or host institution
 
 
 class SearchProvider(ABC):
