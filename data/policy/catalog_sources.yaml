@@ -223,6 +223,8 @@ providers:
     evidence: https://openalex.org/about
     checked_on: 2026-11-05
 
+  # Live search providers (#157): app/search reads only `licenses` and `automated`
+  # from these rows; metadata and a link are shown, never a copy of the page.
   - id: wikipedia
     name: Wikipedia
     use: source
@@ -230,9 +232,38 @@ providers:
     domains: [wikipedia.org]
     license: CC-BY-SA-4.0
     method: api
-    endpoint: https://en.wikipedia.org/w/api.php
+    endpoint: https://{lang}.wikipedia.org/w/api.php
     automated: true
     rate_limit_per_sec: 1
     attribution: "{title}, Wikipedia, {url}. CC BY-SA 4.0."
     evidence: https://en.wikipedia.org/wiki/Wikipedia:Copyrights
-    checked_on: 2026-11-13
+    checked_on: 2026-11-14
+
+  - id: wikibooks
+    name: Wikibooks
+    use: source
+    levels: [k12, undergrad]
+    domains: [wikibooks.org]
+    license: CC-BY-SA-4.0
+    method: api
+    endpoint: https://{lang}.wikibooks.org/w/api.php
+    automated: true
+    rate_limit_per_sec: 1
+    attribution: "{title}, Wikibooks, {url}. CC BY-SA 4.0."
+    evidence: https://en.wikibooks.org/wiki/Wikibooks:Copyrights
+    checked_on: 2026-11-14
+
+  - id: openalex_works
+    name: OpenAlex works (open access)
+    use: source
+    levels: [undergrad, grad]
+    domains: []  # works link to their publishers' pages, not to openalex.org
+    license: per_item
+    item_licenses: [CC0-1.0, CC-BY-4.0, CC-BY-SA-4.0, CC-BY-NC-SA-4.0]
+    method: api
+    endpoint: https://api.openalex.org/works?filter=is_oa:true
+    automated: true
+    rate_limit_per_sec: 1
+    attribution: "{title}, {institution}, {url}. {license}."
+    evidence: https://help.openalex.org/data/locations/
+    checked_on: 2026-11-14

@@ -1,384 +1,259 @@
-"""Unit and offline integration tests for external search providers (Issue #157).
+"""Open search providers (#157): recorded payloads only, no network in CI.
 
-Tests OpenAlex, Wikipedia, OpenStax, and Khan Academy providers with recorded payloads
-to ensure zero network calls during CI, strict license & URL requirements, and error resilience.
+Payloads are trimmed copies of real responses (2026-11-14). Every provider must
+drop results without a URL or a license registered for it in catalog_sources.yaml.
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import httpx
+import pytest
 
-from app.search import (
-    KhanAcademySearch,
-    OpenAlexSearch,
-    OpenStaxSearch,
-    SearchRunRecord,
-    SearchService,
-    WikipediaSearch,
-)
+from app.catalog.sources import load_sources
+from app.search import SearchService
+from app.search.openalex import OpenAlexSearch, abstract
+from app.search.openstax import OpenStaxSearch
+from app.search.wikipedia import WikibooksSearch, WikipediaSearch
 
 
-class MockClient:
-    """Mock HTTP client that returns canned responses matching requested endpoints."""
+class Response:
+    def __init__(self, payload, status=200):
+        self.payload = payload
+        self.status_code = status
 
-    def __init__(self, handler):
-        self.handler = handler
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            request = httpx.Request("GET", "https://example.org")
+            raise httpx.HTTPStatusError(
+                "error", request=request, response=httpx.Response(self.status_code, request=request)
+            )
 
-    def get(self, url, params=None, headers=None):
-        return self.handler(url, params=params, headers=headers)
+    def json(self):
+        return self.payload
 
 
-# ---------------------------------------------------------------------------
-# OpenAlex Tests
-# ---------------------------------------------------------------------------
+class Client:
+    """Answers with the queued replies in order (the last one repeats); exceptions are raised."""
 
-OPENALEX_PAYLOAD = {
+    def __init__(self, *replies):
+        self.replies = list(replies)
+        self.calls: list[tuple[str, dict, dict]] = []
+
+    def get(self, url, *, headers=None):
+        parsed = httpx.URL(url)
+        endpoint = str(parsed.copy_with(query=None))
+        self.calls.append((endpoint, dict(parsed.params.multi_items()), headers or {}))
+        reply = self.replies.pop(0) if len(self.replies) > 1 else self.replies[0]
+        if isinstance(reply, Exception):
+            raise reply
+        return reply if isinstance(reply, Response) else Response(reply)
+
+
+def location(license_, url="https://zenodo.org/record/6502327"):
+    return {
+        "landing_page_url": url,
+        "pdf_url": url,
+        "license": license_,
+        "source": {
+            "display_name": "Zenodo",
+            "host_organization_name": "European Organization for Nuclear Research",
+        },
+    }
+
+
+OPENALEX = {
     "results": [
         {
-            "id": "https://openalex.org/W123456",
-            "doi": "https://doi.org/10.1234/test.1",
-            "title": "Introduction to Graph Algorithms",
-            "type": "article",
+            "title": "GRAPH ALGORITHMS",
+            "type": "conference-paper",
             "language": "en",
-            "primary_location": {
-                "landing_page_url": "https://doi.org/10.1234/test.1",
-                "pdf_url": "https://arxiv.org/pdf/1234.pdf",
-                "license": "cc-by",
-                "source": {
-                    "display_name": "Journal of Computer Science",
-                    "host_organization_name": "Open Science Publishing",
-                },
-            },
-            "open_access": {"is_oa": True, "oa_status": "gold"},
-            "authorships": [
-                {"institutions": [{"display_name": "MIT Department of EECS"}]}
-            ],
-            "abstract_inverted_index": {
-                "Graph": [0],
-                "algorithms": [1],
-                "and": [2],
-                "their": [3],
-                "applications.": [4],
-            },
+            "best_oa_location": location("cc-by"),
+            "abstract_inverted_index": {"Graphs": [0], "are": [1], "everywhere": [2]},
         },
         {
-            "id": "https://openalex.org/W789012",
-            "doi": "https://doi.org/10.1234/test.2",
-            "title": "Discrete Mathematics for Computing",
+            "title": "Open Data Structures",
             "type": "book",
             "language": "en",
-            "primary_location": {
-                "landing_page_url": "https://example.org/books/discrete-math",
-                "license": "cc-by-nc-sa-4.0",
-                "source": {"display_name": "University Open Press"},
-            },
-            "open_access": {"is_oa": True},
-            "concepts": [{"display_name": "Mathematics"}, {"display_name": "Logic"}],
+            "best_oa_location": location("cc-by-sa", "https://opendatastructures.org/"),
         },
-        # Unlicensed work -> MUST BE DROPPED
-        {
-            "id": "https://openalex.org/W999999",
-            "doi": "https://doi.org/10.1234/no-license",
-            "title": "Unlicensed Proprietary Paper",
-            "primary_location": {
-                "landing_page_url": "https://example.org/no-license",
-                "license": None,
-            },
-        },
-        # Missing URL work -> MUST BE DROPPED
-        {
-            "id": "",
-            "title": "Paper Without URL",
-            "primary_location": {
-                "license": "cc-by",
-            },
-        },
+        # Each of these must be dropped.
+        {"title": "No license", "type": "article", "best_oa_location": location(None, "https://a.org/1")},
+        {"title": "NC-ND", "type": "article", "best_oa_location": location("cc-by-nc-nd", "https://a.org/2")},
+        {"title": "Other OA", "type": "article", "best_oa_location": location("other-oa", "https://a.org/3")},
+        {"title": "No open copy", "type": "article", "best_oa_location": None},
     ]
 }
 
-
-def test_openalex_search_success_and_license_filtering():
-    def handler(url, params=None, headers=None):
-        assert params.get("search") == "graph algorithms"
-        assert params.get("filter") == "is_oa:true"
-        req = httpx.Request("GET", url, params=params)
-        return httpx.Response(200, json=OPENALEX_PAYLOAD, request=req)
-
-    provider = OpenAlexSearch(client=MockClient(handler), max_results=5)
-    candidates = provider.search("graph algorithms")
-
-    assert len(candidates) == 2
-    # Verify first candidate
-    c1 = candidates[0]
-    assert c1.url == "https://doi.org/10.1234/test.1"
-    assert c1.title == "Introduction to Graph Algorithms"
-    assert c1.provider == "openalex"
-    assert c1.license == "CC-BY-4.0"
-    assert c1.institution in ("Open Science Publishing", "MIT Department of EECS")
-    assert "Graph algorithms and their applications." in c1.snippet
-    assert c1.kind == "article"
-
-    # Verify second candidate (book with CC-BY-NC-SA)
-    c2 = candidates[1]
-    assert c2.url in ("https://doi.org/10.1234/test.2", "https://example.org/books/discrete-math")
-    assert c2.license == "CC-BY-NC-SA-4.0"
-    assert c2.institution == "University Open Press"
-    assert c2.kind == "book"
-
-    # Acceptance criteria: None has missing license or missing url
-    assert all(c.license and c.url for c in candidates)
-
-
-def test_openalex_error_handling_and_empty():
-    def fail_handler(url, params=None, headers=None):
-        req = httpx.Request("GET", url)
-        raise httpx.ConnectError("Connection refused", request=req)
-
-    provider = OpenAlexSearch(client=MockClient(fail_handler))
-    assert provider.search("testing") == []
-    assert provider.last_error == "network"
-
-    # Empty query
-    assert provider.search("") == []
-    assert provider.search("   ") == []
-
-
-# ---------------------------------------------------------------------------
-# Wikipedia Tests
-# ---------------------------------------------------------------------------
-
-WIKIPEDIA_VI_PAYLOAD = {
+WIKI = {
     "query": {
         "search": [
-            {
-                "title": "Thuật toán tìm kiếm theo chiều rộng",
-                "pageid": 12345,
-                "snippet": '<span class="searchmatch">Thuật</span> <span class="searchmatch">toán</span> tìm kiếm theo chiều rộng (BFS) là một giải thuật duyệt đồ thị.',
-            },
-            {
-                "title": "Đồ thị có hướng",
-                "pageid": 67890,
-                "snippet": "Trong toán học, một đồ thị có hướng là...",
-            },
+            {"title": "Cây nhị phân", "snippet": 'Trong khoa học máy tính, <span class="searchmatch">cây</span> nhị phân'},
+            {"title": "Cây tìm kiếm nhị phân", "snippet": "cấu trúc dữ liệu"},
         ]
     }
 }
 
-
-def test_wikipedia_search_vietnamese_and_english():
-    def handler(url, params=None, headers=None):
-        assert "vi.wikipedia.org" in url
-        assert params.get("action") == "query"
-        assert params.get("list") == "search"
-        req = httpx.Request("GET", url, params=params)
-        return httpx.Response(200, json=WIKIPEDIA_VI_PAYLOAD, request=req)
-
-    provider = WikipediaSearch(client=MockClient(handler), max_results=5)
-    candidates = provider.search("thuật toán đồ thị", lang="vi")
-
-    assert len(candidates) == 2
-    c1 = candidates[0]
-    assert "vi.wikipedia.org/wiki/" in c1.url
-    assert c1.title == "Thuật toán tìm kiếm theo chiều rộng"
-    assert c1.provider == "wikipedia"
-    assert c1.license == "CC-BY-SA-4.0"
-    assert c1.institution == "Wikimedia Foundation"
-    assert "<span" not in c1.snippet  # HTML stripped
-    assert "BFS" in c1.snippet
-    assert c1.lang == "vi"
-
-    # Acceptance criteria: None has missing license or missing url
-    assert all(c.license and c.url for c in candidates)
-
-
-def test_wikipedia_error_and_empty():
-    def fail_handler(url, params=None, headers=None):
-        req = httpx.Request("GET", url)
-        return httpx.Response(500, request=req)
-
-    provider = WikipediaSearch(client=MockClient(fail_handler))
-    assert provider.search("query") == []
-    assert provider.last_error == "http_500"
-    assert provider.search("   ") == []
-
-
-# ---------------------------------------------------------------------------
-# OpenStax Tests
-# ---------------------------------------------------------------------------
-
-OPENSTAX_PAYLOAD = {
-    "meta": {"total_count": 2},
+OPENSTAX = {
+    "meta": {"total_count": 3},
     "items": [
         {
-            "id": 101,
-            "title": "College Physics 2e",
-            "book_state": "live",
-            "license_name": "Creative Commons Attribution License",
-            "license_version": "4.0",
-            "description": "<p>Introductory algebra-based physics textbook covering mechanics and thermodynamics.</p>",
-            "meta": {
-                "html_url": "https://openstax.org/details/books/college-physics-2e",
-                "locale": "en",
-            },
-        },
-        {
-            "id": 102,
-            "title": "Principles of Management",
+            "id": 74,
+            "meta": {"html_url": "https://openstax.org/details/books/calculus-volume-1", "locale": "en"},
+            "title": "Calculus Volume 1",
             "book_state": "live",
             "license_name": "Creative Commons Attribution-NonCommercial-ShareAlike License",
             "license_version": "4.0",
-            "description": "Foundational management topics.",
-            "meta": {
-                "html_url": "https://openstax.org/details/books/principles-management",
-                "locale": "en",
-            },
+            "description": "<p>Calculus is designed for the typical two- or three-semester course.</p>",
         },
-        # Unrecognized license -> MUST BE DROPPED
         {
-            "id": 103,
-            "title": "Restricted Book",
-            "book_state": "live",
-            "license_name": "All Rights Reserved",
-            "license_version": "1.0",
-            "meta": {"html_url": "https://openstax.org/details/books/restricted"},
-        },
-        # Deprecated book -> MUST BE DROPPED
-        {
-            "id": 104,
-            "title": "Deprecated Physics 1e",
-            "book_state": "deprecated",
+            "id": 1,
+            "meta": {"html_url": "https://openstax.org/details/books/old-calculus", "locale": "en"},
+            "title": "Old Calculus",
+            "book_state": "retired",
             "license_name": "Creative Commons Attribution License",
             "license_version": "4.0",
-            "meta": {"html_url": "https://openstax.org/details/books/deprecated"},
+        },
+        {
+            "id": 2,
+            "meta": {"html_url": "https://openstax.org/details/books/unknown", "locale": "en"},
+            "title": "No License Calculus",
+            "book_state": "live",
+            "license_name": "",
+            "license_version": "",
         },
     ],
 }
 
 
-def test_openstax_search_books_and_license_filtering():
-    def handler(url, params=None, headers=None):
-        assert params.get("type") == "books.Book"
-        assert params.get("search") == "physics"
-        req = httpx.Request("GET", url, params=params)
-        return httpx.Response(200, json=OPENSTAX_PAYLOAD, request=req)
-
-    provider = OpenStaxSearch(client=MockClient(handler))
-    candidates = provider.search("physics")
-
-    assert len(candidates) == 2
-    c1 = candidates[0]
-    assert c1.url == "https://openstax.org/details/books/college-physics-2e"
-    assert c1.title == "College Physics 2e"
-    assert c1.provider == "openstax"
-    assert c1.kind == "book"
-    assert c1.license == "CC-BY-4.0"
-    assert c1.institution == "OpenStax (Rice University)"
-    assert "<p>" not in c1.snippet
-
-    c2 = candidates[1]
-    assert c2.license == "CC-BY-NC-SA-4.0"
-
-    # Acceptance criteria: None has missing license or missing url
-    assert all(c.license and c.url for c in candidates)
+def no_backoff(provider):
+    provider.backoff = 0
+    return provider
 
 
-# ---------------------------------------------------------------------------
-# Khan Academy Tests
-# ---------------------------------------------------------------------------
+def test_openalex_keeps_only_registered_licenses_of_the_open_copy():
+    client = Client(OPENALEX)
+    results = OpenAlexSearch(client=client).search("graph algorithms", lang="en")
 
-KHAN_PAYLOAD = {
-    "items": [
-        {
-            "title": "Algorithms: Graph Representation",
-            "ka_url": "/computing/computer-science/algorithms/graph-representation",
-            "description": "Learn how graphs are represented using adjacency matrices and lists.",
-            "kind": "article",
-        },
-        {
-            "title": "Breadth-First Search (BFS) Video",
-            "url": "https://www.khanacademy.org/computing/computer-science/algorithms/breadth-first-search/v/bfs",
-            "description": "Visualizing BFS step by step.",
-            "kind": "video",
-        },
-        # Item with no url -> MUST BE DROPPED
-        {
-            "title": "Broken Item",
-            "url": "",
-        },
-    ]
-}
+    assert [r.title for r in results] == ["GRAPH ALGORITHMS", "Open Data Structures"]
+    paper, book = results
+    assert (paper.license, paper.kind, paper.url) == ("CC-BY-4.0", "article", "https://zenodo.org/record/6502327")
+    assert paper.institution == "European Organization for Nuclear Research"
+    assert paper.snippet == "Graphs are everywhere"
+    assert (book.license, book.kind) == ("CC-BY-SA-4.0", "book")
+    url, params, headers = client.calls[0]
+    assert url == "https://api.openalex.org/works"
+    assert params["filter"].startswith("is_oa:true,best_oa_location.license:")
+    assert "cc-by-nc-nd" not in params["filter"].split(":")[-1].split("|")
+    assert "github.com" in headers["User-Agent"]
 
 
-def test_khan_academy_search():
-    def handler(url, params=None, headers=None):
-        assert params.get("query") == "algorithms"
-        req = httpx.Request("GET", url, params=params)
-        return httpx.Response(200, json=KHAN_PAYLOAD, request=req)
-
-    provider = KhanAcademySearch(client=MockClient(handler))
-    candidates = provider.search("algorithms")
-
-    assert len(candidates) == 2
-    c1 = candidates[0]
-    assert c1.url == "https://www.khanacademy.org/computing/computer-science/algorithms/graph-representation"
-    assert c1.title == "Algorithms: Graph Representation"
-    assert c1.provider == "khan_academy"
-    assert c1.kind == "article"
-    assert c1.license == "CC-BY-NC-SA-4.0"
-    assert c1.institution == "Khan Academy"
-
-    c2 = candidates[1]
-    assert c2.url.startswith("https://www.khanacademy.org")
-    assert c2.kind == "video"
-    assert c2.license == "CC-BY-NC-SA-4.0"
-
-    # Acceptance criteria: None has missing license or missing url
-    assert all(c.license and c.url for c in candidates)
+def test_openalex_abstract_is_rebuilt_in_word_order():
+    assert abstract({"b": [1], "a": [0, 2]}) == "a b a"
+    assert abstract(None) == ""
 
 
-# ---------------------------------------------------------------------------
-# Integration with SearchService
-# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("provider_class, site", [(WikipediaSearch, "wikipedia"), (WikibooksSearch, "wikibooks")])
+def test_mediawiki_links_the_learners_language(provider_class, site):
+    client = Client(WIKI)
+    results = provider_class(client=client).search("cây nhị phân", lang="vi")
 
-def test_search_service_orchestration_with_new_providers():
-    def alex_handler(url, params=None, headers=None):
-        return httpx.Response(200, json=OPENALEX_PAYLOAD, request=httpx.Request("GET", url))
+    assert client.calls[0][0] == f"https://vi.{site}.org/w/api.php"
+    assert results[0].url == f"https://vi.{site}.org/wiki/C%C3%A2y_nh%E1%BB%8B_ph%C3%A2n"
+    assert results[0].snippet == "Trong khoa học máy tính, cây nhị phân"
+    assert {(r.license, r.lang, r.institution) for r in results} == {
+        ("CC-BY-SA-4.0", "vi", "Wikimedia Foundation")
+    }
+    provider_class(client=client).search("binary tree", lang="en")
+    assert client.calls[1][0] == f"https://en.{site}.org/w/api.php"
 
-    def wiki_handler(url, params=None, headers=None):
-        return httpx.Response(200, json=WIKIPEDIA_VI_PAYLOAD, request=httpx.Request("GET", url))
 
-    def stax_handler(url, params=None, headers=None):
-        return httpx.Response(200, json=OPENSTAX_PAYLOAD, request=httpx.Request("GET", url))
+def test_openstax_shares_the_catalog_connectors_book_rules():
+    client = Client(OPENSTAX)
+    results = OpenStaxSearch(client=client).search("calculus", lang="en")
 
-    def khan_handler(url, params=None, headers=None):
-        return httpx.Response(200, json=KHAN_PAYLOAD, request=httpx.Request("GET", url))
+    assert [(r.title, r.license) for r in results] == [("Calculus Volume 1", "CC-BY-NC-SA-4.0")]
+    assert results[0].snippet.startswith("Calculus is designed")
+    url, params, _ = client.calls[0]
+    assert url == "https://openstax.org/apps/cms/api/v2/pages/"
+    # The registry endpoint's filters survive next to the search parameters.
+    registry = dict(httpx.URL(load_sources().providers["openstax"].endpoint).params.multi_items())
+    assert params == {**registry, "search": "calculus", "limit": "5"}
 
+
+@pytest.mark.parametrize(
+    "provider_class, payload",
+    [(OpenAlexSearch, OPENALEX), (WikipediaSearch, WIKI), (WikibooksSearch, WIKI), (OpenStaxSearch, OPENSTAX)],
+)
+def test_no_result_lacks_a_license_or_url(provider_class, payload):
+    provider = provider_class(client=Client(payload))
+    results = provider.search("anything", lang="en")
+    licenses = provider.registry.licenses
+
+    assert results
+    assert all(r.url.startswith("https://") and r.license in licenses for r in results)
+    assert all(len(r.snippet) <= 300 for r in results)
+
+
+def test_unsupported_kind_and_blank_query_make_no_request():
+    client = Client(WIKI)
+    assert WikipediaSearch(client=client).search("tree", kind="video") == []
+    assert OpenStaxSearch(client=client).search("tree", kind="article") == []
+    assert WikipediaSearch(client=client).search("   ") == []
+    assert client.calls == []
+
+
+def test_transient_failures_are_retried_then_succeed():
+    client = Client(httpx.ConnectTimeout("slow"), Response({}, status=503), WIKI)
+    provider = no_backoff(WikipediaSearch(client=client))
+
+    assert len(provider.search("tree", lang="en")) == 2
+    assert provider.last_error is None
+    assert len(client.calls) == 3
+
+
+@pytest.mark.parametrize(
+    "reply, error, calls",
+    [
+        (httpx.ConnectError("down"), "network", 3),
+        (Response({}, status=404), "http_404", 1),  # not transient: no retry
+        ({"unexpected": True}, "KeyError", 1),
+    ],
+)
+def test_failures_end_empty_with_a_secret_free_label(reply, error, calls):
+    client = Client(reply)
+    provider = no_backoff(OpenAlexSearch(client=client))
+
+    assert provider.search("tree") == []
+    assert provider.last_error == error
+    assert len(client.calls) == calls
+
+
+def test_a_provider_whose_terms_forbid_automation_cannot_be_built():
+    sources = load_sources()
+    locked = replace(sources.providers["wikipedia"], automated=False)
+    forbidden = replace(sources, providers={**sources.providers, "wikipedia": locked})
+
+    with pytest.raises(ValueError, match="not_automatable_wikipedia"):
+        WikipediaSearch(sources=forbidden)
+
+
+def test_service_logs_one_free_run_per_query_and_provider():
+    runs = []
     providers = [
-        OpenAlexSearch(client=MockClient(alex_handler)),
-        WikipediaSearch(client=MockClient(wiki_handler)),
-        OpenStaxSearch(client=MockClient(stax_handler)),
-        KhanAcademySearch(client=MockClient(khan_handler)),
+        OpenAlexSearch(client=Client(OPENALEX)),
+        WikipediaSearch(client=Client(WIKI)),
+        no_backoff(OpenStaxSearch(client=Client(httpx.ConnectError("down")))),
     ]
+    service = SearchService(providers=providers, max_results=10)
 
-    recorded_runs: list[SearchRunRecord] = []
-    service = SearchService(providers=providers, max_results=20)
-    results = service.search(
-        query="graph algorithms",
-        record_run=lambda rec: recorded_runs.append(rec),
-    )
+    results = service.search(queries=["graph algorithms"], lang="en", record_run=runs.append)
 
-    assert len(results) > 0
-    # Every returned candidate must have valid license and url
-    for candidate in results:
-        assert candidate.url.startswith("http")
-        assert candidate.license in ("CC-BY-4.0", "CC-BY-NC-SA-4.0", "CC-BY-SA-4.0")
-        assert candidate.provider in ("openalex", "wikipedia", "openstax", "khan_academy")
-        assert candidate.institution
-
-    # Verify search_runs were recorded for all providers
-    recorded_providers = {r.provider for r in recorded_runs}
-    assert recorded_providers == {"openalex", "wikipedia", "openstax", "khan_academy"}
-    for run in recorded_runs:
-        assert run.status == "ok"
-        assert run.results_count > 0
-        assert run.cost_usd == 0.0
+    assert {r.provider for r in results} == {"openalex_works", "wikipedia"}
+    assert [(r.provider, r.status, r.cost_usd) for r in runs] == [
+        ("openalex_works", "ok", 0.0),
+        ("wikipedia", "ok", 0.0),
+        ("openstax", "error", 0.0),
+    ]
+    assert service.last_errors == {"openstax": "network"}
