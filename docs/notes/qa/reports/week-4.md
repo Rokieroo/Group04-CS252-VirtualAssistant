@@ -67,3 +67,32 @@ Reproduce: `python -m pytest tests/test_safeguards.py tests/test_safe_fetch.py t
 3. Dead-link rate from the link-check job on the staging catalog.
 4. Run the 30 answer-leak attacks once node hints and grading exist (#163).
 5. Replace or supplement the synthetic exercises with real, licensed excerpts before using them to claim a grading agreement rate (#115: ≥ 85 % on 60 cases).
+
+---
+
+## 6. Unified Recommender Benchmark & External Red-Team (#160)
+
+`python eval/run_recommendations.py` evaluates the unified recommender across all **50 weekly nodes** of the 5 benchmark syllabi (`01_csc10014` – `05_cs203`), comparing three configurations through the real `match_sources`, `vet`, `curate`, and repository persistence pipeline. Because no live search API key or external LLM quota is available in CI, external results and HTML pages come from pre-recorded offline fixtures paired with a deterministic judge (`_OfflineJudgeLLM`) that checks topic overlap and requires a verbatim `<page_text>` quote.
+
+| Configuration | Total Nodes | Covered Nodes | Node Coverage | Precision@5 | nDCG@5 | Avg Formats in Top-5 |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `db_only` | 50 | 40 | 80.0% | 0.279 | 0.344 | 1.15 |
+| `db_plus_external` | 50 | 50 | 100.0% | 0.820 | 0.842 | 3.00 |
+| `db_plus_external_plus_feedback` | 50 | 50 | 100.0% | 0.904 | 0.903 | 3.00 |
+
+Key findings from the 3-configuration run:
+- **`db_only` -> `db_plus_external`**: supplementing the partial, article-heavy verified DB pool with vetted external lectures, interactive exercises, and open textbooks raises node coverage from `80.0%` to `100.0%`, clears the `Precision@5 ≥ 0.80` and `nDCG@5 ≥ 0.75` targets, and increases top-5 format diversity from `1.15` to `3.00` distinct formats (`reading`, `exercise`, `video`).
+- **`db_plus_external` -> `db_plus_external_plus_feedback`**: passing simulated learner feedback counts into `vet(..., ratings=ratings)` lowers borderline unhelpful summaries and promotes helpful multi-format items through `score.community`, raising `Precision@5` from `0.820` to `0.904` and `nDCG@5` from `0.842` to `0.903`.
+
+### External Red-Team & Provenance Invariants (#160)
+
+| Check | Coverage / Mechanism | Result |
+| --- | --- | --- |
+| Prompt-injection HTML pages (`eval/fixtures/redteam/injections/*.html`) | 15 injection pages run through `vet()` + `curate()` | **0 / 15** leaked to top-5 |
+| Pirated domains (`eval/fixtures/redteam/pirated_urls.jsonl`) | 20 pirated URLs blocked by domain policy & vetting | **0 / 20** leaked to top-5 |
+| K-12 adult-rated external pages | 3 `<meta name="rating" content="adult">` pages vetted with `Learner(k12=True)` | **0 / 3** leaked to top-5 |
+| External provenance invariant (`get_or_generate_node_recommendations`) | External suggestions (`kind="external"`) checked against `verified_resources()` & `resources` table | **0** marked `verified` |
+| Negative feedback dismissal | `record_recommendation_event(..., "not_helpful")` sets `dismissed_at` and excludes item on refetch | pass (`tests/test_recommendations_eval.py`) |
+
+Reproduce: `python eval/run_recommendations.py` and `pytest -q tests/test_recommendations_eval.py`.
+
