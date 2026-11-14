@@ -105,6 +105,8 @@ def test_run_graph_offline_scores_the_shipped_pipeline_without_an_answer_key():
     assert all(row["strict_tp"] == 0 for row in report["results"])
     assert summary["unsourced_concepts"] == 0
     assert summary["cycles"] == 0
+    # Strict precision is a target too: an offline run cannot meet it, so it cannot pass.
+    assert not report["passed"]
 
 
 def test_would_create_cycle_300_nodes_under_10ms():

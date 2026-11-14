@@ -8,7 +8,8 @@ Usage::
     python eval/run_graph.py --output out.json   # write JSON report
 
 The recall/precision targets are judged on ``--llm`` runs: offline there is no model, so
-concepts are the week topics and no strict edge is proposed. Nothing in this file may encode
+concepts come from week topics and CLO lists only and no strict edge is proposed; the
+offline run therefore reports FAIL on strict precision by design. Nothing in this file may encode
 the gold graphs; that would turn the benchmark into a check against its own answer key.
 
 Measures per syllabus and macro/micro-averaged across all 5 courses:
@@ -35,9 +36,10 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from app.concepts import TopicIn, comparison_key, normalize_topics, slugify
+from app.concepts import comparison_key, extract_course_concepts, slugify
 from app.ingest import detect_media_type, extract_pages
 from app.llm import FakeLLM, LLMClient, RetryableError, get_client
+from app.llm.embeddings import get_embedding_encoder
 from app.roadmap.builder import build_roadmap, propose_prerequisites
 from app.roadmap.graph import Edge, find_cycles, would_create_cycle
 from app.syllabus import extract_syllabus, preview_syllabus
@@ -144,18 +146,15 @@ def extract_graph_from_syllabus(
 
     Offline (``llm`` is None or a FakeLLM) this is the rule-based ``preview_syllabus`` and a
     FakeLLM with no canned answers, so it measures exactly what ships without a model:
-    week topics as concepts and no LLM prerequisites. Nothing here may know the gold graph.
+    the parts of week topics and the items CLOs enumerate as concepts, no LLM
+    prerequisites. Nothing here may know the gold graph.
     """
     data = syllabus_path.read_bytes()
     pages = extract_pages(data, detect_media_type(syllabus_path.name, data))
     live = llm is not None and not isinstance(llm, FakeLLM)
     parsed = (extract_syllabus(llm, pages) if live else preview_syllabus(pages, None)).parsed
-    normalized = normalize_topics(
-        [
-            TopicIn(str(topic), int(row.get("week") or 1), row.get("source_page"))
-            for row in parsed.get("weeks", [])
-            for topic in row.get("topics", [])
-        ]
+    normalized = extract_course_concepts(
+        parsed, pages, llm=llm if live else None, encoder=get_embedding_encoder()
     )
     proposed_edges = propose_prerequisites(llm if live else FakeLLM(), normalized)
     roadmap = build_roadmap(

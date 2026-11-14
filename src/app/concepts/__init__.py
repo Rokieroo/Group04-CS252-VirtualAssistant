@@ -27,6 +27,7 @@ from .extract import (
     windows,
 )
 from .normalize import TopicIn, comparison_key, normalize_topics, slugify
+from .syllabus_concepts import extract_course_concepts, merge_similar_concepts
 
 __all__ = [
     "BLOOM_LEVELS",
@@ -45,8 +46,10 @@ __all__ = [
     "comparison_key",
     "consolidate",
     "extract_concepts",
+    "extract_course_concepts",
     "log",
     "merge",
+    "merge_similar_concepts",
     "normalize",
     "normalize_topics",
     "parse_concepts",

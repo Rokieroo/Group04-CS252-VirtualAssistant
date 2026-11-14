@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Iterable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, timedelta
 from itertools import pairwise
 from pathlib import Path
@@ -66,6 +66,8 @@ class Roadmap:
     errors: list[str]
     cycles: list[Edge]
     removed_edges: list[Edge]
+    # Strict edges below STRICT_CONFIDENCE: shown as suggestions, never enforced.
+    suggested_edges: list[Edge] = field(default_factory=list)
 
     @property
     def topics(self) -> list[NodeSpec]:
@@ -546,13 +548,13 @@ def build_roadmap(
     proposed = list(prereq_edges) if prereq_edges is not None else (
         propose_prerequisites(llm, topic_nodes) if llm is not None else []
     )
+    suggested_edges: list[Edge] = []
     for raw in proposed:
         edge = _coerce_edge(raw)
-        if edge is None:
+        if edge is None or edge.parent not in by_id or edge.child not in by_id                 or edge.parent == edge.child:
             continue
         if edge.kind == "strict" and edge.confidence < STRICT_CONFIDENCE:
-            continue
-        if edge.parent not in by_id or edge.child not in by_id or edge.parent == edge.child:
+            suggested_edges.append(edge)  # the learner confirms it on the graph (#97)
             continue
         edges.append(edge)
     edges = _dedupe_edges(edges)
@@ -578,6 +580,7 @@ def build_roadmap(
         errors=errors,
         cycles=cycles,
         removed_edges=removed,
+        suggested_edges=suggested_edges,
     )
 
 
