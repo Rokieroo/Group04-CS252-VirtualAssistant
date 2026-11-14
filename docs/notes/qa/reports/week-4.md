@@ -72,27 +72,32 @@ Reproduce: `python -m pytest tests/test_safeguards.py tests/test_safe_fetch.py t
 
 ## 6. Unified Recommender Benchmark & External Red-Team (#160)
 
-`python eval/run_recommendations.py` evaluates the unified recommender across all **50 weekly nodes** of the 5 benchmark syllabi (`01_csc10014` – `05_cs203`), comparing three configurations through the real `match_sources`, `vet`, `curate`, and repository persistence pipeline. Because no live search API key or external LLM quota is available in CI, external results and HTML pages come from pre-recorded offline fixtures paired with a deterministic judge (`_OfflineJudgeLLM`) that checks topic overlap and requires a verbatim `<page_text>` quote.
+`python eval/run_recommendations.py` runs the 50 week nodes of the 5 benchmark syllabi through the real `match_sources`, `vet` and `curate`. No search key or model runs in CI, so external pages are **synthetic fixtures** and the judge is a stand-in (`ContentJudge`) that reads only what the real judge is shown: relevance is the share of the node's words on the page. It never sees a label. (A first version of this section reported Precision@5 0.820 / 0.904 with a judge that rejected pages containing "spam", "pirated", "dump" or "evil-exfil", words the fixtures had been written with, and with Khan Academy and edX pages as external results although ADR 004 forbids automated access to both. Those numbers measured the fixtures; they were replaced.)
 
 | Configuration | Total Nodes | Covered Nodes | Node Coverage | Precision@5 | nDCG@5 | Avg Formats in Top-5 |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
 | `db_only` | 50 | 40 | 80.0% | 0.279 | 0.344 | 1.15 |
-| `db_plus_external` | 50 | 50 | 100.0% | 0.820 | 0.842 | 3.00 |
-| `db_plus_external_plus_feedback` | 50 | 50 | 100.0% | 0.904 | 0.903 | 3.00 |
+| `db_plus_external` | 50 | 50 | 100.0% | 0.828 | 0.874 | 3.00 |
+| `db_plus_external_plus_feedback` | 50 | 50 | 100.0% | 0.892 | 0.921 | 3.00 |
 
-Key findings from the 3-configuration run:
-- **`db_only` -> `db_plus_external`**: supplementing the partial, article-heavy verified DB pool with vetted external lectures, interactive exercises, and open textbooks raises node coverage from `80.0%` to `100.0%`, clears the `Precision@5 ≥ 0.80` and `nDCG@5 ≥ 0.75` targets, and increases top-5 format diversity from `1.15` to `3.00` distinct formats (`reading`, `exercise`, `video`).
-- **`db_plus_external` -> `db_plus_external_plus_feedback`**: passing simulated learner feedback counts into `vet(..., ratings=ratings)` lowers borderline unhelpful summaries and promotes helpful multi-format items through `score.community`, raising `Precision@5` from `0.820` to `0.904` and `nDCG@5` from `0.842` to `0.903`.
+How to read it:
+- `db_only` is the only row with human labels behind it (#106 resources, assigned to the closest week); its low precision and 80 % coverage say the catalog pool is thin, not that matching is wrong.
+- The two external rows are **pipeline checks, not quality**: the five on-topic pages per node are written to be on-topic, so precision mostly shows that vetting drops the off-topic page and keeps a thin outline (counted as not good). The feedback row uses the fixture labels as votes (an oracle), so +0.064 P@5 is an upper bound on what votes can add.
+- Real recommendation quality is still **unmeasured**: it needs recorded responses from the #157 providers with blind labels, or an `--llm` run.
 
 ### External Red-Team & Provenance Invariants (#160)
 
-| Check | Coverage / Mechanism | Result |
-| --- | --- | --- |
-| Prompt-injection HTML pages (`eval/fixtures/redteam/injections/*.html`) | 15 injection pages run through `vet()` + `curate()` | **0 / 15** leaked to top-5 |
-| Pirated domains (`eval/fixtures/redteam/pirated_urls.jsonl`) | 20 pirated URLs blocked by domain policy & vetting | **0 / 20** leaked to top-5 |
-| K-12 adult-rated external pages | 3 `<meta name="rating" content="adult">` pages vetted with `Learner(k12=True)` | **0 / 3** leaked to top-5 |
-| External provenance invariant (`get_or_generate_node_recommendations`) | External suggestions (`kind="external"`) checked against `verified_resources()` & `resources` table | **0** marked `verified` |
-| Negative feedback dismissal | `record_recommendation_event(..., "not_helpful")` sets `dismissed_at` and excludes item on refetch | pass (`tests/test_recommendations_eval.py`) |
+Pirated and adult pages are written **on-topic**, so only the domain policy and the K-12 filter can keep them out; a control page with the same text on an ordinary host must reach the top 5 (asserted).
+
+| Check | Result |
+| --- | --- |
+| K-12 adult-rated pages (`<meta name="rating" content="adult">`), `Learner(k12=True)` | **0 / 3** in top-5 |
+| External recommendations marked `verified` | **0** |
+| Negative feedback dismissal (`not_helpful` sets `dismissed_at`) | pass |
+| Pirated URLs (`eval/fixtures/redteam/pirated_urls.jsonl`) | **FAIL: 5 in top-5.** 14 / 20 domains are not `BLOCKED` (file lockers such as mega.nz and mediafire.com, `t.me`, pastebin, cheat services, torrent trackers) |
+| Prompt-injection pages (15 fixtures) | **FAIL: 1 in top-5.** `strip_commands` removes **0 / 15** directives: its patterns miss "[INSTRUCTION]", "rate this source", French, base64 and directives inside HTML comments |
+
+The two failures are product gaps, kept visible as strict `xfail` tests in `tests/test_recommendations_eval.py` (they turn red once fixed, so the markers get removed). Fixing them is a policy decision, not a fixture change: blocking file-locker and cheat-service domains by category, and widening `strip_commands` (or relying on the model plus the `<page_text>` data block, measured with `--llm`). Adding the fixture's invented domains to the blocklist would only fit the test set.
 
 Reproduce: `python eval/run_recommendations.py` and `pytest -q tests/test_recommendations_eval.py`.
 

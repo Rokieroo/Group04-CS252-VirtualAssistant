@@ -2,18 +2,26 @@
 
 Usage::
 
-    python eval/run_recommendations.py          # run 3-config comparison + red-team + invariants
-    python eval/run_recommendations.py --json   # output machine-readable JSON report
+    python eval/run_recommendations.py          # 3-config comparison + red-team + invariants
+    python eval/run_recommendations.py --json   # machine-readable JSON report
 
 Compares three configurations on the 5 benchmark syllabi (50 week nodes total):
-1. ``db_only``: verified catalog resources from the local DB only (``match_sources``).
-2. ``db_plus_external``: DB catalog + pre-recorded fake external provider payloads (``vet`` + ``curate``).
-3. ``db_plus_external_plus_feedback``: DB + external + simulated learner feedback (``helpful`` / ``not_helpful`` / ``pinned``).
 
-Also verifies:
-- Red-team external safety: 15 prompt-injection HTML pages, 20 pirated URLs, and K-12 adult pages
-  yield 0 malicious/adult items in top-5.
-- External provenance invariant: external recommendations never carry ``verification_status == "verified"``.
+1. ``db_only``: verified catalog resources only (``match_sources``).
+2. ``db_plus_external``: catalog + recorded external pages, through ``vet`` + ``curate``.
+3. ``db_plus_external_plus_feedback``: as 2, with learner votes passed to ``vet``.
+
+What the offline numbers can and cannot say. The external pages are synthetic fixtures
+and the judge is a stand-in (``ContentJudge``) that never sees a label: relevance is how
+many of the node's words a page contains. So Precision@5 / nDCG@5 of configs 2-3 show
+whether the pipeline keeps on-topic fixture pages and drops off-topic ones, not how good
+real recommendations are. The votes of config 3 are the fixture labels themselves (an
+oracle), so config 3 is an upper bound on what feedback can add. Real quality needs
+recorded provider responses with blind labels, or an ``--llm`` run; neither is here.
+
+The pass/fail gate is therefore only what offline can prove about the product itself:
+pirated domains, adult pages for K-12 learners and prompt-injection pages stay out of
+the top 5, and external items are never ``verified``.
 """
 
 from __future__ import annotations
@@ -21,6 +29,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -35,8 +44,9 @@ from app.catalog.taxonomy import cosine, encode, normalize, tag_node, tag_resour
 from app.curator import curate
 from app.llm import LLMClient, LLMResult
 from app.search import Candidate, canonical_url
-from app.vetting import Learner, Node, vet
+from app.vetting import Learner, Node, read_document, vet
 from app.vetting.fetch import FetchResult
+from app.vetting.judge import MIN_QUOTE_CHARS, strip_commands
 from app.vetting.policy import default_policy
 from assistant.backend.catalog_repository import verified_resources
 from assistant.backend.database import Database
@@ -58,8 +68,11 @@ BENCHMARK_SYLLABI = [
     ("05_cs203_computer_networks.gold.json", "CS203"),
 ]
 
+# Spec targets, reported next to the numbers; not a gate offline (see the module docstring).
 PRECISION_TARGET = 0.80
 NDCG_TARGET = 0.75
+REDTEAM_NODE = "Algorithms: problem framing and binary search"
+_STOPWORDS = {"and", "the", "for", "with", "chang"}
 
 
 @dataclass(frozen=True)
@@ -77,6 +90,7 @@ class ConfigMetrics:
 class RedTeamReport:
     injection_pages_tested: int
     injection_leaked_to_top5: int
+    injection_directives_stripped: int  # pages whose directive strip_commands removed
     pirated_urls_tested: int
     pirated_leaked_to_top5: int
     k12_adult_pages_tested: int
@@ -84,132 +98,64 @@ class RedTeamReport:
     external_marked_verified: int
 
 
-class _OfflineJudgeLLM(LLMClient):
-    """Deterministic offline judge that scores grounded educational pages and rejects injections."""
+def _block(prompt: str, name: str) -> str:
+    match = re.search(rf"<{name}>(.*?)</{name}>", prompt, flags=re.DOTALL)
+    return match.group(1) if match else ""
 
-    def complete(
-        self,
-        prompt: str,
-        *,
-        system: str = "",
-        json_schema: dict | None = None,
-        max_tokens: int = 1024,
-        temperature: float = 0.2,
-        pdf: bytes | None = None,
-    ) -> LLMResult:
-        return LLMResult(
-            text=self.generate(prompt),
-            input_tokens=0,
-            output_tokens=0,
-            cost_usd=0.0,
-        )
+
+def _topic_words(text: str) -> set[str]:
+    return {w for w in normalize(text).split() if len(w) >= 3 and w not in _STOPWORDS}
+
+
+class ContentJudge(LLMClient):
+    """Offline stand-in for the judge model; it never sees a label or a fixture role.
+
+    It reads only what the real judge is shown (``<learning_goal>`` and the
+    ``<page_text>`` that ``strip_commands`` left): relevance is the share of the node's
+    words on the page (0-4), the quote is the first verbatim line long enough to count.
+    """
+
+    def complete(self, prompt: str, **kwargs: Any) -> LLMResult:
+        return LLMResult(text=self.generate(prompt), input_tokens=0, output_tokens=0,
+                         cost_usd=0.0)
 
     def generate(self, prompt: str, **kwargs: Any) -> str:
-        text = prompt.lower()
-        goal_block = ""
-        if "<learning_goal>" in prompt and "</learning_goal>" in prompt:
-            goal_block = prompt.split("<learning_goal>", 1)[1].split("</learning_goal>", 1)[0]
-        page_block = ""
-        if "<page_text>" in prompt and "</page_text>" in prompt:
-            page_block = prompt.split("<page_text>", 1)[1].split("</page_text>", 1)[0]
-
-        # Reject noisy / low-quality / pirated / empty / injection-only pages
-        if any(
-            bad in text
-            for bad in (
-                "low-quality",
-                "spam",
-                "pirated",
-                "clickbait",
-                "dump",
-                "cheat",
-                "unrelated",
-                "evil-exfil",
-                "drop table",
-            )
-        ):
-            return json.dumps(
-                {
-                    "relevance": 0,
-                    "level_fit": 1,
-                    "pedagogy": 0,
-                    "evidence_quote": "",
-                    "reason": "Low-quality or off-topic external content.",
-                }
-            )
-
-        # Pick a real verbatim sentence (>= 20 chars) from page_block so grounding passes
-        quote = ""
-        for line in page_block.splitlines():
-            clean = " ".join(line.split())
-            if len(clean) >= 24:
-                quote = clean[:120]
-                break
-
-        if not quote:
-            return json.dumps(
-                {
-                    "relevance": 0,
-                    "level_fit": 0,
-                    "pedagogy": 0,
-                    "evidence_quote": "",
-                    "reason": "No verifiable educational excerpt found.",
-                }
-            )
-
-        # Reject off-topic resources whose content barely overlaps the queried node topic
-        goal_line = next((ln for ln in goal_block.splitlines() if ln.startswith("Chặng:")), goal_block)
-        goal_tokens = {w for w in normalize(goal_line).split() if len(w) >= 3 and w not in {"chang", "and", "the", "for", "with"}}
-        page_tokens = set(normalize(page_block).split())
-        if goal_tokens and len(goal_tokens & page_tokens) == 0:
-            return json.dumps(
-                {
-                    "relevance": 1,
-                    "level_fit": 2,
-                    "pedagogy": 1,
-                    "evidence_quote": quote,
-                    "reason": "Resource covers a different topic than the queried roadmap node.",
-                }
-            )
-
-        # Borderline shallow outlines lack worked depth and earn lower level fit
-        if "high-level outline" in page_block.lower():
-            return json.dumps(
-                {
-                    "relevance": 4,
-                    "level_fit": 3,
-                    "pedagogy": 3,
-                    "evidence_quote": quote,
-                    "reason": "On-topic overview outline without worked examples.",
-                }
-            )
-
-        return json.dumps(
-            {
-                "relevance": 4,
-                "level_fit": 4,
-                "pedagogy": 3,
-                "evidence_quote": quote,
-                "reason": "Grounded educational explanation matching the node topic.",
-            }
-        )
+        goal = next((line for line in _block(prompt, "learning_goal").splitlines()
+                     if line.startswith("Chặng:")), "")
+        page = _block(prompt, "page_text")
+        wanted = _topic_words(goal)
+        share = len(wanted & set(normalize(page).split())) / len(wanted) if wanted else 0.0
+        quote = next((" ".join(line.split()) for line in page.splitlines()
+                      if len(" ".join(line.split())) >= MIN_QUOTE_CHARS + 4), "")
+        return json.dumps({
+            "relevance": round(4 * share),
+            "level_fit": 3,
+            "pedagogy": 3,
+            "evidence_quote": quote[:120],
+            "reason": f"{share:.0%} of the node's words appear on the page.",
+        })
 
 
-class _FakeFetcher:
-    """In-memory fetcher serving pre-recorded payloads for external and red-team URLs."""
+class FixtureFetcher:
+    """Serves recorded pages; anything else is a 404."""
 
     def __init__(self, responses: dict[str, FetchResult]) -> None:
-        self._responses = responses
+        self._responses = {canonical_url(url): page for url, page in responses.items()}
         self.policy = default_policy()
 
     def fetch(self, url: str) -> FetchResult:
-        if url in self._responses:
-            return self._responses[url]
-        canon = canonical_url(url)
-        for key, res in self._responses.items():
-            if canonical_url(key) == canon:
-                return res
-        return FetchResult(url=url, final_url=url, status=404, content_type="text/html", body=b"")
+        return self._responses.get(canonical_url(url)) or FetchResult(
+            url=url, final_url=url, status=404, content_type="text/html", body=b"")
+
+
+def _page(url: str, html: str) -> FetchResult:
+    return FetchResult(url=url, final_url=url, status=200, content_type="text/html",
+                       body=html.encode("utf-8"))
+
+
+def _article(title: str, body: str, head: str = "") -> str:
+    return (f"<html><head><title>{title}</title>{head}</head>"
+            f"<body><article><h1>{title}</h1><p>{body}</p></article></body></html>")
 
 
 def ndcg_at_5(shown_good: list[bool], good_available: int) -> float:
@@ -235,7 +181,8 @@ def _load_db_pool(
     resources_path: Path,
     syllabi_nodes: list[tuple[str, int, str]],
 ) -> tuple[list[dict[str, Any]], dict[tuple[str, int], set[str]], dict[str, FetchResult]]:
-    """Build the verified DB catalog pool, ground-truth good URLs, and native DB HTML bodies."""
+    """The verified catalog pool (resources labelled ``good`` in #106), each assigned to the
+    syllabus week closest to its case's node, and a page for each."""
     db_pool: list[dict[str, Any]] = []
     good_by_node: dict[tuple[str, int], set[str]] = {}
     db_responses: dict[str, FetchResult] = {}
@@ -252,54 +199,36 @@ def _load_db_pool(
         code = node.get("course_code", "")
         if code not in nodes_by_course:
             continue
-
-        # Align each eval case to the best-matching topic week in the syllabus by cosine similarity
         case_vec = encode(node["title"])
-        best_week = max(
-            nodes_by_course[code],
-            key=lambda wt: cosine(case_vec, encode(wt[1])),
-        )[0]
+        best_week = max(nodes_by_course[code], key=lambda wt: cosine(case_vec, encode(wt[1])))[0]
 
         good_urls = good_by_node.setdefault((code, best_week), set())
         for idx, row in enumerate(case["resources"]):
+            if row.get("label") != "good":
+                continue
             url = row["url"]
-            if row.get("label") == "good":
-                good_urls.add(canonical_url(url))
-                title = f"{node['title']} - {row.get('reason', 'Verified Guide').capitalize()}"
-                tags = tag_resource({"title": title, "description": node["title"]})
-                matched_subjects = {t.subject_id for t in tags if t.confidence >= 0.4}
-                db_pool.append(
-                    {
-                        "id": f"{case['id']}-db-{idx}",
-                        "title": title,
-                        "url": url,
-                        "canonical_url": canonical_url(url),
-                        "domain": _domain(url),
-                        "tier": 1 if row.get("category") in ("academic", "authoritative") else 2,
-                        "verification_status": "verified",
-                        "lang": row.get("lang", "en"),
-                        "level": "undergrad",
-                        "format": _infer_format(url, row.get("kind", "article")),
-                        "is_free": True,
-                        "subjects": matched_subjects or {"cs-general"},
-                        "vector": None,
-                        "vector_model": None,
-                    }
-                )
-                # Use the DB resource's own topic (never the queried node topic)
-                html = (
-                    f"<html><head><title>{node['title']}</title></head>"
-                    f"<body><article><h1>{node['title']}</h1>"
-                    f"<p>{title}: verified catalog source covering {node['title']}.</p>"
-                    f"</article></body></html>"
-                )
-                db_responses[url] = FetchResult(
-                    url=url,
-                    final_url=url,
-                    status=200,
-                    content_type="text/html",
-                    body=html.encode("utf-8"),
-                )
+            good_urls.add(canonical_url(url))
+            title = f"{node['title']} - {row.get('reason', 'Verified Guide').capitalize()}"
+            tags = tag_resource({"title": title, "description": node["title"]})
+            db_pool.append({
+                "id": f"{case['id']}-db-{idx}",
+                "title": title,
+                "url": url,
+                "canonical_url": canonical_url(url),
+                "domain": _domain(url),
+                "tier": 1 if row.get("category") in ("academic", "authoritative") else 2,
+                "verification_status": "verified",
+                "lang": row.get("lang", "en"),
+                "level": "undergrad",
+                "format": _infer_format(url, row.get("kind", "article")),
+                "is_free": True,
+                "subjects": {t.subject_id for t in tags if t.confidence >= 0.4} or {"cs-general"},
+                "vector": None,
+                "vector_model": None,
+            })
+            # The page speaks of its own case's topic, never of the queried week.
+            db_responses[url] = _page(url, _article(
+                node["title"], f"{title}: verified catalog source covering {node['title']}."))
     return db_pool, good_by_node, db_responses
 
 
@@ -307,127 +236,81 @@ def _build_external_payloads(
     syllabi_nodes: list[tuple[str, int, str]],
     good_by_node: dict[tuple[str, int], set[str]],
     base_responses: dict[str, FetchResult],
-) -> tuple[
-    dict[tuple[str, int], list[Candidate]],
-    dict[str, FetchResult],
-    dict[tuple[str, int], set[str]],
-    dict[tuple[str, int], dict[str, str]],
-]:
-    """Create pre-recorded external payloads: diverse good items, a borderline distractor, and spam."""
+) -> tuple[dict[tuple[str, int], list[Candidate]], dict[str, FetchResult],
+           dict[tuple[str, int], set[str]], dict[tuple[str, int], str]]:
+    """Per node: five on-topic pages from providers the product has (#157), one thin
+    outline (labelled not good) and one off-topic page. Labels are kept here and never
+    reach the judge; nothing on a page names its label."""
     candidates_by_node: dict[tuple[str, int], list[Candidate]] = {}
     responses: dict[str, FetchResult] = dict(base_responses)
-    ext_good_by_node: dict[tuple[str, int], set[str]] = {}
-    roles_by_node: dict[tuple[str, int], dict[str, str]] = {}
+    good_by_ext_node: dict[tuple[str, int], set[str]] = {}
+    outline_by_node: dict[tuple[str, int], str] = {}
 
     for code, week, topic in syllabi_nodes:
         slug = f"{code.lower()}-w{week}"
-        # Diverse good candidates (reading, exercise, video) + borderline outline + spam
-        ex_url = f"https://ocw.mit.edu/courses/{slug}/exercises/"
-        book_url = f"https://openstax.org/books/{slug}/reading"
-        khan_url = f"https://www.khanacademy.org/computing/{slug}/guide"
-        edx_url = f"https://www.edx.org/learn/{slug}-module"
-        vid_url = f"https://www.youtube.com/watch?v={slug}-lecture"
-        mediocre_url = f"https://quick-study-notes.example.org/{slug}-overview"
-        noisy_url = f"https://random-seo-farm.example.com/{slug}-spam"
-
-        cands = [
-            Candidate(ex_url, f"{topic} — Practice Problem Set", "mit_ocw", "exercise", "en", snippet=topic),
-            Candidate(book_url, f"{topic} — Open Textbook Chapter", "openstax", "article", "en", snippet=topic),
-            Candidate(khan_url, f"{topic} — Concept Reference", "khanacademy", "article", "en", snippet=topic),
-            Candidate(edx_url, f"{topic} — Course Video Module", "edx", "video", "en", snippet=topic),
-            Candidate(vid_url, f"{topic} — Walkthrough Video Lecture", "youtube", "video", "en", snippet=topic),
-            Candidate(mediocre_url, f"{topic} — Brief Overview Notes", "web", "article", "en", snippet=topic),
-            Candidate(noisy_url, f"{topic} Quick Cheat Sheet", "web", "article", "en", snippet="low-quality spam"),
+        on_topic = [
+            (f"https://ocw.mit.edu/courses/{slug}/exercises/", "mit_ocw", "exercise",
+             f"{topic} — Problem Set"),
+            (f"https://openstax.org/books/{slug}/pages/1-introduction", "openstax", "article",
+             f"{topic} — Textbook Chapter"),
+            (f"https://en.wikipedia.org/wiki/{slug}", "wikipedia", "article", topic),
+            (f"https://en.wikibooks.org/wiki/{slug}", "wikibooks", "article",
+             f"{topic} — Wikibook"),
+            (f"https://www.youtube.com/watch?v={slug}-lecture", "youtube", "video",
+             f"{topic} — Lecture"),
+        ]
+        outline = f"https://quick-study-notes.example.org/{slug}-overview"
+        off_topic = f"https://deals.example.com/{slug}"
+        cands = [Candidate(url, title, provider, kind, "en", snippet=topic)
+                 for url, provider, kind, title in on_topic]
+        cands += [
+            Candidate(outline, f"{topic} — Overview", "web", "article", "en", snippet=topic),
+            Candidate(off_topic, "Weekly deals", "web", "article", "en", snippet="deals"),
         ]
         candidates_by_node[(code, week)] = cands
-        roles_by_node[(code, week)] = {
-            "vid": vid_url,
-            "ex": ex_url,
-            "book": book_url,
-            "edx": edx_url,
-            "mediocre": mediocre_url,
-        }
-        ext_good_by_node[(code, week)] = {
-            canonical_url(ex_url),
-            canonical_url(book_url),
-            canonical_url(khan_url),
-            canonical_url(edx_url),
-            canonical_url(vid_url),
-        } | good_by_node.get((code, week), set())
+        outline_by_node[(code, week)] = outline
+        good_by_ext_node[(code, week)] = (
+            {canonical_url(url) for url, *_ in on_topic} | good_by_node.get((code, week), set()))
 
-        for url, title, kind_tag in (
-            (ex_url, f"{topic} Exercises", "good"),
-            (book_url, f"{topic} OpenStax", "good"),
-            (khan_url, f"{topic} Khan Academy", "good"),
-            (edx_url, f"{topic} edX Video", "good"),
-            (vid_url, f"{topic} Lecture", "good"),
-            (mediocre_url, f"{topic} Brief Overview", "mediocre"),
-            (noisy_url, f"{topic} Spam", "bad"),
-        ):
-            if kind_tag == "bad":
-                html = (
-                    f"<html><head><title>{title}</title></head>"
-                    f"<body><p>Low-quality clickbait spam notes without rigorous explanation.</p></body></html>"
-                )
-            elif kind_tag == "mediocre":
-                html = (
-                    f"<html><head><title>{title}</title></head>"
-                    f"<body><article><h1>{topic}</h1>"
-                    f"<p>{topic}: brief high-level outline covering basic concepts and definitions of {topic}.</p>"
-                    f"</article></body></html>"
-                )
-            else:
-                html = (
-                    f"<html><head><title>{title}</title></head>"
-                    f"<body><article><h1>{topic}</h1>"
-                    f"<p>This peer-reviewed university module covers {topic} with worked examples and exercises.</p>"
-                    f"</article></body></html>"
-                )
-            responses[url] = FetchResult(
-                url=url,
-                final_url=url,
-                status=200,
-                content_type="text/html",
-                body=html.encode("utf-8"),
-            )
+        for url, _provider, _kind, title in on_topic:
+            responses[url] = _page(url, _article(
+                title, f"This university module covers {topic} with worked examples and "
+                       f"exercises, then reviews the main results of {topic}."))
+        responses[outline] = _page(outline, _article(
+            f"{topic} — Overview", f"{topic}: a brief outline of the basic definitions of {topic}."))
+        responses[off_topic] = _page(off_topic, _article(
+            "Weekly deals", "Phones, laptops and headphones on sale this week, with free shipping."))
 
-    return candidates_by_node, responses, ext_good_by_node, roles_by_node
+    return candidates_by_node, responses, good_by_ext_node, outline_by_node
+
+
+def _syllabi_nodes() -> list[tuple[str, int, str]]:
+    nodes = []
+    for filename, code in BENCHMARK_SYLLABI:
+        gold = json.loads((SYLLABUS_DIR / filename).read_text(encoding="utf-8"))
+        nodes += [(code, int(w["week"]), w["topic"]) for w in gold.get("weeks", [])]
+    return nodes
 
 
 def evaluate_three_configs() -> tuple[list[ConfigMetrics], dict[str, Any]]:
     """Run all 3 recommender configurations on the 5 benchmark syllabi."""
-    syllabi_nodes: list[tuple[str, int, str]] = []
-    for filename, code in BENCHMARK_SYLLABI:
-        gold = json.loads((SYLLABUS_DIR / filename).read_text(encoding="utf-8"))
-        for w in gold.get("weeks", []):
-            syllabi_nodes.append((code, int(w["week"]), w["topic"]))
-
+    syllabi_nodes = _syllabi_nodes()
     db_pool, good_by_node, db_responses = _load_db_pool(RESOURCES_PATH, syllabi_nodes)
-    ext_cands_by_node, responses, ext_good_by_node, roles_by_node = _build_external_payloads(
-        syllabi_nodes, good_by_node, db_responses
-    )
-    fetcher = _FakeFetcher(responses)
-    llm = _OfflineJudgeLLM()
+    ext_cands_by_node, responses, good_by_ext_node, outline_by_node = _build_external_payloads(
+        syllabi_nodes, good_by_node, db_responses)
+    fetcher = FixtureFetcher(responses)
+    llm = ContentJudge()
     learner = Learner(langs=("en", "vi"), level="undergrad")
 
-    # Precompute node DB matches once (identical across all 3 configurations)
     db_hits_by_node: dict[tuple[str, int], list[dict[str, Any]]] = {}
     for code, week, topic in syllabi_nodes:
-        node_tags = tag_node({"title": topic}, outcomes=[code])
-        node_subject_ids = {t.subject_id for t in node_tags} or {"cs-general"}
-        db_ctx = {
-            "title": topic,
-            "language": "en",
-            "level": "undergrad",
-            "subjects": node_subject_ids,
-            "outcomes": [code],
-            "textbooks": [],
-        }
-        db_hits_by_node[(code, week)] = match_sources(db_ctx, db_pool, limit=5)
+        subjects = {t.subject_id for t in tag_node({"title": topic}, outcomes=[code])}
+        context = {"title": topic, "language": "en", "level": "undergrad",
+                   "subjects": subjects or {"cs-general"}, "outcomes": [code], "textbooks": []}
+        db_hits_by_node[(code, week)] = match_sources(context, db_pool, limit=5)
 
     results: list[ConfigMetrics] = []
-    per_syllabus: dict[str, dict[str, dict[str, float]]] = {}
-
+    per_syllabus: dict[str, dict[str, dict[str, list[float]]]] = {}
     for config_name in ("db_only", "db_plus_external", "db_plus_external_plus_feedback"):
         precisions: list[float] = []
         ndcgs: list[float] = []
@@ -436,157 +319,59 @@ def evaluate_three_configs() -> tuple[list[ConfigMetrics], dict[str, Any]]:
 
         for code, week, topic in syllabi_nodes:
             db_hits = db_hits_by_node[(code, week)]
-
             if config_name == "db_only":
                 shown_urls = [r["canonical_url"] for r in db_hits]
                 shown_formats = {r["format"] for r in db_hits}
                 good_set = good_by_node.get((code, week), set())
             else:
-                db_cands = [
-                    Candidate(
-                        r["url"],
-                        r["title"],
-                        "catalog",
-                        "video" if r["format"] == "video" else "article",
-                        r["lang"],
-                    )
-                    for r in db_hits
-                ]
-                ext_cands = ext_cands_by_node[(code, week)]
-                roles = roles_by_node[(code, week)]
-                ratings: dict[str, tuple[int, int]] | None = None
+                good_set = good_by_ext_node[(code, week)]
+                db_cands = [Candidate(r["url"], r["title"], "catalog",
+                                      "video" if r["format"] == "video" else "article", r["lang"])
+                            for r in db_hits]
+                ratings = None
                 if config_name == "db_plus_external_plus_feedback":
-                    # Genuine community feedback (helpful, total >= MIN_RATINGS) passed into vet()/score.community()
-                    ratings = {
-                        roles["vid"]: (19, 20),
-                        roles["ex"]: (18, 20),
-                        roles["book"]: (18, 20),
-                        roles["edx"]: (18, 20),
-                        roles["mediocre"]: (0, 25),
-                    }
+                    # Oracle votes: learners agree with the fixture labels (an upper bound).
+                    ratings = {url: (18, 20) for url in good_set}
+                    ratings[outline_by_node[(code, week)]] = (0, 25)
+                vetted = vet([*db_cands, *ext_cands_by_node[(code, week)]],
+                             Node(title=topic, outcomes=(code,), est_minutes=60), learner,
+                             llm=llm, fetcher=fetcher, ratings=ratings)  # type: ignore[arg-type]
+                top5 = curate(vetted.resources, est_minutes=60).resources[:5]
+                shown_urls = [canonical_url(r.url) for r in top5]
+                shown_formats = {r.format for r in top5}
 
-                node_obj = Node(title=topic, outcomes=(code,), est_minutes=60)
-                vetted = vet(
-                    [*db_cands, *ext_cands],
-                    node_obj,
-                    learner,
-                    llm=llm,
-                    fetcher=fetcher,  # type: ignore[arg-type]
-                    ratings=ratings,
-                )
-                curation = curate(vetted.resources, est_minutes=60)
-                shown_urls = [canonical_url(r.url) for r in curation.resources[:5]]
-                shown_formats = {r.format for r in curation.resources[:5]}
-                good_set = ext_good_by_node[(code, week)]
-
-            if shown_urls:
-                covered += 1
-                marks = [u in good_set for u in shown_urls[:5]]
-                p5 = sum(marks) / len(shown_urls[:5])
-                n5 = ndcg_at_5(marks, len(good_set))
-                precisions.append(p5)
-                ndcgs.append(n5)
-                formats_counts.append(len(shown_formats))
-                per_syllabus.setdefault(config_name, {}).setdefault(code, {"p5": [], "n5": [], "fmt": []})
-                per_syllabus[config_name][code]["p5"].append(p5)  # type: ignore[attr-defined]
-                per_syllabus[config_name][code]["n5"].append(n5)  # type: ignore[attr-defined]
-                per_syllabus[config_name][code]["fmt"].append(len(shown_formats))  # type: ignore[attr-defined]
+            if not shown_urls:
+                continue
+            covered += 1
+            marks = [url in good_set for url in shown_urls[:5]]
+            p5, n5 = sum(marks) / len(marks), ndcg_at_5(marks, len(good_set))
+            precisions.append(p5)
+            ndcgs.append(n5)
+            formats_counts.append(len(shown_formats))
+            row = per_syllabus.setdefault(config_name, {}).setdefault(
+                code, {"p5": [], "n5": [], "fmt": []})
+            row["p5"].append(p5)
+            row["n5"].append(n5)
+            row["fmt"].append(len(shown_formats))
 
         total = len(syllabi_nodes)
-        results.append(
-            ConfigMetrics(
-                config=config_name,
-                total_nodes=total,
-                covered_nodes=covered,
-                coverage_rate=round(covered / total, 3) if total else 0.0,
-                precision_at_5=round(sum(precisions) / len(precisions), 3) if precisions else 0.0,
-                ndcg_at_5=round(sum(ndcgs) / len(ndcgs), 3) if ndcgs else 0.0,
-                avg_formats_in_top5=round(sum(formats_counts) / len(formats_counts), 2) if formats_counts else 0.0,
-            )
-        )
-
+        results.append(ConfigMetrics(
+            config=config_name,
+            total_nodes=total,
+            covered_nodes=covered,
+            coverage_rate=round(covered / total, 3) if total else 0.0,
+            precision_at_5=round(sum(precisions) / len(precisions), 3) if precisions else 0.0,
+            ndcg_at_5=round(sum(ndcgs) / len(ndcgs), 3) if ndcgs else 0.0,
+            avg_formats_in_top5=(round(sum(formats_counts) / len(formats_counts), 2)
+                                 if formats_counts else 0.0),
+        ))
     return results, per_syllabus
 
 
-def evaluate_external_redteam() -> RedTeamReport:
-    """Verify 0 malicious/pirated/adult-for-K12 external pages enter top-5."""
-    llm = _OfflineJudgeLLM()
-    node_obj = Node(title="Problem Framing & Algorithms", outcomes=("CLO1",), est_minutes=60)
-    responses: dict[str, FetchResult] = {}
-
-    # 1. 15 prompt-injection HTML pages
-    inj_files = sorted(INJECTIONS_DIR.glob("*.html"))
-    inj_cands: list[Candidate] = []
-    for i, path in enumerate(inj_files):
-        url = f"https://untrusted-external.example.org/inj-{i}.html"
-        inj_cands.append(Candidate(url, f"External Note {i}", "web", "article", "en"))
-        responses[url] = FetchResult(
-            url=url,
-            final_url=url,
-            status=200,
-            content_type="text/html",
-            body=path.read_bytes(),
-        )
-
-    # 2. 20 pirated URLs
-    pirated_rows = [
-        json.loads(line)
-        for line in PIRATED_PATH.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-    pirated_cands: list[Candidate] = []
-    for i, row in enumerate(pirated_rows):
-        url = row["url"]
-        pirated_cands.append(Candidate(url, f"Pirated Resource {i}", "web", "article", "en"))
-        responses[url] = FetchResult(
-            url=url,
-            final_url=url,
-            status=200,
-            content_type="text/html",
-            body=b"<html><body><p>Free textbook dump download pirated copy.</p></body></html>",
-        )
-
-    # 3. Adult-tagged external pages with K-12 learner
-    adult_urls = [
-        "https://external-media.example.org/adult-1",
-        "https://external-media.example.org/adult-2",
-        "https://external-media.example.org/adult-3",
-    ]
-    adult_cands: list[Candidate] = []
-    for i, url in enumerate(adult_urls):
-        adult_cands.append(Candidate(url, f"Mature Content {i}", "web", "article", "en"))
-        responses[url] = FetchResult(
-            url=url,
-            final_url=url,
-            status=200,
-            content_type="text/html",
-            body=(
-                b'<html><head><meta name="rating" content="adult"></head>'
-                b"<body><article><p>Mature adult-only content not suitable for K-12 students.</p></article></body></html>"
-            ),
-        )
-
-    fetcher = _FakeFetcher(responses)
-    adult_learner = Learner(langs=("en", "vi"), level="university")
-    k12_learner = Learner(langs=("en", "vi"), level="k12", k12=True)
-
-    # Vet injections (all must be dropped or fail relevance)
-    inj_vetted = vet(inj_cands, node_obj, adult_learner, llm=llm, fetcher=fetcher)  # type: ignore[arg-type]
-    inj_top5 = curate(inj_vetted.resources, est_minutes=60).resources[:5]
-
-    # Vet pirated URLs (all blocked by domain policy)
-    pirated_vetted = vet(pirated_cands, node_obj, adult_learner, llm=llm, fetcher=fetcher)  # type: ignore[arg-type]
-    pirated_top5 = curate(pirated_vetted.resources, est_minutes=60).resources[:5]
-
-    # Vet adult pages with K-12 learner (all dropped with reason "age")
-    adult_vetted = vet(adult_cands, node_obj, k12_learner, llm=llm, fetcher=fetcher)  # type: ignore[arg-type]
-    adult_top5 = curate(adult_vetted.resources, est_minutes=60).resources[:5]
-
-    # External provenance check via real DB repository: external items NEVER carry
-    # verification_status="verified" and never get promoted into verified_resources().
+def _external_verified_count() -> int:
+    """External suggestions of the real repository must never be ``verified``."""
     db_mgr = Database("sqlite://")
     db_mgr.create_schema()
-    verified_count = 0
     try:
         with db_mgr.sessions() as db:
             user = User(email="eval-provenance@example.com", password_hash="x", name="Eval")
@@ -598,52 +383,107 @@ def evaluate_external_redteam() -> RedTeamReport:
             roadmap = Roadmap(course_id=course.id, user_id=user.id, title="Eval Track")
             db.add(roadmap)
             db.flush()
-            db_node = RoadmapNode(roadmap_id=roadmap.id, type="topic", title="Distributed Consensus", week=1)
-            db.add(db_node)
+            node = RoadmapNode(roadmap_id=roadmap.id, type="topic",
+                               title="Distributed Consensus", week=1)
+            db.add(node)
             db.commit()
-
-            recs = get_or_generate_node_recommendations(db, db_node, user.id, limit=5)
-            verified_rows = verified_resources(db, utcnow())
-            verified_refs = {f"catalog:{row['id']}" for row in verified_rows}
-            for rec in recs:
-                is_external = rec.kind == "external" or rec.resource_ref.startswith("external:")
-                is_verified = (
-                    getattr(rec, "verification_status", None) == "verified"
-                    or rec.resource_ref in verified_refs
-                )
-                if is_external and is_verified:
-                    verified_count += 1
-            for row in verified_rows:
-                if "openstax.org/search" in str(row.get("url", "")):
-                    verified_count += 1
+            recs = get_or_generate_node_recommendations(db, node, user.id, limit=5)
+            verified_refs = {f"catalog:{row['id']}" for row in verified_resources(db, utcnow())}
+            return sum(
+                1 for rec in recs
+                if (rec.kind == "external" or rec.resource_ref.startswith("external:"))
+                and (getattr(rec, "verification_status", None) == "verified"
+                     or rec.resource_ref in verified_refs)
+            )
     finally:
         db_mgr.engine.dispose()
 
+
+def evaluate_external_redteam() -> RedTeamReport:
+    """Pirated and adult pages are on-topic, so only the domain policy and the K-12 filter
+    can keep them out; injection pages are the fixtures as written."""
+    node = Node(title=REDTEAM_NODE, outcomes=("CLO1",), est_minutes=60)
+    on_topic = (f"{REDTEAM_NODE}: worked examples of binary search and problem framing for "
+                f"algorithms students.")
+    responses: dict[str, FetchResult] = {}
+
+    inj_files = sorted(INJECTIONS_DIR.glob("*.html"))
+    inj_cands = []
+    stripped = 0
+    for i, path in enumerate(inj_files):
+        url = f"https://untrusted-external.example.org/inj-{i}.html"
+        candidate = Candidate(url, f"External Note {i}", "web", "article", "en")
+        responses[url] = FetchResult(url=url, final_url=url, status=200,
+                                     content_type="text/html", body=path.read_bytes())
+        text = read_document(candidate, responses[url]).text
+        stripped += strip_commands(text) != text.strip()
+        inj_cands.append(candidate)
+
+    pirated_rows = [json.loads(line) for line in PIRATED_PATH.read_text(encoding="utf-8").splitlines()
+                    if line.strip()]
+    pirated_cands = []
+    for i, row in enumerate(pirated_rows):
+        pirated_cands.append(Candidate(row["url"], f"Algorithms textbook {i}", "web", "article", "en"))
+        responses[row["url"]] = _page(row["url"], _article(f"Algorithms textbook {i}", on_topic))
+
+    adult_urls = [f"https://external-media.example.org/adult-{i}" for i in range(1, 4)]
+    adult_cands = []
+    for i, url in enumerate(adult_urls):
+        adult_cands.append(Candidate(url, f"Algorithms notes {i}", "web", "article", "en"))
+        responses[url] = _page(url, _article(f"Algorithms notes {i}", on_topic,
+                                             head='<meta name="rating" content="adult">'))
+
+    control = "https://cs.example.edu/algorithms/notes"
+    responses[control] = _page(control, _article("Algorithms notes", on_topic))
+    fetcher = FixtureFetcher(responses)
+    llm = ContentJudge()
+    adult = Learner(langs=("en", "vi"), level="university")
+    k12 = Learner(langs=("en", "vi"), level="k12", k12=True)
+
+    def top5(cands: list[Candidate], learner: Learner) -> int:
+        vetted = vet(cands, node, learner, llm=llm, fetcher=fetcher)  # type: ignore[arg-type]
+        return len(curate(vetted.resources, est_minutes=60).resources[:5])
+
+    # Control: the same on-topic page from an ordinary host must reach the top 5, or zero
+    # leaks would only mean the pages were never good enough to be shown.
+    assert top5([Candidate(control, "Algorithms notes", "web", "article", "en")], k12) == 1
+
     return RedTeamReport(
         injection_pages_tested=len(inj_files),
-        injection_leaked_to_top5=len(inj_top5),
+        injection_leaked_to_top5=top5(inj_cands, adult),
+        injection_directives_stripped=stripped,
         pirated_urls_tested=len(pirated_rows),
-        pirated_leaked_to_top5=len(pirated_top5),
+        pirated_leaked_to_top5=top5(pirated_cands, adult),
         k12_adult_pages_tested=len(adult_urls),
-        k12_adult_leaked_to_top5=len(adult_top5),
-        external_marked_verified=verified_count,
+        k12_adult_leaked_to_top5=top5(adult_cands, k12),
+        external_marked_verified=_external_verified_count(),
     )
+
+
+def passed(redteam: RedTeamReport) -> bool:
+    return (redteam.injection_leaked_to_top5 == 0 and redteam.pirated_leaked_to_top5 == 0
+            and redteam.k12_adult_leaked_to_top5 == 0 and redteam.external_marked_verified == 0)
 
 
 def print_report(configs: list[ConfigMetrics], redteam: RedTeamReport) -> None:
     print("## Unified Resource Recommender Benchmark (Issue #160, Offline Mode)\n")
-    print("| Configuration | Total Nodes | Covered Nodes | Node Coverage | Precision@5 | nDCG@5 | Avg Formats in Top-5 |")
+    print("Synthetic external pages and a label-blind stand-in judge: configs 2-3 check the "
+          "pipeline, not real quality; config 3 uses oracle votes (upper bound).\n")
+    print("| Configuration | Total Nodes | Covered Nodes | Node Coverage | Precision@5 | nDCG@5 "
+          "| Avg Formats in Top-5 |")
     print("| :--- | ---: | ---: | ---: | ---: | ---: | ---: |")
     for c in configs:
-        print(
-            f"| `{c.config}` | {c.total_nodes} | {c.covered_nodes} | {c.coverage_rate * 100:.1f}% "
-            f"| {c.precision_at_5:.3f} | {c.ndcg_at_5:.3f} | {c.avg_formats_in_top5:.2f} |"
-        )
+        print(f"| `{c.config}` | {c.total_nodes} | {c.covered_nodes} | {c.coverage_rate * 100:.1f}% "
+              f"| {c.precision_at_5:.3f} | {c.ndcg_at_5:.3f} | {c.avg_formats_in_top5:.2f} |")
     print("\n### External Red-Team & Provenance Invariants\n")
-    print(f"- Prompt-injection HTML pages tested: {redteam.injection_pages_tested} -> leaked to top-5: **{redteam.injection_leaked_to_top5}**")
-    print(f"- Pirated URLs tested: {redteam.pirated_urls_tested} -> leaked to top-5: **{redteam.pirated_leaked_to_top5}**")
-    print(f"- K-12 adult pages tested: {redteam.k12_adult_pages_tested} -> leaked to top-5: **{redteam.k12_adult_leaked_to_top5}**")
-    print(f"- External items marked `verification_status='verified'`: **{redteam.external_marked_verified}**")
+    print(f"- Prompt-injection pages: {redteam.injection_pages_tested} -> leaked to top-5: "
+          f"**{redteam.injection_leaked_to_top5}**; directive removed by `strip_commands`: "
+          f"{redteam.injection_directives_stripped}/{redteam.injection_pages_tested}")
+    print(f"- Pirated URLs (on-topic pages): {redteam.pirated_urls_tested} -> leaked to top-5: "
+          f"**{redteam.pirated_leaked_to_top5}**")
+    print(f"- K-12 adult pages (on-topic): {redteam.k12_adult_pages_tested} -> leaked to top-5: "
+          f"**{redteam.k12_adult_leaked_to_top5}**")
+    print(f"- External items marked `verified`: **{redteam.external_marked_verified}**")
 
 
 def main() -> int:
@@ -653,33 +493,14 @@ def main() -> int:
 
     configs, _ = evaluate_three_configs()
     redteam = evaluate_external_redteam()
-
-    final_cfg = configs[-1]
-    passed = (
-        final_cfg.precision_at_5 >= PRECISION_TARGET
-        and final_cfg.ndcg_at_5 >= NDCG_TARGET
-        and redteam.injection_leaked_to_top5 == 0
-        and redteam.pirated_leaked_to_top5 == 0
-        and redteam.k12_adult_leaked_to_top5 == 0
-        and redteam.external_marked_verified == 0
-    )
-
+    ok = passed(redteam)
     if args.json:
-        print(
-            json.dumps(
-                {
-                    "configs": [asdict(c) for c in configs],
-                    "redteam": asdict(redteam),
-                    "passed": passed,
-                },
-                indent=2,
-            )
-        )
+        print(json.dumps({"configs": [asdict(c) for c in configs], "redteam": asdict(redteam),
+                          "passed": ok}, indent=2))
     else:
         print_report(configs, redteam)
-        print(f"\nSummary: {'ALL BENCHMARKS PASSED' if passed else 'BENCHMARK FAILED'}")
-
-    return 0 if passed else 1
+        print(f"\nSummary: {'RED-TEAM AND INVARIANTS PASSED' if ok else 'BENCHMARK FAILED'}")
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
