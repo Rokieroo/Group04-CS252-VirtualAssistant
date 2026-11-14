@@ -66,6 +66,7 @@ class Roadmap:
     errors: list[str]
     cycles: list[Edge]
     removed_edges: list[Edge]
+    # Strict edges below STRICT_CONFIDENCE: shown as suggestions, never enforced.
     suggested_edges: list[Edge] = field(default_factory=list)
 
     @property
@@ -550,12 +551,10 @@ def build_roadmap(
     suggested_edges: list[Edge] = []
     for raw in proposed:
         edge = _coerce_edge(raw)
-        if edge is None:
+        if edge is None or edge.parent not in by_id or edge.child not in by_id                 or edge.parent == edge.child:
             continue
         if edge.kind == "strict" and edge.confidence < STRICT_CONFIDENCE:
-            suggested_edges.append(edge)
-            continue
-        if edge.parent not in by_id or edge.child not in by_id or edge.parent == edge.child:
+            suggested_edges.append(edge)  # the learner confirms it on the graph (#97)
             continue
         edges.append(edge)
     edges = _dedupe_edges(edges)

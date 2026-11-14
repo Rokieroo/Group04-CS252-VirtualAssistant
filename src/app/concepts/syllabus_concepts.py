@@ -1,307 +1,220 @@
-"""Whole-course concept extraction and semantic deduplication from syllabi (issue #97).
+"""Concepts of a whole course from its syllabus (issue #97).
 
-Decomposes weekly schedule topics into atomic concepts, extracts concepts
-from Course Learning Outcomes (CLOs), validates citations against syllabus text
-(verify-or-drop), and merges duplicates via normalized keys and optional embeddings.
+Three readers, merged into one list:
+
+- the weekly schedule: each topic line split into its listed parts;
+- the learning outcomes (CLOs): the items they enumerate in parentheses;
+- with a live model, the page-window extractor of ``from_pages`` over the whole syllabus.
+
+Every concept is *verified or dropped* (as the syllabus parser, #59): the words of its
+title must appear on the page it cites, and it keeps that line as its quote. Nothing
+here may name a concept of its own; titles come only from the syllabus text.
 """
 
 from __future__ import annotations
 
+from itertools import pairwise
 from typing import Any
 
-from app.concepts.normalize import _clean_title, comparison_key, slugify
+from app.llm import FakeLLM, LLMClient
 
-# Common administrative or non-concept headings to ignore during concept extraction
-_DECORATIVE_CONCEPTS = {
-    "orientation",
-    "review",
-    "course overview",
-    "wrap up",
-    "q a",
-    "questions",
-}
+from .from_pages import DECORATIVE, extract_concepts
+from .normalize import _clean_title, _unique_slug, comparison_key, slugify
+
+MERGE_SIMILARITY = 0.85
+QUOTE_CHARS = 200
+_ADMIN = DECORATIVE | {"orientation", "review", "course overview", "wrap up"}
+# A schedule line naming an assessment is a milestone (``assessments``), not a concept.
+_ASSESSMENT = {"midterm", "final", "exam", "quiz", "test"}
 
 
-def split_outside_parens(
-    text: str, delimiters: tuple[str, ...] | list[str] = (",", ";")
-) -> list[str]:
-    """Split text on delimiter characters, ignoring occurrences inside parentheses."""
-    parts: list[str] = []
-    current: list[str] = []
-    depth = 0
-    clean = text.rstrip(" .")
-    idx = 0
-    while idx < len(clean):
-        ch = clean[idx]
+def split_outside_parens(text: str, delimiters: tuple[str, ...] = (",", ";")) -> list[str]:
+    """Split on any delimiter that is not inside parentheses."""
+    parts, current, depth, i = [], [], 0, 0
+    while i < len(text):
+        delimiter = next((d for d in delimiters if depth == 0 and text.startswith(d, i)), None)
+        if delimiter:
+            parts.append("".join(current))
+            current, i = [], i + len(delimiter)
+            continue
+        depth = max(0, depth + {"(": 1, ")": -1}.get(text[i], 0))
+        current.append(text[i])
+        i += 1
+    parts.append("".join(current))
+    return [p.strip() for p in parts if p.strip()]
+
+
+def topic_parts(topic: str) -> list[str]:
+    """``"Stacks, Queues, and Parsing."`` -> the three listed parts.
+
+    A part joined only by "and" ("Divide and Conquer", "Tree Balancing and AVL
+    Rotations") is kept whole: without a list around it, "and" is often part of a name.
+    A heading before a colon is a concept of its own.
+    """
+    head, _, rest = topic.partition(":") if ":" in topic else ("", "", topic)
+    parts = [head] if head.strip() else []
+    for part in split_outside_parens(rest.strip().rstrip(".")):
+        parts.append(part[4:] if part.casefold().startswith("and ") else part)
+    return [p.strip(" .") for p in parts if p.strip(" .")]
+
+
+def enumerated(outcome: str) -> list[str]:
+    """Items an outcome lists in parentheses: ``"(arrays, linked lists)"`` -> both."""
+    items: list[str] = []
+    depth, start = 0, 0
+    for i, ch in enumerate(outcome):
         if ch == "(":
             depth += 1
-            current.append(ch)
-            idx += 1
-        elif ch == ")":
-            depth = max(0, depth - 1)
-            current.append(ch)
-            idx += 1
-        else:
-            matched_delim = None
-            if depth == 0:
-                for delim in delimiters:
-                    if clean.startswith(delim, idx):
-                        matched_delim = delim
-                        break
-            if matched_delim is not None:
-                part = "".join(current).strip()
-                if part:
-                    parts.append(part)
-                current = []
-                idx += len(matched_delim)
-            else:
-                current.append(ch)
-                idx += 1
-    if current:
-        part = "".join(current).strip()
-        if part:
-            parts.append(part)
-    return parts
+            start = i + 1 if depth == 1 else start
+        elif ch == ")" and depth:
+            depth -= 1
+            inner = split_outside_parens(outcome[start:i]) if depth == 0 else []
+            if len(inner) > 1:  # "(BFS)" is an abbreviation, not a list
+                items += [item.removeprefix("and ").strip() for item in inner]
+    return items
+
+
+def _words(text: str) -> list[str]:
+    return comparison_key(text).split()
+
+
+def _contains(text: str, title: str) -> bool:
+    words, key = _words(title), f" {comparison_key(text)} "
+    return bool(words) and all(f" {w} " in key for w in words)
+
+
+def _grounded(title: str, page_text: str) -> str | None:
+    """The line of ``page_text`` that holds every word of ``title``, else None.
+
+    A line and the next are also tried together: PDF text wraps long topics.
+    """
+    lines = page_text.splitlines()
+    spans = [*lines, *(f"{a} {b}" for a, b in pairwise(lines))]
+    line = next((span for span in spans if _contains(span, title)), None)
+    return None if line is None else " ".join(line.split())[:QUOTE_CHARS]
 
 
 def merge_similar_concepts(
     concepts: list[dict[str, Any]],
     *,
     encoder: Any | None = None,
-    threshold: float = 0.85,
+    threshold: float = MERGE_SIMILARITY,
 ) -> list[dict[str, Any]]:
-    """Merge semantically duplicate concepts using embeddings when an encoder is available.
+    """Merge concepts whose title embeddings have cosine similarity >= ``threshold``.
 
-    Preserves all source pages and records merged variant titles in ``aliases``.
+    Embeddings put "BFS" next to "DFS", so a merge also needs one normalized word in
+    common ("BFS" and "Breadth-First Search (BFS)"). The earlier concept absorbs the
+    later one: pages, CLO codes and its title (as an alias) are kept. Without an
+    encoder, or if it fails, nothing is merged. Inputs are not modified.
     """
     if encoder is None or len(concepts) < 2:
         return concepts
-
     titles = [c["title"] for c in concepts]
     try:
         encoder.prepare(titles)
         vectors = [encoder.encode(t) for t in titles]
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001 - embeddings are optional; never lose concepts
         return concepts
 
-    merged: list[dict[str, Any]] = []
-    absorbed: set[int] = set()
+    kept: list[tuple[dict[str, Any], list[float]]] = []
+    for concept, vector in zip(concepts, vectors, strict=True):
+        target = next(
+            (k for k, v in kept
+             if sum(a * b for a, b in zip(v, vector, strict=True)) >= threshold
+             and set(_words(k["title"])) & set(_words(concept["title"]))),
+            None,
+        )
+        if target is None:
+            kept.append(({**concept, "aliases": list(concept.get("aliases", []))}, vector))
+        else:
+            _absorb(target, concept)
+    return [concept for concept, _ in kept]
 
-    for i, c1 in enumerate(concepts):
-        if i in absorbed:
-            continue
-        v1 = vectors[i]
-        for j in range(i + 1, len(concepts)):
-            if j in absorbed:
-                continue
-            v2 = vectors[j]
-            # Cosine similarity for unit vectors: dot product
-            sim = sum(a * b for a, b in zip(v1, v2, strict=False))
-            if sim >= threshold:
-                c2 = concepts[j]
-                c1["source_pages"] = sorted(
-                    set(c1.get("source_pages", [])) | set(c2.get("source_pages", []))
-                )
-                for code in c2.get("clo_codes", []):
-                    if code not in c1.get("clo_codes", []):
-                        c1.setdefault("clo_codes", []).append(code)
-                for alias in [c2["title"], *c2.get("aliases", [])]:
-                    if alias != c1["title"] and alias not in c1.get("aliases", []):
-                        c1.setdefault("aliases", []).append(alias)
-                absorbed.add(j)
-        merged.append(c1)
 
-    return merged
+def _absorb(into: dict[str, Any], other: dict[str, Any]) -> None:
+    into["week"] = min(into["week"], other["week"])
+    into["source_pages"] = sorted(set(into["source_pages"]) | set(other["source_pages"]))
+    into["clo_codes"] = list(dict.fromkeys([*into["clo_codes"], *other["clo_codes"]]))
+    known = {comparison_key(t) for t in [into["title"], *into["aliases"]]}
+    for alias in [other["title"], *other.get("aliases", [])]:
+        if comparison_key(alias) not in known:
+            known.add(comparison_key(alias))
+            into["aliases"].append(alias)
+
+
+def _candidates(parsed: dict[str, Any], pages: list[str], llm: LLMClient | None):
+    """(title, week, page, CLO codes, is_mention) proposals, before grounding.
+
+    Schedule parts come first. A concept read elsewhere is a *mention*: it takes the
+    first week whose topics name it, and joins a schedule concept that contains it.
+    """
+    weeks = [(int(r.get("week") or 1), " ".join(map(str, r.get("topics", []))))
+             for r in parsed.get("weeks", [])]
+    first = min((week for week, _ in weeks), default=1)
+
+    def week_of(title: str) -> int:
+        return min((week for week, text in weeks if _contains(text, title)), default=first)
+
+    for row in parsed.get("weeks", []):
+        week, page = int(row.get("week") or 1), int(row.get("source_page") or 1)
+        for topic in row.get("topics", []):
+            for part in topic_parts(str(topic)):
+                yield part, week, page, [], False
+    for outcome in parsed.get("outcomes", []):
+        code = str(outcome.get("code") or "").upper()
+        page = int(outcome.get("source_page") or 1)
+        for item in enumerated(str(outcome.get("text") or "")):
+            yield item, week_of(item), page, [code] if code else [], True
+    if llm is not None and not isinstance(llm, FakeLLM):
+        for concept in extract_concepts(llm, pages):
+            title = concept["title"]
+            yield title, week_of(title), concept["source_pages"][0], [], True
 
 
 def extract_course_concepts(
     parsed: dict[str, Any],
     pages: list[str],
     *,
+    llm: LLMClient | None = None,
     encoder: Any | None = None,
 ) -> list[dict[str, Any]]:
-    """Extract, ground, and deduplicate concepts across an entire course syllabus (#97).
+    """Every grounded concept of the course, duplicates merged, slugs unique.
 
-    Combines atomic topic decomposition from weekly schedule lines with key concept phrases
-    from Course Learning Outcomes (CLOs). Verifies every candidate against syllabus text
-    (verify-or-drop) to ensure 100% citation validity.
+    ``parsed`` is a parsed syllabus (``weeks``, ``outcomes``); ``pages[0]`` is page 1.
+    Each concept has ``source_page`` (its first citation), ``source_pages``, ``quote``
+    (the cited line), ``week``, ``clo_codes`` and ``aliases``.
     """
-    candidates: list[dict[str, Any]] = []
-
-    # 1. From weekly schedule
-    for w in parsed.get("weeks", []):
-        week_num = int(w.get("week") or 1)
-        source_page = int(w.get("source_page") or 1)
-
-        for raw_topic in w.get("topics", []):
-            raw_clean = str(raw_topic).strip()
-            if not raw_clean:
-                continue
-
-            sub_segments: list[str] = []
-            if ":" in raw_clean:
-                colon_parts = raw_clean.split(":", 1)
-                sub_segments.append(colon_parts[0].strip())
-                sub_segments.extend(split_outside_parens(colon_parts[1].strip()))
-            else:
-                sub_segments = split_outside_parens(raw_clean)
-
-            clean_segments: list[str] = []
-            for seg in sub_segments:
-                seg_clean = seg.strip(" .")
-                if not seg_clean:
-                    continue
-                if seg_clean.lower().startswith("and "):
-                    seg_clean = seg_clean[4:].strip()
-                clean_segments.append(seg_clean)
-                candidates.append({
-                    "title": seg_clean,
-                    "week": week_num,
-                    "source_page": source_page,
-                    "clo_codes": [],
-                })
-
-                # If segment has ' and ' outside parens, also add sub-parts
-                if " and " in seg_clean:
-                    for p in split_outside_parens(seg_clean, delimiters=[" and "]):
-                        p_str = p.strip(" .")
-                        if len(p_str) > 2:
-                            candidates.append({
-                                "title": p_str,
-                                "week": week_num,
-                                "source_page": source_page,
-                                "clo_codes": [],
-                            })
-
-            # Combine adjacent coordinate segments if appropriate
-            for i in range(len(clean_segments) - 1):
-                comb = f"{clean_segments[i]} and {clean_segments[i + 1]}"
-                candidates.append({
-                    "title": comb,
-                    "week": week_num,
-                    "source_page": source_page,
-                    "clo_codes": [],
-                })
-
-    # 2. From Course Learning Outcomes (CLOs)
-    for clo in parsed.get("outcomes", []):
-        clo_code = str(clo.get("code") or "").upper()
-        clo_text = str(clo.get("text") or "").strip()
-        source_page = int(clo.get("source_page") or 1)
-        clo_lower = clo_text.lower()
-
-        # Domain concept phrases highlighted in academic syllabi outcomes
-        if "product risk" in clo_lower:
-            candidates.append({
-                "title": "Product Risks",
-                "week": 1,
-                "source_page": source_page,
-                "clo_codes": [clo_code],
-            })
-        if "solution ladder" in clo_lower:
-            candidates.append({
-                "title": "Solution Ladder",
-                "week": 1,
-                "source_page": source_page,
-                "clo_codes": [clo_code],
-            })
-        if "entity-relationship" in clo_lower or "er model" in clo_lower:
-            candidates.append({
-                "title": "Entity-Relationship Models",
-                "week": 1,
-                "source_page": source_page,
-                "clo_codes": [clo_code],
-            })
-        if "window function" in clo_lower:
-            candidates.append({
-                "title": "Window Functions",
-                "week": 4,
-                "source_page": source_page,
-                "clo_codes": [clo_code],
-            })
-        if "two-phase locking" in clo_lower or "2pl" in clo_lower:
-            candidates.append({
-                "title": "Two-Phase Locking (2PL)",
-                "week": 9,
-                "source_page": source_page,
-                "clo_codes": [clo_code],
-            })
-        if "aries" in clo_lower or "crash recovery" in clo_lower:
-            candidates.append({
-                "title": "Crash Recovery (ARIES)",
-                "week": 10,
-                "source_page": source_page,
-                "clo_codes": [clo_code],
-            })
-        if "avl" in clo_lower or "tree balancing" in clo_lower:
-            candidates.append({
-                "title": "Tree Balancing and AVL Rotations",
-                "week": 5,
-                "source_page": source_page,
-                "clo_codes": [clo_code],
-            })
-        if "shortest path" in clo_lower or "dijkstra" in clo_lower:
-            candidates.append({
-                "title": "Single-Source Shortest Paths (Dijkstra, Bellman-Ford)",
-                "week": 10,
-                "source_page": source_page,
-                "clo_codes": [clo_code],
-            })
-
-    # 3. Grounding validation & deduplication by normalized comparison_key
     by_key: dict[str, dict[str, Any]] = {}
-    for c in candidates:
-        title = _clean_title(c["title"])
+    for raw, week, page, codes, mention in _candidates(parsed, pages, llm):
+        title = _clean_title(raw)
         key = comparison_key(title)
-        if not key or key in _DECORATIVE_CONCEPTS:
+        if not key or key in _ADMIN or key.split()[0] in _ASSESSMENT:
             continue
-
-        page = c.get("source_page", 1)
-        # Grounding check (verify-or-drop)
-        if pages and 0 <= page - 1 < len(pages):
-            page_text = pages[page - 1]
-            words = key.split()
-            # If multi-word concept, ensure at least one substantive word appears in page text
-            if len(words) > 1 and not any(w in page_text.lower() for w in words):
-                continue
-
-        existing = by_key.get(key)
-        if existing is None:
-            by_key[key] = {
-                "slug": slugify(title),
-                "title": title,
-                "week": c["week"],
-                "source_page": page,
-                "source_pages": [page],
-                "clo_codes": list(c.get("clo_codes", [])),
-                "aliases": [],
-            }
+        if not 1 <= page <= len(pages):
+            continue
+        quote = _grounded(title, pages[page - 1])
+        if quote is None:
+            continue  # verify or drop
+        concept = {"title": title, "week": week, "source_page": page, "source_pages": [page],
+                   "quote": quote, "clo_codes": codes, "aliases": []}
+        # "BFS" in a CLO is the schedule's "Breadth-First Search (BFS)".
+        same = by_key.get(key) or (mention and next(
+            (c for c in by_key.values() if _contains(c["title"], title)), None))
+        if same:
+            _absorb(same, concept)
         else:
-            existing["week"] = min(existing["week"], c["week"])
-            if page not in existing["source_pages"]:
-                existing["source_pages"].append(page)
-            for code in c.get("clo_codes", []):
-                if code not in existing["clo_codes"]:
-                    existing["clo_codes"].append(code)
+            by_key[key] = concept
 
-    concept_list = list(by_key.values())
+    concepts = merge_similar_concepts(list(by_key.values()), encoder=encoder)
+    used: set[str] = set()
+    return [{**c, "slug": _unique_slug(slugify(c["title"]), used)} for c in concepts]
 
-    # 4. Optional semantic deduplication via embeddings
-    if encoder is not None:
-        concept_list = merge_similar_concepts(concept_list, encoder=encoder)
 
-    # 5. Ensure unique slugs across the course graph
-    result: list[dict[str, Any]] = []
-    used_slugs: set[str] = set()
-    for item in concept_list:
-        base = item["slug"] or "concept"
-        candidate_slug = base
-        num = 1
-        while candidate_slug in used_slugs:
-            num += 1
-            candidate_slug = f"{base}-{num}"
-        used_slugs.add(candidate_slug)
-        item["slug"] = candidate_slug
-        result.append(item)
-
-    return result
+__all__ = [
+    "MERGE_SIMILARITY",
+    "enumerated",
+    "extract_course_concepts",
+    "merge_similar_concepts",
+    "split_outside_parens",
+    "topic_parts",
+]

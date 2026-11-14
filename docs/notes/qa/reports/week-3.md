@@ -124,6 +124,8 @@ What this shows:
 
 Reproduce: `python eval/run_graph.py` (offline) or `python eval/run_graph.py --llm` (uses `LLM_PROVIDER` from `.env`).
 
+**Update 2026-11-14 (#97).** The harness now runs `extract_course_concepts`: week topics split into their listed parts, plus the items each CLO enumerates in parentheses, every concept verified against the line it cites (a model, when configured, adds page-window concepts under the same rule). Nothing in it knows the gold graphs. Offline micro-average: concept recall **0.797** (63 / 79), precision **0.485**, F1 **0.603** (was 0.430 / 0.680 / 0.527); `KG-01` 27 / 30, with 34 grounded concepts for CSC10014. Precision is lower because the parts are finer than the gold concepts ("Stacks", "Queues" against "Stacks, Queues, and Applications in Parsing"). Strict edges are still 0 offline, so the run reports FAIL; the `--llm` run remains unmeasured.
+
 ### 6.3 Performance, E2E & RBAC Verification Summary
 
 | Verification Target | Requirement (Issue #112) | Measured Result | Evidence / Test Reference |

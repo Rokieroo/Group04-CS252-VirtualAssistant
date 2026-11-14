@@ -27,11 +27,7 @@ from .extract import (
     windows,
 )
 from .normalize import TopicIn, comparison_key, normalize_topics, slugify
-from .syllabus_concepts import (
-    extract_course_concepts,
-    merge_similar_concepts,
-    split_outside_parens,
-)
+from .syllabus_concepts import extract_course_concepts, merge_similar_concepts
 
 __all__ = [
     "BLOOM_LEVELS",
@@ -59,6 +55,5 @@ __all__ = [
     "parse_concepts",
     "save_concepts",
     "slugify",
-    "split_outside_parens",
     "windows",
 ]
