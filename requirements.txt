@@ -28,6 +28,7 @@ pyjwt~=2.15               # JWT đăng nhập
 
 # --- AI: retrieval và ôn tập (#11, tuần 2) ---
 rank-bm25~=0.2
+numpy>=1.26,<3            # ma trận vector khi khớp nguồn catalog cho node (#102)
 fsrs~=6.3                 # scheduler spaced repetition cho tuần 2
 trafilatura~=2.3          # trích text đọc được từ trang web để chấm nguồn (#62)
 

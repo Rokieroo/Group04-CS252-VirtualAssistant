@@ -7,11 +7,12 @@ selects for them again once new sources are verified.
 import json
 from collections import defaultdict
 
+import numpy as np
 from sqlalchemy import exists, func, select
 from sqlalchemy.orm import aliased
 
 from app.catalog.institutions import domain_of, parent_domains
-from app.catalog.matching import match_sources
+from app.catalog.matching import CatalogIndex
 from app.catalog.taxonomy import tag_records
 from app.catalog.verification import LABEL_CONFIDENCE, is_current, latest_results
 from app.llm.embeddings import get_embedding_encoder
@@ -44,6 +45,7 @@ from .models import (
 )
 
 COVERED = 0.9  # a page teaches a subject this surely, so no catalog source repeats it
+ENOUGH_CATALOG = 3  # verified sources a node needs without the learner's own material
 REMATCH = "rematch_sources"
 
 
@@ -72,8 +74,8 @@ def verified_resources(db, now):
     institutions = {}  # domain -> its best-tier institution
     for org in db.scalars(select(Institution).order_by(Institution.tier, Institution.ror_id)):
         institutions.setdefault(domain_of(org.domain), org)
-    vectors = {
-        r.id: (json.loads(r.vector), r.model)
+    vectors = {  # decoded once per request, not once per node that compares against it
+        r.id: (np.asarray(json.loads(r.vector)), r.model)
         for r in db.scalars(
             select(CatalogEmbedding).where(
                 CatalogEmbedding.kind == "resource",
@@ -94,9 +96,8 @@ def verified_resources(db, now):
             or resource.http_status not in {None, 200}
         ):
             continue
-        if default_policy().tier(
-            resource.url
-        ).value == 0 or resource.canonical_url != canonical_url(resource.url):
+        policy_tier = default_policy().tier(resource.url).value
+        if policy_tier == 0 or resource.canonical_url != canonical_url(resource.url):
             continue
         matching = [
             institutions[domain]
@@ -104,9 +105,7 @@ def verified_resources(db, now):
             if domain in institutions
         ]
         institution = min(matching, key=lambda org: org.tier) if matching else None
-        tier = min(
-            [org.tier for org in matching] + [default_policy().tier(resource.url).value]
-        )
+        tier = min([org.tier for org in matching] + [policy_tier])
         rows.append(
             {
                 "id": resource.id,
@@ -140,7 +139,7 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5, catalog=None):
     """
     identifiers = [n.id for n in nodes]
     node_vectors = {
-        r.id: (json.loads(r.vector), r.model)
+        r.id: (np.asarray(json.loads(r.vector)), r.model)
         for r in db.scalars(
             select(CatalogEmbedding).where(
                 CatalogEmbedding.kind == "node",
@@ -222,6 +221,7 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5, catalog=None):
     ):
         rejected[row.node_id].add(row.resource_id)
     catalog = verified_resources(db, now) if catalog is None else catalog
+    index = CatalogIndex(catalog)
     result = {}
     for node in nodes:
         # The learner's own files come first (spec 12.1), one item per file.
@@ -236,16 +236,14 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5, catalog=None):
             "outcomes": outcomes,
             "textbooks": textbooks,
         }
-        remaining = [
-            r
-            for r in catalog
-            if r["id"] not in rejected[node.id]
-            and not set(r["subjects"]).issubset(covered_subjects[node.id])
-        ]
+        taught = covered_subjects[node.id]  # by the learner's own pages
+        exclude = rejected[node.id] | {
+            r["id"] for r in catalog if taught and taught.issuperset(r["subjects"])
+        }
         # A node with private material still gets up to 3 catalog sources for the
         # subjects that material does not cover, within ``limit`` items in all.
         room = min(3, limit - len(private)) if private else limit
-        ranked = match_sources(context, remaining, limit=room)
+        ranked = index.match(context, limit=room, exclude=exclude)
         public = [
             {
                 k: r.get(k)
@@ -267,9 +265,11 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5, catalog=None):
             for r in ranked
         ]
         sources = private + public
+        covered = bool(private) or len(public) >= ENOUGH_CATALOG
         result[node.id] = {
             "node_id": node.id,
-            "status": "ready" if len(sources) >= 2 else "insufficient",
+            # Fewer sources stay visible, but the node is a gap for #105 to fill.
+            "status": "ready" if covered else "insufficient",
             "source_count": len(sources),
             "user_material_count": len(private),
             "sources": sources,

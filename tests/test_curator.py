@@ -142,7 +142,7 @@ def test_match_sources_safe_with_missing_optional_format_and_domain():
     }
     raw_resource = {
         "id": "res-1",
-        "title": "Quick Sort Notes",
+        "title": "Sorting Algorithms: Quick Sort Notes",
         "verification_status": "verified",
         "lang": "en",
         "level": "undergrad",
@@ -156,3 +156,53 @@ def test_match_sources_safe_with_missing_optional_format_and_domain():
     assert len(results) == 1
     assert results[0]["id"] == "res-1"
 
+
+
+def catalog_row(identifier, title, *, tier=3, subjects=("ds.trees",)):
+    return {"id": identifier, "title": title, "verification_status": "verified", "lang": "en",
+            "level": "undergrad", "subjects": set(subjects), "format": "article",
+            "domain": f"{identifier}.example", "tier": tier, "is_free": True}
+
+
+HEAPS = {"title": "Priority Queues & Binary Heaps", "language": "en", "level": "undergrad",
+         "subjects": {"ds.trees"}}
+
+
+def test_match_sources_orders_by_topic_and_drops_subject_only_matches():
+    """#102: a tier-1 page of the node's subject but another topic is not a source for it."""
+    from app.catalog.matching import match_sources
+
+    rows = [catalog_row("graphs", "Undirected graphs lecture", tier=1),
+            catalog_row("heap", "Binary heap tutorial", tier=1),
+            catalog_row("queues", "Priority queues and binary heaps, worked examples")]
+    # The closer topic leads although its domain has the lower authority tier.
+    assert [r["id"] for r in match_sources(HEAPS, rows)] == ["queues", "heap"]
+
+
+def test_match_sources_scores_an_exact_title_in_a_two_title_pool():
+    """Okapi's IDF is zero for a term in one of two titles; the positive IDF is not."""
+    from app.catalog.matching import match_sources
+
+    rows = [catalog_row("sched", "Round-robin scheduling in practice", subjects={"os"}),
+            catalog_row("deadlock", "Deadlock detection", subjects={"os"})]
+    node = {**HEAPS, "title": "CPU Scheduling Algorithms", "subjects": {"os"}}
+    assert [r["id"] for r in match_sources(node, rows)] == ["sched"]
+
+
+def test_catalog_index_never_chooses_an_excluded_source():
+    from app.catalog.matching import CatalogIndex
+
+    index = CatalogIndex([catalog_row("heap", "Binary heap tutorial"),
+                          catalog_row("heaps", "Binary heaps explained")])
+    assert [r["id"] for r in index.match(HEAPS, exclude={"heap"})] == ["heaps"]
+    assert {r["id"] for r in index.match(HEAPS)} == {"heap", "heaps"}  # the index is reusable
+
+
+@pytest.mark.parametrize("word, stem", [
+    ("transactions", "transaction"), ("queries", "query"), ("heaps", "heap"),
+    ("trees", "tree"), ("class", "class"), ("status", "status"),
+])
+def test_stem_folds_plurals_only(word, stem):
+    from app.catalog.matching import stem as fold
+
+    assert fold(word) == stem

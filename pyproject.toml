@@ -26,6 +26,7 @@ dependencies = [
     "google-genai~=2.33",
     "truststore~=0.10",
     "rank-bm25~=0.2",
+    "numpy>=1.26,<3",
     "trafilatura~=2.3",
     "fsrs~=6.3",
     # Deployed (Vercel) runs on Postgres; the read-only filesystem rules out SQLite.

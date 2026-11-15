@@ -158,10 +158,10 @@ def search_resources(db: Session, payload: dict, now: datetime) -> dict:
     roadmap = db.get(Roadmap, node.roadmap_id)
     course = db.get(Course, roadmap.course_id)
     user = db.get(User, roadmap.user_id)
-    from .catalog_repository import refresh_node_sources
+    from .catalog_repository import ENOUGH_CATALOG, refresh_node_sources
     selection = refresh_node_sources(db, [node], roadmap, course, now)[node.id]
     public = [r for r in selection["sources"] if r["kind"] != "user_material" and r["score"] >= 0.8]
-    if len(public) >= 3:
+    if len(public) >= ENOUGH_CATALOG:
         search = ResourceSearch(node_id=node.id, user_id=roadmap.user_id, node_title=node.title,
             status=selection["status"], kept=len(public), candidates=len(public), created_at=now)
         db.add(search)
