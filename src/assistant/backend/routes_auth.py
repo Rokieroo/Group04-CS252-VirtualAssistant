@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.companion import girlfriend_mode_allowed
 
-from .catalog_models import RoadmapEdge
+from .catalog_models import ExerciseAttempt, RoadmapEdge
 from .dependencies import DB, CurrentUser
 from .models import (
     AuthSession,
@@ -350,6 +350,23 @@ def export_user_data(user: CurrentUser, db: DB, request: Request):
         for rl in review_logs
     ]
 
+    attempts = db.scalars(
+        select(ExerciseAttempt)
+        .where(ExerciseAttempt.user_id == user_id)
+        .order_by(ExerciseAttempt.created_at)
+    ).all()
+    attempts_data = [
+        {
+            "id": a.id,
+            "exercise_id": a.exercise_id,
+            "node_id": a.node_id,
+            "response": a.response,
+            "correct": a.correct,
+            "created_at": str(a.created_at),
+        }
+        for a in attempts
+    ]
+
     return {
         "exported_at": request.app.state.now().isoformat(),
         "user": profile_data,
@@ -364,6 +381,7 @@ def export_user_data(user: CurrentUser, db: DB, request: Request):
         "resource_feedback": feedback_data,
         "review_cards": review_cards_data,
         "review_logs": review_logs_data,
+        "exercise_attempts": attempts_data,
     }
 
 
@@ -402,6 +420,7 @@ async def delete_account(
     )
     db.execute(delete(Recommendation).where(Recommendation.user_id == user_id))
     db.execute(delete(ReviewLog).where(ReviewLog.user_id == user_id))
+    db.execute(delete(ExerciseAttempt).where(ExerciseAttempt.user_id == user_id))
     db.execute(delete(ReviewCard).where(ReviewCard.user_id == user_id))
 
     owned_team_ids = select(Team.id).where(Team.owner_id == user_id)

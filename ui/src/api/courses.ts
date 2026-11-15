@@ -108,7 +108,7 @@ export async function generateItems(
 ): Promise<Item[]> {
   const id = selectedCourseId || (await courseId(course));
   return backend<Item[]>(
-    `/courses/${id}/concepts/${encodeURIComponent(conceptId)}/items:generate`,
+    `/courses/${id}/concepts/${encodeURIComponent(conceptId)}/items:find`,
     { method: "POST" },
   );
 }

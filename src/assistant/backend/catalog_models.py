@@ -3,8 +3,10 @@
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -234,6 +236,31 @@ class NodeExercise(Base):
         CheckConstraint(
             "role IN ('practice','checkpoint')", name="ck_node_exercise_role"
         ),
+    )
+
+
+class ExerciseAttempt(Base):
+    """A learner's answer to a quoted exercise and its mark (None: self-checked)."""
+
+    __tablename__ = "exercise_attempts"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("users.id", ondelete="CASCADE")
+    )
+    exercise_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("exercises.id", ondelete="CASCADE")
+    )
+    node_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("roadmap_nodes.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    response: Mapped[str] = mapped_column(Text)
+    correct: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    __table_args__ = (
+        Index("ix_exercise_attempts_user_exercise", "user_id", "exercise_id"),
     )
 
 

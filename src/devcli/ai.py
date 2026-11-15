@@ -432,7 +432,7 @@ def _items(args: argparse.Namespace) -> int:
     from dotenv import load_dotenv
 
     from app.ingest import InvalidPdf, extract_pages
-    from app.items.generate import generate_items
+    from app.items.find import find_items
 
     load_dotenv(ROOT / ".env")
     path = Path(args.file)
@@ -448,7 +448,7 @@ def _items(args: argparse.Namespace) -> int:
         if t.strip()
     ]
     result = [
-        {**c, "items": generate_items(None, c, sources)} for c in concepts[: args.limit]
+        {**c, "items": find_items(c, sources)} for c in concepts[: args.limit]
     ]
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))

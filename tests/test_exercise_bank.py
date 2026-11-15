@@ -201,6 +201,8 @@ def test_every_endpoint_that_returns_a_question_carries_its_source(app):
     assert {"ExerciseOut", "ItemOut"} <= set(returning)
     for name, fields in returning.items():
         assert {"source_id", "citation"} & fields, name
+        # Where the question came from and where it sits in that source, always.
+        assert {"origin", "location"} <= set(schemas[name].get("required", [])), name
     citation = schemas["ExerciseCitationOut"]["properties"]
     assert {"source_id", "resource_id"} <= set(citation)
 
@@ -312,3 +314,92 @@ def test_exercises_for_node_preloads_sources_and_catalog_without_n_plus_1(
     assert len(resource_queries) <= 2
     assert any(ex["citation"]["source_id"] == source_id for ex in payload["exercises"])
     assert any(ex["citation"]["resource_id"] == resource_id for ex in payload["exercises"])
+
+
+def _attach(app, client, headers, roadmap, node_id, text):
+    with app.state.database.sessions() as db:
+        source = Source(
+            course_id=roadmap["course_id"], file_name="problems.txt", page=2, text=text
+        )
+        db.add(source)
+        db.commit()
+        source_id = source.id
+    response = client.post(
+        f"/api/v1/roadmap-nodes/{node_id}/materials",
+        headers=headers,
+        json={"source_id": source_id},
+    )
+    assert response.status_code == 201, response.text
+    return source_id
+
+
+def test_answers_are_marked_only_against_the_sources_own_key(
+    app, client, headers, milestone_roadmap
+):
+    nodes = {n["title"]: n["id"] for n in milestone_roadmap["nodes"]}
+    node = nodes["Use case"]
+    source_id = _attach(app, client, headers, milestone_roadmap, node, PROBLEMS)
+    listed = client.get(
+        f"/api/v1/roadmap-nodes/{node}/exercises?limit=12", headers=headers
+    ).json()["exercises"]
+    by_number = {e["location"]: e for e in listed}
+    assert all(e["origin"] == "user_material" for e in listed)
+    numeric, mcq, proof = (by_number[f"Exercise {n}:"] for n in (3, 8, 5))
+    assert numeric["auto_grade"] and mcq["auto_grade"] and not proof["auto_grade"]
+
+    def attempt(exercise, response, node_id=node, user=headers):
+        return client.post(
+            f"/api/v1/roadmap-nodes/{node_id}/exercises/{exercise['id']}/attempts",
+            headers=user,
+            json={"response": response},
+        )
+
+    marked = attempt(numeric, "3 x 4 = 12")
+    assert marked.status_code == 201, marked.text
+    assert marked.json() == {
+        **marked.json(),
+        "mode": "auto",
+        "correct": True,
+        "source_answer": "12",
+        "location": "Exercise 3:",
+    }
+    assert marked.json()["citation"] == {**marked.json()["citation"], "source_id": source_id, "page": 2}
+    assert attempt(numeric, "13").json()["correct"] is False
+    assert attempt(mcq, "a. Manual").json()["correct"] is True
+    assert attempt(mcq, "B").json()["correct"] is False
+    # A proof has no key to match: the learner compares with the source instead.
+    checked = attempt(proof, "By contradiction ...").json()
+    assert checked["mode"] == "self_check" and checked["correct"] is None
+
+    # Invisible exercises are never marked: another node, another learner, no exercise.
+    assert attempt(numeric, "12", node_id=nodes["Solution ladder"]).status_code == 404
+    stranger = register(client, name="Han", email="han@example.com")
+    other = {"Authorization": "Bearer " + stranger["access_token"]}
+    assert attempt(numeric, "12", user=other).status_code == 404
+    assert attempt({"id": "missing"}, "12").status_code == 404
+    assert attempt(numeric, "").status_code == 422
+    assert attempt(numeric, "x" * 4001).status_code == 422
+
+    # Attempts are the learner's data and appear in their export.
+    exported = client.get("/api/v1/me/export", headers=headers).json()
+    marks = [a["correct"] for a in exported["exercise_attempts"]]
+    assert sorted(marks, key=str) == sorted([True, False, True, False, None], key=str)
+
+
+def test_no_exercises_at_a_node_points_to_its_verified_reading(
+    app, client, headers, milestone_roadmap
+):
+    node = {n["title"]: n["id"] for n in milestone_roadmap["nodes"]}["Use case"]
+    source_id = _attach(
+        app, client, headers, milestone_roadmap, node, "A lecture with no exercises."
+    )
+    result = client.get(f"/api/v1/roadmap-nodes/{node}/exercises", headers=headers).json()
+    assert result["status"] == "insufficient" and result["exercises"] == []
+    assert [s["source_id"] for s in result["sources"]] == [source_id]
+
+
+def test_items_generate_survives_only_as_a_deprecated_alias(app):
+    paths = app.openapi()["paths"]
+    generate = [p for p in paths if p.endswith("items:generate")]
+    assert generate and all(paths[p]["post"].get("deprecated") for p in generate)
+    assert any(p.endswith("items:find") for p in paths)

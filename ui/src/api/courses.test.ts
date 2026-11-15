@@ -69,7 +69,7 @@ function happyBackend({ method, path }: Call): Response {
       { status: 201 },
     );
   if (path.includes("concepts:propose")) return Response.json({ concepts: [concept], prereqs: [] });
-  if (path.endsWith("items:generate")) return Response.json([item], { status: 201 });
+  if (path.endsWith("items:find")) return Response.json([item], { status: 201 });
   return Response.json({ detail: "unexpected" }, { status: 500 });
 }
 
@@ -116,13 +116,13 @@ describe("concept extraction against the real backend", () => {
     expect(api.calls.map((c) => `${c.method} ${c.path}`)).toEqual([
       "GET /api/v1/courses",
       "POST /api/v1/courses",
-      "POST /api/v1/courses/course-1/concepts/c%2F1/items:generate",
+      "POST /api/v1/courses/course-1/concepts/c%2F1/items:find",
     ]);
   });
 
   it("turns a refused generation into items_unavailable", async () => {
     const api = await live((call) =>
-      call.path.endsWith("items:generate")
+      call.path.endsWith("items:find")
         ? Response.json({ detail: "items_unavailable" }, { status: 503 })
         : happyBackend(call),
     );

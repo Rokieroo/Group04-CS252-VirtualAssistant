@@ -436,6 +436,7 @@ class PrereqOut(Output):
 
 class ItemOut(Output):
     id: str
+    origin: Literal["catalog", "user_material"]
     type: str
     prompt: str
     choices: list[str]
@@ -444,6 +445,7 @@ class ItemOut(Output):
     source_id: str
     page: int
     file_name: str
+    location: str  # the source's own exercise number on that page
     status: str
 
 
@@ -810,6 +812,15 @@ class ReviewCardOut(BaseModel):
     choices: list[str] | None = None
     type: str = "mcq"
     source_id: str | None = None
+    origin: Literal["catalog", "user_material"] | None
+    location: str | None
+
+    @model_validator(mode="after")
+    def _prompt_is_cited(self):
+        # #115: a question is shown only with the source and place it is quoted from.
+        if self.prompt and not (self.source_id and self.origin and self.location):
+            raise ValueError("a review prompt needs its source_id, origin and location")
+        return self
 
 
 class ReviewSubmitIn(BaseModel):

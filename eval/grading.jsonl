@@ -1,0 +1,60 @@
+{"id": "GR01", "exercise": "EX03", "response": "20", "human": "correct"}
+{"id": "GR02", "exercise": "EX03", "response": "20 hours", "human": "correct"}
+{"id": "GR03", "exercise": "EX03", "response": "25", "human": "incorrect"}
+{"id": "GR04", "exercise": "EX07", "response": "B", "human": "correct"}
+{"id": "GR05", "exercise": "EX07", "response": "Fully autonomous agent", "human": "correct"}
+{"id": "GR06", "exercise": "EX07", "response": "A. Manual", "human": "incorrect"}
+{"id": "GR07", "exercise": "EX11", "response": "150 ms", "human": "correct"}
+{"id": "GR08", "exercise": "EX11", "response": "3 * 50 = 150", "human": "correct"}
+{"id": "GR09", "exercise": "EX11", "response": "100 or 150", "human": "incorrect"}
+{"id": "GR10", "exercise": "EX15", "response": "30 tuples", "human": "correct"}
+{"id": "GR11", "exercise": "EX15", "response": "thirty", "human": "correct"}
+{"id": "GR12", "exercise": "EX15", "response": "11", "human": "incorrect"}
+{"id": "GR13", "exercise": "EX19", "response": "c", "human": "correct"}
+{"id": "GR14", "exercise": "EX19", "response": "3NF", "human": "correct"}
+{"id": "GR15", "exercise": "EX19", "response": "2NF", "human": "incorrect"}
+{"id": "GR16", "exercise": "EX23", "response": "210", "human": "correct"}
+{"id": "GR17", "exercise": "EX23", "response": "Cost = 10 + 10*20 = 210 block accesses", "human": "correct"}
+{"id": "GR18", "exercise": "EX23", "response": "200", "human": "incorrect"}
+{"id": "GR19", "exercise": "EX27", "response": "T(8) = 32", "human": "correct"}
+{"id": "GR20", "exercise": "EX27", "response": "T(8) is 32", "human": "correct"}
+{"id": "GR21", "exercise": "EX27", "response": "24", "human": "incorrect"}
+{"id": "GR22", "exercise": "EX31", "response": "Hash table", "human": "correct"}
+{"id": "GR23", "exercise": "EX31", "response": "(B)", "human": "correct"}
+{"id": "GR24", "exercise": "EX31", "response": "Binary Search Tree", "human": "incorrect"}
+{"id": "GR25", "exercise": "EX35", "response": "15 edges", "human": "correct"}
+{"id": "GR26", "exercise": "EX35", "response": "6*5/2 = 15", "human": "correct"}
+{"id": "GR27", "exercise": "EX35", "response": "30", "human": "incorrect"}
+{"id": "GR28", "exercise": "EX39", "response": "9", "human": "correct"}
+{"id": "GR29", "exercise": "EX39", "response": "turnaround = 11 - 2 = 9", "human": "correct"}
+{"id": "GR30", "exercise": "EX39", "response": "11", "human": "incorrect"}
+{"id": "GR31", "exercise": "EX43", "response": "Round Robin", "human": "correct"}
+{"id": "GR32", "exercise": "EX43", "response": "C. Round Robin", "human": "correct"}
+{"id": "GR33", "exercise": "EX43", "response": "A", "human": "incorrect"}
+{"id": "GR34", "exercise": "EX47", "response": "130 ns", "human": "correct"}
+{"id": "GR35", "exercise": "EX47", "response": "Đáp án: 130", "human": "correct"}
+{"id": "GR36", "exercise": "EX47", "response": "120", "human": "incorrect"}
+{"id": "GR37", "exercise": "EX51", "response": "1.2 ms", "human": "correct"}
+{"id": "GR38", "exercise": "EX51", "response": "1,2 ms", "human": "correct"}
+{"id": "GR39", "exercise": "EX51", "response": "12", "human": "incorrect"}
+{"id": "GR40", "exercise": "EX55", "response": "TCP", "human": "correct"}
+{"id": "GR41", "exercise": "EX55", "response": "b", "human": "correct"}
+{"id": "GR42", "exercise": "EX55", "response": "B. IP", "human": "incorrect"}
+{"id": "GR43", "exercise": "EX59", "response": "2^4 - 2 = 14", "human": "correct"}
+{"id": "GR44", "exercise": "EX59", "response": "14 usable hosts (16 minus network and broadcast)", "human": "correct"}
+{"id": "GR45", "exercise": "EX59", "response": "16", "human": "incorrect"}
+{"id": "GR46", "exercise": "EX01", "response": "A problem frame states the problem, its context and what counts as solved.", "human": "self_check"}
+{"id": "GR47", "exercise": "EX05", "response": "Suppose two different rungs are both lowest sufficient; then one is lower, a contradiction.", "human": "self_check"}
+{"id": "GR48", "exercise": "EX06", "response": "for rung in rungs: print(rung)", "human": "self_check"}
+{"id": "GR49", "exercise": "EX13", "response": "A foreign key is a column whose values must match a key of another table.", "human": "self_check"}
+{"id": "GR50", "exercise": "EX17", "response": "Every two-attribute relation has only trivial or key-determined dependencies.", "human": "self_check"}
+{"id": "GR51", "exercise": "EX18", "response": "def holds(rows, lhs, rhs): ...", "human": "self_check"}
+{"id": "GR52", "exercise": "EX25", "response": "f(n) is O(g(n)) if f(n) <= c*g(n) for all n >= n0.", "human": "self_check"}
+{"id": "GR53", "exercise": "EX29", "response": "An AVL tree of height h has at least Fibonacci(h) nodes, so h is O(log n).", "human": "self_check"}
+{"id": "GR54", "exercise": "EX30", "response": "def rotate_left(x): y = x.right; x.right = y.left; y.left = x; return y", "human": "self_check"}
+{"id": "GR55", "exercise": "EX37", "response": "The PCB stores process state, program counter and registers.", "human": "self_check"}
+{"id": "GR56", "exercise": "EX41", "response": "Without mutual exclusion, hold-and-wait, no preemption or circular wait no cycle can block.", "human": "self_check"}
+{"id": "GR57", "exercise": "EX44", "response": "The TLB caches recent page-table entries so most translations skip memory.", "human": "self_check"}
+{"id": "GR58", "exercise": "EX49", "response": "Each layer adds its header: segment, datagram, frame, then bits.", "human": "self_check"}
+{"id": "GR59", "exercise": "EX53", "response": "Each frame is resent until its alternating bit is acknowledged.", "human": "self_check"}
+{"id": "GR60", "exercise": "EX60", "response": "Symmetric keys encrypt the record layer; asymmetric keys are used in the handshake.", "human": "self_check"}

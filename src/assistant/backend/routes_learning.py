@@ -16,7 +16,7 @@ from app.roadmap import layers, local_graph, prerequisites, transitive_reduction
 from .catalog_models import Concept, GraphLayout, RoadmapEdge
 from .catalog_repository import node_sources
 from .dependencies import DB, CurrentUser
-from .exercise_repository import exercises_for_node
+from .exercise_repository import exercises_for_node, record_attempt
 from .material_repository import decide, node_materials
 from .models import (
     Course,
@@ -129,13 +129,14 @@ class ExerciseCitationOut(BaseModel):
 
 class ExerciseOut(BaseModel):
     id: str
+    origin: Literal["catalog", "user_material"]
     type: Literal["mcq", "numeric", "short", "proof", "code"]
     prompt: str | None
     choices: list[str]
     difficulty: int
     bloom_level: str
     auto_grade: bool
-    location: str | None
+    location: str  # the source's own exercise number, e.g. "Exercise 3"
     citation: ExerciseCitationOut
 
 
@@ -146,6 +147,24 @@ class ExercisesOut(BaseModel):
     required: int
     count: int
     exercises: list[ExerciseOut]
+    # Too few exercises: the node's verified reading to study from instead.
+    sources: list[RankedSourceOut] = Field(default_factory=list)
+
+
+class AttemptIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    response: str = Field(min_length=1, max_length=4000)
+
+
+class AttemptOut(BaseModel):
+    id: str
+    exercise_id: str
+    mode: Literal["auto", "self_check"]
+    correct: bool | None
+    source_answer: str | None  # the source's own answer or worked solution, quoted
+    solution_ref: str | None
+    location: str
+    citation: ExerciseCitationOut
 
 
 def _node(db, node_id, user_id):
@@ -197,9 +216,43 @@ def exercises(
     limit: int = Query(10, ge=1, le=50),
 ):
     node, roadmap, course = _node(db, node_id, user.id)
-    return exercises_for_node(
-        db, node, roadmap, course, request.app.state.now(), role=role, limit=limit
-    )
+    now = request.app.state.now()
+    result = exercises_for_node(db, node, roadmap, course, now, role=role, limit=limit)
+    if result["status"] == "insufficient":
+        result["sources"] = node_sources(db, [node], roadmap, course, now)[node.id]["sources"]
+    return result
+
+
+@router.post(
+    "/roadmap-nodes/{node_id}/exercises/{exercise_id}/attempts",
+    response_model=AttemptOut,
+    status_code=201,
+)
+def attempt(
+    node_id: str,
+    exercise_id: str,
+    body: AttemptIn,
+    db: DB,
+    user: CurrentUser,
+    request: Request,
+):
+    """Mark an answer against the source's own key; no model writes or judges one."""
+    node, roadmap, course = _node(db, node_id, user.id)
+    try:
+        result = record_attempt(
+            db,
+            node,
+            roadmap,
+            course,
+            request.app.state.now(),
+            exercise_id,
+            user.id,
+            body.response,
+        )
+    except LookupError:
+        raise HTTPException(404, "Exercise not found") from None
+    db.commit()
+    return result
 
 
 class MaterialIn(BaseModel):

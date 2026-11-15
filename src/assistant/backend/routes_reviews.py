@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from app.planner.fsrs import schedule_card_review
 
-from .catalog_models import Item, NodeExercise
+from .catalog_models import Exercise, Item, NodeExercise
 from .dependencies import DB, CurrentUser
 from .models import ReviewCard, ReviewLog, Roadmap, RoadmapNode
 from .schemas import ReviewCardOut, ReviewResultOut, ReviewSubmitIn
@@ -79,13 +79,24 @@ def get_due_reviews(
         return []
 
     item_ids = [c.item_id for c in cards]
-    items = {
-        item.id: item for item in db.scalars(select(Item).where(Item.id.in_(item_ids)))
-    }
+    items, cited = {}, {}
+    for item, exercise in db.execute(
+        select(Item, Exercise)
+        .outerjoin(
+            Exercise,
+            (Exercise.id == Item.exercise_id) & (Exercise.verification_status == "verified"),
+        )
+        .where(Item.id.in_(item_ids))
+    ):
+        items[item.id] = item
+        if exercise is not None:
+            cited[item.id] = exercise
 
     results: list[ReviewCardOut] = []
     for c in cards:
-        item = items.get(c.item_id)
+        exercise = cited.get(c.item_id)
+        # No verified quoted exercise behind it: schedule the card, never show its text.
+        item = items.get(c.item_id) if exercise else None
         choices_raw = item.choices if item else None
         choices: list[str] | None = None
         if choices_raw:
@@ -111,6 +122,8 @@ def get_due_reviews(
                 choices=choices,
                 type=item.type if item else "mcq",
                 source_id=item.source_id if item else None,
+                origin=exercise.origin if item else None,
+                location=exercise.location if item else None,
             )
         )
     return results
