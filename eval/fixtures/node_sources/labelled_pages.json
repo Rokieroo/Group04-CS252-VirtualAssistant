@@ -1,0 +1,505 @@
+{
+ "recorded": "2026-11-15",
+ "pages": {
+  "https://ai-tricks-and-hacks.fun/jailbreak": {
+   "status": null,
+   "title": null
+  },
+  "https://algs4.cs.princeton.edu/33balanced/": {
+   "status": 200,
+   "title": "Balanced Search Trees. Algorithms, 4th Edition by Robert Sedgewick and Kevin Wayne."
+  },
+  "https://algs4.cs.princeton.edu/41graph/": {
+   "status": 200,
+   "title": "Undirected Graphs. Algorithms, 4th Edition by Robert Sedgewick and Kevin Wayne."
+  },
+  "https://amateur-crypto-advice.org/tls": {
+   "status": null,
+   "title": null
+  },
+  "https://arxiv.org/abs/2302.04023": {
+   "status": 200,
+   "title": "A Multitask, Multilingual, Multimodal Evaluation of ChatGPT on Reasoning, Hallucination, and Interactivity"
+  },
+  "https://aws.amazon.com/architecture/well-architected/": {
+   "status": 200,
+   "title": "AWS Well-Architected"
+  },
+  "https://aws.amazon.com/builders-library/automating-safe-hands-off-deployments/": {
+   "status": 200,
+   "title": "Automating safe, hands-off deployments | AWS Builder Center"
+  },
+  "https://blackhat-exam-bypass.cc/cs203": {
+   "status": null,
+   "title": null
+  },
+  "https://blog-tips-tricks.biz/avl": {
+   "status": null,
+   "title": null
+  },
+  "https://blog.acolyer.org/2016/01/29/how-good-are-query-optimizers-really/": {
+   "status": 404,
+   "title": null
+  },
+  "https://blog.cloudflare.com/how-bgp-works-and-how-it-breaks/": {
+   "status": 404,
+   "title": null
+  },
+  "https://blog.cloudflare.com/rfc-8446-aka-tls-1-3/": {
+   "status": 200,
+   "title": "A Detailed Look at RFC 8446 (a.k.a. TLS 1.3)"
+  },
+  "https://bogus-subnet-calculator.xyz/": {
+   "status": null,
+   "title": null
+  },
+  "https://brilliant.org/wiki/heaps/": {
+   "status": 200,
+   "title": "Heaps | Brilliant Math & Science Wiki"
+  },
+  "https://buy-algorithms-assignment.org/w1": {
+   "status": null,
+   "title": null
+  },
+  "https://buy-cheap-benchmarks.io/eval": {
+   "status": null,
+   "title": null
+  },
+  "https://cheap-study-tips.biz/vm": {
+   "status": null,
+   "title": null
+  },
+  "https://cheating-forum.ru/cs202-sched": {
+   "status": null,
+   "title": null
+  },
+  "https://cheatsheet-hub.net/usecase-cheat": {
+   "status": null,
+   "title": null
+  },
+  "https://cloud.google.com/architecture/devops/devops-process-continuous-delivery": {
+   "status": 200,
+   "title": "DevOps capabilities | Google Cloud Documentation"
+  },
+  "https://cloud.google.com/blog/products/networking/understanding-tcp-bbr": {
+   "status": 200,
+   "title": "Google Cloud Blog"
+  },
+  "https://course-hero-free-view.cc/cs102": {
+   "status": null,
+   "title": null
+  },
+  "https://cp-algorithms.com/graph/breadth-first-search.html": {
+   "status": 200,
+   "title": "Breadth-first search¶"
+  },
+  "https://cp-algorithms.com/graph/dijkstra.html": {
+   "status": 200,
+   "title": "Dijkstra Algorithm¶"
+  },
+  "https://crack-software-lab.com/algo": {
+   "status": null,
+   "title": null
+  },
+  "https://cracked-ebooks-club.ru/silberschatz": {
+   "status": null,
+   "title": null
+  },
+  "https://cs-homework-answers-free.net/heap": {
+   "status": null,
+   "title": null
+  },
+  "https://cstack.github.io/db_tutorial/parts/part7.html": {
+   "status": 200,
+   "title": "Part 7 - Introduction to the B-Tree"
+  },
+  "https://dark-forums-torrent.cc/os": {
+   "status": null,
+   "title": null
+  },
+  "https://darkweb-db-dumps.org/acid": {
+   "status": null,
+   "title": null
+  },
+  "https://datatracker.ietf.org/doc/html/rfc1122": {
+   "status": 200,
+   "title": "RFC 1122: Requirements for Internet Hosts - Communication Layers"
+  },
+  "https://datatracker.ietf.org/doc/html/rfc4271": {
+   "status": 200,
+   "title": "RFC 4271: A Border Gateway Protocol 4 (BGP-4)"
+  },
+  "https://datatracker.ietf.org/doc/html/rfc4632": {
+   "status": 200,
+   "title": "RFC 4632: Classless Inter-domain Routing (CIDR): The Internet Address Assignment and Aggregation Plan"
+  },
+  "https://datatracker.ietf.org/doc/html/rfc793": {
+   "status": 200,
+   "title": "RFC 793: Transmission Control Protocol"
+  },
+  "https://datatracker.ietf.org/doc/html/rfc8446": {
+   "status": 200,
+   "title": "RFC 8446: The Transport Layer Security (TLS) Protocol Version 1.3"
+  },
+  "https://developer.mozilla.org/en-US/docs/Learn/Common_questions/Web_mechanics/How_does_the_Internet_work": {
+   "status": 200,
+   "title": "How does the Internet work?"
+  },
+  "https://easy-exam-pass.xyz/os-week1": {
+   "status": null,
+   "title": null
+  },
+  "https://eatonphil.com/database-basics-transactions.html": {
+   "status": 404,
+   "title": null
+  },
+  "https://en.wikipedia.org/wiki/Binary_heap": {
+   "status": 200,
+   "title": "Binary heap - Wikipedia"
+  },
+  "https://en.wikipedia.org/wiki/Boyce%E2%80%93Codd_normal_form": {
+   "status": 200,
+   "title": "Boyce–Codd normal form - Wikipedia"
+  },
+  "https://en.wikipedia.org/wiki/Coffman_conditions": {
+   "status": 200,
+   "title": "Deadlock (computer science) - Wikipedia"
+  },
+  "https://en.wikipedia.org/wiki/Problem_framing": {
+   "status": 404,
+   "title": null
+  },
+  "https://ext4.wiki.kernel.org/index.php/Ext4_Disk_Layout": {
+   "status": null,
+   "title": null
+  },
+  "https://fast-study-guide.cc/graph": {
+   "status": null,
+   "title": null
+  },
+  "https://free-exam-dumps.biz/csc10014": {
+   "status": null,
+   "title": null
+  },
+  "https://free-sql-cert.online/index": {
+   "status": null,
+   "title": null
+  },
+  "https://greenteapress.com/semaphores/LittleBookOfSemaphores.pdf": {
+   "status": 200,
+   "title": null
+  },
+  "https://hbr.org/2017/01/are-you-solving-the-right-problem": {
+   "status": 404,
+   "title": null
+  },
+  "https://hpbn.co/building-blocks-of-tcp/": {
+   "status": null,
+   "title": null
+  },
+  "https://jepsen.io/analyses": {
+   "status": 200,
+   "title": "Analyses"
+  },
+  "https://jvns.ca/blog/2016/10/04/exec-vs-fork/": {
+   "status": null,
+   "title": null
+  },
+  "https://khanacademy.org/computing/computer-science/algorithms": {
+   "status": 200,
+   "title": "Client Challenge"
+  },
+  "https://leaked-database-course.xyz/w5": {
+   "status": null,
+   "title": null
+  },
+  "https://leaked-slides-download.com/week3": {
+   "status": null,
+   "title": null
+  },
+  "https://leaked-test-banks.me/cs202": {
+   "status": null,
+   "title": null
+  },
+  "https://learn.microsoft.com/en-us/azure/architecture/patterns/": {
+   "status": 200,
+   "title": "Cloud Design Patterns - Azure Architecture Center"
+  },
+  "https://martinfowler.com/articles/enterprise-architecture.html": {
+   "status": 404,
+   "title": null
+  },
+  "https://martinfowler.com/bliki/IncludeInUseCase.html": {
+   "status": 404,
+   "title": null
+  },
+  "https://medium.com/@anonymous/my-first-pipeline-hello-world": {
+   "status": 200,
+   "title": "Medium"
+  },
+  "https://medium.com/@coder123/what-is-acid": {
+   "status": 200,
+   "title": "Medium"
+  },
+  "https://mega-links-textbooks.ru/clrs": {
+   "status": null,
+   "title": null
+  },
+  "https://netflixtechblog.com/building-reliable-systems-pipelines": {
+   "status": null,
+   "title": null
+  },
+  "https://nulled-scripts-vault.ru/safeguards": {
+   "status": null,
+   "title": null
+  },
+  "https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-fall-2011/resources/lecture-16-dijkstra/": {
+   "status": 200,
+   "title": "Lecture 16: Dijkstra | Introduction to Algorithms | Electrical Engineering and Computer Science | MIT OpenCourseWare"
+  },
+  "https://ocw.mit.edu/courses/6-006-introduction-to-algorithms-spring-2020/": {
+   "status": 200,
+   "title": "Introduction to Algorithms | Electrical Engineering and Computer Science | MIT OpenCourseWare"
+  },
+  "https://ocw.mit.edu/courses/6-830-database-systems-fall-2010/": {
+   "status": 200,
+   "title": "Database Systems | Electrical Engineering and Computer Science | MIT OpenCourseWare"
+  },
+  "https://opendatastructures.org/ods-python/9_2_AVL_Trees.html": {
+   "status": 404,
+   "title": null
+  },
+  "https://os.phil-opp.com/paging-introduction/": {
+   "status": 200,
+   "title": "Introduction to Paging"
+  },
+  "https://owasp.org/www-project-top-10-for-large-language-model-applications/": {
+   "status": null,
+   "title": null
+  },
+  "https://owasp.org/www-project-top-ten/": {
+   "status": null,
+   "title": null
+  },
+  "https://pages.cs.wisc.edu/~remzi/OSTEP/cpu-intro.pdf": {
+   "status": 200,
+   "title": null
+  },
+  "https://pages.cs.wisc.edu/~remzi/OSTEP/cpu-sched-mlfq.pdf": {
+   "status": 200,
+   "title": null
+  },
+  "https://pages.cs.wisc.edu/~remzi/OSTEP/file-implementation.pdf": {
+   "status": 200,
+   "title": null
+  },
+  "https://pages.cs.wisc.edu/~remzi/OSTEP/threads-sema.pdf": {
+   "status": 200,
+   "title": null
+  },
+  "https://pages.cs.wisc.edu/~remzi/OSTEP/vm-paging.pdf": {
+   "status": 200,
+   "title": null
+  },
+  "https://pastebin.com/raw/illegal-student-solutions": {
+   "status": null,
+   "title": null
+  },
+  "https://pay-for-grade.org/cs202": {
+   "status": null,
+   "title": null
+  },
+  "https://phishing-credential-harvester.online/login": {
+   "status": null,
+   "title": null
+  },
+  "https://pirate-course-rips.biz/cisco": {
+   "status": null,
+   "title": null
+  },
+  "https://postgrespro.com/blog/posts/explaining-the-unexplainable": {
+   "status": 404,
+   "title": null
+  },
+  "https://pzemtsov.github.io/2019/02/03/searching-b-tree.html": {
+   "status": null,
+   "title": null
+  },
+  "https://quick-cs-answer.info/big-o": {
+   "status": null,
+   "title": null
+  },
+  "https://quick-dbms-pass.net/notes": {
+   "status": null,
+   "title": null
+  },
+  "https://quickhomeworkhelp.org/csc10014-w2": {
+   "status": null,
+   "title": null
+  },
+  "https://random-answers-hub.top/sched": {
+   "status": null,
+   "title": null
+  },
+  "https://random-blog.xyz/quick-fix-problem": {
+   "status": null,
+   "title": null
+  },
+  "https://random-forum-post.info/tcp": {
+   "status": null,
+   "title": null
+  },
+  "https://randomforum.top/post/norm-easy": {
+   "status": null,
+   "title": null
+  },
+  "https://seo-junk-articles.info/inode": {
+   "status": null,
+   "title": null
+  },
+  "https://solution-store.com/cs201-hw": {
+   "status": null,
+   "title": null
+  },
+  "https://spammy-tech-notes.cc/sec-tips": {
+   "status": null,
+   "title": null
+  },
+  "https://speed-course-24h.cc/osi": {
+   "status": null,
+   "title": null
+  },
+  "https://sql-in-5-minutes.click/opt": {
+   "status": null,
+   "title": null
+  },
+  "https://studeersnel-leaks.biz/cs102-w1": {
+   "status": null,
+   "title": null
+  },
+  "https://student-exam-answers.vip/cs203": {
+   "status": null,
+   "title": null
+  },
+  "https://tech-notes-express.cc/deadlock": {
+   "status": null,
+   "title": null
+  },
+  "https://torrent-books.me/db-internals-pdf": {
+   "status": null,
+   "title": null
+  },
+  "https://unverified-tech-notes.top/routing": {
+   "status": null,
+   "title": null
+  },
+  "https://use-the-index-luke.com/": {
+   "status": 200,
+   "title": "SQL Indexing and Tuning e-Book for developers: Use The Index, Luke covers Oracle, MySQL, PostgreSQL, SQL Server, ..."
+  },
+  "https://warez-syndicate.org/networking": {
+   "status": null,
+   "title": null
+  },
+  "https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1206/lectures/heaps/": {
+   "status": 200,
+   "title": "Lecture 5/13: Heaps"
+  },
+  "https://web.stanford.edu/class/cs145/": {
+   "status": 200,
+   "title": "Index of /class/cs145"
+  },
+  "https://wiki.osdev.org/Scheduling_Algorithms": {
+   "status": 403,
+   "title": null
+  },
+  "https://wrong-algo-blog.org/dijkstra-negative": {
+   "status": null,
+   "title": null
+  },
+  "https://www.bigocheatsheet.com/": {
+   "status": 200,
+   "title": "Know Thy Complexities!"
+  },
+  "https://www.cisco.com/c/en/us/support/docs/ip/open-shortest-path-first-ospf/7039-1.html": {
+   "status": 200,
+   "title": "IP Routing - Troubleshooting TechNotes"
+  },
+  "https://www.cs.usfca.edu/~galles/visualization/AVLtree.html": {
+   "status": 200,
+   "title": "AVL Tree"
+  },
+  "https://www.databricks.com/glossary/database-normalization": {
+   "status": 404,
+   "title": null
+  },
+  "https://www.destroyallsoftware.com/screencasts/catalog/how-git-and-filesystems-work": {
+   "status": 404,
+   "title": null
+  },
+  "https://www.feistyduck.com/bulletproof-tls-and-pki/": {
+   "status": 404,
+   "title": null
+  },
+  "https://www.geeksforgeeks.org/cpu-scheduling-in-operating-systems/": {
+   "status": 200,
+   "title": "CPU Scheduling in Operating Systems - GeeksforGeeks"
+  },
+  "https://www.geeksforgeeks.org/database-normalization-introduction/": {
+   "status": 200,
+   "title": "Introduction to Database Normalization - GeeksforGeeks"
+  },
+  "https://www.geeksforgeeks.org/introduction-of-relational-algebra-in-dbms/": {
+   "status": 200,
+   "title": "Introduction to Relational Algebra in DBMS - GeeksforGeeks"
+  },
+  "https://www.kernel.org/doc/gorman/html/understand/understand006.html": {
+   "status": 200,
+   "title": "Chapter�3��Page Table Management"
+  },
+  "https://www.kernel.org/doc/html/latest/process/index.html": {
+   "status": 200,
+   "title": "Working with the kernel development community"
+  },
+  "https://www.nist.gov/itl/ai-risk-management-framework": {
+   "status": 200,
+   "title": "AI Risk Management Framework"
+  },
+  "https://www.oreilly.com/library/view/high-performance-browser/9781449344757/ch01.html": {
+   "status": 403,
+   "title": null
+  },
+  "https://www.postgresql.org/docs/current/transaction-iso.html": {
+   "status": 200,
+   "title": "13.2. Transaction Isolation"
+  },
+  "https://www.redblobgames.com/pathfinding/a-star/introduction.html": {
+   "status": 200,
+   "title": "Red Blob Games: Introduction to the A* Algorithm"
+  },
+  "https://www.ripe.net/about-us/press-centre/understanding-ip-addressing/": {
+   "status": 200,
+   "title": "Understanding IP Addressing and CIDR Charts"
+  },
+  "https://www.sqlite.org/queryplanner.html": {
+   "status": 200,
+   "title": "Query Planning"
+  },
+  "https://www.uml-diagrams.org/use-case-diagrams.html": {
+   "status": 200,
+   "title": "UML Use Case Diagrams"
+  },
+  "https://www.visual-paradigm.com/guide/uml-unified-modeling-language/what-is-use-case-diagram/": {
+   "status": 200,
+   "title": "Learn UML Faster, Better and Easier"
+  },
+  "https://www.youtube.com/watch?v=GazC3VDpe0U": {
+   "status": 200,
+   "title": "- YouTube"
+  },
+  "https://www.youtube.com/watch?v=s_Ntt6eTn94": {
+   "status": 200,
+   "title": "Subnet Mask - Explained"
+  }
+ }
+}
