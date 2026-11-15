@@ -157,16 +157,16 @@ def test_verified_sources_reach_the_gap_nodes_and_the_gap_count_drops(
     app, client, clock, roadmap, monkeypatch  # noqa: F811
 ):
     sessions = app.state.database.sessions
-    urls = [f"https://source{n}.edu/solution-ladder" for n in range(2)]
+    urls = [f"https://source{n}.edu/solution-ladder" for n in range(3)]
     monkeypatch.setattr(
         catalog_verification, "open_fetcher", lambda sources: Pages(*map(page, urls))
     )
     with sessions() as db:
-        for number in range(2):  # ingested earlier, their last checks out of date
+        for number in range(3):  # ingested earlier, their last checks out of date
             add_resource(db, clock[0], number=number, status="pending", days=2)
         result = catalog_verification.verify_catalog(db, {}, clock[0])
         db.commit()
-    assert result["verified"] == 2
+    assert result["verified"] == 3
     assert jobs.run_once(sessions, clock[0]) is not None  # the chain's last job queued it
     with sessions() as db:
         [rematch] = kinds(db, REMATCH)
@@ -261,8 +261,11 @@ def test_bundled_sample_gives_a_new_csc10014_roadmap_catalog_sources_at_once(
                         json={"syllabus_id": syllabus}).json()
 
     summary = client.get(f"/api/v1/roadmaps/{graph['id']}/sources:summary", headers=headers)
-    ready = [n for n in summary.json()["nodes"] if n["status"] == "ready"]
-    assert len(ready) >= len(graph["nodes"]) // 2, summary.text
+    nodes = summary.json()["nodes"]
+    ready = [n for n in nodes if n["status"] == "ready"]
+    # Sources at once; nodes under the three-source bar stay insufficient, never "ready".
+    assert sum(1 for n in nodes if n["source_count"]) >= len(graph["nodes"]) // 2, summary.text
+    assert ready and all(n["source_count"] >= 3 for n in ready), summary.text
     with app.state.database.sessions() as db:
         assert catalog_jobs.fill_gaps(db, {}, clock[0])["insufficient_after"] == (
             len(graph["nodes"]) - len(ready)  # the rest is what tonight's gap filling targets

@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from pathlib import Path
 from threading import Barrier
+from uuid import uuid4
 
 import pytest
 from conftest import register
@@ -175,6 +176,38 @@ def roadmap(client, headers):
     )
     assert response.status_code == 201, response.text
     return response.json()
+
+
+def test_node_sources_of_another_learner_or_unknown_ids_are_404(app, client, headers, roadmap):
+    """#102: another learner's nodes, roadmaps and files never leak through sources."""
+    node = roadmap["nodes"][0]["id"]
+    with app.state.database.sessions() as db:
+        source = Source(course_id=roadmap["course_id"], file_name="mine.txt", page=1,
+                        text="Solution ladder notes.")
+        db.add(source)
+        db.commit()
+        source_id = source.id
+    assert client.post(f"/api/v1/roadmap-nodes/{node}/materials", headers=headers,
+                       json={"source_id": source_id}).status_code == 201
+    other = {"Authorization": "Bearer "
+             + register(client, "Other", "other@example.com")["access_token"]}
+    theirs = client.post("/api/v1/courses", headers=other,
+                         json={"title": "CSC10014", "language": "en"}).json()["id"]
+    their_roadmap = client.post(f"/api/v1/courses/{theirs}/roadmap:generate", headers=other,
+                                json={"nodes": [{"title": "Solution ladder", "week": 1}]}).json()
+    for path in (
+        f"/api/v1/concepts/{node}/sources",
+        f"/api/v1/roadmaps/{roadmap['id']}/sources:summary",
+        f"/api/v1/concepts/{uuid4()}/sources",
+        f"/api/v1/roadmaps/{uuid4()}/sources:summary",
+    ):
+        assert client.get(path, headers=other).status_code == 404, path
+    # Same course title, same node title: still none of my file in their sources.
+    summary = client.get(f"/api/v1/roadmaps/{their_roadmap['id']}/sources:summary",
+                         headers=other).json()
+    assert [n["user_material_count"] for n in summary["nodes"]] == [0]
+    mine = client.get(f"/api/v1/roadmaps/{roadmap['id']}/sources:summary", headers=headers)
+    assert sum(n["user_material_count"] for n in mine.json()["nodes"]) == 1
 
 
 def test_graph_edges_and_layout_are_persisted_and_owner_scoped(
