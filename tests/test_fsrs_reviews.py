@@ -1,5 +1,6 @@
 """Tests for FSRS spaced repetition review cards, logs, and node mastery (UC-11, issue #162)."""
 
+import json
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -7,11 +8,20 @@ import pytest
 from conftest import register
 from sqlalchemy import text
 
+from app.catalog.exercises import store_private
 from app.planner.fsrs import (
     compute_card_retrievability,
     compute_node_mastery,
     schedule_card_review,
 )
+
+BST_PAGE = """Binary search trees
+Exercise 1: What is the search complexity of a balanced BST?
+A. O(1)
+B. O(log n)
+C. O(n)
+Answer: B
+"""
 
 
 def test_fsrs_algorithm_standard_rating_sequence():
@@ -174,19 +184,31 @@ def test_setup(app, client, headers):
             text("UPDATE roadmap_nodes SET concept_id = :cid WHERE id = :nid"),
             {"cid": concept_id, "nid": node_id},
         )
+        page = {"id": source_id, "course_id": course_id, "page": 1, "text": BST_PAGE}
         db.execute(
             text(
                 "INSERT INTO sources (id, course_id, file_name, page, text) "
-                "VALUES (:s, :c, 'trees.pdf', 1, 'BST notes')"
+                "VALUES (:id, :course_id, 'trees.pdf', :page, :text)"
             ),
-            {"s": source_id, "c": course_id},
+            page,
         )
+        owner = db.scalar(text("SELECT owner_id FROM courses WHERE id=:c"), {"c": course_id})
+        # #115: a review item is always a quoted exercise of the learner's material.
+        (exercise,) = store_private(db, page, owner)
         db.execute(
             text(
-                "INSERT INTO items (id, concept_id, source_id, type, prompt, choices, answer, status) "
-                "VALUES (:id, :cid, :sid, 'mcq', 'What is the search complexity of a balanced BST?', '[\"O(1)\", \"O(log n)\", \"O(n)\"]', 'O(log n)', 'ready')"
+                "INSERT INTO items (id, concept_id, exercise_id, source_id, type, prompt, choices, answer, status) "
+                "VALUES (:id, :cid, :eid, :sid, 'mcq', :prompt, :choices, :answer, 'ready')"
             ),
-            {"id": item_id, "cid": concept_id, "sid": source_id},
+            {
+                "id": item_id,
+                "cid": concept_id,
+                "eid": exercise["id"],
+                "sid": source_id,
+                "prompt": exercise["prompt"],
+                "choices": json.dumps(exercise["choices"]),
+                "answer": exercise["answer"],
+            },
         )
         db.commit()
 
@@ -241,6 +263,8 @@ def test_reviews_api_due_and_submit(client, headers, test_setup, clock):
     assert items[0]["prompt"] == "What is the search complexity of a balanced BST?"
     assert items[0]["choices"] == ["O(1)", "O(log n)", "O(n)"]
     assert items[0]["source_id"] == test_setup["source_id"]
+    assert items[0]["origin"] == "user_material"
+    assert items[0]["location"] == "Exercise 1:"
 
     # 5. Review again: rating 4 (Easy)
     rev_res2 = client.post(
@@ -252,6 +276,29 @@ def test_reviews_api_due_and_submit(client, headers, test_setup, clock):
     data2 = rev_res2.json()
     assert data2["stability"] >= data1["stability"]
     assert data2["rating"] == 4
+
+
+def test_due_review_never_shows_an_uncited_question(
+    app, client, headers, test_setup, clock
+):
+    """A legacy item with no quoted exercise keeps its schedule but not its text (#115)."""
+    legacy = str(uuid4())
+    with app.state.database.sessions() as db:
+        db.execute(
+            text(
+                "INSERT INTO items (id, concept_id, source_id, type, prompt, answer, status) "
+                "VALUES (:id, :cid, :sid, 'short', 'An unsourced question?', 'x', 'ready')"
+            ),
+            {"id": legacy, "cid": test_setup["concept_id"], "sid": test_setup["source_id"]},
+        )
+        db.commit()
+    assert client.post(
+        f"/api/v1/reviews/{legacy}", headers=headers, json={"rating": 3}
+    ).status_code == 200
+    clock[0] += timedelta(days=1)
+    (card,) = client.get("/api/v1/reviews/due", headers=headers).json()
+    assert card["item_id"] == legacy
+    assert card["prompt"] == "" and card["choices"] is None and card["location"] is None
 
 
 def test_node_mastery_reflects_card_reviews_in_graph_api(client, headers, test_setup):

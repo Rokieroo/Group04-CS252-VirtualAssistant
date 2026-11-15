@@ -14,12 +14,14 @@ from app.catalog.exercises import (
     quote_hash,
     store_private,
 )
+from app.catalog.grading import gradable, grade
 from app.catalog.sources import load_sources
 from app.catalog.taxonomy import ensure_taxonomy, save_tags, tag_resource
 from app.roadmap import decode_covers
 
 from .catalog_models import (
     Exercise,
+    ExerciseAttempt,
     ExerciseSubject,
     NodeExercise,
     NodeMaterial,
@@ -188,11 +190,11 @@ def _pool_nodes(db, node):
     return [node.id, *db.scalars(query)]
 
 
-def _candidate_ids(db, node_ids, role):
+def _candidate_ids(db, node_ids, roles):
     linked = set(
         db.scalars(
             select(NodeExercise.exercise_id).where(
-                NodeExercise.node_id.in_(node_ids), NodeExercise.role == role
+                NodeExercise.node_id.in_(node_ids), NodeExercise.role.in_(roles)
             )
         )
     )
@@ -284,15 +286,76 @@ def _shown(exercise, roadmap, course, public, licenses, sources, source_hashes, 
         return None
     return {
         "id": exercise.id,
+        "origin": exercise.origin,
         "type": exercise.type,
         "prompt": exercise.prompt,
         "choices": item["choices"],
         "difficulty": exercise.difficulty,
         "bloom_level": exercise.bloom_level,
-        "auto_grade": exercise.answer is not None and exercise.prompt is not None,
+        "auto_grade": exercise.prompt is not None
+        and gradable(exercise.type, exercise.answer),
         "location": exercise.location,
         "citation": citation,
     }
+
+
+def _visible(db, node, roadmap, course, now, roles, only=None):
+    """(row, learner view) of every exercise in the node's pool whose evidence holds.
+
+    The node listing and the marking of an answer both go through here, so an
+    exercise the learner cannot see can never be marked either. ``only`` narrows
+    the pool to the given exercise IDs.
+    """
+    candidates = _candidate_ids(db, _pool_nodes(db, node), roles)
+    if only is not None:
+        candidates &= set(only)
+    if not candidates:
+        return []
+    exercises = db.scalars(
+        select(Exercise).where(
+            Exercise.id.in_(candidates),
+            Exercise.verification_status == "verified",
+        )
+    ).all()
+    if not exercises:
+        return []
+    source_ids = {
+        e.source_id
+        for e in exercises
+        if e.origin == "user_material" and e.source_id is not None
+    }
+    sources = (
+        {s.id: s for s in db.scalars(select(Source).where(Source.id.in_(source_ids)))}
+        if source_ids
+        else {}
+    )
+    source_hashes = {sid: _sha256(src.text) for sid, src in sources.items()}
+
+    if any(e.origin != "user_material" for e in exercises):
+        public = {r["id"]: r for r in verified_resources(db, now)}
+        licenses = load_sources().licenses
+        resource_ids = {
+            e.resource_id
+            for e in exercises
+            if e.origin != "user_material" and e.resource_id is not None
+        }
+        originals = (
+            {
+                r.id: r
+                for r in db.scalars(select(Resource).where(Resource.id.in_(resource_ids)))
+            }
+            if resource_ids
+            else {}
+        )
+    else:
+        public, licenses, originals = {}, {}, {}
+
+    args = (roadmap, course, public, licenses, sources, source_hashes, originals)
+    return [
+        (exercise, view)
+        for exercise in exercises
+        if (view := _shown(exercise, *args)) is not None
+    ]
 
 
 def exercises_for_node(db, node, roadmap, course, now, *, role="practice", limit=10):
@@ -300,72 +363,7 @@ def exercises_for_node(db, node, roadmap, course, now, *, role="practice", limit
 
     Too few is reported as ``insufficient``; nothing is ever written to fill the gap.
     """
-    candidates = _candidate_ids(db, _pool_nodes(db, node), role)
-    exercises = (
-        db.scalars(
-            select(Exercise).where(
-                Exercise.id.in_(candidates),
-                Exercise.verification_status == "verified",
-            )
-        ).all()
-        if candidates
-        else []
-    )
-    if not exercises:
-        shown = []
-    else:
-        source_ids = {
-            e.source_id
-            for e in exercises
-            if e.origin == "user_material" and e.source_id is not None
-        }
-        sources = (
-            {
-                s.id: s
-                for s in db.scalars(select(Source).where(Source.id.in_(source_ids)))
-            }
-            if source_ids
-            else {}
-        )
-        source_hashes = {sid: _sha256(src.text) for sid, src in sources.items()}
-
-        if any(e.origin != "user_material" for e in exercises):
-            public = {r["id"]: r for r in verified_resources(db, now)}
-            licenses = load_sources().licenses
-            resource_ids = {
-                e.resource_id
-                for e in exercises
-                if e.origin != "user_material" and e.resource_id is not None
-            }
-            originals = (
-                {
-                    r.id: r
-                    for r in db.scalars(
-                        select(Resource).where(Resource.id.in_(resource_ids))
-                    )
-                }
-                if resource_ids
-                else {}
-            )
-        else:
-            public, licenses, originals = {}, {}, {}
-
-        shown = [
-            value
-            for exercise in exercises
-            if (
-                value := _shown(
-                    exercise,
-                    roadmap,
-                    course,
-                    public,
-                    licenses,
-                    sources,
-                    source_hashes,
-                    originals,
-                )
-            )
-        ]
+    shown = [view for _, view in _visible(db, node, roadmap, course, now, (role,))]
     result = order_for(role, shown)[:limit]
     required = REQUIRED[role]
     return {
@@ -375,4 +373,44 @@ def exercises_for_node(db, node, roadmap, course, now, *, role="practice", limit
         "required": required,
         "count": len(result),
         "exercises": result,
+    }
+
+
+# --- attempts ------------------------------------------------------------------------
+
+
+def record_attempt(db, node, roadmap, course, now, exercise_id, user_id, response):
+    """Mark ``response`` against the source's own key and keep the attempt.
+
+    A key too long to match (a worked solution, a proof, a program) or a source
+    that prints none is self-checked: the learner gets the source's text and its
+    citation back, and ``correct`` stays None. Raises LookupError when the
+    exercise is not one this learner can see at this node.
+    """
+    found = _visible(
+        db, node, roadmap, course, now, tuple(REQUIRED), only={exercise_id}
+    )
+    if not found:
+        raise LookupError("Exercise not found")
+    exercise, view = found[0]
+    correct = grade(exercise.type, view["choices"], exercise.answer, response)
+    attempt = ExerciseAttempt(
+        user_id=user_id,
+        exercise_id=exercise.id,
+        node_id=node.id,
+        response=response,
+        correct=correct,
+        created_at=now,
+    )
+    db.add(attempt)
+    db.flush()
+    return {
+        "id": attempt.id,
+        "exercise_id": exercise.id,
+        "mode": "self_check" if correct is None else "auto",
+        "correct": correct,
+        "source_answer": exercise.answer,
+        "solution_ref": exercise.solution_ref,
+        "location": exercise.location,
+        "citation": view["citation"],
     }

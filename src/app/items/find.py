@@ -1,4 +1,4 @@
-"""Compatibility entry points: extract existing exercises; never generate prose (#115)."""
+"""Find the numbered exercises a concept's own pages already print; never write one (#115)."""
 
 import json
 from uuid import uuid4
@@ -56,8 +56,8 @@ def parse_items(answer, sources):
     return result[:MAX_ITEMS]
 
 
-def generate_items(llm, concept, sources):
-    """Deprecated name retained for callers; llm is deliberately never invoked."""
+def find_items(concept, sources):
+    """Quoted exercises from the concept's best pages, at most MAX_ITEMS."""
     return [
         {**item, "source_id": page["id"]}
         for page in pick_pages(concept, sources)

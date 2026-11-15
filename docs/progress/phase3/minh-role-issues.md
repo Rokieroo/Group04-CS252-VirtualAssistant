@@ -49,7 +49,8 @@ Mọi route dưới `/api/v1`, dùng bearer token. Contract đầy đủ: [opena
 | `GET /concepts/{node_id}/sources?limit=5` | ID là **node roadmap**, không phải ID concept cũ; tối đa 5 mục, tài liệu riêng đứng đầu; nguồn công khai có institution/license/format/score/reason |
 | `GET /roadmaps/{id}/sources:summary` | Count và status cho toàn bộ node, truy vấn bulk; GET không sửa DB |
 | `POST /roadmap-nodes/{id}/materials` | Body `{source_id}`; gắn một trang cùng môn/chủ sở hữu; nối bài tập sẵn có của trang; contract thủ công cho #114, không tự động suy đoán map slide |
-| `GET /roadmap-nodes/{id}/exercises?role=practice\|checkpoint` | Mỗi bài có citation; không trả đáp án; `auto_grade=false` khi nguồn không có đáp án hoặc bài chỉ-link; checkpoint < 10 → insufficient |
+| `GET /roadmap-nodes/{id}/exercises?role=practice\|checkpoint` | Mỗi bài có `origin`, `location` và citation; không trả đáp án; `auto_grade=true` chỉ khi nguồn in đáp án ngắn (lựa chọn, số, cụm ≤ 4 từ); checkpoint < 10 → insufficient, kèm `sources` là nguồn đọc đã xác minh của node |
+| `POST /roadmap-nodes/{id}/exercises/{exercise_id}/attempts` | Body `{response}` (1–4000 ký tự); chấm theo đáp án của chính nguồn (`mode=auto`), còn lại `mode=self_check` trả lời giải/vị trí của nguồn để tự đối chiếu; không model nào viết hay chấm đáp án; bài người học không thấy được → 404 |
 | `POST /roadmaps/{id}/edges` | Body `{parent_id,child_id,kind,reason}`; origin user do server đặt; 409 có `detail.path` khi cycle |
 | `DELETE /roadmaps/{id}/edges/{parent}/{child}` | Cùng khóa transaction với thêm cạnh |
 | `GET/PUT /roadmaps/{id}/layout` | PUT `{positions:[{node_id,x,y,pinned}]}`; tọa độ hữu hạn; không đọc/ghi layout người khác |
@@ -61,7 +62,7 @@ Catalog không được thay thế provenance bằng tên trường: trường c
 
 ## Thay đổi hành vi câu hỏi
 
-`items:generate` và CLI cũ giữ tên để tránh phá caller, nhưng chỉ trích các bài đánh số đã có trong tài liệu và **không gọi model**. Không có bài thì API trả `409 exercise_bank_insufficient`. Các prompt `generate_v1/v2` đã được bỏ. Tài liệu tuần 1 mô tả sinh câu hỏi là lịch sử và đã bị chính sách #115 thay thế.
+Route đã đổi thành `items:find` (Phase 4); `items:generate` còn một bản làm alias, đánh dấu `deprecated` trong OpenAPI. Cả hai chỉ trích các bài đánh số đã có trong tài liệu và **không gọi model**. Không có bài thì API trả `409 exercise_bank_insufficient`. Các prompt `generate_v1/v2` đã được bỏ. Tài liệu tuần 1 mô tả sinh câu hỏi là lịch sử và đã bị chính sách #115 thay thế.
 
 Prompt/choices/answer phải khớp nguyên văn sau chuẩn hóa khoảng trắng; offset boolean, số thực, ngoài biên hoặc kèm prose mới đều bị loại. Có test loại 10 câu bịa. Thay text trang hoặc content_hash nguồn khiến bài cũ không còn được trả. Nguồn CC BY-NC-SA hoặc giữ mọi quyền chỉ lưu link + vị trí theo ADR 004, không lưu đề/choices/answer. Câu không có đáp án không được tự bịa đáp án/rubric.
 

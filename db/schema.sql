@@ -540,6 +540,18 @@ CREATE TABLE IF NOT EXISTS review_logs (
 CREATE INDEX IF NOT EXISTS ix_review_logs_user_item ON review_logs (user_id, item_id);
 CREATE INDEX IF NOT EXISTS ix_review_logs_node_id ON review_logs (node_id);
 
+CREATE TABLE IF NOT EXISTS exercise_attempts (
+    id          VARCHAR(36) PRIMARY KEY,
+    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    exercise_id VARCHAR(36) NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+    node_id     VARCHAR(36) REFERENCES roadmap_nodes(id) ON DELETE SET NULL,
+    response    TEXT NOT NULL,
+    correct     BOOLEAN,
+    created_at  TIMESTAMP NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_exercise_attempts_user_exercise ON exercise_attempts (user_id, exercise_id);
+CREATE INDEX IF NOT EXISTS ix_exercise_attempts_node_id ON exercise_attempts (node_id);
+
 CREATE TABLE IF NOT EXISTS search_runs (
     id             VARCHAR(36) PRIMARY KEY,
     user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -705,7 +717,7 @@ CREATE INDEX IF NOT EXISTS ix_recommendation_events_recommendation_id ON recomme
 CREATE INDEX IF NOT EXISTS ix_external_results_fetched_at ON external_results (fetched_at);
 
 INSERT INTO alembic_version (version_num)
-SELECT '0016_fsrs_reviews'
+SELECT '0017_exercise_attempts'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);
 
 CREATE INDEX IF NOT EXISTS ix_roadmap_edges_roadmap_id ON roadmap_edges (roadmap_id);

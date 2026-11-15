@@ -605,9 +605,10 @@
         "tags": [
           "Courses and sources"
         ],
-        "summary": "Generate Concept Items",
-        "description": "Extract existing numbered exercises; no model authors content (#115).",
-        "operationId": "generate_concept_items_api_v1_courses__course_id__concepts__concept_id__items_generate_post",
+        "summary": "Find Concept Items",
+        "description": "Find the numbered exercises the course's pages already print; no model writes one (#115).",
+        "operationId": "find_concept_items_api_v1_courses__course_id__concepts__concept_id__items_generate_post",
+        "deprecated": true,
         "security": [
           {
             "HTTPBearer": []
@@ -643,7 +644,68 @@
                   "items": {
                     "$ref": "#/components/schemas/ItemOut"
                   },
-                  "title": "Response Generate Concept Items Api V1 Courses  Course Id  Concepts  Concept Id  Items Generate Post"
+                  "title": "Response Find Concept Items Api V1 Courses  Course Id  Concepts  Concept Id  Items Generate Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/courses/{course_id}/concepts/{concept_id}/items:find": {
+      "post": {
+        "tags": [
+          "Courses and sources"
+        ],
+        "summary": "Find Concept Items",
+        "description": "Find the numbered exercises the course's pages already print; no model writes one (#115).",
+        "operationId": "find_concept_items_api_v1_courses__course_id__concepts__concept_id__items_find_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "course_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Course Id"
+            }
+          },
+          {
+            "name": "concept_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Concept Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemOut"
+                  },
+                  "title": "Response Find Concept Items Api V1 Courses  Course Id  Concepts  Concept Id  Items Find Post"
                 }
               }
             }
@@ -2859,6 +2921,73 @@
         }
       }
     },
+    "/api/v1/roadmap-nodes/{node_id}/exercises/{exercise_id}/attempts": {
+      "post": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Attempt",
+        "description": "Mark an answer against the source's own key; no model writes or judges one.",
+        "operationId": "attempt_api_v1_roadmap_nodes__node_id__exercises__exercise_id__attempts_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Node Id"
+            }
+          },
+          {
+            "name": "exercise_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Exercise Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttemptIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttemptOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/roadmap-nodes/{node_id}/materials": {
       "get": {
         "tags": [
@@ -4174,6 +4303,94 @@
         ],
         "title": "AssessmentOut"
       },
+      "AttemptIn": {
+        "properties": {
+          "response": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Response"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "response"
+        ],
+        "title": "AttemptIn"
+      },
+      "AttemptOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "exercise_id": {
+            "type": "string",
+            "title": "Exercise Id"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "self_check"
+            ],
+            "title": "Mode"
+          },
+          "correct": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correct"
+          },
+          "source_answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Answer"
+          },
+          "solution_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solution Ref"
+          },
+          "location": {
+            "type": "string",
+            "title": "Location"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/ExerciseCitationOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "exercise_id",
+          "mode",
+          "correct",
+          "source_answer",
+          "solution_ref",
+          "location",
+          "citation"
+        ],
+        "title": "AttemptOut"
+      },
       "AvailabilityPut": {
         "properties": {
           "windows": {
@@ -4981,6 +5198,14 @@
             "type": "string",
             "title": "Id"
           },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "catalog",
+              "user_material"
+            ],
+            "title": "Origin"
+          },
           "type": {
             "type": "string",
             "enum": [
@@ -5023,14 +5248,7 @@
             "title": "Auto Grade"
           },
           "location": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Location"
           },
           "citation": {
@@ -5040,6 +5258,7 @@
         "type": "object",
         "required": [
           "id",
+          "origin",
           "type",
           "prompt",
           "choices",
@@ -5087,6 +5306,13 @@
             },
             "type": "array",
             "title": "Exercises"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/RankedSourceOut"
+            },
+            "type": "array",
+            "title": "Sources"
           }
         },
         "type": "object",
@@ -5418,6 +5644,14 @@
             "type": "string",
             "title": "Id"
           },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "catalog",
+              "user_material"
+            ],
+            "title": "Origin"
+          },
           "type": {
             "type": "string",
             "title": "Type"
@@ -5456,6 +5690,10 @@
             "type": "string",
             "title": "File Name"
           },
+          "location": {
+            "type": "string",
+            "title": "Location"
+          },
           "status": {
             "type": "string",
             "title": "Status"
@@ -5464,6 +5702,7 @@
         "type": "object",
         "required": [
           "id",
+          "origin",
           "type",
           "prompt",
           "choices",
@@ -5472,6 +5711,7 @@
           "source_id",
           "page",
           "file_name",
+          "location",
           "status"
         ],
         "title": "ItemOut"
@@ -6939,13 +7179,41 @@
               }
             ],
             "title": "Source Id"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "catalog",
+                  "user_material"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
           }
         },
         "type": "object",
         "required": [
           "item_id",
           "user_id",
-          "due_at"
+          "due_at",
+          "origin",
+          "location"
         ],
         "title": "ReviewCardOut"
       },

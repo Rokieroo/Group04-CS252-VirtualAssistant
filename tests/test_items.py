@@ -1,5 +1,6 @@
 """#115 supersedes #10: source extraction, never AI-authored questions."""
 
+import inspect
 import json
 
 import pytest
@@ -7,8 +8,7 @@ from conftest import register
 from sqlalchemy import text
 
 from app.catalog.exercises import exact, extract_numbered, from_offsets
-from app.items.generate import generate_items, parse_items, pick_pages, save_items
-from app.llm import FakeLLM
+from app.items.find import find_items, parse_items, pick_pages, save_items
 
 TEXT = """Solution ladder
 Exercise 1: Which rung uses search?
@@ -32,13 +32,12 @@ def test_extracts_only_verbatim_numbered_questions_and_official_answers():
     assert extract_numbered("A lecture with no exercises.") == []
 
 
-def test_extraction_never_invokes_a_model_and_uses_cited_pages():
-    llm = FakeLLM()
-    assert len(generate_items(llm, CONCEPT, SOURCES)) == 2
-    assert llm.calls == 0
+def test_finding_items_takes_no_model_and_uses_cited_pages():
+    assert "llm" not in inspect.signature(find_items).parameters
+    assert len(find_items(CONCEPT, SOURCES)) == 2
     assert pick_pages(CONCEPT, SOURCES)[0]["id"] == "s1"
     assert (
-        generate_items(llm, {**CONCEPT, "source_pages": [], "title": "zzzz"}, SOURCES)
+        find_items({**CONCEPT, "source_pages": [], "title": "zzzz"}, SOURCES)
         == []
     )
 
@@ -121,10 +120,10 @@ def test_saved_items_have_exercise_provenance_and_are_idempotent(
     app, client, headers, course
 ):
     with app.state.database.sessions() as db:
-        saved = save_items(db, "c1", generate_items(None, CONCEPT, SOURCES))
+        saved = save_items(db, "c1", find_items(CONCEPT, SOURCES))
         db.commit()
         assert len(saved) == 2
-        assert save_items(db, "c1", generate_items(None, CONCEPT, SOURCES)) == []
+        assert save_items(db, "c1", find_items(CONCEPT, SOURCES)) == []
         assert (
             db.scalar(text("SELECT count(*) FROM items WHERE exercise_id IS NULL")) == 0
         )
@@ -138,19 +137,25 @@ def test_saved_items_have_exercise_provenance_and_are_idempotent(
     assert client.get(endpoint, headers=headers).json() == []
 
 
-def test_legacy_endpoint_extracts_without_ai_and_hides_other_users(
+def test_find_endpoint_quotes_without_ai_and_hides_other_users(
     client, headers, course
 ):
     endpoint = f"/api/v1/courses/{course}/concepts/c1/items"
-    response = client.post(endpoint + ":generate", headers=headers)
+    response = client.post(endpoint + ":find", headers=headers)
     assert response.status_code == 201, response.text
     assert len(response.json()) == 2
+    for item in response.json():
+        assert item["origin"] == "user_material" and item["source_id"] == "s1"
+        assert item["location"].startswith("Exercise") and item["prompt"] in TEXT
+    # The deprecated alias still answers for one release, with the same items.
+    alias = client.post(endpoint + ":generate", headers=headers)
+    assert alias.status_code == 201 and alias.json() == response.json()
     other = {
         "Authorization": "Bearer "
         + register(client, "Lan", "lan@example.com")["access_token"]
     }
     assert client.get(endpoint, headers=other).status_code == 404
-    assert client.post(endpoint + ":generate", headers=other).status_code == 404
+    assert client.post(endpoint + ":find", headers=other).status_code == 404
     assert client.get(endpoint).status_code == 401
 
 
@@ -161,7 +166,7 @@ def test_no_exercises_means_insufficient_not_generated_content(
         db.execute(text("UPDATE sources SET text='Lecture only' WHERE id='s1'"))
         db.commit()
     response = client.post(
-        f"/api/v1/courses/{course}/concepts/c1/items:generate", headers=headers
+        f"/api/v1/courses/{course}/concepts/c1/items:find", headers=headers
     )
     assert response.status_code == 409
     assert response.json()["detail"] == "exercise_bank_insufficient"

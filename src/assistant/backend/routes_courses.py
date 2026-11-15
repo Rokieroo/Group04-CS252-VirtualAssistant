@@ -27,7 +27,7 @@ from app.ingest import (
     extract_pages,
     looks_scanned,
 )
-from app.items.generate import generate_items, save_items
+from app.items.find import find_items, save_items
 from app.llm import LLMClient, get_client, get_vision_client
 
 from .dependencies import DB, CurrentUser
@@ -228,7 +228,8 @@ def concept_items(db, concept_id: str) -> list[dict]:
     from app.catalog.exercises import exact, quote_hash
     rows = db.execute(text(
         "SELECT i.id, i.type, i.prompt, i.choices, i.answer, i.rubric, i.source_id, i.status, "
-        "s.page, s.file_name, s.text AS source_text, e.quote_hash, e.source_hash "
+        "s.page, s.file_name, s.text AS source_text, e.quote_hash, e.source_hash, "
+        "e.origin, e.location "
         "FROM items i JOIN sources s ON s.id = i.source_id "
         "JOIN exercises e ON e.id = i.exercise_id AND e.source_id = i.source_id "
         "JOIN concepts c ON c.id = i.concept_id JOIN courses co ON co.id = c.course_id "
@@ -254,15 +255,18 @@ def list_items(course_id: str, concept_id: str, db: DB, user: CurrentUser):
     return concept_items(db, concept_id)
 
 
-@router.post("/courses/{course_id}/concepts/{concept_id}/items:generate",
+@router.post("/courses/{course_id}/concepts/{concept_id}/items:find",
              response_model=list[ItemOut], status_code=201)
-def generate_concept_items(
+# shortcut: one-release alias for old clients; delete once the UI ships items:find.
+@router.post("/courses/{course_id}/concepts/{concept_id}/items:generate",
+             response_model=list[ItemOut], status_code=201, deprecated=True)
+def find_concept_items(
     course_id: str,
     concept_id: str,
     db: DB,
     user: CurrentUser,
 ):
-    """Extract existing numbered exercises; no model authors content (#115)."""
+    """Find the numbered exercises the course's pages already print; no model writes one (#115)."""
     owned_course(db, course_id, user.id)
     concept = course_concept(db, course_id, concept_id)
     sources = [dict(row) for row in db.execute(
@@ -271,7 +275,7 @@ def generate_concept_items(
         .order_by(Source.file_name, Source.page)).mappings()]
     if not sources:
         raise HTTPException(404, "no_sources")
-    items = generate_items(None, concept, sources)
+    items = find_items(concept, sources)
     if not items:
         raise HTTPException(409, "exercise_bank_insufficient")
     save_items(db, concept_id, items)

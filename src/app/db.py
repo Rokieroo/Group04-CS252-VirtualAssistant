@@ -86,6 +86,7 @@ _TABLES = (
     "reviews",
     "review_cards",
     "review_logs",
+    "exercise_attempts",
     "search_runs",
     "schedule_entries",
     "notifications",
