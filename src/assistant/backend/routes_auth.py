@@ -1,5 +1,6 @@
 """Account, profile and session lifecycle."""
 
+import json
 import logging
 import secrets
 from collections import defaultdict
@@ -11,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.companion import girlfriend_mode_allowed
 
-from .catalog_models import ExerciseAttempt, RoadmapEdge
+from .catalog_models import ExerciseAttempt, Placement, RoadmapEdge
 from .dependencies import DB, CurrentUser
 from .models import (
     AuthSession,
@@ -206,6 +207,7 @@ def export_user_data(user: CurrentUser, db: DB, request: Request):
                     "week": n.week,
                     "due_at": str(n.due_at) if n.due_at else None,
                     "duration_minutes": getattr(n, "duration_minutes", None),
+                    "known": n.known,
                 }
                 for n in nodes_by_roadmap[r.id]
             ],
@@ -284,8 +286,8 @@ def export_user_data(user: CurrentUser, db: DB, request: Request):
     notifications_data = [
         {
             "id": n.id,
-            "title": n.title,
-            "read_at": str(n.read_at) if n.read_at else None,
+            "message": n.message,
+            "read": n.read,
             "created_at": str(n.created_at),
         }
         for n in notifications
@@ -367,6 +369,22 @@ def export_user_data(user: CurrentUser, db: DB, request: Request):
         for a in attempts
     ]
 
+    placements_data = [
+        {
+            "id": p.id,
+            "roadmap_id": p.roadmap_id,
+            "answers": json.loads(p.answers),
+            "skipped": json.loads(p.skipped),
+            "created_at": str(p.created_at),
+            "finished_at": str(p.finished_at) if p.finished_at else None,
+        }
+        for p in db.scalars(
+            select(Placement)
+            .where(Placement.user_id == user_id)
+            .order_by(Placement.created_at)
+        )
+    ]
+
     return {
         "exported_at": request.app.state.now().isoformat(),
         "user": profile_data,
@@ -382,6 +400,7 @@ def export_user_data(user: CurrentUser, db: DB, request: Request):
         "review_cards": review_cards_data,
         "review_logs": review_logs_data,
         "exercise_attempts": attempts_data,
+        "placements": placements_data,
     }
 
 
@@ -421,6 +440,7 @@ async def delete_account(
     db.execute(delete(Recommendation).where(Recommendation.user_id == user_id))
     db.execute(delete(ReviewLog).where(ReviewLog.user_id == user_id))
     db.execute(delete(ExerciseAttempt).where(ExerciseAttempt.user_id == user_id))
+    db.execute(delete(Placement).where(Placement.user_id == user_id))
     db.execute(delete(ReviewCard).where(ReviewCard.user_id == user_id))
 
     owned_team_ids = select(Team.id).where(Team.owner_id == user_id)

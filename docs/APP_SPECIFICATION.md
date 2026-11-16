@@ -112,7 +112,7 @@ Mỗi use case có ID cố định; code, test và issue phải trỏ về ID n�
 | UC-14 | Trò chuyện, nhận unlock từ companion | Học sinh | LLM persona + rule | Could | 5 |
 | UC-15 | Ghim, ẩn, ghi chú nguồn trong thư viện cá nhân | Học sinh | Deterministic | Should | 4 |
 | UC-16 | Xem tổng kết tuần và điều chỉnh mục tiêu tuần sau | Học sinh | Deterministic | Should | 5 |
-| UC-17 | Làm placement test để bỏ qua chặng đã biết | Người tự học | Deterministic + LLM | Could | 5 |
+| UC-17 | Làm placement test để bỏ qua chặng đã biết | Người tự học | Deterministic | Could | 5 |
 | UC-18 | Khám phá knowledge graph của cả môn, xem nguồn đã xác minh của từng concept | Học sinh | Deterministic (DAG, local graph) + catalog đã xác minh | Must | 3–4 |
 
 ### 3.1. Đặc tả mẫu: UC-05 Tìm nguồn học chất lượng cho một chặng
@@ -294,6 +294,7 @@ Nguồn chuẩn: [`db/schema.sql`](../db/schema.sql). Tạo DB local: `python de
 | Bảng | Mục đích | Trường quan trọng |
 | --- | --- | --- |
 | `exercises`, `exercise_subjects`, `node_exercises` | Ngân hàng bài tập nguyên văn có kiểm chứng, migration `0010_quoted_exercises` (#115) | `origin` catalog/user_material, `resource_id` hoặc `source_id` + page, `owner_id`, `quote_hash`, `source_hash`, giấy phép, vị trí nguồn; bài chỉ-link không lưu đề/đáp án; role practice/checkpoint |
+| `placements` | Placement test của một người học trên một roadmap, migration `0018_placement` (#166) | `answers` (JSON node → đúng/sai), `skipped` (concept không có bài tập chấm được), câu đang mở (`node_id`, `exercise_id`), `finished_at`; concept đã biết lưu ở `roadmap_nodes.known` (tested/inferred/learner) |
 | `items` | Bài tập luyện tập; FSRS bridge có `exercise_id` FK tới ngân hàng bài tập | `type` (mcq/numeric/short/code/spot_bug), `origin` (user_material/catalog), `source_id` hoặc `resource_id` + `location` (trang, số bài), `license`, `answer` (nếu nguồn có), `rubric`, `graded`, `status` |
 | `cards` | Trạng thái ôn tập của 1 user với 1 item | `fsrs_state` (JSON), `due_at` |
 | `reviews` | Log mỗi lần trả lời, chỉ thêm, không sửa | `rating` (1–4), `answer_text`, `score`, `reviewed_at` |
@@ -381,7 +382,7 @@ Trả nguồn thay thế (nếu có) để UI đổi ngay.
 
 ### 8.8. Endpoint bổ trợ (đã có hoặc giữ từ bản 2.0)
 
-`POST /courses/{id}/sources` (slide riêng của chặng), `POST /courses/{id}/concepts:propose`, `POST /courses/{id}/concepts/{cid}/items:find`, `GET /me/due`, `POST /reviews`, `POST /ask`, `POST /items/{id}/hint`, `GET/PUT /me/companion`, `GET /me/weekly-summary`, `GET /schedule`, `POST /schedule/{entry_id}/check-in`, `GET/PUT /availability`, `/busy-blocks`, `PUT /me/library/{resource_id}` (ghim, ẩn, ghi chú), `GET /me/export`, `DELETE /me`, `POST /auth/register`, `POST /auth/login`.
+`POST /courses/{id}/sources` (slide riêng của chặng), `POST /courses/{id}/concepts:propose`, `POST /courses/{id}/concepts/{cid}/items:find`, `GET /me/due`, `POST /reviews`, `POST /ask`, `POST /items/{id}/hint`, `GET/PUT /me/companion`, `GET /me/weekly-summary`, `GET /schedule`, `POST /schedule/{entry_id}/check-in`, `GET/PUT /availability`, `/busy-blocks`, `PUT /me/library/{resource_id}` (ghim, ẩn, ghi chú), `GET /me/export`, `DELETE /me`, `POST /auth/register`, `POST /auth/login`, `POST /roadmaps/{id}/placement` (bắt đầu hoặc tiếp tục placement test), `POST /placements/{id}/answers`, `PUT /roadmap-nodes/{id}/known` (người học sửa kết quả).
 
 ---
 
@@ -587,6 +588,15 @@ Một nhân vật, ba mode; tiến độ và unlock giữ nguyên khi đổi mod
 
 - **Thư viện cá nhân**: người học ghim nguồn mình thích (luôn đứng đầu chặng), ẩn nguồn không hợp, viết ghi chú ngắn; mọi thứ chỉ của riêng người đó.
 - **Tổng kết tuần** (S12, Chủ Nhật 19:00, có thể tắt): chặng đã xong, chặng trễ, mốc kiểm tra sắp tới, thời gian học thật so với kế hoạch, concept cần ôn tô trên graph. Người học chỉnh giờ rảnh và mục tiêu tuần sau ngay trên màn hình đó. Giọng điệu trung tính, không so sánh với người khác, không gây áp lực.
+
+### 12.8. Placement test (UC-17)
+
+Thuật toán thuần ở `app/roadmap/placement.py`, không gọi LLM; lưu trữ ở `placement_repository.py` (#166).
+
+- **Chỉ hỏi bài có sẵn, có trích dẫn** từ ngân hàng bài tập (#115), và chỉ bài nguồn có in đáp án ngắn để chấm (số, lựa chọn, cụm từ). Concept không có bài như vậy bị bỏ qua (`skipped`), không đoán.
+- **Chọn câu theo graph**: ưu tiên concept mà câu trả lời, dù đúng hay sai, chốt được nhiều concept nhất (đúng → suy ra prerequisite trong 2 bậc; sai → loại mọi concept phụ thuộc), hòa thì chọn concept có nhiều concept phụ thuộc hơn. Tối đa 10 câu, dừng sớm khi không còn concept nào chưa chốt.
+- **Bất biến**: tập "đã biết" đóng theo prerequisite `strict`, nên không concept nào được đánh dấu đã biết khi còn prerequisite chưa biết; áp dụng cả khi người học tự sửa (đánh dấu kéo theo prerequisite, bỏ đánh dấu kéo theo concept phụ thuộc).
+- Kết quả lưu ở `roadmap_nodes.known`, tô trên graph; planner không xếp lịch cho chặng đã biết. `eval/run_placement.py` đo trên 5 graph gold với người học giả lập: lộ trình giảm 44% trung bình (tối thiểu 27%) cho người đã biết nửa môn, 0 concept sai.
 
 ---
 

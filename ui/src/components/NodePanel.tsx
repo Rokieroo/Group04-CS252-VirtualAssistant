@@ -11,6 +11,7 @@ import type { RoadmapNode } from "../api/types";
 import { nodeSources, type NodeSources } from "../api/materials";
 import { fetchNodeExercises, type ExerciseItem } from "../api/exercises";
 import { searchNodeResources } from "../api/resources";
+import type { Known } from "../api/placement";
 import {
   InsufficientSourcesNotice,
   VerifiedSourceCard,
@@ -44,6 +45,8 @@ export type NodePanelProps = {
   onOpenSyllabusPage?: (page: number) => void;
   onOpenMaterialPage?: (sourceId: string, page: number) => void;
   onOpenPractice?: (nodeId: string, exerciseIds?: string[]) => void;
+  known?: Known | null;
+  onToggleKnown?: (nodeId: string, known: boolean) => void;
 };
 
 export function NodePanel({
@@ -64,6 +67,8 @@ export function NodePanel({
   onOpenSyllabusPage,
   onOpenMaterialPage,
   onOpenPractice,
+  known = null,
+  onToggleKnown,
 }: NodePanelProps) {
   const [sourcesData, setSourcesData] = useState<NodeSources | null>(null);
   const [exercises, setExercises] = useState<ExerciseItem[]>([]);
@@ -411,6 +416,29 @@ export function NodePanel({
           >
             Xem đồ thị cục bộ
           </button>
+        )}
+        {onToggleKnown && node.type !== "milestone" && (
+          <div className="np-known">
+            {known && (
+              <span className="sm">
+                Đã biết (
+                {known === "tested"
+                  ? "qua bài kiểm tra"
+                  : known === "inferred"
+                    ? "suy ra từ câu trả lời"
+                    : "bạn đánh dấu"}
+                ) — không xếp vào lịch.
+              </span>
+            )}
+            <button
+              type="button"
+              className="np-path-btn"
+              aria-pressed={Boolean(known)}
+              onClick={() => onToggleKnown(node.id, !known)}
+            >
+              {known ? "Bỏ đánh dấu đã biết" : "Tôi đã biết chặng này"}
+            </button>
+          </div>
         )}
         {/* 2. Scrollable Body Content */}
         <div className="np-body" aria-live="polite">

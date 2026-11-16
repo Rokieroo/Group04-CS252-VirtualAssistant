@@ -357,6 +357,8 @@ class RoadmapNode(Base):
     concept_id: Mapped[str | None] = mapped_column(
         Text, ForeignKey("concepts.id", ondelete="SET NULL")
     )
+    # Already known, so the planner skips it (#166): "tested", "inferred" or "learner".
+    known: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     @property
     def kind(self) -> str:

@@ -376,6 +376,20 @@ def exercises_for_node(db, node, roadmap, course, now, *, role="practice", limit
     }
 
 
+def markable_exercise(db, node, roadmap, course, now, *, only=None):
+    """The hardest exercise at ``node`` whose source prints a key to mark, or None.
+
+    A placement question (#166) is always marked: a learner's own verdict on a
+    proof cannot be what marks a concept as known. ``only`` as in :func:`_visible`.
+    """
+    markable = [
+        view
+        for _, view in _visible(db, node, roadmap, course, now, tuple(REQUIRED), only)
+        if view["auto_grade"]
+    ]
+    return max(markable, key=lambda view: (view["difficulty"], view["id"]), default=None)
+
+
 # --- attempts ------------------------------------------------------------------------
 
 

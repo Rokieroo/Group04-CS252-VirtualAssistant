@@ -34,6 +34,8 @@ import { GraphCanvas } from "../components/GraphCanvas";
 import { GraphFilterBar, type FilterState } from "../components/GraphFilterBar";
 import { GraphListView } from "../components/GraphListView";
 import { NodePanel } from "../components/NodePanel";
+import { PlacementDialog } from "../components/PlacementDialog";
+import { setNodeKnown } from "../api/placement";
 import {
   computeTransitiveReduction,
   computeMilestoneScope,
@@ -124,6 +126,7 @@ export function CoreJourney({
   const [positions, setPositions] = useState<NodePosition[]>([]);
   const [graphLoading, setGraphLoading] = useState(false);
   const [graphReload, setGraphReload] = useState(0);
+  const [placementOpen, setPlacementOpen] = useState(false);
   const fallbackGraph = normalizeGraph({
     nodes: (roadmap?.nodes || []).map((n) => ({
       ...n,
@@ -962,7 +965,23 @@ export function CoreJourney({
                     }}
                   >
                     <h3>Knowledge Graph môn học</h3>
+                    {!mock && (
+                      <button
+                        type="button"
+                        className="button"
+                        onClick={() => setPlacementOpen(true)}
+                      >
+                        Kiểm tra xếp lớp
+                      </button>
+                    )}
                   </div>
+                  {placementOpen && (
+                    <PlacementDialog
+                      roadmapId={roadmap.id}
+                      onClose={() => setPlacementOpen(false)}
+                      onFinished={() => setGraphReload((n) => n + 1)}
+                    />
+                  )}
                   {graphLoading && (
                     <div
                       role="status"
@@ -1081,6 +1100,22 @@ export function CoreJourney({
                       }}
                       onClose={() => setNodePanelOpen(false)}
                       onSelectNode={selectGraphNode}
+                      known={
+                        fullGraph?.nodes.find((n) => n.id === selectedNodeObj.id)
+                          ?.known ?? null
+                      }
+                      onToggleKnown={
+                        mock
+                          ? undefined
+                          : (id, known) =>
+                              void setNodeKnown(id, known)
+                                .then(() => setGraphReload((n) => n + 1))
+                                .catch((e) =>
+                                  setGraphError(
+                                    e instanceof Error ? e.message : String(e),
+                                  ),
+                                )
+                      }
                     />
                   )}
                   {graphError && (
