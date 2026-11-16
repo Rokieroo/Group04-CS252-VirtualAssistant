@@ -358,12 +358,14 @@ def _visible(db, node, roadmap, course, now, roles, only=None):
     ]
 
 
-def find_visible_exercise(db, node, roadmap, course, now, exercise_id):
-    """Return (exercise, view) if the exercise is visible to this learner at this node."""
+def visible_exercise(db, node, roadmap, course, now, exercise_id):
+    """(row, learner view) of one exercise; LookupError when the learner cannot see it here."""
     found = _visible(
         db, node, roadmap, course, now, tuple(REQUIRED), only={exercise_id}
     )
-    return found[0] if found else None
+    if not found:
+        raise LookupError("Exercise not found")
+    return found[0]
 
 
 def exercises_for_node(db, node, roadmap, course, now, *, role="practice", limit=10):
@@ -395,12 +397,7 @@ def record_attempt(db, node, roadmap, course, now, exercise_id, user_id, respons
     citation back, and ``correct`` stays None. Raises LookupError when the
     exercise is not one this learner can see at this node.
     """
-    found = _visible(
-        db, node, roadmap, course, now, tuple(REQUIRED), only={exercise_id}
-    )
-    if not found:
-        raise LookupError("Exercise not found")
-    exercise, view = found[0]
+    exercise, view = visible_exercise(db, node, roadmap, course, now, exercise_id)
     correct = grade(exercise.type, view["choices"], exercise.answer, response)
     attempt = ExerciseAttempt(
         user_id=user_id,

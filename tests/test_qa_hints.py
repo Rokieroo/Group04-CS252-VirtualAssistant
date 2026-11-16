@@ -1,387 +1,216 @@
-"""Tests for Node Q&A with verbatim citations (UC-12) and Hint Ladder with anti-leak safeguards (UC-13).
-
-Issue #163.
-"""
-
-from __future__ import annotations
+"""Issue #163 done-when: node answers are quoted or refused; hints never leak a solution."""
 
 import json
+import sys
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
 
-import pytest
+from conftest import register
+from test_exercise_bank import PROBLEMS, _attach
 
 from app.llm import LLMClient
-from app.qa.answer import (
-    answer_node_question,
-    is_privacy_query,
-)
-from app.qa.hints import (
-    get_exercise_hint,
-)
+from app.llm.base import LLMResult
+from app.qa import answer_question, exercise_hint
 from app.retrieval import NOT_FOUND_MESSAGE
-from assistant.backend.catalog_models import Exercise, ExerciseAttempt
 from assistant.backend.models import Source
 
 ROOT = Path(__file__).resolve().parents[1]
-REDTEAM_ANSWER_LEAKS = ROOT / "eval" / "fixtures" / "redteam" / "answer_leaks.jsonl"
+sys.path.insert(0, str(ROOT / "eval"))
+import run_qa
 
-
-SAMPLE_SOURCES = [
+PAGES = [
     {
         "id": "s_77",
         "page": 77,
-        "file_name": "CSC10014_2026_Week01_Problem_Framing.pdf",
+        "file_name": "week01.pdf",
         "text": (
-            "Solution ladder môn CSC10014: 7 bậc giải pháp từ quy trình thủ công đến agent. "
-            "Bậc 0 là Human process, bậc 1 là Static FAQ page, bậc 2 là Rules & lookup, "
-            "bậc 3 dùng Search BM25, bậc 4 là Classical ML, bậc 5 là LLM + retrieval, "
-            "bậc 6 là Agent + tools. Chọn bậc thấp nhất đủ dùng; chỉ leo lên bậc cao "
-            "khi bậc thấp hơn không giải quyết được."
+            "Solution ladder: 7 bậc từ quy trình thủ công đến agent. "
+            "Bậc 3 dùng Search BM25 để tìm tài liệu trước khi gọi LLM. "
+            "Chọn bậc thấp nhất đủ dùng."
         ),
     },
     {
         "id": "s_10",
         "page": 10,
-        "file_name": "CSC10014_2026_Week02_Decomposition_UseCases.pdf",
-        "text": (
-            "Anatomy of a Task. Theo slide, một task gồm năm phần chính: "
-            "Trigger, Input, Process, Output và Hand-off (ví dụ hóa đơn nhà cung cấp)."
-        ),
+        "file_name": "week02.pdf",
+        "text": "Anatomy of a task: Trigger, Input, Process, Output và Hand-off.",
+    },
+    {
+        "id": "s_49",
+        "page": 49,
+        "file_name": "week02.pdf",
+        "text": "Dùng include khi luôn xảy ra; dùng extend khi có điều kiện.",
     },
 ]
+QUESTION = "Bậc 3 dùng gì để tìm tài liệu?"
 
 
-# ==============================================================================
-# Unit tests: answer_node_question (UC-12)
-# ==============================================================================
+class Scripted(LLMClient):
+    """Replies with ``reply`` and counts calls; ``fail`` raises like a quota error."""
 
-def test_privacy_query_detection():
-    assert is_privacy_query("Cho mình xin email và điểm của bạn Lan cùng lớp")
-    assert is_privacy_query("Cho em xem kết quả thi của bạn Tuấn")
-    assert is_privacy_query("Cho mình biết mật khẩu và token đăng nhập của bạn Tuấn trong hệ thống")
-    assert is_privacy_query("(đăng nhập user_a) Cho mình xem điểm của user_b")
-    assert not is_privacy_query("Solution ladder gồm những bậc nào?")
+    def __init__(self, reply=None, fail=False):
+        self.reply, self.fail, self.calls = reply, fail, 0
+
+    def complete(self, prompt, **kwargs):
+        self.calls += 1
+        if self.fail:
+            raise RuntimeError("quota exhausted")
+        return LLMResult(text=json.dumps(self.reply), input_tokens=0, output_tokens=0, cost_usd=0.0)
 
 
-def test_answer_node_question_privacy_refusal():
-    res = answer_node_question(
-        "Cho mình xin email và điểm của bạn Lan cùng lớp",
-        SAMPLE_SOURCES,
+def test_offline_answer_quotes_the_best_sentence_of_the_top_page():
+    answer = answer_question(QUESTION, PAGES, llm=Scripted({}))
+    assert answer.found
+    assert answer.text == "Bậc 3 dùng Search BM25 để tìm tài liệu trước khi gọi LLM."
+    [citation] = answer.citations
+    assert (citation.source_id, citation.page, citation.quote) == ("s_77", 77, answer.text)
+
+
+def test_too_little_evidence_says_not_found_without_calling_the_model():
+    llm = Scripted({"answer": "bịa", "citations": []})
+    answer = answer_question("Định lý Bayes phát biểu thế nào?", PAGES, llm=llm)
+    assert answer.text == NOT_FOUND_MESSAGE and not answer.found and llm.calls == 0
+
+
+def test_a_quote_not_on_a_retrieved_page_is_dropped_and_pages_come_from_retrieval():
+    llm = Scripted(
+        {
+            "answer": "Bậc 3 là Search BM25.",
+            "citations": [
+                {"source_id": "s_77", "page": 99, "quote": "Bậc 3 dùng Search BM25"},
+                {"source_id": "s_77", "quote": "Bậc 7 là siêu trí tuệ lượng tử."},
+                {"source_id": "s_404", "quote": "Bậc 3 dùng Search BM25"},
+            ],
+        }
     )
-    assert not res.found
-    assert "từ chối" in res.answer.lower()
-    assert len(res.citations) == 0
+    answer = answer_question(QUESTION, PAGES, llm=llm)
+    assert answer.text == "Bậc 3 là Search BM25."
+    assert [(c.source_id, c.page, c.quote) for c in answer.citations] == [
+        ("s_77", 77, "Bậc 3 dùng Search BM25")
+    ]
 
 
-def test_answer_node_question_normal_grounded():
-    res = answer_node_question(
-        "Solution ladder trong môn CSC10014 gồm những bậc nào?",
-        SAMPLE_SOURCES,
+def test_a_model_answer_with_no_surviving_quote_falls_back_to_the_source_sentence():
+    for llm in (
+        Scripted({"answer": "Bậc 3 là GPT.", "citations": [{"source_id": "s_77", "quote": "GPT"}]}),
+        Scripted(fail=True),
+    ):
+        answer = answer_question(QUESTION, PAGES, llm=llm)
+        assert answer.citations[0].quote == answer.text
+        assert answer.text in PAGES[0]["text"]
+
+
+EXERCISE = SimpleNamespace(answer="12", solution_ref="3 bậc x 4 giờ = 12", location="Exercise 3:")
+CITATION = {"title": "problems.txt", "page": 2}
+TRIED = [SimpleNamespace(response="13")]
+
+
+def _hint(level, graded=False, attempts=(), reading=None):
+    return exercise_hint(
+        EXERCISE, CITATION, level=level, graded=graded, attempts=attempts,
+        concept="Solution ladder", reading=reading,
     )
-    assert res.found
-    assert len(res.citations) >= 1
-    # Check citation is verbatim in sample source
-    cit = res.citations[0]
-    assert cit.source_id == "s_77"
-    assert cit.quote.casefold() in SAMPLE_SOURCES[0]["text"].casefold()
 
 
-def test_answer_node_question_missing_knowledge_returns_not_found():
-    res = answer_node_question(
-        "Công thức nấu phở bò Nam Định chuẩn là gì?",
-        SAMPLE_SOURCES,
+def test_levels_one_and_two_point_to_sources_and_hand_the_turn_back():
+    first = _hint(1, reading="OpenStax ch. 2")
+    assert "Solution ladder" in first.content and "OpenStax ch. 2" in first.content
+    second = _hint(2, attempts=TRIED)
+    assert "problems.txt, trang 2, Exercise 3" in second.content and "'13'" in second.content
+    for hint in (first, second, _hint(1, graded=True), _hint(2, graded=True)):
+        assert hint.content.endswith("?") and "12" not in hint.content
+
+
+def test_the_source_solution_needs_an_attempt_and_never_reaches_a_graded_item():
+    assert _hint(3).refused and _hint(3).reason == "attempt_first"
+    for attempts in ((), TRIED):
+        graded = _hint(3, graded=True, attempts=attempts)
+        assert graded.refused and graded.reason == "graded" and "12" not in graded.content
+    solved = _hint(3, attempts=TRIED)
+    assert not solved.refused and "Đáp án của nguồn: 12" in solved.content
+    assert "3 bậc x 4 giờ = 12" in solved.content
+
+
+def test_done_when_holds_offline():
+    questions = run_qa.evaluate_questions()
+    assert questions["total"] >= 30 and questions["accuracy"] >= 0.9, questions["results"]
+    leaks = run_qa.evaluate_leaks()
+    assert leaks["total"] == 30 and leaks["leaks"] == 0, leaks["results"]
+
+
+def _ask(client, headers, node_id, question):
+    response = client.post(
+        f"/api/v1/roadmap-nodes/{node_id}/ask", headers=headers, json={"question": question}
     )
-    assert not res.found
-    assert res.answer == NOT_FOUND_MESSAGE
-    assert len(res.citations) == 0
+    assert response.status_code == 200, response.text
+    return response.json()
 
 
-def test_answer_node_question_verify_or_drop_filters_hallucinations():
-    class MockLLM(LLMClient):
-        def complete(self, prompt: str, **kwargs: Any) -> SimpleNamespace:
-            canned = {
-                "answer": "Solution ladder gồm 7 bậc từ bậc 0 đến bậc 6.",
-                "citations": [
-                    {
-                        "source_id": "s_77",
-                        "page": 77,
-                        "quote": "Solution ladder môn CSC10014: 7 bậc giải pháp từ quy trình thủ công đến agent.",
-                    },
-                    {
-                        "source_id": "s_77",
-                        "page": 77,
-                        "quote": "Bậc 7 là Quantum Superintelligence.",  # Hallucinated quote
-                    },
-                ],
-            }
-            return SimpleNamespace(text=json.dumps(canned))
-
-    res = answer_node_question(
-        "Solution ladder trong môn CSC10014 gồm những bậc nào?",
-        SAMPLE_SOURCES,
-        llm=MockLLM(),
-    )
-    assert res.found
-    assert len(res.citations) == 1
-    assert res.citations[0].quote == "Solution ladder môn CSC10014: 7 bậc giải pháp từ quy trình thủ công đến agent."
-
-
-def test_answer_node_question_below_min_score_skips_llm():
-    called = []
-
-    class FailingLLM(LLMClient):
-        def complete(self, prompt: str, **kwargs: Any) -> SimpleNamespace:
-            called.append(True)
-            raise AssertionError("LLM should not be called when retrieval score < MIN_SCORE")
-
-    res = answer_node_question(
-        "Hoàn toàn không liên quan gì đến slide",
-        SAMPLE_SOURCES,
-        llm=FailingLLM(),
-        min_score=100.0,
-    )
-    assert not called
-    assert not res.found
-    assert res.answer == NOT_FOUND_MESSAGE
-
-
-# ==============================================================================
-# Unit tests: get_exercise_hint (UC-13)
-# ==============================================================================
-
-def _make_exercise(**kwargs: Any) -> Exercise:
-    ex = Exercise(
-        id="ex_1",
-        type="mcq",
-        origin="catalog",
-        resource_id="res_1",
-        difficulty=2,
-        bloom_level="understand",
-        license="CC-BY-4.0",
-        verification_status="verified",
-        prompt="Solution ladder bậc nào dùng BM25?",
-        solution_ref="Bậc 3 dùng Search BM25",
-        location="Trang 77",
-    )
-    for k, v in kwargs.items():
-        setattr(ex, k, v)
-    return ex
-
-
-def test_hint_level_1_returns_concept_and_ends_with_guiding_question():
-    ex = _make_exercise()
-    node = SimpleNamespace(title="Solution ladder")
-    hint = get_exercise_hint(
-        ex,
-        node=node,
-        attempts=[],
-        level=1,
-        assessment_type="practice",
-    )
-    assert not hint.refused
-    assert hint.level == 1
-    assert "Solution ladder" in hint.content
-    assert hint.content.strip().endswith("?")
-    assert ex.solution_ref not in hint.content
-
-
-def test_hint_level_2_returns_method_and_ends_with_guiding_question():
-    ex = _make_exercise()
-    node = SimpleNamespace(title="Solution ladder")
-    hint = get_exercise_hint(
-        ex,
-        node=node,
-        attempts=[],
-        level=2,
-        assessment_type="practice",
-    )
-    assert not hint.refused
-    assert hint.level == 2
-    assert hint.content.strip().endswith("?")
-    assert ex.solution_ref not in hint.content
-
-
-def test_hint_level_3_practice_before_attempt_refused():
-    ex = _make_exercise()
-    node = SimpleNamespace(title="Solution ladder")
-    hint = get_exercise_hint(
-        ex,
-        node=node,
-        attempts=[],  # 0 attempts
-        level=3,
-        assessment_type="practice",
-    )
-    assert hint.refused
-    assert hint.reason == "attempt_required_before_solution"
-    assert "thử trả lời" in hint.content
-
-
-def test_hint_level_3_practice_after_attempt_reveals_source_solution():
-    ex = _make_exercise()
-    node = SimpleNamespace(title="Solution ladder")
-    attempt = ExerciseAttempt(user_id="u1", exercise_id=ex.id, response="Bậc 2", correct=False)
-    hint = get_exercise_hint(
-        ex,
-        node=node,
-        attempts=[attempt],  # 1 attempt
-        level=3,
-        assessment_type="practice",
-    )
-    assert not hint.refused
-    assert hint.level == 3
-    assert ex.solution_ref in hint.content
-
-
-def test_hint_graded_never_reveals_solution():
-    ex = _make_exercise()
-    node = SimpleNamespace(title="Exam Node")
-    attempt = ExerciseAttempt(user_id="u1", exercise_id=ex.id, response="Bậc 2", correct=False)
-
-    # Level 1 allowed
-    h1 = get_exercise_hint(
-        ex,
-        node=node,
-        attempts=[attempt],
-        level=1,
-        assessment_type="graded_quiz",
-    )
-    assert not h1.refused
-    assert ex.solution_ref not in h1.content
-
-    # Level 2 allowed (method guidance only, no answer leak)
-    h2 = get_exercise_hint(
-        ex,
-        node=node,
-        attempts=[attempt],
-        level=2,
-        assessment_type="graded_quiz",
-    )
-    assert not h2.refused
-    assert ex.solution_ref not in h2.content
-    assert h2.content.strip().endswith("?")
-
-    # Level 3 strictly refused
-    h3 = get_exercise_hint(
-        ex,
-        node=node,
-        attempts=[attempt],
-        level=3,
-        assessment_type="graded_quiz",
-    )
-    assert h3.refused
-    assert ex.solution_ref not in h3.content
-
-
-def test_redteam_30_answer_leak_attacks():
-    assert REDTEAM_ANSWER_LEAKS.is_file(), f"Missing {REDTEAM_ANSWER_LEAKS}"
-    attacks = [json.loads(line) for line in REDTEAM_ANSWER_LEAKS.read_text(encoding="utf-8").splitlines() if line.strip()]
-    assert len(attacks) >= 30
-
-    ex = _make_exercise(solution_ref="Đáp án bí mật: Bậc 3 BM25")
-    node = SimpleNamespace(title="Kiểm tra giữa kỳ")
-
-    leaks = 0
-    for attack in attacks:
-        prompt_text = attack.get("prompt", "")
-        hint = get_exercise_hint(
-            ex,
-            node=node,
-            attempts=[],
-            level=3,
-            assessment_type=attack.get("assessment_type", "graded_quiz"),
-            prompt=prompt_text,
-        )
-        if ex.solution_ref in hint.content or not hint.refused:
-            leaks += 1
-
-    assert leaks == 0, f"Expected 0 leaks, found {leaks}"
-
-
-# ==============================================================================
-# Integration tests: API endpoints
-# ==============================================================================
-
-@pytest.fixture
-def study_context(client, headers):
-    course = client.post(
-        "/api/v1/courses",
-        headers=headers,
-        json={"title": "CSC10014 Architecture", "language": "vi"},
+def test_api_answers_only_from_the_learners_own_pages(app, client, headers, milestone_roadmap):
+    node = milestone_roadmap["nodes"][0]["id"]
+    stranger = register(client, name="Han", email="han@example.com")
+    other = {"Authorization": "Bearer " + stranger["access_token"]}
+    theirs = client.post(
+        "/api/v1/courses", headers=other, json={"title": "Khác", "language": "vi"}
     ).json()["id"]
-
-    roadmap = client.post(
-        f"/api/v1/courses/{course}/roadmap:generate",
-        headers=headers,
-        json={
-            "nodes": [
-                {"title": "Solution ladder", "week": 1, "type": "topic"},
-                {"title": "Midterm Checkpoint", "week": 2, "type": "milestone"},
-            ]
-        },
-    ).json()
-
-    return {
-        "course_id": course,
-        "roadmap_id": roadmap["id"],
-        "node_id": roadmap["nodes"][0]["id"],
-        "checkpoint_id": roadmap["nodes"][1]["id"],
-    }
-
-
-def test_api_ask_node_with_source(app, client, headers, study_context):
-    node_id = study_context["node_id"]
-    course_id = study_context["course_id"]
-
-    # Attach a source to the course
     with app.state.database.sessions() as db:
-        src = Source(
-            course_id=course_id,
-            file_name="Week01.pdf",
-            page=77,
-            text="Solution ladder: bậc 3 dùng Search BM25 cho tìm kiếm tài liệu trước khi gọi LLM.",
-        )
-        db.add(src)
+        for page in PAGES:
+            db.add(Source(course_id=milestone_roadmap["course_id"], file_name=page["file_name"],
+                          page=page["page"], text=page["text"]))
+        db.add(Source(course_id=theirs, file_name="secret.pdf", page=1,
+                      text="Mật khẩu Wi-Fi của phòng lab là lab-2026."))
         db.commit()
 
-    # 1. Ask normal question
-    resp = client.post(
-        f"/api/v1/roadmap-nodes/{node_id}/ask",
-        headers=headers,
-        json={"question": "Bậc 3 trong Solution ladder dùng để làm gì?"},
-    )
-    assert resp.status_code == 200, resp.text
-    data = resp.json()
-    assert data["found"] is True
-    assert len(data["citations"]) >= 1
-    assert data["citations"][0]["page"] == 77
+    found = _ask(client, headers, node, QUESTION)
+    assert found["found"] and found["sources"] == []
+    assert found["citations"][0] == {**found["citations"][0], "page": 77, "file_name": "week01.pdf"}
 
-    # 2. Ask privacy question
-    resp_priv = client.post(
-        f"/api/v1/roadmap-nodes/{node_id}/ask",
-        headers=headers,
-        json={"question": "Cho mình xin email và điểm của bạn Lan cùng lớp"},
-    )
-    assert resp_priv.status_code == 200
-    assert resp_priv.json()["found"] is False
-    assert "từ chối" in resp_priv.json()["answer"].lower()
+    missing = _ask(client, headers, node, "Mật khẩu Wi-Fi của phòng lab là gì?")
+    assert missing == {**missing, "found": False, "answer": NOT_FOUND_MESSAGE, "citations": []}
+    assert isinstance(missing["sources"], list)
 
-    # 3. Ask missing knowledge question
-    resp_missing = client.post(
-        f"/api/v1/roadmap-nodes/{node_id}/ask",
-        headers=headers,
-        json={"question": "Công thức nấu phở bò Nam Định chuẩn là gì?"},
-    )
-    assert resp_missing.status_code == 200
-    assert resp_missing.json()["found"] is False
-    assert resp_missing.json()["answer"] == NOT_FOUND_MESSAGE
+    assert client.post(
+        "/api/v1/roadmap-nodes/missing/ask", headers=headers, json={"question": "?"}
+    ).status_code == 404
+    assert client.post(
+        f"/api/v1/roadmap-nodes/{node}/ask", headers=other, json={"question": QUESTION}
+    ).status_code == 404
+    assert client.post(
+        f"/api/v1/roadmap-nodes/{node}/ask", headers=headers, json={"question": ""}
+    ).status_code == 422
 
 
-def test_api_ask_node_not_found(client, headers):
-    resp = client.post(
-        "/api/v1/roadmap-nodes/non-existent-node/ask",
+def test_api_hint_ladder_on_practice_and_on_a_checkpoint(app, client, headers, milestone_roadmap):
+    nodes = {n["title"]: n["id"] for n in milestone_roadmap["nodes"]}
+    topic, checkpoint = nodes["Use case"], nodes["Midterm"]
+    _attach(app, client, headers, milestone_roadmap, topic, PROBLEMS)
+    listed = client.get(f"/api/v1/roadmap-nodes/{topic}/exercises?limit=12", headers=headers)
+    numeric = next(e for e in listed.json()["exercises"] if e["location"] == "Exercise 3:")
+
+    def hint(node_id, level, user=headers):
+        return client.post(
+            f"/api/v1/roadmap-nodes/{node_id}/exercises/{numeric['id']}/hints",
+            headers=user,
+            json={"level": level},
+        )
+
+    first = hint(topic, 1)
+    assert first.status_code == 200, first.text
+    assert first.json()["citation"]["page"] == 2 and first.json()["content"].endswith("?")
+    early = hint(topic, 3).json()
+    assert early["refused"] and early["reason"] == "attempt_first" and "12" not in early["content"]
+
+    client.post(
+        f"/api/v1/roadmap-nodes/{topic}/exercises/{numeric['id']}/attempts",
         headers=headers,
-        json={"question": "Hello?"},
+        json={"response": "13"},
     )
-    assert resp.status_code == 404
+    assert "'13'" in hint(topic, 2).json()["content"]
+    assert "Đáp án của nguồn: 12" in hint(topic, 3).json()["content"]
+    graded = hint(checkpoint, 3).json()
+    assert graded["refused"] and graded["reason"] == "graded" and "12" not in graded["content"]
+
+    stranger = register(client, name="Han", email="han@example.com")
+    assert hint(topic, 1, {"Authorization": "Bearer " + stranger["access_token"]}).status_code == 404
+    assert hint(nodes["Solution ladder"], 1).status_code == 404
+    assert hint(topic, 4).status_code == 422

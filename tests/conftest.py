@@ -107,6 +107,28 @@ def headers_b(user_b):
     return {"Authorization": "Bearer " + user_b["access_token"]}
 
 
+@pytest.fixture
+def milestone_roadmap(client, headers):
+    """Two topics and two milestones; the exercise tests (#115, #163) attach pages to them."""
+    course = client.post(
+        "/api/v1/courses", headers=headers, json={"title": "CSC10014", "language": "en"}
+    ).json()["id"]
+    response = client.post(
+        f"/api/v1/courses/{course}/roadmap:generate",
+        headers=headers,
+        json={
+            "nodes": [
+                {"title": "Solution ladder", "week": 1},
+                {"title": "Use case", "week": 2},
+                {"title": "Midterm", "type": "milestone", "week": 2},
+                {"title": "Final", "type": "milestone", "week": 3},
+            ]
+        },
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
 def task(client, headers, **changes):
     response = client.post(
         "/api/v1/tasks",

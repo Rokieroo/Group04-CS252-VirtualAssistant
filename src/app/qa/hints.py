@@ -1,154 +1,95 @@
-"""Step-by-step hint ladder and anti-leak safeguards (issue #163, UC-13).
+"""Hint ladder for a quoted exercise (issue #163, UC-13, spec 12.5).
 
-Provides 3-level hint progression without ever authoring answers:
-Level 1: Related concept + source link/location + guiding question.
-Level 2: Guiding premise/method + source page + guiding question.
-Level 3: Exact quoted source answer (practice only, after at least 1 attempt).
-
-Strictly refuses solutions for graded items and pre-attempt queries (0 leaks).
+1. the node's concept and its most relevant source; 2. the exercise's own source
+page and the learner's last answer; 3. the source's own answer or solution.
+Every hint is assembled from stored fields and no model writes one, so nothing a
+learner types can talk the ladder into an answer: the gates below are the whole
+anti-leak policy. Levels 1-2 end with a question that hands the turn back.
 """
 
 from __future__ import annotations
 
-import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-GRADED_ASSESSMENTS = frozenset(
-    {"graded_quiz", "midterm_exam", "final_exam", "graded_assignment"}
-)
-
-_LEAK_PATTERNS = [
-    re.compile(r"\b(?:xin|cho|in|xuất|output|give|print|show)\b.*\b(?:đáp án|answer|key|solution|rubric|lời giải)\b", re.IGNORECASE),
-    re.compile(r"\b(?:master answer key|admin|override|sudo|debug mode)\b", re.IGNORECASE),
-    re.compile(r"\b(?:giảng viên|giáo viên|professor|trợ giảng|ta)\b.*\b(?:đáp án|solution|answer key)\b", re.IGNORECASE),
-    re.compile(r"\b(?:bỏ qua mọi|ignore previous|system prompt)\b", re.IGNORECASE),
-    re.compile(r"\b(?:hết giờ|khẩn cấp|điểm 0)\b.*\b(?:đáp án|câu trả lời|lời giải)\b", re.IGNORECASE),
-    re.compile(r"\b(?:đáp án câu|answer to question|correct answer letter)\b", re.IGNORECASE),
-]
+# Issue #163: no solution before the learner has tried. Spec 12.5 asks for three
+# tries, but the attempt endpoint (#115) already shows the source's key after one.
+ATTEMPTS_BEFORE_SOLUTION = 1
 
 
-@dataclass
-class HintResult:
+@dataclass(frozen=True)
+class Hint:
     level: int
     content: str
-    source_id: str | None = None
-    page: int | None = None
     refused: bool = False
-    reason: str = ""
+    reason: str | None = None
 
 
-def is_leak_attempt(prompt: str) -> bool:
-    """Return True if ``prompt`` attempts to extract the final answer or solution."""
-    if not prompt:
-        return False
-    text = prompt.strip()
-    return any(p.search(text) for p in _LEAK_PATTERNS)
+def _where(citation: dict[str, Any], location: str | None) -> str:
+    parts = [citation.get("title") or "nguồn của bài"]
+    if citation.get("page"):
+        parts.append(f"trang {citation['page']}")
+    if location:
+        parts.append(location.rstrip(":"))
+    return ", ".join(parts)
 
 
-def _field(obj: Any, key: str, default: Any = None) -> Any:
-    if isinstance(obj, dict):
-        return obj.get(key, default)
-    return getattr(obj, key, default)
-
-
-def get_exercise_hint(
+def exercise_hint(
     exercise: Any,
-    node: Any | None = None,
-    attempts: Sequence[Any] = (),
-    level: int = 1,
-    assessment_type: str = "practice",
-    prompt: str | None = None,
-    node_sources: Sequence[Any] = (),
-) -> HintResult:
-    """Produce a stepped hint or refusal adhering to anti-leak constraints (UC-13).
+    citation: dict[str, Any],
+    *,
+    level: int,
+    graded: bool,
+    attempts: Sequence[Any],
+    concept: str,
+    reading: str | None = None,
+) -> Hint:
+    """Hint ``level`` (1-3) for ``exercise``; ``attempts`` are the learner's, oldest first.
 
-    - Graded items: final answer is NEVER given under any circumstances (max level 1).
-    - Practice items: answer requires at least 1 prior attempt before level 3.
-    - All hints (except level 3) end with a guiding question giving the turn back.
+    A graded item never reaches level 3; a practice item reaches it only after
+    :data:`ATTEMPTS_BEFORE_SOLUTION` attempts. ``reading`` names the node's most
+    relevant source for level 1.
     """
-    is_graded = (
-        assessment_type in GRADED_ASSESSMENTS
-        or _field(node, "type") == "milestone"
-        or (prompt and ("graded" in prompt.lower() or "tính điểm" in prompt.lower()))
-    )
-    attempt_count = len(attempts)
-
-    # 1. Anti-leak checks
-    if is_graded and (level >= 3 or is_leak_attempt(prompt or "")):
-        return HintResult(
-            level=1,
-            content=(
-                "Đây là bài kiểm tra tính điểm. Hệ thống chỉ cung cấp gợi ý định hướng "
-                "(bậc 1), không cung cấp đáp án hoặc lời giải chi tiết. "
-                "Bạn hãy xem lại khái niệm liên quan để tự hoàn thành nhé?"
-            ),
+    if level >= 3 and graded:
+        return Hint(
+            1,
+            "Đây là bài tính điểm nên chỉ có gợi ý bậc 1-2, không có lời giải. "
+            f"Bạn thử xem lại khái niệm '{concept}' rồi làm tiếp nhé?",
             refused=True,
-            reason="graded_assessment_anti_leak",
+            reason="graded",
         )
-
-    if not is_graded and attempt_count == 0 and (level >= 3 or is_leak_attempt(prompt or "")):
-        return HintResult(
-            level=1,
-            content=(
-                "Bạn cần thử trả lời bài tập ít nhất một lần trước khi xem lời giải của nguồn. "
-                "Bạn nghĩ bước đầu tiên để tiếp cận câu hỏi này là gì?"
-            ),
+    if level >= 3 and len(attempts) < ATTEMPTS_BEFORE_SOLUTION:
+        return Hint(
+            1,
+            "Lời giải của nguồn chỉ mở sau khi bạn đã thử trả lời. "
+            "Theo bạn, bước đầu tiên để giải bài này là gì?",
             refused=True,
-            reason="attempt_required_before_solution",
+            reason="attempt_first",
         )
-
-    # 2. Extract exercise context
-    ex_answer = (
-        _field(exercise, "solution_ref")
-        or _field(exercise, "answer")
-        or _field(exercise, "solution")
-    )
-    source_id = _field(exercise, "source_id") or _field(exercise, "resource_id")
-    page = _field(exercise, "page")
-    node_title = str(_field(node, "title") or "").strip()
-
-    # Find matching source citation
-    source_title = ""
-    for s in node_sources:
-        sid = _field(s, "id") or _field(s, "source_id")
-        if sid == source_id:
-            source_title = str(_field(s, "file_name") or _field(s, "title") or "")
-            if page is None:
-                page = _field(s, "page")
-            break
-
-    # 3. Hint Ladder Levels
+    where = _where(citation, exercise.location)
     if level == 1:
-        # Bậc 1: Gợi ý khái niệm liên quan + link/tên nguồn + câu hỏi gợi mở
-        concept = node_title or "khái niệm trọng tâm của bài toán"
-        loc = f"trang {page}" if page else (source_title or "tài liệu của chặng")
-        content = (
-            f"Gợi ý bậc 1: Bài tập này kiểm tra kiến thức về '{concept}'. "
-            f"Bạn có thể xem lại tại {loc}. "
-            f"Theo bạn, dữ kiện quan trọng nhất được đề bài nhắc đến là gì?"
+        see = f" Nguồn liên quan nhất của chặng: {reading}." if reading else ""
+        return Hint(
+            1,
+            f"Gợi ý bậc 1: bài này dùng khái niệm '{concept}'.{see} "
+            "Dữ kiện nào trong đề liên quan nhất tới khái niệm đó?",
         )
-        return HintResult(level=1, content=content, source_id=source_id, page=page)
-
     if level == 2:
-        # Bậc 2: Định hướng phương pháp / trang nguồn + câu hỏi gợi mở
-        loc = f"trang {page}" if page else (source_title or "tài liệu của chặng")
-        last_attempt = attempts[-1] if attempts else None
-        last_resp = _field(last_attempt, "response") if last_attempt else None
-        feedback = f" Ở lần thử trước bạn đã chọn '{last_resp}', hãy chú ý tiền đề cốt lõi." if last_resp else ""
-        content = (
-            f"Gợi ý bậc 2: Hãy đối chiếu phương pháp xử lý tại {loc}.{feedback} "
-            f"Bạn hãy thử xác định công thức hoặc quy tắc tương ứng trước khi tính toán nhé?"
+        last = attempts[-1].response if attempts else None
+        tried = (
+            f" Lần trước bạn trả lời '{last}': hãy kiểm tra tiền đề đầu tiên bạn dùng."
+            if last
+            else ""
         )
-        return HintResult(level=2, content=content, source_id=source_id, page=page)
-
-    # Level 3: Lời giải của nguồn (không tự viết lời giải)
-    if ex_answer is not None and str(ex_answer).strip():
-        ans_str = str(ex_answer).strip()
-        content = f"Lời giải từ nguồn ({source_title or 'tài liệu'}): {ans_str}"
-    else:
-        loc = f"trang {page}" if page else (source_title or "tài liệu")
-        content = f"Lời giải tự đối chiếu: Vui lòng đối chiếu bài làm trực tiếp với {loc}."
-
-    return HintResult(level=3, content=content, source_id=source_id, page=page)
+        return Hint(
+            2,
+            f"Gợi ý bậc 2: đối chiếu với {where}.{tried} "
+            "Quy tắc nào ở đó áp dụng được cho đề này?",
+        )
+    shown = [f"Đáp án của nguồn: {exercise.answer}"] if exercise.answer else []
+    if exercise.solution_ref:
+        shown.append(f"Lời giải của nguồn: {exercise.solution_ref}")
+    if not shown:
+        return Hint(3, f"Nguồn không in lời giải; hãy tự đối chiếu bài làm với {where}.")
+    return Hint(3, f"{'. '.join(shown)} ({where}).")

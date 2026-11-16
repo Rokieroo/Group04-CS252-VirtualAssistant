@@ -1,7 +1,10 @@
-"""Question answering with verbatim citations over node materials (issue #163, UC-12).
+"""Answers to a learner's question at a node, quoted from their pages (issue #163, UC-12).
 
-Uses BM25 retrieval to find relevant slide pages, prompts the LLM to answer using
-only those pages with exact quotes, and enforces verify-or-drop citation validation.
+Spec 12.4: BM25 picks the top-5 pages; when the best one holds too little of the
+question the learner is told :data:`NOT_FOUND_MESSAGE` and no model is called; a
+citation that does not quote a retrieved page verbatim is dropped. When no model
+citation survives (or the model is ``LLM_PROVIDER=fake``), the answer is the best
+page's sentence that covers most of the question, a verbatim quote by construction.
 """
 
 from __future__ import annotations
@@ -16,218 +19,116 @@ from typing import Any
 
 from app.llm import LLMClient, get_client
 from app.llm.blocks import BLOCKS
-from app.retrieval import (
-    MIN_SCORE,
-    NOT_FOUND_MESSAGE,
-    RetrievalHit,
-    retrieve_top_k,
-    tokenize_vi,
-)
+from app.retrieval import NOT_FOUND_MESSAGE, RetrievalHit, retrieve_top_k, tokenize_vi
 
 log = logging.getLogger("app.qa")
-PROMPTS = Path(__file__).parent / "prompts"
-ANSWER_PROMPT = "answer_v1"
+SYSTEM = (Path(__file__).parent / "prompts" / "answer_v1.txt").read_text(encoding="utf-8")
+TOP_K = 5
+# Share of the question's content words the best page must contain. BM25's
+# MIN_SCORE alone lets off-topic questions through (eval/run_retrieval.py).
+MIN_COVERAGE = 0.4
+SCHEMA = {
+    "type": "object",
+    "properties": {
+        "answer": {"type": "string"},
+        "citations": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "source_id": {"type": "string"},
+                    "quote": {"type": "string"},
+                },
+                "required": ["source_id", "quote"],
+            },
+        },
+    },
+    "required": ["answer", "citations"],
+}
+# A sentence ends at . ! ? ; followed by a space, or at a line break; "0.9" stays whole.
+_SENTENCE_END = re.compile(r"(?<=[.!?;])\s+|\n+")
 
-_PRIVACY_PATTERNS = [
-    re.compile(r"\b(?:email|điểm|gpa|kết quả|bài làm)\b.*\b(?:bạn|sinh viên|người khác|user_[a-z0-9]+)\b", re.IGNORECASE),
-    re.compile(r"\b(?:mật khẩu|password|token|tài khoản)\b.*\b(?:bạn|sinh viên|người khác|user_[a-z0-9]+)\b", re.IGNORECASE),
-    re.compile(r"\bcho (?:mình|em|tôi) (?:xin|xem|biết) (?:email|điểm|thông tin cá nhân)\b", re.IGNORECASE),
-]
 
-
-@dataclass
+@dataclass(frozen=True)
 class Citation:
     source_id: str
-    page: int
+    page: int | None
     quote: str
-    file_name: str | None = None
+    file_name: str | None
 
 
-@dataclass
-class AnswerResult:
-    answer: str
+@dataclass(frozen=True)
+class Answer:
+    text: str
     citations: list[Citation]
-    found: bool
-    suggested_sources: list[dict[str, Any]]
+
+    @property
+    def found(self) -> bool:
+        return bool(self.citations)
 
 
-def is_privacy_query(question: str) -> bool:
-    """Return True if the question attempts to access another user's private data or PII."""
-    q = question.strip()
-    return any(p.search(q) for p in _PRIVACY_PATTERNS)
+NOT_FOUND = Answer(NOT_FOUND_MESSAGE, [])
 
 
-def _clean(text: str) -> str:
+def _coverage(terms: set[str], text: str) -> float:
+    return len(terms & set(tokenize_vi(text))) / len(terms) if terms else 0.0
+
+
+def _normalized(text: str) -> str:
     return " ".join(text.split()).casefold()
 
 
-def _is_verbatim(quote: str, source_text: str) -> bool:
-    """Check if ``quote`` appears verbatim in ``source_text`` ignoring case and extra whitespace."""
-    if not quote or not source_text:
-        return False
-    q_clean = _clean(quote)
-    s_clean = _clean(source_text)
-    return len(q_clean) >= 5 and q_clean in s_clean
+def _cite(hit: RetrievalHit, quote: str) -> Citation:
+    return Citation(hit.source_id, hit.page, quote, hit.file_name)
 
 
-_STRUCTURAL_WORDS = frozenset(
-    {
-        "trong", "theo", "slide", "slides", "của", "và", "là", "gì", "nào", "những",
-        "các", "một", "có", "cho", "được", "với", "thế", "ở", "đâu", "lại", "sao",
-        "như", "khi", "để", "này", "đó", "môn", "phần", "gồm", "bao", "nhiêu", "thứ",
-        "bài", "mình", "xin", "xem", "hỏi", "sinh", "câu", "luyện", "tập",
-        "hoạt", "động", "phát", "biểu", "nêu", "thể", "hiện", "chính", "trước",
-        "chuẩn", "chia", "thành", "bước",
-    }
-)
+def _extract(terms: set[str], hit: RetrievalHit) -> Answer:
+    """The top page's sentence sharing most words with the question; the first wins ties."""
+    sentences = [s.strip() for s in _SENTENCE_END.split(hit.text) if s.strip()]
+    sentence = max(sentences, key=lambda s: len(terms & set(tokenize_vi(s))))
+    return Answer(sentence, [_cite(hit, sentence)])
 
 
-def _prompt(name: str) -> str:
-    return (PROMPTS / f"{name}.txt").read_text(encoding="utf-8")
+def _verified(raw: Any, hits: list[RetrievalHit]) -> list[Citation]:
+    """Keep the model's citations that quote a retrieved page verbatim; drop the rest."""
+    by_id = {hit.source_id: hit for hit in hits}
+    kept = []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        hit = by_id.get(str(item.get("source_id") or ""))
+        quote = str(item.get("quote") or "").strip()
+        # The page comes from retrieval, never from the model.
+        if hit and len(quote) >= 5 and _normalized(quote) in _normalized(hit.text):
+            kept.append(_cite(hit, quote))
+    return kept
 
 
-def _fallback_extract(top_hit: RetrievalHit, question: str) -> tuple[str, list[Citation]]:
-    """Deterministic offline answer extraction directly from the top retrieved snippet."""
-    text = (top_hit.text or "").strip()
-    if not text:
-        return NOT_FOUND_MESSAGE, []
-
-    # Check query content grounding
-    q_tokens = [w for w in tokenize_vi(question) if w not in _STRUCTURAL_WORDS]
-    doc_tokens = set(tokenize_vi(text))
-    matched = [w for w in q_tokens if w in doc_tokens]
-
-    if not q_tokens or not matched:
-        return NOT_FOUND_MESSAGE, []
-    if (len(matched) / len(q_tokens)) < 0.40:
-        return NOT_FOUND_MESSAGE, []
-
-    sentences = [s.strip() for s in re.split(r"[.\n;]", text) if len(s.strip()) > 10]
-    sentence = sentences[0] if sentences else text
-    citation = Citation(
-        source_id=top_hit.source_id,
-        page=top_hit.page or 1,
-        quote=sentence,
-        file_name=top_hit.file_name,
+def answer_question(
+    question: str, pages: Sequence[Any], *, llm: LLMClient | None = None
+) -> Answer:
+    """Answer ``question`` from ``pages`` (dicts or rows with id, page, file_name, text)."""
+    hits = retrieve_top_k(question, pages, top_k=TOP_K)
+    terms = set(tokenize_vi(question))
+    if not hits or _coverage(terms, hits[0].text) < MIN_COVERAGE:
+        return NOT_FOUND
+    context = "\n\n".join(
+        f"[source_id {hit.source_id}, page {hit.page}, file {hit.file_name}]\n{hit.text}"
+        for hit in hits
     )
-    return sentence, [citation]
-
-
-def answer_node_question(
-    question: str,
-    sources: Sequence[Any],
-    *,
-    llm: LLMClient | None = None,
-    min_score: float = MIN_SCORE,
-    suggested_sources: list[dict[str, Any]] | None = None,
-) -> AnswerResult:
-    """Answer a learner question at a node, enforcing verbatim citations (UC-12).
-
-    1. Checks privacy and refuses personal information requests.
-    2. BM25 retrieves top-5 pages; if below ``min_score``, returns 'not found'
-       with suggested sources and never invokes the model.
-    3. Calls LLM with retrieved snippets and validates citations verbatim (verify-or-drop).
-    """
-    suggested = suggested_sources or []
-
-    # 1. Privacy safeguard
-    if is_privacy_query(question):
-        return AnswerResult(
-            answer="Từ chối: Hệ thống không tiết lộ thông tin cá nhân hoặc kết quả học tập của người khác.",
-            citations=[],
-            found=False,
-            suggested_sources=[],
-        )
-
-    # 2. Retrieval step
-    effective_min = 0.5 if (len(sources) < 3 and min_score == MIN_SCORE) else min_score
-    hits = retrieve_top_k(question, sources, top_k=5, min_score=effective_min)
-    if not hits:
-        return AnswerResult(
-            answer=NOT_FOUND_MESSAGE,
-            citations=[],
-            found=False,
-            suggested_sources=suggested,
-        )
-
-    client = llm if llm is not None else get_client()
-
-    # Build context for LLM
-    context_blocks = []
-    hit_by_id: dict[str, RetrievalHit] = {}
-    for hit in hits:
-        hit_by_id[hit.source_id] = hit
-        context_blocks.append(
-            f"[Source {hit.source_id}, Page {hit.page or 1}, File {hit.file_name or 'doc'}]:\n{hit.text or ''}"
-        )
-    context_str = "\n\n".join(context_blocks)
-
-    prompt_body = (
-        f"{BLOCKS.wrap('document_text', context_str)}\n\n"
-        f"Question: {question.strip()}"
-    )
-
-    answer_text = ""
-    raw_citations: list[dict[str, Any]] = []
-
     try:
-        response = client.complete(
-            prompt_body,
-            system=_prompt(ANSWER_PROMPT),
+        reply = (llm or get_client()).complete(
+            f"{BLOCKS.wrap('document_text', context)}\n\nQuestion: {question.strip()}",
+            system=SYSTEM,
+            json_schema=SCHEMA,
             max_tokens=1024,
             temperature=0.0,
         )
-        data = json.loads(response.text)
-        if isinstance(data, dict):
-            answer_text = str(data.get("answer") or "").strip()
-            raw_citations = data.get("citations", [])
-    except Exception as exc:  # noqa: BLE001
-        log.debug("qa: LLM response parsing failed or offline fallback: %s", exc)
-
-    # If LLM gave no usable output (e.g. empty FakeLLM response in offline mode), use top hit
-    if not answer_text or not raw_citations:
-        answer_text, verified_citations = _fallback_extract(hits[0], question)
-        if not verified_citations:
-            return AnswerResult(
-                answer=NOT_FOUND_MESSAGE,
-                citations=[],
-                found=False,
-                suggested_sources=suggested,
-            )
-        return AnswerResult(
-            answer=answer_text,
-            citations=verified_citations,
-            found=True,
-            suggested_sources=[],
-        )
-
-    # 3. Verify-or-drop citations
-    verified_citations: list[Citation] = []
-    for c in raw_citations:
-        if not isinstance(c, dict):
-            continue
-        sid = str(c.get("source_id") or "").strip()
-        page = c.get("page")
-        quote = str(c.get("quote") or "").strip()
-        hit = hit_by_id.get(sid)
-        if not hit or not _is_verbatim(quote, hit.text or ""):
-            continue  # Drop ungrounded citation
-        verified_citations.append(
-            Citation(
-                source_id=sid,
-                page=int(page) if page is not None else (hit.page or 1),
-                quote=quote,
-                file_name=hit.file_name,
-            )
-        )
-
-    if not verified_citations:
-        # None of the citations survived verification: fallback to top hit excerpt
-        answer_text, verified_citations = _fallback_extract(hits[0])
-
-    return AnswerResult(
-        answer=answer_text,
-        citations=verified_citations,
-        found=True,
-        suggested_sources=[],
-    )
+        data = json.loads(reply.text)
+    except Exception as exc:  # noqa: BLE001 - the quoted answer below needs no model
+        log.warning("qa: model answer unavailable: %s", exc)
+        data = {}
+    data = data if isinstance(data, dict) else {}
+    citations = _verified(data.get("citations"), hits)
+    text = str(data.get("answer") or "").strip()
+    return Answer(text, citations) if text and citations else _extract(terms, hits[0])

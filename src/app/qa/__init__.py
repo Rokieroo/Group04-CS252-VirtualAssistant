@@ -1,23 +1,6 @@
-"""Node Q&A and Hint Ladder package (issue #163, UC-12, UC-13)."""
+"""Node questions and the exercise hint ladder (issue #163, UC-12, UC-13)."""
 
-from app.qa.answer import (
-    AnswerResult,
-    Citation,
-    answer_node_question,
-    is_privacy_query,
-)
-from app.qa.hints import (
-    HintResult,
-    get_exercise_hint,
-    is_leak_attempt,
-)
+from app.qa.answer import Answer, Citation, answer_question
+from app.qa.hints import Hint, exercise_hint
 
-__all__ = [
-    "AnswerResult",
-    "Citation",
-    "HintResult",
-    "answer_node_question",
-    "get_exercise_hint",
-    "is_leak_attempt",
-    "is_privacy_query",
-]
+__all__ = ["Answer", "Citation", "Hint", "answer_question", "exercise_hint"]

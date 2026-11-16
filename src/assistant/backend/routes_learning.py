@@ -4,24 +4,20 @@ import json
 import threading
 from collections import defaultdict
 from datetime import datetime
-from typing import Annotated, Any, Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import delete, select, update
 
 from app.planner.fsrs import compute_node_mastery
-from app.qa import answer_node_question, get_exercise_hint
+from app.qa import answer_question, exercise_hint
 from app.roadmap import layers, local_graph, prerequisites, transitive_reduction
 
 from .catalog_models import Concept, ExerciseAttempt, GraphLayout, RoadmapEdge
 from .catalog_repository import node_sources
 from .dependencies import DB, CurrentUser
-from .exercise_repository import (
-    exercises_for_node,
-    find_visible_exercise,
-    record_attempt,
-)
+from .exercise_repository import exercises_for_node, record_attempt, visible_exercise
 from .material_repository import decide, node_materials
 from .models import (
     Course,
@@ -260,150 +256,103 @@ def attempt(
     return result
 
 
-class NodeAskIn(BaseModel):
+class AskIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    question: str = Field(..., min_length=1, max_length=1000)
+    question: str = Field(min_length=1, max_length=1000)
 
 
-class CitationOut(BaseModel):
+class AnswerCitationOut(BaseModel):
     source_id: str
-    page: int | None = None
+    page: int | None
     quote: str
-    file_name: str | None = None
+    file_name: str | None
 
 
-class NodeAskOut(BaseModel):
+class AnswerOut(BaseModel):
     answer: str
-    citations: list[CitationOut]
     found: bool
-    suggested_sources: list[dict[str, Any]] = Field(default_factory=list)
+    citations: list[AnswerCitationOut]
+    # Only when nothing was found: the node's verified reading instead (issue #163).
+    sources: list[RankedSourceOut] = Field(default_factory=list)
 
 
-class ExerciseHintIn(BaseModel):
+class HintIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     level: int = Field(1, ge=1, le=3)
-    message: str | None = Field(None, max_length=1000)
 
 
-class ExerciseHintOut(BaseModel):
+class HintOut(BaseModel):
     exercise_id: str
     level: int
     content: str
-    source_id: str | None = None
-    page: int | None = None
-    refused: bool = False
-    reason: str = ""
+    refused: bool
+    reason: str | None
+    citation: ExerciseCitationOut
 
 
-@router.post("/roadmap-nodes/{node_id}/ask", response_model=NodeAskOut)
-def ask_node(
-    node_id: str,
-    body: NodeAskIn,
-    db: DB,
-    user: CurrentUser,
-    request: Request,
-):
-    """Answer a learner question at a node with verbatim citations (issue #163, UC-12)."""
+@router.post("/roadmap-nodes/{node_id}/ask", response_model=AnswerOut)
+def ask(node_id: str, body: AskIn, db: DB, user: CurrentUser, request: Request):
+    """Answer from the learner's own pages, every claim quoted verbatim (issue #163)."""
     node, roadmap, course = _node(db, node_id, user.id)
-    now = request.app.state.now()
-
-    # Collect candidate pages for retrieval:
-    sources = list(db.scalars(select(Source).where(Source.course_id == course.id)))
-    pages: list[dict[str, Any]] = [
-        {
-            "id": s.id,
-            "source_id": s.id,
-            "page": s.page,
-            "file_name": s.file_name,
-            "text": s.text,
-        }
-        for s in sources
-    ]
-
-    suggested = node_sources(db, [node], roadmap, course, now)[node.id]["sources"]
-
-    for res in suggested:
-        if res.get("text") or res.get("snippet"):
-            pages.append({
-                "id": res["id"],
-                "source_id": res["id"],
-                "page": (res.get("pages") or [1])[0],
-                "file_name": res.get("title", ""),
-                "text": res.get("text") or res.get("snippet") or "",
-            })
-
-    result = answer_node_question(
-        body.question,
-        pages,
-        suggested_sources=suggested,
+    # shortcut: BM25 is rebuilt from every page of the course per question; index
+    # the pages once per upload if courses grow past a few thousand pages.
+    pages = db.scalars(select(Source).where(Source.course_id == course.id)).all()
+    answer = answer_question(body.question, pages)
+    reading = (
+        []
+        if answer.found
+        else node_sources(db, [node], roadmap, course, request.app.state.now())[node.id][
+            "sources"
+        ]
     )
     return {
-        "answer": result.answer,
-        "citations": [
-            {
-                "source_id": c.source_id,
-                "page": c.page,
-                "quote": c.quote,
-                "file_name": c.file_name,
-            }
-            for c in result.citations
-        ],
-        "found": result.found,
-        "suggested_sources": result.suggested_sources,
+        "answer": answer.text,
+        "found": answer.found,
+        "citations": [vars(citation) for citation in answer.citations],
+        "sources": reading,
     }
 
 
 @router.post(
-    "/roadmap-nodes/{node_id}/exercises/{exercise_id}/hints",
-    response_model=ExerciseHintOut,
+    "/roadmap-nodes/{node_id}/exercises/{exercise_id}/hints", response_model=HintOut
 )
-def get_hint(
+def hint(
     node_id: str,
     exercise_id: str,
-    body: ExerciseHintIn,
+    body: HintIn,
     db: DB,
     user: CurrentUser,
     request: Request,
 ):
-    """Step-by-step hint ladder with anti-leak protection (issue #163, UC-13)."""
+    """The next rung of the hint ladder; a milestone's checkpoint never gets a solution."""
     node, roadmap, course = _node(db, node_id, user.id)
     now = request.app.state.now()
-
-    found = find_visible_exercise(db, node, roadmap, course, now, exercise_id)
-    if not found:
+    try:
+        exercise, view = visible_exercise(db, node, roadmap, course, now, exercise_id)
+    except LookupError:
         raise HTTPException(404, "Exercise not found") from None
-    exercise, _ = found
-
-    attempts = list(
-        db.scalars(
-            select(ExerciseAttempt).where(
-                ExerciseAttempt.user_id == user.id,
-                ExerciseAttempt.exercise_id == exercise_id,
-            )
+    attempts = db.scalars(
+        select(ExerciseAttempt)
+        .where(
+            ExerciseAttempt.user_id == user.id,
+            ExerciseAttempt.exercise_id == exercise.id,
         )
-    )
-
-    suggested = node_sources(db, [node], roadmap, course, now)[node.id]["sources"]
-
-    hint = get_exercise_hint(
+        .order_by(ExerciseAttempt.created_at)
+    ).all()
+    reading = None
+    if body.level == 1:
+        ranked = node_sources(db, [node], roadmap, course, now)[node.id]["sources"]
+        reading = ranked[0]["title"] if ranked else None
+    result = exercise_hint(
         exercise,
-        node=node,
-        attempts=attempts,
+        view["citation"],
         level=body.level,
-        assessment_type="practice" if node.type == "topic" else "graded_quiz",
-        prompt=body.message,
-        node_sources=suggested,
+        graded=node.type == "milestone",  # checkpoints are taken at milestones (#115)
+        attempts=attempts,
+        concept=node.title,
+        reading=reading,
     )
-
-    return {
-        "exercise_id": exercise_id,
-        "level": hint.level,
-        "content": hint.content,
-        "source_id": hint.source_id,
-        "page": hint.page,
-        "refused": hint.refused,
-        "reason": hint.reason,
-    }
+    return {"exercise_id": exercise.id, **vars(result), "citation": view["citation"]}
 
 
 class MaterialIn(BaseModel):

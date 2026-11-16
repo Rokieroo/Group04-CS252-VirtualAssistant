@@ -122,16 +122,6 @@ FIXTURE_SOURCES: list[dict[str, Any]] = [
         ),
     },
     {
-        "id": "s_53",
-        "page": 53,
-        "file_name": "Week 0 - Orientation.pdf",
-        "text": (
-            "Minimum Requirements. Dự án cuối kỳ cần tối thiểu 8 đến 12 use cases "
-            "kèm non-goals. Mỗi use case mô tả actor, luồng chính và kết quả mong đợi; "
-            "bộ use cases phải đủ nhỏ để làm trong sáu tuần."
-        ),
-    },
-    {
         "id": "s_55",
         "page": 55,
         "file_name": "CSC10014_2026_Week01_Problem_Framing.pdf",
@@ -181,6 +171,48 @@ FIXTURE_SOURCES: list[dict[str, Any]] = [
             "Four product risks. Đánh giá 4 rủi ro sản phẩm chính trước khi xây dựng: "
             "Value risk, Usability risk, Feasibility risk, và Viability risk."
         ),
+    },
+    {
+        "id": "s_9",
+        "page": 9,
+        "file_name": "CSC10014_2026_Week02_Decomposition_UseCases.pdf",
+        "text": "The Assistance Ladder. Các nấc trợ giúp: Answer (trả lời), Remind (nhắc), Draft (soạn sẵn), Act (làm, người dùng duyệt) và Orchestrate (chạy cả quy trình); càng lên cao càng nhiều giá trị, rủi ro và guardrail.",
+    },
+    {
+        "id": "s_30",
+        "page": 30,
+        "file_name": "CSC10014_2026_Week02_Decomposition_UseCases.pdf",
+        "text": "Four ways to cut. Bốn cách cắt cùng một hệ thống: theo hành trình (trước, trong, sau), theo actor (giáo viên, học sinh, phụ huynh), theo chức năng (chấm, báo cáo, nhắc) và theo dữ liệu (bài làm, điểm, liên lạc).",
+    },
+    {
+        "id": "s_45_usecase",
+        "page": 45,
+        "file_name": "CSC10014_2026_Week02_Decomposition_UseCases.pdf",
+        "text": "Anatomy of a use-case diagram. Bốn ký hiệu đủ để bắt đầu: Actor (vai trò bên ngoài hệ thống), Use case (mục tiêu dạng động từ + danh từ), System boundary (phần ta xây dựng) và Association (actor tham gia use case).",
+    },
+    {
+        "id": "s_30_pipeline",
+        "page": 30,
+        "file_name": "CSC10014_2026_Week03_Pitfalls_Pipelines_Decomposition-Final.pdf",
+        "text": "Pipeline pitfalls. Sáu thứ hay thiếu trong pipeline bài tập: không có trigger, không có kết quả cho người dùng, để AI làm hết (cần gắn capability cho từng bước), không có checkpoint người duyệt, không có nhánh xử lý lỗi, không ghi thời gian từng bước.",
+    },
+    {
+        "id": "s_60",
+        "page": 60,
+        "file_name": "CSC10014_2026_Week01_Problem_Framing.pdf",
+        "text": "Non-goals. Ví dụ non-goals của trợ lý dịch vụ sinh viên v1: không truy cập hồ sơ riêng tư (điểm), không tư vấn pháp lý hay y tế, không nộp biểu mẫu hay thanh toán, không làm bài tập hay bài thi hộ.",
+    },
+    {
+        "id": "s_75",
+        "page": 75,
+        "file_name": "CSC10014_2026_Week01_Problem_Framing.pdf",
+        "text": "Baseline first. Lời khuyên từ kỹ sư Google, Rule #1 trong Rules of ML: đừng ngại ra mắt sản phẩm khi chưa có machine learning. Baseline là điểm tham chiếu, thường đã đủ dùng, cho thấy độ khó và là phương án dự phòng an toàn.",
+    },
+    {
+        "id": "s_81",
+        "page": 81,
+        "file_name": "CSC10014_2026_Week01_Problem_Framing.pdf",
+        "text": "Guardrail metrics. Mỗi mục tiêu cần đi kèm một guardrail. Chỉ số lagging (số hạn nộp bị lỡ) là mục tiêu thật nhưng chậm; chỉ số leading (tỉ lệ trả lời đúng) nhanh để lặp. Ít email hơn chỉ tốt khi tỉ lệ trả lời sai dưới 5%.",
     },
 ]
 

@@ -2993,9 +2993,9 @@
         "tags": [
           "Node learning and graph"
         ],
-        "summary": "Ask Node",
-        "description": "Answer a learner question at a node with verbatim citations (issue #163, UC-12).",
-        "operationId": "ask_node_api_v1_roadmap_nodes__node_id__ask_post",
+        "summary": "Ask",
+        "description": "Answer from the learner's own pages, every claim quoted verbatim (issue #163).",
+        "operationId": "ask_api_v1_roadmap_nodes__node_id__ask_post",
         "security": [
           {
             "HTTPBearer": []
@@ -3017,7 +3017,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NodeAskIn"
+                "$ref": "#/components/schemas/AskIn"
               }
             }
           }
@@ -3028,7 +3028,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/NodeAskOut"
+                  "$ref": "#/components/schemas/AnswerOut"
                 }
               }
             }
@@ -3051,9 +3051,9 @@
         "tags": [
           "Node learning and graph"
         ],
-        "summary": "Get Hint",
-        "description": "Step-by-step hint ladder with anti-leak protection (issue #163, UC-13).",
-        "operationId": "get_hint_api_v1_roadmap_nodes__node_id__exercises__exercise_id__hints_post",
+        "summary": "Hint",
+        "description": "The next rung of the hint ladder; a milestone's checkpoint never gets a solution.",
+        "operationId": "hint_api_v1_roadmap_nodes__node_id__exercises__exercise_id__hints_post",
         "security": [
           {
             "HTTPBearer": []
@@ -3084,7 +3084,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ExerciseHintIn"
+                "$ref": "#/components/schemas/HintIn"
               }
             }
           }
@@ -3095,7 +3095,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ExerciseHintOut"
+                  "$ref": "#/components/schemas/HintOut"
                 }
               }
             }
@@ -4308,6 +4308,97 @@
   },
   "components": {
     "schemas": {
+      "AnswerCitationOut": {
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "quote": {
+            "type": "string",
+            "title": "Quote"
+          },
+          "file_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_id",
+          "page",
+          "quote",
+          "file_name"
+        ],
+        "title": "AnswerCitationOut"
+      },
+      "AnswerOut": {
+        "properties": {
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "found": {
+            "type": "boolean",
+            "title": "Found"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/AnswerCitationOut"
+            },
+            "type": "array",
+            "title": "Citations"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/RankedSourceOut"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answer",
+          "found",
+          "citations"
+        ],
+        "title": "AnswerOut"
+      },
+      "AskIn": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Question"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "AskIn"
+      },
       "AssessmentIn": {
         "properties": {
           "name": {
@@ -4773,46 +4864,6 @@
           "status"
         ],
         "title": "CheckIn"
-      },
-      "CitationOut": {
-        "properties": {
-          "source_id": {
-            "type": "string",
-            "title": "Source Id"
-          },
-          "page": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Page"
-          },
-          "quote": {
-            "type": "string",
-            "title": "Quote"
-          },
-          "file_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "File Name"
-          }
-        },
-        "type": "object",
-        "required": [
-          "source_id",
-          "quote"
-        ],
-        "title": "CitationOut"
       },
       "ConceptGraphOut": {
         "properties": {
@@ -5357,87 +5408,6 @@
         ],
         "title": "ExerciseCitationOut"
       },
-      "ExerciseHintIn": {
-        "properties": {
-          "level": {
-            "type": "integer",
-            "maximum": 3.0,
-            "minimum": 1.0,
-            "title": "Level",
-            "default": 1
-          },
-          "message": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 1000
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Message"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "title": "ExerciseHintIn"
-      },
-      "ExerciseHintOut": {
-        "properties": {
-          "exercise_id": {
-            "type": "string",
-            "title": "Exercise Id"
-          },
-          "level": {
-            "type": "integer",
-            "title": "Level"
-          },
-          "content": {
-            "type": "string",
-            "title": "Content"
-          },
-          "source_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Source Id"
-          },
-          "page": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Page"
-          },
-          "refused": {
-            "type": "boolean",
-            "title": "Refused",
-            "default": false
-          },
-          "reason": {
-            "type": "string",
-            "title": "Reason",
-            "default": ""
-          }
-        },
-        "type": "object",
-        "required": [
-          "exercise_id",
-          "level",
-          "content"
-        ],
-        "title": "ExerciseHintOut"
-      },
       "ExerciseOut": {
         "properties": {
           "id": {
@@ -5884,6 +5854,64 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HintIn": {
+        "properties": {
+          "level": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Level",
+            "default": 1
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "HintIn"
+      },
+      "HintOut": {
+        "properties": {
+          "exercise_id": {
+            "type": "string",
+            "title": "Exercise Id"
+          },
+          "level": {
+            "type": "integer",
+            "title": "Level"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "refused": {
+            "type": "boolean",
+            "title": "Refused"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/ExerciseCitationOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exercise_id",
+          "level",
+          "content",
+          "refused",
+          "reason",
+          "citation"
+        ],
+        "title": "HintOut"
+      },
       "ItemOut": {
         "properties": {
           "id": {
@@ -6253,56 +6281,6 @@
           "created_at"
         ],
         "title": "MessageOut"
-      },
-      "NodeAskIn": {
-        "properties": {
-          "question": {
-            "type": "string",
-            "maxLength": 1000,
-            "minLength": 1,
-            "title": "Question"
-          }
-        },
-        "additionalProperties": false,
-        "type": "object",
-        "required": [
-          "question"
-        ],
-        "title": "NodeAskIn"
-      },
-      "NodeAskOut": {
-        "properties": {
-          "answer": {
-            "type": "string",
-            "title": "Answer"
-          },
-          "citations": {
-            "items": {
-              "$ref": "#/components/schemas/CitationOut"
-            },
-            "type": "array",
-            "title": "Citations"
-          },
-          "found": {
-            "type": "boolean",
-            "title": "Found"
-          },
-          "suggested_sources": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Suggested Sources"
-          }
-        },
-        "type": "object",
-        "required": [
-          "answer",
-          "citations",
-          "found"
-        ],
-        "title": "NodeAskOut"
       },
       "NodeCost": {
         "properties": {
