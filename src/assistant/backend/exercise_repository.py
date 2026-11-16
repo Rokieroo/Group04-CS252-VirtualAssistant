@@ -358,6 +358,14 @@ def _visible(db, node, roadmap, course, now, roles, only=None):
     ]
 
 
+def find_visible_exercise(db, node, roadmap, course, now, exercise_id):
+    """Return (exercise, view) if the exercise is visible to this learner at this node."""
+    found = _visible(
+        db, node, roadmap, course, now, tuple(REQUIRED), only={exercise_id}
+    )
+    return found[0] if found else None
+
+
 def exercises_for_node(db, node, roadmap, course, now, *, role="practice", limit=10):
     """Quoted exercises for a node, chosen by subject, difficulty and Bloom level.
 

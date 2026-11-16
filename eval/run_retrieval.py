@@ -39,12 +39,39 @@ _PAGE_IN_SOURCE = re.compile(r"#(\d+)\s*$")
 # meaningful in CI and on a fresh clone.
 FIXTURE_SOURCES: list[dict[str, Any]] = [
     {
+        "id": "s_10",
+        "page": 10,
+        "file_name": "CSC10014_2026_Week02_Decomposition_UseCases.pdf",
+        "text": (
+            "Anatomy of a Task. Theo slide, một task gồm năm phần chính: "
+            "Trigger, Input, Process, Output và Hand-off (ví dụ hóa đơn nhà cung cấp)."
+        ),
+    },
+    {
         "id": "s_12",
         "page": 12,
         "file_name": "CSC10014_2026_Week01_Problem_Framing.pdf",
         "text": (
             "Problem framing. Xác định đúng vấn đề trước khi chọn giải pháp. "
             "Ai là người dùng, họ đau ở đâu và vì sao vấn đề này đáng giải quyết."
+        ),
+    },
+    {
+        "id": "s_21",
+        "page": 21,
+        "file_name": "CSC10014_2026_Week03_Pitfalls_Pipelines_Decomposition-Final.pdf",
+        "text": (
+            "Success pipeline. Một success pipeline phải thể hiện năm thứ: "
+            "Trigger, Steps, Checkpoint (người duyệt), Result và Saving (số phút tiết kiệm)."
+        ),
+    },
+    {
+        "id": "s_29",
+        "page": 29,
+        "file_name": "CSC10014_2026_Week03_Pitfalls_Pipelines_Decomposition-Final.pdf",
+        "text": (
+            "Pipeline patterns. 4 pattern chuẩn gồm: Capture → Extract → Act, "
+            "Watch → Alert → Act, Plan → Draft → Approve → Send, và Collect → Analyse → Report."
         ),
     },
     {
@@ -66,6 +93,35 @@ FIXTURE_SOURCES: list[dict[str, Any]] = [
         ),
     },
     {
+        "id": "s_49",
+        "page": 49,
+        "file_name": "CSC10014_2026_Week02_Decomposition_UseCases.pdf",
+        "text": (
+            "Use case relationships. Dùng «include» khi luôn xảy ra, mũi tên chỉ vào "
+            "phần được include; dùng «extend» chỉ khi có điều kiện, mũi tên chỉ vào use case gốc."
+        ),
+    },
+    {
+        "id": "s_50",
+        "page": 50,
+        "file_name": "Week 0 - Orientation.pdf",
+        "text": (
+            "Minimum Requirements. Dự án cuối kỳ cần tối thiểu 8 đến 12 use cases "
+            "kèm non-goals. Mỗi use case mô tả actor, luồng chính và kết quả mong đợi; "
+            "bộ use cases phải đủ nhỏ để làm trong sáu tuần."
+        ),
+    },
+    {
+        "id": "s_51",
+        "page": 51,
+        "file_name": "Week 0 - Orientation.pdf",
+        "text": (
+            "Engineering quality. Yêu cầu tối thiểu về engineering quality của dự án cuối kỳ: "
+            "tối thiểu 3 safeguards có test, benchmark 50–100 case, Git workflow có review, "
+            "README/architecture/ADRs, automated tests và deployment guide."
+        ),
+    },
+    {
         "id": "s_53",
         "page": 53,
         "file_name": "Week 0 - Orientation.pdf",
@@ -73,6 +129,25 @@ FIXTURE_SOURCES: list[dict[str, Any]] = [
             "Minimum Requirements. Dự án cuối kỳ cần tối thiểu 8 đến 12 use cases "
             "kèm non-goals. Mỗi use case mô tả actor, luồng chính và kết quả mong đợi; "
             "bộ use cases phải đủ nhỏ để làm trong sáu tuần."
+        ),
+    },
+    {
+        "id": "s_55",
+        "page": 55,
+        "file_name": "CSC10014_2026_Week01_Problem_Framing.pdf",
+        "text": (
+            "Requirements. Hai loại yêu cầu chính trong problem framing: "
+            "Functional (hệ thống làm gì) và Non-functional (làm tốt đến mức nào, "
+            "ví dụ p95 latency < 5 s hoặc throughput)."
+        ),
+    },
+    {
+        "id": "s_68",
+        "page": 68,
+        "file_name": "CSC10014_2026_Week02_Decomposition_UseCases.pdf",
+        "text": (
+            "MoSCoW prioritisation. Phân loại yêu cầu thành Must, Should, Could, "
+            "và Won't have now (ví dụ tính năng Voice input là non-goal)."
         ),
     },
     {
@@ -96,6 +171,15 @@ FIXTURE_SOURCES: list[dict[str, Any]] = [
             "Pitfalls và pipelines. Prompt injection, dữ liệu bẩn và chi phí LLM. "
             "Luôn đặt text slide trong khối dữ liệu và không làm theo chỉ dẫn bên trong. "
             "Pipeline chuẩn gồm ingest, concept, item generation, grading và scheduler."
+        ),
+    },
+    {
+        "id": "s_101",
+        "page": 101,
+        "file_name": "CSC10014_2026_Week01_Problem_Framing.pdf",
+        "text": (
+            "Four product risks. Đánh giá 4 rủi ro sản phẩm chính trước khi xây dựng: "
+            "Value risk, Usability risk, Feasibility risk, và Viability risk."
         ),
     },
 ]
