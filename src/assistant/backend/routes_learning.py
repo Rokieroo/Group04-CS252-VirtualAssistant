@@ -11,12 +11,13 @@ from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import delete, select, update
 
 from app.planner.fsrs import compute_node_mastery
+from app.qa import answer_question, exercise_hint
 from app.roadmap import layers, local_graph, prerequisites, transitive_reduction
 
-from .catalog_models import Concept, GraphLayout, RoadmapEdge
+from .catalog_models import Concept, ExerciseAttempt, GraphLayout, RoadmapEdge
 from .catalog_repository import node_sources
 from .dependencies import DB, CurrentUser
-from .exercise_repository import exercises_for_node, record_attempt
+from .exercise_repository import exercises_for_node, record_attempt, visible_exercise
 from .material_repository import decide, node_materials
 from .models import (
     Course,
@@ -253,6 +254,105 @@ def attempt(
         raise HTTPException(404, "Exercise not found") from None
     db.commit()
     return result
+
+
+class AskIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    question: str = Field(min_length=1, max_length=1000)
+
+
+class AnswerCitationOut(BaseModel):
+    source_id: str
+    page: int | None
+    quote: str
+    file_name: str | None
+
+
+class AnswerOut(BaseModel):
+    answer: str
+    found: bool
+    citations: list[AnswerCitationOut]
+    # Only when nothing was found: the node's verified reading instead (issue #163).
+    sources: list[RankedSourceOut] = Field(default_factory=list)
+
+
+class HintIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    level: int = Field(1, ge=1, le=3)
+
+
+class HintOut(BaseModel):
+    exercise_id: str
+    level: int
+    content: str
+    refused: bool
+    reason: str | None
+    citation: ExerciseCitationOut
+
+
+@router.post("/roadmap-nodes/{node_id}/ask", response_model=AnswerOut)
+def ask(node_id: str, body: AskIn, db: DB, user: CurrentUser, request: Request):
+    """Answer from the learner's own pages, every claim quoted verbatim (issue #163)."""
+    node, roadmap, course = _node(db, node_id, user.id)
+    # shortcut: BM25 is rebuilt from every page of the course per question; index
+    # the pages once per upload if courses grow past a few thousand pages.
+    pages = db.scalars(select(Source).where(Source.course_id == course.id)).all()
+    answer = answer_question(body.question, pages)
+    reading = (
+        []
+        if answer.found
+        else node_sources(db, [node], roadmap, course, request.app.state.now())[node.id][
+            "sources"
+        ]
+    )
+    return {
+        "answer": answer.text,
+        "found": answer.found,
+        "citations": [vars(citation) for citation in answer.citations],
+        "sources": reading,
+    }
+
+
+@router.post(
+    "/roadmap-nodes/{node_id}/exercises/{exercise_id}/hints", response_model=HintOut
+)
+def hint(
+    node_id: str,
+    exercise_id: str,
+    body: HintIn,
+    db: DB,
+    user: CurrentUser,
+    request: Request,
+):
+    """The next rung of the hint ladder; a milestone's checkpoint never gets a solution."""
+    node, roadmap, course = _node(db, node_id, user.id)
+    now = request.app.state.now()
+    try:
+        exercise, view = visible_exercise(db, node, roadmap, course, now, exercise_id)
+    except LookupError:
+        raise HTTPException(404, "Exercise not found") from None
+    attempts = db.scalars(
+        select(ExerciseAttempt)
+        .where(
+            ExerciseAttempt.user_id == user.id,
+            ExerciseAttempt.exercise_id == exercise.id,
+        )
+        .order_by(ExerciseAttempt.created_at)
+    ).all()
+    reading = None
+    if body.level == 1:
+        ranked = node_sources(db, [node], roadmap, course, now)[node.id]["sources"]
+        reading = ranked[0]["title"] if ranked else None
+    result = exercise_hint(
+        exercise,
+        view["citation"],
+        level=body.level,
+        graded=node.type == "milestone",  # checkpoints are taken at milestones (#115)
+        attempts=attempts,
+        concept=node.title,
+        reading=reading,
+    )
+    return {"exercise_id": exercise.id, **vars(result), "citation": view["citation"]}
 
 
 class MaterialIn(BaseModel):
