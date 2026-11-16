@@ -451,6 +451,7 @@ def _build_roadmap_graph(
                 "sources_status": summary.get("status", "insufficient"),
                 "layer": layer_of[node.id],
                 "mastery": mastery_by_node.get(node.id, 0.0),
+                "known": node.known,
             }
         )
 

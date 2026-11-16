@@ -1,5 +1,6 @@
 import { call } from "./backend";
 import type { Edge } from "./core";
+import type { Known } from "./placement";
 export type RoadmapGraphEdge = Omit<Edge, "kind" | "origin"> & {
   kind: Edge["kind"] | "covers";
   origin: Edge["origin"] | "milestone_covers";
@@ -24,6 +25,7 @@ export interface RoadmapGraphNode {
     | "locked"
     | "available";
   sources_status?: "sufficient" | "insufficient" | "pending";
+  known?: Known | null; // already known: the planner skips it (#166)
   clo?: string[];
   covers?: string[];
   x?: number;

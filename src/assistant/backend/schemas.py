@@ -602,6 +602,7 @@ class GraphNodeOut(BaseModel):
     sources_status: Literal["ready", "insufficient"] = "insufficient"
     layer: int = 1
     mastery: float = 0.0
+    known: Literal["tested", "inferred", "learner"] | None = None  # #166
 
 
 class GraphEdgeOut(BaseModel):

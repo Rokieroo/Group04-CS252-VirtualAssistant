@@ -22,6 +22,7 @@ export interface GraphNode {
     | "locked"
     | "available";
   sources_status?: "sufficient" | "insufficient" | "pending";
+  known?: string | null;
   clo?: string[];
   covers?: string[];
   x?: number;
@@ -802,7 +803,7 @@ export function GraphCanvas({
       if (node.type === "milestone") {
         fill = c.ink;
         ring = c.ink;
-      } else if (status === "mastered") {
+      } else if (status === "mastered" || node.known) {
         fill = c.success;
         ring = c.success;
       } else if (status === "in_progress") {

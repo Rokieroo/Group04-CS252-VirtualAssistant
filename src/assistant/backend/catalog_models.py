@@ -264,6 +264,30 @@ class ExerciseAttempt(Base):
     )
 
 
+class Placement(Base):
+    """A learner's placement test on one roadmap (#166): answers so far, open question."""
+
+    __tablename__ = "placements"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(
+        Text, ForeignKey("users.id", ondelete="CASCADE")
+    )
+    roadmap_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("roadmaps.id", ondelete="CASCADE")
+    )
+    answers: Mapped[str] = mapped_column(Text, default="{}")  # {node_id: right?}
+    skipped: Mapped[str] = mapped_column(Text, default="[]")  # no markable exercise
+    node_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("roadmap_nodes.id", ondelete="SET NULL"), nullable=True
+    )
+    exercise_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("exercises.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(UTCDateTime(), nullable=True)
+    __table_args__ = (Index("ix_placements_user_roadmap", "user_id", "roadmap_id"),)
+
+
 class Item(Base):
     __tablename__ = "items"
     id: Mapped[str] = mapped_column(Text, primary_key=True, default=_uuid)

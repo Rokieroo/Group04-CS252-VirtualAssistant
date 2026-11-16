@@ -3568,6 +3568,170 @@
         }
       }
     },
+    "/api/v1/roadmaps/{roadmap_id}/placement": {
+      "post": {
+        "tags": [
+          "Placement"
+        ],
+        "summary": "Start",
+        "description": "Start a placement test on the roadmap, or resume the open one.",
+        "operationId": "start_api_v1_roadmaps__roadmap_id__placement_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roadmap_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Roadmap Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlacementOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/placements/{placement_id}/answers": {
+      "post": {
+        "tags": [
+          "Placement"
+        ],
+        "summary": "Answer",
+        "description": "Mark the open question against its source's key and open the next one.",
+        "operationId": "answer_api_v1_placements__placement_id__answers_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "placement_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Placement Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlacementAnswerIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlacementOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmap-nodes/{node_id}/known": {
+      "put": {
+        "tags": [
+          "Placement"
+        ],
+        "summary": "Known",
+        "description": "The learner corrects the placement: mark or unmark a concept as known.",
+        "operationId": "known_api_v1_roadmap_nodes__node_id__known_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Node Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnownIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnownOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/reviews/due": {
       "get": {
         "tags": [
@@ -5615,6 +5779,22 @@
             "type": "number",
             "title": "Mastery",
             "default": 0.0
+          },
+          "known": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "tested",
+                  "inferred",
+                  "learner"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Known"
           }
         },
         "type": "object",
@@ -5775,6 +5955,58 @@
           "updated_at"
         ],
         "title": "JobOut"
+      },
+      "KnownIn": {
+        "properties": {
+          "known": {
+            "type": "boolean",
+            "title": "Known"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "known"
+        ],
+        "title": "KnownIn"
+      },
+      "KnownOut": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "known": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "tested",
+                  "inferred",
+                  "learner"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Known"
+          },
+          "changed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Changed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node_id",
+          "known",
+          "changed"
+        ],
+        "title": "KnownOut"
       },
       "LayoutIn": {
         "properties": {
@@ -6254,6 +6486,141 @@
           "created_at"
         ],
         "title": "NotificationOut"
+      },
+      "PlacementAnswerIn": {
+        "properties": {
+          "exercise_id": {
+            "type": "string",
+            "title": "Exercise Id"
+          },
+          "response": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Response"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "exercise_id",
+          "response"
+        ],
+        "title": "PlacementAnswerIn"
+      },
+      "PlacementOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "roadmap_id": {
+            "type": "string",
+            "title": "Roadmap Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "finished"
+            ],
+            "title": "Status"
+          },
+          "asked": {
+            "type": "integer",
+            "title": "Asked"
+          },
+          "max_questions": {
+            "type": "integer",
+            "title": "Max Questions"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlacementQuestionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "known": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Known"
+          },
+          "unknown": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unknown"
+          },
+          "skipped": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Skipped"
+          },
+          "total_minutes": {
+            "type": "integer",
+            "title": "Total Minutes"
+          },
+          "known_minutes": {
+            "type": "integer",
+            "title": "Known Minutes"
+          },
+          "last_attempt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttemptOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "roadmap_id",
+          "status",
+          "asked",
+          "max_questions",
+          "question",
+          "known",
+          "unknown",
+          "skipped",
+          "total_minutes",
+          "known_minutes"
+        ],
+        "title": "PlacementOut"
+      },
+      "PlacementQuestionOut": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "exercise": {
+            "$ref": "#/components/schemas/ExerciseOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node_id",
+          "title",
+          "exercise"
+        ],
+        "title": "PlacementQuestionOut"
       },
       "PlanDiffOut": {
         "properties": {

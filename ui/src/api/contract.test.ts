@@ -16,6 +16,7 @@ import type {
   RoadmapNode,
   Syllabus,
 } from "./types";
+import type { PlacementState } from "./placement";
 
 type Schemas = Record<string, { properties: Record<string, unknown> }>;
 const [contract] = Object.values(
@@ -141,6 +142,20 @@ const samples = {
     insufficient_after: 0,
     ingest_jobs: 0,
   } satisfies GapRun,
+  PlacementOut: {
+    id: "",
+    roadmap_id: "",
+    status: "active",
+    asked: 0,
+    max_questions: 10,
+    question: null,
+    known: [],
+    unknown: [],
+    skipped: [],
+    total_minutes: 0,
+    known_minutes: 0,
+    last_attempt: null,
+  } satisfies PlacementState,
 };
 
 it.each(Object.entries(samples))("%s matches docs/openapi.json", (name, sample) => {
