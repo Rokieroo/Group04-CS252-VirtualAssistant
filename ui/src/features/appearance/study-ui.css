@@ -16,7 +16,7 @@
     --color-surface: light-dark(#ffffff, #19212c);
     --color-surface-alt: light-dark(#f7f8fa, #202b38);
     --color-text: light-dark(#202936, #eef2f6);
-    --color-muted: light-dark(#596577, #afbdcd);
+    --color-muted: light-dark(#515d6f, #afbdcd);
     --color-line: light-dark(#dce2e9, #354251);
     --color-ink: var(--color-text);
     background: var(--color-bg);
@@ -493,7 +493,7 @@
     max-width: min(290px, 75vw);
   }
   .node-panel-container {
-    --color-muted: light-dark(#596577, #afbdcd);
+    --color-muted: light-dark(#515d6f, #afbdcd);
   }
   .np-title {
     font-size: 21px;

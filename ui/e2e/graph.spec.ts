@@ -840,6 +840,21 @@ test("node panel remains accessible with source metadata and inactive gateways",
     .getByRole("button", { name: "Trang chặng (S6)", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toContainText("One verified reading");
+  await page.locator("dialog[open]").evaluate(async (dialog) => {
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => resolve()),
+    );
+    const finite = dialog
+      .getAnimations({ subtree: true })
+      .filter((animation) =>
+        Number.isFinite(
+          animation.effect?.getComputedTiming().endTime ?? Infinity,
+        ),
+      );
+    await Promise.all(
+      finite.map((animation) => animation.finished.catch(() => undefined)),
+    );
+  });
   const sources = await new AxeBuilder({ page }).include("dialog").analyze();
   expect(
     sources.violations
