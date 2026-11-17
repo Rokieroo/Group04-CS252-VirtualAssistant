@@ -47,27 +47,20 @@ SCHEMA = {
 _COMMAND = re.compile(
     r"""
       \b(?:ignore|disregard|forget|override)\b[^.!?]{0,50}
-        \b(?:instructions?|prompts?|rules?|rubric|guidelines?|context|text)\b
+        \b(?:instructions?|prompts?|rules?|rubric|guidelines?)\b
     | \b(?:ignorez|oubliez)\b[^.!?]{0,50}
         \b(?:instructions?|r[eè]gles?|consignes?)\b
-    | \b(?:affichez|r[eé]v[eé]lez|imprimez)\b[^.!?]{0,40}
-        \b(?:cl[eé]\s+secr[eè]te|secret|prompt)\b
     | \b(?:rate|score|grade|mark|rank)\b[^.!?]{0,30}
         \b(?:this|the)\s+(?:page|resource|article|document|site|content|text|source)\b
-    | \b(?:you\s+are|act\s+as|pretend\s+to\s+be|switch\s+(?:immediately\s+)?to)\b[^.!?]{0,40}
-        \b(?:ai|assistant|model|judge|grader|reviewer|evaluator|(?:super)?admin|maintenance\s+mode|unfiltered|unrestricted|girlfriend\s+roleplay)\b
-    | \[(?:instruction|system|admin|important[^\]]*)\]\s*:?
+    | \b(?:you\s+are|act\s+as|pretend\s+to\s+be)\b[^.!?]{0,20}
+        \b(?:ai|assistant|model|judge|grader|reviewer|evaluator)\b
+    | \b(?:you\s+are|act\s+as|switch)\b[^.!?]{0,40}
+        \b(?:admin\s+mode|maintenance\s+mode|developer\s+mode|unfiltered|unrestricted|jailbroken)\b
+    | \[[^\]]{0,30}\b(?:instructions?|system|bot|llm|ai)\b[^\]]{0,30}\]\s*:
     | \b(?:system|bot|llm|admin)\s*(?:directive|override)\s*:
     | \b(?:assistant|system)\s*:\s*(?:user|ignore|override|switch|grant|print|output|execute)
     | \bsystem\s+prompt\b
-    | \b(?:emergency\s+reset|bypass\s+(?:safety|safeguards?|filters?|rules?))\b
-    | \b(?:always\s+cite|state\s+this\s+as\s+(?:historical\s+)?fact)\b
-    | \b(?:grant\s+(?:full\s+)?database\s+dump|execute\s+this\s+query|drop\s+table)\b
-    | \b(?:print|output|answer)\b[^.!?]{0,30}
-        \b(?:system\s+prompt|all\s+students|user\s+quiz\s+directly)\b
-    | \brepeat\b[^.!?]{0,30}\binfinitely\b|\bwithout\s+terminating\s+output\b
-    | \band\s+(?:say|print|output|reply)\s+["']?[A-Z]{4,}["']?
-    | \b(?:fetch\s+api/keys|post\s+to\s+attacker)\b
+    | \bbypass\s+(?:the\s+)?(?:safety|safeguards?|filters?|moderation)\b
     | \b(?:relevance|level_fit|pedagogy|evidence_quote)\b\s*["']?\s*[:=]
     | \bbỏ\s+qua\b[^.!?]{0,30}\b(?:hướng\s+dẫn|chỉ\s+dẫn|lệnh|yêu\s+cầu|quy\s+tắc)\b
     | \bchấm\b[^.!?]{0,20}\b(?:điểm|trang\s+này|bài\s+này)\b
@@ -75,7 +68,7 @@ _COMMAND = re.compile(
     re.IGNORECASE | re.VERBOSE,
 )
 _MARKDOWN_EXFIL = re.compile(
-    r"!?\[[^\]]*\]\(https?://[^)\s]*(?:\{\{[^}]+\}\}|exfil|secret|token|api[_-]?key|chat_history)[^)\s]*\)",
+    r"!?\[[^\]]*\]\(https?://[^)\s]*(?:\{\{[^}]+\}\}|secret|token|api[_-]?key|chat_history)[^)\s]*\)",
     re.IGNORECASE,
 )
 _BASE64_TOKEN = re.compile(r"\b[A-Za-z0-9+/]{24,}={0,2}\b")

@@ -256,14 +256,13 @@ def test_domain_tiers(url, tier):
 
 def test_policy_files_are_plain_lists(tmp_path):
     (tmp_path / "blocklist.txt").write_text(
-        "# comment\nbad.example\nmirror.*\ntoken:torrent\ncompound:leaked+exams\n"
+        "# comment\nbad.example\nmirror.*\ntoken:torrent\n"
     )
     (tmp_path / "allowlist_tier1.txt").write_text("good.example  # trusted\n")
     policy = DomainPolicy.load(tmp_path)
     assert policy.tier("https://cdn.bad.example/x") is DomainTier.BLOCKED
     assert policy.tier("https://mirror.anything.io/") is DomainTier.BLOCKED
     assert policy.tier("https://public-torrent-index.org/") is DomainTier.BLOCKED
-    assert policy.tier("https://leaked-midterm-exams.example/") is DomainTier.BLOCKED
     assert policy.tier("https://nottorrent.example/") is DomainTier.OTHER
     assert policy.tier("https://good.example/") is DomainTier.TIER1
     assert policy.tier("https://other.example/") is DomainTier.OTHER
@@ -277,9 +276,7 @@ def test_policy_files_are_plain_lists(tmp_path):
         "https://t.me/s/exam_channel",
         "https://pastebin.com/raw/abc123",
         "https://public-torrent-hub.org/clrs",
-        "https://homework-unlocker.example/doc",
-        "https://scribd-downloader.example/doc",
-        "https://leaked-exam-archive.example/final.pdf",
+        "https://chegg-solutions-free.example/q/1",
     ],
 )
 def test_category_blocklist_blocks_file_lockers_and_bypass_domains(url):

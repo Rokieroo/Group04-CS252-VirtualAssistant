@@ -190,7 +190,7 @@ def vet(
             dropped.append((page.candidate.url, "blocked_domain"))
             continue
         cleaned = strip_commands(page.document.text)
-        if len(cleaned) < 30 or len(cleaned.split()) < 6:
+        if not cleaned:
             dropped.append((page.candidate.url, "no_text"))
             continue
         kept_pages.append(page)

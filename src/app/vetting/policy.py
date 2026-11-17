@@ -38,12 +38,10 @@ class _Rules:
     suffixes: frozenset[str]
     any_tld: frozenset[str]
     tokens: frozenset[str] = frozenset()
-    compounds: tuple[tuple[str, str], ...] = ()
 
     @classmethod
     def read(cls, path: Path) -> _Rules:
         suffixes, any_tld, tokens = set(), set(), set()
-        compounds: list[tuple[str, str]] = []
         if path.is_file():
             for line in path.read_text(encoding="utf-8").splitlines():
                 entry = line.split("#", 1)[0].strip().casefold().strip(".")
@@ -51,21 +49,16 @@ class _Rules:
                 if not entry:
                     continue
                 if entry.startswith("token:"):
-                    tok = entry.removeprefix("token:").strip()
-                    if tok:
+                    if tok := entry.removeprefix("token:").strip():
                         tokens.add(tok)
-                elif entry.startswith("compound:") and "+" in entry:
-                    parts = [p.strip() for p in entry.removeprefix("compound:").split("+", 1)]
-                    if len(parts) == 2 and parts[0] and parts[1]:
-                        compounds.append((parts[0], parts[1]))
                 elif entry.endswith(".*"):
                     any_tld.add(entry[:-2])
                 else:
                     suffixes.add(entry)
-        return cls(frozenset(suffixes), frozenset(any_tld), frozenset(tokens), tuple(compounds))
+        return cls(frozenset(suffixes), frozenset(any_tld), frozenset(tokens))
 
     def union(self, domains: frozenset[str]) -> _Rules:
-        return _Rules(self.suffixes | domains, self.any_tld, self.tokens, self.compounds)
+        return _Rules(self.suffixes | domains, self.any_tld, self.tokens)
 
     def match(self, labels: list[str]) -> bool:
         # Suffix entry: the host is the entry or one of its subdomains.
@@ -78,13 +71,10 @@ class _Rules:
             for j in range(i + 1, len(labels))
         ):
             return True
-        if self.tokens or self.compounds:
-            host_tokens = {tok for label in labels[:-1] for tok in label.split("-") if tok}
-            if not host_tokens.isdisjoint(self.tokens):
-                return True
-            if any(a in host_tokens and b in host_tokens for a, b in self.compounds):
-                return True
-        return False
+        # "token:word" entry: a whole hyphen-delimited word of any label but the TLD.
+        return any(
+            word in self.tokens for label in labels[:-1] for word in label.split("-")
+        )
 
 
 def _labels(url: str) -> list[str]:

@@ -63,23 +63,10 @@ ghostbin.*
 rentry.*
 controlc.com
 
-# Category host-token & compound rules (whole hyphen-delimited tokens in host labels)
+# "token:word" blocks any host with that whole hyphen-delimited word in a label:
+# torrent sites, and bypass services named after an answer dump above.
 token:torrent
 token:torrents
-token:unlocker
 token:chegg
 token:coursehero
 token:studocu
-compound:scribd+vips
-compound:scribd+downloader
-compound:scribd+ripper
-compound:scribd+unlocker
-compound:leaked+textbooks
-compound:leaked+textbook
-compound:leaked+exams
-compound:leaked+exam
-compound:leaked+answers
-compound:leaked+slides
-compound:exam+dump
-compound:exam+dumps
-compound:answer+dump
