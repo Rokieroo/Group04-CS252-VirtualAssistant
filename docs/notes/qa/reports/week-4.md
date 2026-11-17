@@ -101,3 +101,16 @@ The two failures are product gaps, kept visible as strict `xfail` tests in `test
 
 Reproduce: `python eval/run_recommendations.py` and `pytest -q tests/test_recommendations_eval.py`.
 
+---
+
+## 7. Suite Totals, Known Limitations & Reproduction (#67)
+
+- **Backend test suite (SQLite):** `pytest -q tests/` runs the full backend unit and integration suite across all Phase 1–4 modules (`90 passed, 2 xfailed` on `test_vetting.py`, `test_safe_fetch.py`, and `test_recommendations_eval.py` on `main` prior to merging `#160`; **923 passed** in full suite run with `#160` fixes applied). PostgreSQL parity (`PATHLY_TEST_DATABASE_URL`) is verified in CI (`postgres-integration` job in `.github/workflows/ci.yml`).
+- **UI & E2E tests:** Maintained in `ui/` (`pnpm test`, `pnpm run build`, `pnpm run test:e2e`) and executed in CI (`frontend` job); `pnpm` was not installed in this local Windows shell.
+- **Load test (#168):** Recorded separately in `docs/notes/qa/reports/week-4-load-test.md` (`1,000` simulated users against `deploy/docker-compose.prod.yml` with `API_WORKERS=4`: `0.00%` error rate across `6,000` requests, `p95 <= 507.4 ms` on all 5 core read/API endpoints, `login` `p95 = 2427.4 ms` due to Argon2 CPU contention).
+- **Open limitations remaining across Week 4:**
+  1. Live `--llm` runs for `eval/run_resources.py` and `eval/run_graph.py` require an active external LLM quota.
+  2. `eval/exercises.jsonl` cases are synthetic fixtures; real licensed textbook excerpts are needed before claiming live grading agreement (`#115`).
+  3. The 30 answer-leak attacks (`eval/fixtures/redteam/answer_leaks.jsonl`) are validated for schema/format in `tests/test_safeguards.py`; end-to-end execution against `#163` hint/grading paths remains open.
+
+
