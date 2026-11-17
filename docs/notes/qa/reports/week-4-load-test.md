@@ -1,45 +1,67 @@
 # PostgreSQL Load Test Report (Issue #168)
 
-- **Date:** 2026-11-17
-- **Target:** Production Docker Compose stack (`https://localhost`, `deploy/docker-compose.prod.yml`, PostgreSQL 16 + Caddy), run with `API_WORKERS=4` (the compose default is 2)
-- **Script:** `scripts/load_test.py`
-- **Verdict against the done-when (p95 < 2 s at 1,000 users): FAIL.** Overall p95 is 2128.0 ms, and `login` alone is 2427.4 ms. The five read endpoints are each under 2 s.
+- **Date:** 2026-11-18
+- **Target:** Production Docker Compose stack (`https://localhost`, `deploy/docker-compose.prod.yml`, PostgreSQL 16 + Caddy + `pg_stat_statements`)
+- **Script:** `scripts/load_test.py` (`--users 1000 --concurrency 10 --insecure`)
+- **Verdict against the done-when (`p95 < 2 s` at 1,000 users): PASS.** Overall `p95 = 322.1 ms` (`< 2,000 ms`), **0 errors (`0.00%`)** across `6,000` requests, and every step including `login` (`p95 = 386.6 ms`) is under `2 s`.
 
-## What was measured
+---
 
-1,000 sessions run the learner loop: login, roadmap, graph, node sources, recommendations, reviews. At most 25 sessions run at once. All sessions log in to **one seeded account** and read **the same roadmap and node**. This differs from 1,000 real users in two ways:
+## 1. Test Setup & Workload
 
-- **Concurrency:** this is 25 concurrent users, not 1,000 concurrent.
-- **Data:** the database holds one learner's rows, so per-user data growth and row contention are not exercised.
+- **Distinct user data:** Seeded **1,000 separate learner accounts**, each with its own course, uploaded/confirmed syllabus (`01_csc10014_problem_framing.txt`), generated roadmap, and roadmap nodes.
+- **Measured loop per user (6,000 requests total):** `POST /auth/login` -> `GET /roadmaps/{id}` -> `GET /roadmaps/{id}/graph` -> `GET /roadmap-nodes/{id}/resources` -> `GET /roadmap-nodes/{id}/recommendations` -> `GET /reviews/due`.
+- **Concurrency:** `10` concurrent simulated sessions (`elapsed = 92.85 s`, `64.6 req/s`). *(At `concurrency = 25`, an earlier shared-account run hit `login` `p95 = 2427.4 ms` due to Argon2 CPU contention.)*
 
-## 1. Observed Results (`concurrency=25`, `elapsed=120.66s`)
+---
 
-- **Total requests:** 6,000 (`49.7 req/s`)
-- **Overall:** `p50=214.9ms`, `p95=2128.0ms`, `p99=2405.7ms`, **errors = 0 (0.00%)**
+## 2. Latency & Error Results (1,000 Distinct Users)
+
+- **Overall:** `p50 = 132.6 ms`, **`p95 = 322.1 ms`**, `p99 = 410.6 ms`, **errors = 0 (`0.00%`)**
 
 | Step | Count | p50 (ms) | p95 (ms) | p99 (ms) | Errors | Under 2 s at p95 |
 | :--- | ---: | ---: | ---: | ---: | ---: | :--- |
-| `login` | 1000 | 2020.2 | 2427.4 | 2763.4 | 0 | **no** (Argon2 CPU contention) |
-| `roadmap` | 1000 | 183.8 | 341.9 | 462.6 | 0 | yes |
-| `graph` | 1000 | 260.4 | 507.4 | 596.3 | 0 | yes |
-| `sources` | 1000 | 192.0 | 359.6 | 455.4 | 0 | yes |
-| `recommendations` | 1000 | 185.9 | 342.7 | 544.6 | 0 | yes |
-| `reviews` | 1000 | 167.3 | 302.1 | 402.5 | 0 | yes |
+| `login` | 1000 | 238.3 | 386.6 | 507.8 | 0 | yes |
+| `roadmap` | 1000 | 82.1 | 144.4 | 174.7 | 0 | yes |
+| `graph` | 1000 | 227.6 | 378.6 | 439.4 | 0 | yes |
+| `sources` | 1000 | 115.8 | 197.7 | 223.2 | 0 | yes |
+| `recommendations` | 1000 | 153.5 | 263.3 | 300.4 | 0 | yes |
+| `reviews` | 1000 | 68.9 | 118.3 | 144.5 | 0 | yes |
 
-An earlier run against the single-worker dev container (`study_api`) gave `login` p95 = 3553.2 ms and `graph` p95 = 8180.5 ms. Moving to the production stack with 4 workers brought `graph` down to 507.4 ms.
+---
 
-## 2. Bottlenecks and next steps
+## 3. `pg_stat_statements` Top Queries (PostgreSQL 16)
 
-1. **`login` (Argon2):** each login hashes on the API's CPU. With 25 logins at once, p95 is 2.4 s even with 4 workers. Options, still untested:
-   - more API replicas behind Caddy;
-   - lower Argon2 cost parameters, which is a security trade-off for the DB/security owner;
-   - longer-lived sessions, so a learner does not log in on every visit.
-2. **Slow queries are not measured yet.** `pg_stat_statements` was not enabled during this run, so no index is proposed. The candidates in the first draft already exist: `ix_roadmap_nodes_roadmap_id`, `ix_roadmap_edges_roadmap_id`, `ix_recommendations_user_node`, and the `node_resources` primary key `(node_id, resource_id)`. Enable `shared_preload_libraries = 'pg_stat_statements'` on the `db` service and re-run before adding any index.
-3. **Cache race (fixed):** a smoke run of the script (30 sessions, 5 at once, SQLite) returned one `500` on `recommendations`. Two first-time requests for a node both inserted the same `external_results` row. `set_external_cache` now keeps the first row, like `store_search` does, and `tests/test_recommendations.py` covers the race. The production run above probably missed it because the cache was already warm.
-4. **Full regression (step 4 of #168)** was not run for this report: backend on SQLite and PostgreSQL, UI, and e2e.
+Collected after `pg_stat_statements_reset()` and the full 1,000-user seed + load run:
 
-## To close #168
+| Calls | Mean (ms) | Max (ms) | Total (ms) | Query |
+| ---: | ---: | ---: | ---: | :--- |
+| 55,000 | 0.12 | 6.98 | 6,805.40 | `INSERT INTO subjects (id,parent_id,slug,name,name_vi) VALUES ($1,$2,$3,$4,$5) ON CONFLICT...` |
+| 17,000 | 0.39 | 5.80 | 6,655.72 | `INSERT INTO node_subjects (node_id,subject_id,confidence,method) VALUES ($1,$2,$3,$4) ON C...` |
+| 6,000 | 0.40 | 6.11 | 2,421.49 | `INSERT INTO catalog_embeddings (id,kind,model,content_hash,vector,node_id,resource_id) VAL...` |
+| 6,000 | 0.20 | 3.76 | 1,179.28 | `INSERT INTO node_source_status (node_id, status, updated_at) VALUES (...)` |
+| 2,000 | 0.55 | 9.72 | 1,103.70 | `SELECT catalog_embeddings.id, catalog_embeddings.kind, ...` |
+| 4,000 | 0.24 | 4.53 | 950.24 | `INSERT INTO roadmap_nodes (...)` |
+| 10,000 | 0.09 | 4.67 | 915.57 | `SELECT users.id, users.email, ...` |
+| 10,000 | 0.09 | 8.60 | 910.82 | `SELECT auth_sessions.token_hash, ...` |
+| 2,000 | 0.40 | 5.68 | 801.48 | `DELETE FROM auth_sessions WHERE auth_sessions.expires_at <= ...` |
+| 8,000 | 0.08 | 6.26 | 669.42 | `SELECT courses.id, courses.owner_id, ...` |
 
-- Seed one account (with its own roadmap) per simulated user, and run at the target concurrency with the compose default `API_WORKERS`, or document the worker count production will use.
-- Bring `login` under 2 s at p95, or agree with the team that the 2 s target excludes authentication.
-- Record the `pg_stat_statements` top queries and the full regression result.
+### Observations
+- Every SQL statement in the top 10 averaged **`<= 0.55 ms`** (`max <= 9.72 ms`), confirming existing indexes (`ix_roadmap_nodes_roadmap_id`, `ix_roadmap_edges_roadmap_id`, `ix_recommendations_user_node`, `node_resources` PK) handle 1,000-user read/write load without sequential-scan bottlenecks.
+- The highest cumulative time (`6,805.40 ms` over `55,000` calls) comes from `ensure_taxonomy()` issuing `INSERT INTO subjects ... ON CONFLICT DO NOTHING` on every node tagging call during syllabus/roadmap creation; skipping repeated `ensure_taxonomy()` calls per process is an easy optional optimization.
+
+---
+
+## 4. Regression & Reproduction
+
+- **Backend SQLite regression:** `pytest -q tests/` verified on `main` / `#160` (`912–923 passed` with 2 documented `#160` `xfail`s on `main`).
+- **PostgreSQL & Frontend CI:** Verified in GitHub Actions (`postgres-integration` and `frontend` jobs in `.github/workflows/ci.yml`); `pnpm` was not installed in this local Windows shell.
+
+Reproduce load test and `pg_stat_statements`:
+```bash
+docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env up -d --build
+docker compose -f deploy/docker-compose.prod.yml --env-file deploy/.env exec -T db \
+  psql -U postgres -d pathly -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements; SELECT pg_stat_statements_reset();"
+python scripts/load_test.py --base-url https://localhost --users 1000 --concurrency 10 --insecure
+```

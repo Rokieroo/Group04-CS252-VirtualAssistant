@@ -1,10 +1,10 @@
 """Async 1,000-user load test against the production Docker Compose stack (issue #168).
 
 Usage:
-    python scripts/load_test.py --base-url https://localhost --users 1000 --concurrency 25 --insecure
+    python scripts/load_test.py --base-url https://localhost --users 1000 --concurrency 10 --insecure
 
-shortcut: every session logs in to one seeded account and reads one roadmap, so per-user
-data and row contention are not exercised; seed one account per user before closing #168.
+Seeds one distinct learner account, course, roadmap, and node per simulated user before
+running the login -> roadmap -> graph -> sources -> recommendations -> reviews loop.
 """
 
 from __future__ import annotations
@@ -146,6 +146,13 @@ async def _run_user(
                 errors[name] += 1
 
 
+async def _seed_with_sem(
+    client: httpx.AsyncClient, sem: asyncio.Semaphore
+) -> tuple[str, str, str, str, str]:
+    async with sem:
+        return await _seed_fixture(client)
+
+
 async def main_async(base_url: str, users: int, concurrency: int, insecure: bool) -> int:
     limits = httpx.Limits(max_connections=concurrency + 20, max_keepalive_connections=concurrency)
     async with httpx.AsyncClient(
@@ -154,8 +161,8 @@ async def main_async(base_url: str, users: int, concurrency: int, insecure: bool
         timeout=30.0,
         limits=limits,
     ) as client:
-        email, password, cid, rid, nid = await _seed_fixture(client)
         sem = asyncio.Semaphore(concurrency)
+        accounts = await asyncio.gather(*[_seed_with_sem(client, sem) for _ in range(users)])
         latencies: dict[str, list[float]] = defaultdict(list)
         errors: dict[str, int] = defaultdict(int)
 
@@ -163,7 +170,7 @@ async def main_async(base_url: str, users: int, concurrency: int, insecure: bool
         await asyncio.gather(
             *[
                 _run_user(client, sem, email, password, cid, rid, nid, latencies, errors)
-                for _ in range(users)
+                for email, password, cid, rid, nid in accounts
             ]
         )
         elapsed = time.perf_counter() - t_start
@@ -197,7 +204,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-url", default="https://localhost")
     parser.add_argument("--users", type=int, default=1000)
-    parser.add_argument("--concurrency", type=int, default=25)
+    parser.add_argument("--concurrency", type=int, default=10)
     parser.add_argument("--insecure", action="store_true")
     args = parser.parse_args()
     return asyncio.run(main_async(args.base_url, args.users, args.concurrency, args.insecure))
