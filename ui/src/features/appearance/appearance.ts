@@ -12,6 +12,8 @@ export const THEMES = [
   { id: "system", label: "Match device" },
   { id: "light", label: "Light" },
   { id: "dark", label: "Dark" },
+  { id: "windy", label: "Windy" },
+  { id: "flame", label: "Flame" },
 ] as const;
 
 export type Accent =
@@ -77,6 +79,12 @@ export const localAppearanceStore = createAppearanceStore(
   () => window.localStorage,
 );
 
+// In-memory mode also works when localStorage is unavailable.
+export const APPEARANCE_EVENT = "study-companion:appearance";
+let appliedTheme: Theme | undefined;
+export const currentAppearanceTheme = () =>
+  appliedTheme ?? localAppearanceStore.load().theme;
+
 /** styles.css keys off data-accent / data-theme; "system" removes the override so prefers-color-scheme applies. */
 export function applyAppearance(
   appearance: Appearance,
@@ -137,4 +145,8 @@ export function applyAppearance(
   }
   if (appearance.theme === "system") delete root.dataset.theme;
   else root.dataset.theme = appearance.theme;
+  if (root === document.documentElement) {
+    appliedTheme = appearance.theme;
+    window.dispatchEvent(new Event(APPEARANCE_EVENT));
+  }
 }

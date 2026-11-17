@@ -1,3 +1,4 @@
+import { TabList, Tab } from "@astryxdesign/core/TabList";
 import { manuallyReviewable, warningKey } from "../../api/syllabus";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { SyllabusDraft, Warning } from "../../api/core";
@@ -138,42 +139,26 @@ export function SyllabusReview({
             ))}
           </div>
         </details>
-        <div
-          className="core-tabs"
+        <TabList
+          className="study-tabs"
           role="tablist"
           aria-label="Các phần đề cương"
+          size="lg"
+          hasDivider
+          value={reviewTab}
+          onChange={(value) => setReviewTab(value as ReviewTab)}
         >
-          {tabs.map((t, index) => (
-            <button
+          {tabs.map((t) => (
+            <Tab
               key={t.id}
-              role="tab"
+              value={t.id}
+              label={t.label}
               id={`review-tab-${t.id}`}
-              aria-controls="review-panel"
-              tabIndex={reviewTab === t.id ? 0 : -1}
-              onKeyDown={(e) => {
-                const direction =
-                  e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
-                const next =
-                  e.key === "Home"
-                    ? 0
-                    : e.key === "End"
-                      ? tabs.length - 1
-                      : (index + direction + tabs.length) % tabs.length;
-                if (direction || e.key === "Home" || e.key === "End") {
-                  e.preventDefault();
-                  setReviewTab(tabs[next].id);
-                  document
-                    .getElementById(`review-tab-${tabs[next].id}`)
-                    ?.focus();
-                }
-              }}
-              aria-selected={reviewTab === t.id}
-              onClick={() => setReviewTab(t.id)}
-            >
-              {t.label}
-            </button>
+              panelId="review-panel"
+              onFocusCapture={() => setReviewTab(t.id)}
+            />
           ))}
-        </div>
+        </TabList>
         <div className="core-review-columns">
           <div
             role="tabpanel"

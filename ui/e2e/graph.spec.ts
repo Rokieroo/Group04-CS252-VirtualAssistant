@@ -409,8 +409,9 @@ test("CLO/source filters and URL selection restore after reload, with local grap
 }) => {
   const api = await backend(page);
   await page.goto("/?kg_roadmap=rm#roadmap");
-  await expect(page.getByRole("combobox", { name: "CLO:" })).toBeVisible();
-  await page.getByRole("button", { name: "📋 Danh sách" }).click();
+  await expect(page.getByRole("button", { name: /^Bộ lọc/ })).toBeVisible();
+  await page.getByRole("button", { name: "Danh sách" }).click();
+  await page.getByRole("button", { name: /^Bộ lọc/ }).click();
   await page.getByRole("combobox", { name: "CLO:" }).selectOption("CLO1");
   await page.getByLabel(/Nguồn đã kiểm chứng/).check();
   await expect(
@@ -420,6 +421,10 @@ test("CLO/source filters and URL selection restore after reload, with local grap
     page.getByRole("button", { name: "Chọn chặng A Retrieval" }),
   ).toHaveCount(0);
   await page.reload();
+  await expect(
+    page.getByRole("status").filter({ hasText: "CLO1" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: /^Bộ lọc/ }).click();
   await expect(page.getByLabel(/Nguồn đã kiểm chứng/)).toBeChecked();
   await expect(page.getByRole("combobox", { name: "CLO:" })).toHaveValue(
     "CLO1",
@@ -433,7 +438,9 @@ test("CLO/source filters and URL selection restore after reload, with local grap
   await page.getByRole("button", { name: "Chọn chặng A Retrieval" }).click();
   await expect(page.getByRole("dialog")).toContainText("A Retrieval");
   // Views are derived from the one full-graph fetch, not a second request.
-  expect(api.requested.some((p) => p.includes("/roadmap-nodes/b/graph"))).toBe(false);
+  expect(api.requested.some((p) => p.includes("/roadmap-nodes/b/graph"))).toBe(
+    false,
+  );
 });
 test("drag saves layout and survives reload without opening a panel mid-drag", async ({
   page,
@@ -445,7 +452,7 @@ test("drag saves layout and survives reload without opening a panel mid-drag", a
   const api = await backend(page);
   await page.goto("/?kg_roadmap=rm#roadmap");
   const canvas = page.locator("canvas.graph-canvas");
-  await expect(page.getByRole("combobox", { name: "CLO:" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Bộ lọc/ })).toBeVisible();
   await canvas.scrollIntoViewIfNeeded();
   // The graph opens framed to fit; reset to 100% so positions map 1:1 to pixels.
   await page.getByRole("button", { name: "Đặt lại góc nhìn" }).click();
@@ -460,7 +467,7 @@ test("drag saves layout and survives reload without opening a panel mid-drag", a
     .toBe(true);
   const saved = api.positions.find((p) => p.node_id === "a")!;
   await page.reload();
-  await expect(page.getByRole("combobox", { name: "CLO:" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Bộ lọc/ })).toBeVisible();
   await canvas.scrollIntoViewIfNeeded();
   await page.getByRole("button", { name: "Đặt lại góc nhìn" }).click();
   rect = (await canvas.boundingBox())!;
@@ -480,6 +487,7 @@ test("search opens the matching panel and milestone scope includes covered prere
   await expect(page.getByRole("dialog")).toContainText("A Retrieval");
   await page.getByRole("button", { name: "Xem đồ thị cục bộ" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("button", { name: /^Bộ lọc/ }).click();
   await expect(page.getByLabel(/Local graph/)).toBeChecked();
   await page.getByLabel(/Local graph/).uncheck();
   await search.fill("");
@@ -497,6 +505,58 @@ test("search opens the matching panel and milestone scope includes covered prere
     page.getByRole("button", { name: "Chọn chặng Other topic" }),
   ).toHaveCount(0);
 });
+test("saved source survives navigation, note editing and reload", async ({
+  page,
+}) => {
+  await backend(page);
+  const item = {
+    node_id: "b",
+    node_title: "A Retrieval",
+    course_id: "c1",
+    course_title: "Graph course",
+    roadmap_id: "rm",
+    source_key: "private-1",
+    title: "Lecture notes.txt",
+    state: "none",
+    note: "",
+  };
+  await page.route("**/concepts/b/library", async (route) => {
+    const body = route.request().postDataJSON();
+    expect(body.source_key).toBe(item.source_key);
+    Object.assign(item, body);
+    await route.fulfill({ status: 204 });
+  });
+  await page.route("**/me/library", (route) =>
+    route.fulfill({ json: item.state === "none" && !item.note ? [] : [item] }),
+  );
+  await page.goto("/?kg_roadmap=rm&kg_viewMode=list#roadmap");
+  await page.getByRole("button", { name: "Chọn chặng A Retrieval" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /Ghim/ })
+    .first()
+    .click();
+  await expect.poll(() => item.state).toBe("pinned");
+  await page.goto("/#sources");
+  await page.getByLabel("Tìm theo môn").fill("Graph");
+  await page.getByLabel("Ghi chú cho nguồn ở chặng này").fill("Ôn tuần hai");
+  await page.getByRole("button", { name: "Lưu ghi chú" }).click();
+  await expect.poll(() => item.note).toBe("Ôn tuần hai");
+  await page.reload();
+  await expect(page.getByLabel("Ghi chú cho nguồn ở chặng này")).toHaveValue(
+    "Ôn tuần hai",
+  );
+  await page.getByRole("button", { name: "Ẩn nguồn" }).click();
+  await expect(page.getByRole("button", { name: "Hiện lại" })).toBeVisible();
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .include('section[aria-label="Thư viện cá nhân"]')
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+});
+
 test("native touch pinch changes canvas zoom", async ({
   page,
   context,
@@ -555,7 +615,7 @@ for (const layout of ["week", "force"] as const) {
     await page.goto(`/?kg_roadmap=rm&kg_layout=${layout}#roadmap`);
     const canvas = page.locator("canvas.graph-canvas");
     await expect(canvas).toBeVisible();
-    await expect(page.getByRole("combobox", { name: "CLO:" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Bộ lọc/ })).toBeVisible();
     await canvas.scrollIntoViewIfNeeded();
     const r = (await canvas.boundingBox())!;
     const sample = page.evaluate(
@@ -636,7 +696,7 @@ test("approved roadmap edge form adds and removes through the API across reload"
   await edge.getByRole("button", { name: "Bỏ cạnh" }).click();
   await expect(edge).toHaveCount(0);
   await page.reload();
-  await expect(page.getByRole("combobox", { name: "CLO:" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Bộ lọc/ })).toBeVisible();
   await expect(edge).toHaveCount(0);
 });
 
@@ -645,7 +705,7 @@ test("reopened graph restores the syllabus editor and saves to the original cour
 }) => {
   const api = await backend(page);
   await page.goto("/?kg_roadmap=rm#roadmap");
-  await expect(page.getByRole("combobox", { name: "CLO:" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Bộ lọc/ })).toBeVisible();
   await page.reload();
   await page.getByRole("button", { name: "Edit course syllabus" }).click();
   const description = page.locator('input[value="Understand the foundations"]');
@@ -776,6 +836,24 @@ test("node panel remains accessible with source metadata and inactive gateways",
         })),
       })),
   ).toEqual([]);
+  await page.evaluate(() => {
+    document.documentElement.dataset.theme = "windy";
+    window.dispatchEvent(new Event("study-companion:appearance"));
+  });
+  const windyPanel = await new AxeBuilder({ page })
+    .include(".node-panel-container")
+    .analyze();
+  expect(
+    windyPanel.violations
+      .filter((v) => v.impact === "serious" || v.impact === "critical")
+      .map((v) => ({
+        id: v.id,
+        nodes: v.nodes.map((n) => ({
+          target: n.target,
+          summary: n.failureSummary,
+        })),
+      })),
+  ).toEqual([]);
   await page
     .getByRole("button", { name: "Trang chặng (S6)", exact: true })
     .click();
@@ -805,7 +883,9 @@ test("upload syllabus -> open graph -> click node shows syllabus page; cycle edg
   await page.goto("/");
 
   // 1. Upload syllabus and confirm (the account already has a course, so open its upload)
-  await page.getByRole("button", { name: "Thêm đề cương", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Thêm đề cương", exact: true })
+    .click();
   await page.getByLabel("Syllabus file", { exact: true }).setInputFiles({
     name: "CSC10014.pdf",
     mimeType: "application/pdf",
@@ -881,7 +961,7 @@ for (const count of [30, 100] as const) {
     await page.goto("/?kg_roadmap=rm#roadmap");
     const canvas = page.locator("canvas.graph-canvas");
     await expect(canvas).toBeVisible();
-    await expect(page.getByRole("combobox", { name: "CLO:" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Bộ lọc/ })).toBeVisible();
     await canvas.scrollIntoViewIfNeeded();
     const r = (await canvas.boundingBox())!;
 
@@ -917,3 +997,88 @@ for (const count of [30, 100] as const) {
     expect(result.fps).toBeGreaterThanOrEqual(24);
   });
 }
+
+test("compact filters keep their summary and clear without losing view, layout or node", async ({
+  page,
+}, info) => {
+  await backend(page);
+  await page.goto(
+    "/?kg_roadmap=rm&kg_viewMode=list&kg_layout=force&kg_clo=CLO1&kg_verifiedOnly=1#roadmap",
+  );
+  const disclosure = page.getByRole("button", {
+    name: "Bộ lọc (2)",
+    exact: true,
+  });
+  await expect(disclosure).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByLabel("Tới mốc kiểm tra:")).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "CLO:" })).toBeHidden();
+  await expect(page.locator(".filter-summary")).toContainText("CLO1");
+  const toolbar = await page.locator(".kg-filter-bar").boundingBox();
+  if (info.project.name.includes("mobile"))
+    expect(toolbar!.height).toBeLessThanOrEqual(240);
+  await disclosure.click();
+  await expect(page.getByRole("combobox", { name: "CLO:" })).toBeVisible();
+  await disclosure.click();
+  await expect(page.locator(".filter-summary")).toContainText(
+    "Nguồn đã kiểm chứng",
+  );
+  await page.getByRole("button", { name: "Xóa bộ lọc", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Danh sách", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  expect(new URL(page.url()).searchParams.get("kg_layout")).toBe("force");
+  expect(new URL(page.url()).searchParams.has("kg_clo")).toBe(false);
+  await page.getByRole("button", { name: "Chọn chặng Z Foundations" }).click();
+  await page.getByRole("button", { name: "Đóng bảng thông tin" }).click();
+  const node = new URL(page.url()).searchParams.get("kg_node");
+  await page.getByRole("button", { name: /^Bộ lọc/ }).click();
+  await page.getByLabel(/Nguồn đã kiểm chứng/).check();
+  await page.getByRole("button", { name: "Xóa bộ lọc", exact: true }).click();
+  expect(new URL(page.url()).searchParams.get("kg_node")).toBe(node);
+});
+
+test("dark graph controls and list remain readable at enlarged text size", async ({
+  page,
+}) => {
+  await backend(page);
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "pathly.appearance.v1",
+      JSON.stringify({ accent: "visible-spectrum", theme: "dark" }),
+    ),
+  );
+  await page.goto("/?kg_roadmap=rm&kg_viewMode=list#roadmap");
+  await expect(page.getByRole("button", { name: /^Bộ lọc/ })).toBeVisible();
+  await page.addStyleTag({ content: "html { font-size: 200%; }" });
+  await page.getByRole("button", { name: /^Bộ lọc/ }).click();
+  await expect(page.getByLabel("Trạng thái:")).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  const results = await new AxeBuilder({ page })
+    .include(".kg-filter-bar")
+    .include(".kg-list-view-container")
+    .withTags(["wcag2a", "wcag2aa"])
+    .analyze();
+  expect(
+    results.violations.filter(
+      (v) => v.impact === "critical" || v.impact === "serious",
+    ),
+  ).toEqual([]);
+  await page.evaluate(() => {
+    document.documentElement.dataset.theme = "windy";
+    window.dispatchEvent(new Event("study-companion:appearance"));
+  });
+  const windyResults = await new AxeBuilder({ page })
+    .include(".kg-filter-bar")
+    .include(".kg-list-view-container")
+    .withTags(["wcag2a", "wcag2aa"])
+    .analyze();
+  expect(
+    windyResults.violations.filter(
+      (v) => v.impact === "critical" || v.impact === "serious",
+    ),
+  ).toEqual([]);
+});

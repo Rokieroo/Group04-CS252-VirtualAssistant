@@ -29,6 +29,8 @@ export type Member = { id: string; name: string };
 export type Invitation = { id: string; team_id: string; team_name: string; email: string; accepted: boolean };
 export type Notification = { id: string; message: string; read: boolean; entry_id: string | null };
 export type Report = {
+  review_count?:number;completed_nodes?:number;overdue_nodes?:number;reminder_due?:boolean;reminder_enabled?:boolean;next_week_deadline?:string;
+  upcoming_milestones?:{id:string;title:string;roadmap_id:string}[];review_nodes?:{id:string;title:string;roadmap_id:string}[];
   total_tasks: number; completed_tasks: number; planned_minutes: number; completed_minutes: number;
   missed_sessions: number; completion_percent: number; start_date: string; end_date: string;
 };

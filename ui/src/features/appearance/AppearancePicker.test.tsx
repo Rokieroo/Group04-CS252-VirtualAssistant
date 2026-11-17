@@ -45,5 +45,23 @@ describe("appearance picker", () => {
       accent: "ocean",
       theme: "dark",
     });
+    await user.click(screen.getByRole("radio", { name: "Windy" }));
+    expect(document.documentElement.dataset).toMatchObject({
+      accent: "ocean",
+      theme: "windy",
+    });
+    expect(store.save).toHaveBeenLastCalledWith({
+      accent: "ocean",
+      theme: "windy",
+    });
+    await user.click(screen.getByRole("radio", { name: "Flame" }));
+    expect(document.documentElement.dataset).toMatchObject({
+      accent: "ocean",
+      theme: "flame",
+    });
+    expect(store.save).toHaveBeenLastCalledWith({
+      accent: "ocean",
+      theme: "flame",
+    });
   });
 });

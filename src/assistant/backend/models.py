@@ -98,6 +98,8 @@ class User(Base):
     parental_consent: Mapped[int] = mapped_column(
         Integer, default=0, server_default="0"
     )
+    guide_enabled: Mapped[int] = mapped_column(Integer, server_default="1")
+    weekly_reminder: Mapped[int] = mapped_column(Integer, server_default="1")
     parental_consent_at: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
@@ -278,9 +280,7 @@ class ChatMessage(Entity, Base):
     )
     role: Mapped[str] = mapped_column(String(16))
     content: Mapped[str] = mapped_column(Text)
-    safety_flag: Mapped[int] = mapped_column(
-        Integer, default=0, server_default="0"
-    )
+    safety_flag: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 
 class Syllabus(Base):
@@ -428,6 +428,17 @@ class NodeResource(Base):
     status: Mapped[str] = mapped_column(  # shown | replaced | removed (spec 7.1)
         Text, default="shown", server_default="shown"
     )
+
+
+class PersonalSource(Base):
+    __tablename__ = "personal_sources"
+    node_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("roadmap_nodes.id", ondelete="CASCADE"), primary_key=True
+    )
+    source_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    title: Mapped[str] = mapped_column(Text)
+    state: Mapped[str] = mapped_column(Text)
+    note: Mapped[str] = mapped_column(Text, server_default="")
 
 
 class ResourceFeedback(Base):
@@ -799,9 +810,7 @@ class ExternalResult(Base):
         server_default=func.current_timestamp(),
         nullable=False,
     )
-    __table_args__ = (
-        Index("ix_external_results_fetched_at", "fetched_at"),
-    )
+    __table_args__ = (Index("ix_external_results_fetched_at", "fetched_at"),)
 
 
 # Register graph/exercise extensions on the canonical schema metadata.

@@ -1,3 +1,4 @@
+import { LearningGuide } from "../components/LearningGuide";
 import { BackendError, call } from "../api/backend";
 import {
   fetchRoadmapGraph,
@@ -799,6 +800,7 @@ export function CoreJourney({
           <button onClick={() => setSourcePage(null)}>Đóng</button>
         </Modal>
       )}
+      {!mock && (page === "Library" || (page === "Roadmap" && roadmapApproved)) && <LearningGuide step={stage==="upload"?2:stage==="review"?3:stage==="plan"&&page==="Library"?4:5} />}
       {page === "Library" && stage !== "complete" && (
         <div
           className="core-setup-progress"
@@ -1034,6 +1036,7 @@ export function CoreJourney({
                   )}
                   {selectedNodeObj && (
                     <NodePanel
+                      persistLibrary={!mock}
                       manageUrl={false}
                       scheduleScope="course"
                       onOpenFullStage={(id) => {

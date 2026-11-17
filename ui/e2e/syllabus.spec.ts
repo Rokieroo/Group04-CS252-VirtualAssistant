@@ -1,3 +1,4 @@
+import { GRADIENTS } from "../src/features/appearance/gradients";
 import { expect, test, type Page } from "@playwright/test";
 const parsed = {
   course: {
@@ -113,7 +114,10 @@ async function backend(
       });
     }
     if (path.endsWith("/syllabus") && req.method() === "GET")
-      return route.fulfill({ status: 404, json: { detail: "Syllabus not found" } });
+      return route.fulfill({
+        status: 404,
+        json: { detail: "Syllabus not found" },
+      });
     if (path.endsWith("/syllabus"))
       return route.fulfill({
         status: 201,
@@ -428,7 +432,7 @@ test("gradient fills survive scoped styles while account circles stay neutral", 
     await page
       .locator(".core-upload")
       .evaluate((element) => getComputedStyle(element).backgroundImage),
-  ).toContain("linear-gradient");
+  ).toBe("none");
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute(
     "data-accent",
@@ -450,4 +454,84 @@ test("gradient fills survive scoped styles while account circles stay neutral", 
       .locator(".core-upload")
       .evaluate((element) => getComputedStyle(element).backgroundImage),
   ).toBe("none");
+});
+
+test("all saved gradients retain every stop in both modes without filling reading cards or avatars", async ({
+  page,
+}) => {
+  await backend(page);
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Thêm đề cương", exact: true })
+    .click();
+  const settings = page.getByRole("button", {
+    name: "Account settings",
+    exact: true,
+  });
+  for (const mode of ["Light", "Dark", "Windy", "Flame"]) {
+    await settings.click();
+    await page.getByText(mode, { exact: true }).click();
+    if (mode === "Windy") {
+      const appBg = await page
+        .locator(".study-companion")
+        .evaluate((el) => getComputedStyle(el).backgroundImage);
+      expect(appBg).toContain("rgb(134, 253, 232)");
+      expect(appBg).toContain("rgb(172, 182, 229)");
+    }
+    if (mode === "Flame") {
+      const appBg = await page
+        .locator(".study-companion")
+        .evaluate((el) => getComputedStyle(el).backgroundImage);
+      expect(appBg).toContain("rgb(253, 207, 88)");
+      expect(appBg).toContain("rgb(255, 0, 0)");
+    }
+    await page.getByText("Violet", { exact: true }).click();
+    const neutral = await page
+      .locator(".avatar")
+      .evaluateAll((elements) =>
+        elements.map((el) => getComputedStyle(el).background),
+      );
+    for (const gradient of GRADIENTS) {
+      await page.getByText(gradient.label, { exact: true }).click();
+      expect(
+        await page
+          .locator(".avatar")
+          .evaluateAll((elements) =>
+            elements.map((el) => getComputedStyle(el).background),
+          ),
+      ).toEqual(neutral);
+      const face = await page
+        .locator(".core-drop .primary-action")
+        .evaluate((el) => getComputedStyle(el, "::after").backgroundImage);
+      for (const hex of gradient.colors) {
+        const rgb = [1, 3, 5].map((offset) =>
+          parseInt(hex.slice(offset, offset + 2), 16),
+        );
+        expect(face).toContain(`rgb(${rgb.join(", ")})`);
+      }
+      expect(
+        await page
+          .locator(".core-upload")
+          .evaluate((el) => getComputedStyle(el).backgroundImage),
+      ).toBe("none");
+    }
+    await page.getByRole("button", { name: "Close dialog" }).click();
+    await expect(
+      page.getByRole("textbox", { name: "Course name", exact: true }),
+    ).toHaveAttribute("readonly", "");
+    const fieldSize = await page
+      .getByRole("textbox", { name: "Course name", exact: true })
+      .evaluate((element) => ({
+        input: element.getBoundingClientRect().height,
+        control: element.parentElement!.getBoundingClientRect().height,
+      }));
+    expect(fieldSize.input).toBeGreaterThanOrEqual(44);
+    expect(fieldSize.control).toBeGreaterThanOrEqual(fieldSize.input);
+  }
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-accent",
+    GRADIENTS[4].id,
+  );
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "flame");
 });

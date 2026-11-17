@@ -1,3 +1,4 @@
+@layer study-legacy {
 /* Admin Catalog Review Queue Styles - Issue #104 */
 .admin-catalog-page {
   display: flex;
@@ -399,4 +400,6 @@
   border-radius: 6px;
   font-size: 0.88rem;
   font-weight: 600;
+}
+
 }

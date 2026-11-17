@@ -367,6 +367,50 @@ def test_sources_are_private_first_and_never_pending_stale_or_rejected(
     assert "answer" not in exercises["exercises"][0]
 
 
+def test_personal_library_round_trip_and_isolation(app, client, headers, headers_a, roadmap, clock):
+    node = roadmap["nodes"][0]["id"]
+    with app.state.database.sessions() as db:
+        add_resource(db, clock[0], number=0, status="verified", days=0)
+        db.commit()
+    path = f"/api/v1/concepts/{node}"
+    item = client.get(path + "/sources", headers=headers).json()["sources"][0]
+    change = {"source_key": item["id"], "state": "pinned", "note": "Read for week 2"}
+    assert client.patch(path + "/library", headers=headers, json=change).status_code == 204
+    assert client.patch(path + "/library", headers=headers_a, json=change).status_code == 404
+    assert client.get("/api/v1/me/library", headers=headers_a).json() == []
+    saved, = client.get("/api/v1/me/library", headers=headers).json()
+    assert (saved["node_id"], saved["course_id"], saved["note"]) == (node, roadmap["course_id"], change["note"])
+    assert client.get(path + "/sources", headers=headers).json()["sources"][0]["personal_state"] == "pinned"
+    assert client.get("/api/v1/me/export", headers=headers).json()["personal_library"] == [saved]
+    for state in ["hidden", "none"]:
+        assert client.patch(path + "/library", headers=headers, json={"source_key":item["id"],"state":state}).status_code == 204
+        assert client.get("/api/v1/me/library", headers=headers).json()[0]["state"] == state
+    assert client.patch(path + "/library", headers=headers, json={"source_key":item["id"],"note":""}).status_code == 204
+    assert client.get("/api/v1/me/library", headers=headers).json() == []
+
+
+def test_learning_preferences_persist_per_learner(client, headers, headers_a):
+    path = "/api/v1/me/learning-preferences"
+    assert client.patch(path, headers=headers, json={"guide_enabled":False,"weekly_reminder":False}).status_code == 200
+    assert client.get(path, headers=headers).json() == {"guide_enabled":False,"weekly_reminder":False}
+    assert client.get(path, headers=headers_a).json()["guide_enabled"]
+    report = client.get("/api/v1/reports/weekly", headers=headers).json()
+    assert report["review_count"] == 0 and not report["reminder_enabled"]
+    assert report["next_week_deadline"]
+
+
+def test_weekly_reminder_uses_account_timezone(client, headers, clock):
+    from datetime import UTC, datetime
+
+    clock[0] = datetime(2030, 1, 13, 11, 59, tzinfo=UTC)
+    path = "/api/v1/me/weekly-reminder"
+    assert not client.get(path, headers=headers).json()["reminder_due"]
+    clock[0] += timedelta(minutes=1)
+    assert client.get(path, headers=headers).json()["reminder_due"]
+    client.patch("/api/v1/me/learning-preferences",headers=headers,json={"weekly_reminder":False})
+    assert not client.get(path, headers=headers).json()["reminder_due"]
+
+
 def test_own_material_hides_what_it_teaches_and_five_sources_is_the_most(
     app, client, headers, roadmap, clock, monkeypatch
 ):

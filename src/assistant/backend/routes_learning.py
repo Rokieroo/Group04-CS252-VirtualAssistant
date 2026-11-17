@@ -15,7 +15,7 @@ from app.qa import answer_question, exercise_hint
 from app.roadmap import layers, local_graph, prerequisites, transitive_reduction
 
 from .catalog_models import Concept, ExerciseAttempt, GraphLayout, RoadmapEdge
-from .catalog_repository import node_sources
+from .catalog_repository import node_sources, verified_resources
 from .dependencies import DB, CurrentUser
 from .exercise_repository import exercises_for_node, record_attempt, visible_exercise
 from .material_repository import decide, node_materials
@@ -23,6 +23,7 @@ from .models import (
     Course,
     LearningOutcome,
     Notification,
+    PersonalSource,
     ReviewCard,
     Roadmap,
     RoadmapNode,
@@ -59,7 +60,9 @@ def _check_edge_rate_limit(user_id: str, now_ts: float):
         if len(recent) >= EDGE_EDITS_PER_MINUTE:
             _edge_edits[user_id] = recent
             raise HTTPException(
-                429, "Edge edit rate limit reached (120/min)", headers={"Retry-After": "60"}
+                429,
+                "Edge edit rate limit reached (120/min)",
+                headers={"Retry-After": "60"},
             )
         _edge_edits[user_id] = [*recent, now_ts]
 
@@ -91,6 +94,7 @@ class RankedSourceOut(BaseModel):
     format: str
     duration_min: int | None = None
     verification_status: str
+    personal_state: str = "none"
     score: float
     reason: str
 
@@ -184,9 +188,114 @@ def sources(
     limit: int = Query(5, ge=1, le=5),
 ):
     node, roadmap, course = _node(db, node_id, user.id)
-    return node_sources(
+    result = node_sources(
         db, [node], roadmap, course, request.app.state.now(), limit=limit
     )[node.id]
+    states = dict(
+        db.execute(
+            select(PersonalSource.source_key, PersonalSource.state).where(
+                PersonalSource.node_id == node.id
+            )
+        ).all()
+    )
+    for source in result["sources"]:
+        source["personal_state"] = states.get(source["id"], "none")
+    return result
+
+
+class LibraryEdit(BaseModel):
+    source_key: str = Field(min_length=1, max_length=500)
+    state: Literal["pinned", "hidden", "none"] | None = None
+    note: str | None = Field(default=None, max_length=2000)
+
+
+class LibraryItem(BaseModel):
+    url: str | None = None
+    page: int | None = None
+    node_id: str
+    node_title: str
+    course_id: str
+    course_title: str
+    roadmap_id: str
+    source_key: str
+    title: str
+    state: str
+    note: str
+
+
+@router.get("/me/library", response_model=list[LibraryItem])
+def personal_library(db: DB, user: CurrentUser, request: Request):
+    query = (
+        select(
+            PersonalSource.node_id,
+            RoadmapNode.title.label("node_title"),
+            Course.id.label("course_id"),
+            Course.title.label("course_title"),
+            Roadmap.id.label("roadmap_id"),
+            PersonalSource.source_key,
+            PersonalSource.title,
+            PersonalSource.state,
+            PersonalSource.note,
+            Source.page,
+        )
+        .select_from(PersonalSource)
+        .join(RoadmapNode)
+        .join(Roadmap)
+        .join(Course)
+        .outerjoin(
+            Source,
+            (Source.id == PersonalSource.source_key) & (Source.course_id == Course.id),
+        )
+        .where(Roadmap.user_id == user.id, Course.owner_id == user.id)
+        .order_by(Course.title, RoadmapNode.title, PersonalSource.title)
+    )
+    rows = db.execute(query).mappings().all()
+    urls = (
+        {r["id"]: r["url"] for r in verified_resources(db, request.app.state.now())}
+        if any(r.page is None for r in rows)
+        else {}
+    )
+    return [
+        dict(r, url=urls.get(r.source_key) if r.page is None else None) for r in rows
+    ]
+
+
+@router.patch("/concepts/{node_id}/library", status_code=204)
+def edit_library(
+    node_id: str, data: LibraryEdit, db: DB, user: CurrentUser, request: Request
+):
+    node, roadmap, course = _node(db, node_id, user.id)
+    # Serialize first insert and subsequent partial updates for the same node.
+    db.execute(
+        update(RoadmapNode)
+        .where(RoadmapNode.id == node.id)
+        .values(title=RoadmapNode.title)
+    )
+    row = db.get(PersonalSource, (node.id, data.source_key))
+    if row is None:
+        options = node_sources(db, [node], roadmap, course, request.app.state.now())[
+            node.id
+        ]["sources"]
+        source = next((s for s in options if s["id"] == data.source_key), None)
+        if source is None:
+            raise HTTPException(404, "Source not available for this node")
+        row = PersonalSource(
+            node_id=node.id,
+            source_key=data.source_key,
+            title=source["title"],
+            state="none",
+            note="",
+        )
+    if data.state is not None:
+        row.state = data.state
+    if data.note is not None:
+        row.note = data.note.strip()
+    if row.state == "none" and not row.note:
+        if row in db:
+            db.delete(row)
+    else:
+        db.add(row)
+    db.commit()
 
 
 @router.get("/roadmaps/{roadmap_id}/sources:summary", response_model=SourceSummaryOut)
@@ -719,7 +828,9 @@ def put_layout(roadmap_id: str, data: Positions | LayoutIn, db: DB, user: Curren
     try:
         save_layouts(db, user.id, roadmap_id, [p.model_dump() for p in positions])
     except LookupError as error:
-        _node(db, error.args[0], user.id)  # 404 unless the user owns it on another roadmap
+        _node(
+            db, error.args[0], user.id
+        )  # 404 unless the user owns it on another roadmap
         raise HTTPException(422, "node_outside_roadmap") from None
     db.commit()
     return {"saved": len(positions)}

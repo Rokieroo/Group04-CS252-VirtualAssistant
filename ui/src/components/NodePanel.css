@@ -1,3 +1,4 @@
+@layer study-legacy {
 /* Knowledge Graph Node Panel & Mobile Bottom Sheet - Issue #109 */
 .node-panel-scrim {
   position: fixed;
@@ -411,4 +412,6 @@
 
 .np-insufficient-alternatives li {
   margin-bottom: 0.2rem;
+}
+
 }

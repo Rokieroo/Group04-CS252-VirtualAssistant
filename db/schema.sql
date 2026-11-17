@@ -1,6 +1,8 @@
 -- Canonical portable schema through migration 0010.
 
 CREATE TABLE IF NOT EXISTS users (
+    guide_enabled INTEGER NOT NULL DEFAULT 1,
+    weekly_reminder INTEGER NOT NULL DEFAULT 1,
     id                     TEXT PRIMARY KEY,
     email                  TEXT UNIQUE NOT NULL,
     password_hash          TEXT NOT NULL,
@@ -730,8 +732,17 @@ CREATE INDEX IF NOT EXISTS ix_recommendation_events_recommendation_id ON recomme
 
 CREATE INDEX IF NOT EXISTS ix_external_results_fetched_at ON external_results (fetched_at);
 
+CREATE TABLE IF NOT EXISTS personal_sources (
+    node_id VARCHAR(36) NOT NULL REFERENCES roadmap_nodes(id) ON DELETE CASCADE,
+    source_key TEXT NOT NULL,
+    title TEXT NOT NULL,
+    state TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (node_id, source_key)
+);
+
 INSERT INTO alembic_version (version_num)
-SELECT '0018_placement'
+SELECT '0019_merge_learning'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);
 
 CREATE INDEX IF NOT EXISTS ix_roadmap_edges_roadmap_id ON roadmap_edges (roadmap_id);

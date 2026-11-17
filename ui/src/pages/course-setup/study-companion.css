@@ -1,3 +1,4 @@
+@layer study-legacy {
 /* Figma S3–S5: scoped so the retained Old demo keeps its own styling. */
 .study-companion {
   --color-bg: light-dark(#f5f7fc, #0f1626);
@@ -504,3 +505,5 @@
 .core-feedback-btn.active { background: #e0e7ff; border-color: #6366f1; color: #4338ca; font-weight: 600; }
 .core-feedback-ack { color: #059669; font-size: 12px; font-weight: 600; }
 
+
+}

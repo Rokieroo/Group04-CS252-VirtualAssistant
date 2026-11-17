@@ -1,3 +1,4 @@
+@layer study-legacy {
 /* Verified Source Card Styles - Issue #104, Spec 8.6, 8.7, 12.1 */
 .verified-source-card {
   display: flex;
@@ -347,4 +348,6 @@
 .vsc-breakdown-grid dd {
   margin: 0;
   font-weight: 600;
+}
+
 }

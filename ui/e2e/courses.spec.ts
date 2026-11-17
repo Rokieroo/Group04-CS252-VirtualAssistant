@@ -144,6 +144,95 @@ test("duplicate titles retain distinct IDs and course creation uses the chosen I
   expect(requested.filter((r) => r === "POST /api/v1/courses")).toHaveLength(1);
 });
 
+test("onboarding can be skipped and resumed after reload", async ({ page }) => {
+  const { recover } = await backend(page);
+  let enabled = true;
+  await page.route("**/me/learning-preferences", (route) => {
+    if (route.request().method() === "PATCH")
+      enabled = route.request().postDataJSON().guide_enabled;
+    return route.fulfill({
+      json: { guide_enabled: enabled, weekly_reminder: true },
+    });
+  });
+  await openList(page, recover);
+  const guide = page.getByRole("region", { name: "Hướng dẫn bắt đầu" });
+  await expect(guide).toContainText("Bước 1/5");
+  expect(
+    (await new AxeBuilder({ page }).include(".learning-guide").analyze())
+      .violations,
+  ).toEqual([]);
+  const skip = guide.getByRole("button", { name: "Bỏ qua hướng dẫn" });
+  await skip.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    guide.getByRole("button", { name: "Xem hướng dẫn" }),
+  ).toBeVisible();
+  await page.reload();
+  await guide.getByRole("button", { name: "Xem hướng dẫn" }).click();
+  await expect(guide).toContainText("Bước 1/5");
+});
+
+test("weekly summary shows review data, saves a goal and disables reminders", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    sessionStorage.setItem("pathly.session", "fixture"),
+  );
+  let reminder = true;
+  const goals: { id: string; title: string; due_at: string }[] = [];
+  await page.route("**/api/v1/**", (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/me"))
+      return route.fulfill({
+        json: { id: "u", name: "Mai", timezone: "Asia/Ho_Chi_Minh" },
+      });
+    if (path.endsWith("/learning-preferences")) {
+      reminder = route.request().postDataJSON().weekly_reminder;
+      return route.fulfill({
+        json: { weekly_reminder: reminder, guide_enabled: true },
+      });
+    }
+    if (path.endsWith("/weekly"))
+      return route.fulfill({
+        json: {
+          start_date: "2026-11-09",
+          end_date: "2026-11-15",
+          total_tasks: 2,
+          completed_tasks: 1,
+          completed_nodes: 1,
+          overdue_nodes: 0,
+          completed_minutes: 30,
+          planned_minutes: 60,
+          review_count: 4,
+          missed_sessions: 0,
+          reminder_enabled: reminder,
+          next_week_deadline: "2026-11-22T23:59:59+07:00",
+        },
+      });
+    if (path.endsWith("/goals") && route.request().method() === "POST") {
+      goals.push({ id: "g", ...route.request().postDataJSON() });
+      return route.fulfill({ status: 201, json: goals[0] });
+    }
+    return route.fulfill({ json: path.endsWith("/goals") ? goals : [] });
+  });
+  await page.goto("/#schedule");
+  const report = page.getByRole("region", { name: "Tổng kết tuần" });
+  await expect(report).toContainText("4 lượt ôn");
+  expect(
+    (await new AxeBuilder({ page }).include(".weekly-summary").analyze())
+      .violations,
+  ).toEqual([]);
+  await report.getByLabel("Tên mục tiêu").fill("Ôn chương một");
+  await report.getByRole("button", { name: "Lưu mục tiêu" }).click();
+  await expect.poll(() => goals.length).toBe(1);
+  await report.getByRole("button", { name: /Tắt nhắc/ }).click();
+  await page.reload();
+  await expect(report.getByRole("button", { name: /Bật nhắc/ })).toBeVisible();
+  await expect(
+    report.getByRole("option", { name: "Ôn chương một" }),
+  ).toHaveCount(1);
+});
+
 test("course list fits the viewport and exposes accessible controls", async ({
   page,
 }) => {

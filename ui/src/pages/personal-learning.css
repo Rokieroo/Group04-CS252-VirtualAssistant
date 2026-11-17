@@ -1,0 +1,29 @@
+@layer study-legacy {
+.personal-library {
+  display: grid;
+  gap: var(--space-4);
+}
+.personal-library .core-panel p,
+.personal-library .core-panel label,
+.learning-guide p,
+.weekly-summary p,
+.weekly-summary label {
+  color: var(--color-text);
+}
+.personal-library a, .weekly-summary a {
+  text-decoration: underline;
+}
+.personal-library fieldset {
+  min-width: 0;
+}
+.live-workspace .weekly-summary label,
+.live-workspace .weekly-summary input,
+.live-workspace .weekly-summary select {
+  color: var(--color-text);
+}
+.live-workspace .weekly-summary input,
+.live-workspace .weekly-summary select {
+  background: var(--color-surface);
+}
+
+}

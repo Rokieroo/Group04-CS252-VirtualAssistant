@@ -37,6 +37,7 @@ from .models import (
     Team,
     User,
 )
+from .routes_learning import personal_library
 from .schemas import Login, ProfilePatch, Register, TokenOut, UserOut
 from .security import hash_password, token_hash, verify_password
 
@@ -166,6 +167,8 @@ def export_user_data(user: CurrentUser, db: DB, request: Request):
         "parental_consent_at": user.parental_consent_at,
         "timezone": user.timezone,
         "personality": user.personality,
+        "guide_enabled": bool(user.guide_enabled),
+        "weekly_reminder": bool(user.weekly_reminder),
         "created_at": str(user.created_at),
     }
 
@@ -401,6 +404,7 @@ def export_user_data(user: CurrentUser, db: DB, request: Request):
         "review_logs": review_logs_data,
         "exercise_attempts": attempts_data,
         "placements": placements_data,
+        "personal_library": personal_library(db, user, request),
     }
 
 
