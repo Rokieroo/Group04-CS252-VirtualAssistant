@@ -836,24 +836,6 @@ test("node panel remains accessible with source metadata and inactive gateways",
         })),
       })),
   ).toEqual([]);
-  await page.evaluate(() => {
-    document.documentElement.dataset.theme = "windy";
-    window.dispatchEvent(new Event("study-companion:appearance"));
-  });
-  const windyPanel = await new AxeBuilder({ page })
-    .include(".node-panel-container")
-    .analyze();
-  expect(
-    windyPanel.violations
-      .filter((v) => v.impact === "serious" || v.impact === "critical")
-      .map((v) => ({
-        id: v.id,
-        nodes: v.nodes.map((n) => ({
-          target: n.target,
-          summary: n.failureSummary,
-        })),
-      })),
-  ).toEqual([]);
   await page
     .getByRole("button", { name: "Trang chặng (S6)", exact: true })
     .click();
@@ -1071,14 +1053,19 @@ test("dark graph controls and list remain readable at enlarged text size", async
     document.documentElement.dataset.theme = "windy";
     window.dispatchEvent(new Event("study-companion:appearance"));
   });
-  const windyResults = await new AxeBuilder({ page })
-    .include(".kg-filter-bar")
-    .include(".kg-list-view-container")
-    .withTags(["wcag2a", "wcag2aa"])
-    .analyze();
-  expect(
-    windyResults.violations.filter(
-      (v) => v.impact === "critical" || v.impact === "serious",
-    ),
-  ).toEqual([]);
+  for (const theme of ["windy", "flame"] as const) {
+    await page.evaluate((t) => {
+      document.documentElement.dataset.theme = t;
+    }, theme);
+    const themedResults = await new AxeBuilder({ page })
+      .include(".kg-filter-bar")
+      .include(".kg-list-view-container")
+      .withTags(["wcag2a", "wcag2aa"])
+      .analyze();
+    expect(
+      themedResults.violations.filter(
+        (v) => v.impact === "critical" || v.impact === "serious",
+      ),
+    ).toEqual([]);
+  }
 });

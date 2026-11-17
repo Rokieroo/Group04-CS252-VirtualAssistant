@@ -23,6 +23,10 @@
     font-size: 15px;
     line-height: 1.5;
   }
+  :root:is([data-theme="windy"], [data-theme="flame"])
+    :is([data-astryx-theme], .study-companion, dialog) {
+    color-scheme: light;
+  }
   :root[data-theme="windy"] .study-companion {
     --color-bg: #acb6e5;
     --color-surface: rgba(255, 255, 255, 0.86);
