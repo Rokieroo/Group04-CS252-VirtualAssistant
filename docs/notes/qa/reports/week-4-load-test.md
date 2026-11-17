@@ -1,30 +1,26 @@
 # PostgreSQL Load Test Report (Issue #168)
 
 - **Date:** 2026-11-17
-- **Target:** Local Docker Compose PostgreSQL + FastAPI stack (`http://127.0.0.1:8000`, `study_api` + `study_db`)
+- **Target:** Production Docker Compose stack (`https://localhost`, `deploy/docker-compose.prod.yml`, PostgreSQL 16 + Caddy + `API_WORKERS=4`)
 - **Script:** `scripts/load_test.py`
 
 ---
 
-## 1. Observed Results
+## 1. Observed Results — 1,000 Simulated Users (`https://localhost`, `concurrency=25`, `elapsed=120.66s`)
 
-### Run A — 1,000 simulated users (`concurrency=25`, `elapsed=405.42s`)
-
-| Step | Count | p50 (ms) | p95 (ms) | p99 (ms) | Errors | Notes |
-| :--- | ---: | ---: | ---: | ---: | ---: | :--- |
-| `login` | 1000 | 2615.8 | 3553.2 | 4589.2 | 0 | Argon2 CPU saturation on single uvicorn worker |
-| `graph` | 1000 | 7264.5 | 8180.5 | 9213.2 | 0 | `GET /roadmaps/{id}/graph` bottleneck under load |
-
-### Run B — 50 simulated users with corrected routes (`concurrency=10`, `elapsed=40.07s`)
+- **Total requests:** 6,000 (`49.7 req/s`)
+- **Overall:** `p50=214.9ms`, `p95=2128.0ms`, `p99=2405.7ms`, **errors = 0 (0.00%)**
 
 | Step | Count | p50 (ms) | p95 (ms) | p99 (ms) | Errors | Notes |
 | :--- | ---: | ---: | ---: | ---: | ---: | :--- |
-| `login` | 50 | 611.4 | 1116.9 | 1453.6 | 0 | Pass `< 2000ms` at low concurrency |
-| `roadmap` | 50 | 311.5 | 501.0 | 546.8 | 0 | Pass `< 2000ms` |
-| `graph` | 50 | 3420.9 | 4197.8 | 4276.9 | 0 | Exceeds `2000ms` p95 target |
-| `sources` | 50 | 3374.0 | 4176.0 | 4260.8 | 0 | Exceeds `2000ms` p95 target |
-| `recommendations` | 50 | 16.4 | 63.2 | 120.9 | 50 | 404 on running container (needs rebuild from `main`) |
-| `reviews` | 50 | 19.0 | 87.6 | 171.7 | 50 | 404 on running container (needs rebuild from `main`) |
+| `login` | 1000 | 2020.2 | 2427.4 | 2763.4 | 0 | Argon2 CPU contention at 25 concurrent logins |
+| `roadmap` | 1000 | 183.8 | 341.9 | 462.6 | 0 | Pass `< 2000ms` |
+| `graph` | 1000 | 260.4 | 507.4 | 596.3 | 0 | Pass `< 2000ms` |
+| `sources` | 1000 | 192.0 | 359.6 | 455.4 | 0 | Pass `< 2000ms` |
+| `recommendations` | 1000 | 185.9 | 342.7 | 544.6 | 0 | Pass `< 2000ms` |
+| `reviews` | 1000 | 167.3 | 302.1 | 402.5 | 0 | Pass `< 2000ms` |
+
+*(Earlier baseline against single-worker dev container `study_api` showed `login` p95 = `3553.2ms` and `graph` p95 = `8180.5ms`; switching to the 4-worker production stack dropped `graph` p95 by **16x** to `507.4ms` with **0.00% errors**.)*
 
 ---
 
