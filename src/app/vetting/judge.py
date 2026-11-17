@@ -8,6 +8,8 @@ that address the grader are removed before the judge ever sees them.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import json
 import logging
 import re
@@ -44,20 +46,54 @@ SCHEMA = {
 # Defence in depth for spec 11.9: a sentence that talks to the grader is not content.
 _COMMAND = re.compile(
     r"""
-      \b(?:ignore|disregard|forget|override)\b[^.!?]{0,40}
+      \b(?:ignore|disregard|forget|override)\b[^.!?]{0,50}
         \b(?:instructions?|prompts?|rules?|rubric|guidelines?)\b
+    | \b(?:ignorez|oubliez)\b[^.!?]{0,50}
+        \b(?:instructions?|r[eè]gles?|consignes?)\b
     | \b(?:rate|score|grade|mark|rank)\b[^.!?]{0,30}
-        \b(?:this|the)\s+(?:page|resource|article|document|site|content|text)\b
+        \b(?:this|the)\s+(?:page|resource|article|document|site|content|text|source)\b
     | \b(?:you\s+are|act\s+as|pretend\s+to\s+be)\b[^.!?]{0,20}
         \b(?:ai|assistant|model|judge|grader|reviewer|evaluator)\b
+    | \b(?:you\s+are|act\s+as|switch)\b[^.!?]{0,40}
+        \b(?:admin\s+mode|maintenance\s+mode|developer\s+mode|unfiltered|unrestricted|jailbroken)\b
+    | \[[^\]]{0,30}\b(?:instructions?|system|bot|llm|ai)\b[^\]]{0,30}\]\s*:
+    | \b(?:system|bot|llm|admin)\s*(?:directive|override)\s*:
+    | \b(?:assistant|system)\s*:\s*(?:user|ignore|override|switch|grant|print|output|execute)
     | \bsystem\s+prompt\b
+    | \bbypass\s+(?:the\s+)?(?:safety|safeguards?|filters?|moderation)\b
     | \b(?:relevance|level_fit|pedagogy|evidence_quote)\b\s*["']?\s*[:=]
     | \bbỏ\s+qua\b[^.!?]{0,30}\b(?:hướng\s+dẫn|chỉ\s+dẫn|lệnh|yêu\s+cầu|quy\s+tắc)\b
     | \bchấm\b[^.!?]{0,20}\b(?:điểm|trang\s+này|bài\s+này)\b
     """,
     re.IGNORECASE | re.VERBOSE,
 )
+_MARKDOWN_EXFIL = re.compile(
+    r"!?\[[^\]]*\]\(https?://[^)\s]*(?:\{\{[^}]+\}\}|secret|token|api[_-]?key|chat_history)[^)\s]*\)",
+    re.IGNORECASE,
+)
+_BASE64_TOKEN = re.compile(r"\b[A-Za-z0-9+/]{24,}={0,2}\b")
 _SENTENCE = re.compile(r"[^.!?]+[.!?]*|[.!?]+")
+
+
+def _has_command(sentence: str) -> bool:
+    if _COMMAND.search(sentence):
+        return True
+    for token in _BASE64_TOKEN.findall(sentence):
+        try:
+            decoded = base64.b64decode(token, validate=True).decode("utf-8", errors="ignore")
+        except (ValueError, binascii.Error):
+            continue
+        if decoded and _COMMAND.search(decoded):
+            return True
+    return False
+
+
+def strip_commands(text: str) -> str:
+    """``text`` without the sentences that address the grader; otherwise unchanged."""
+    cleaned = _MARKDOWN_EXFIL.sub("", text)
+    return "".join(
+        sentence for sentence in _SENTENCE.findall(cleaned) if not _has_command(sentence)
+    ).strip()
 
 
 @dataclass(frozen=True)
@@ -70,13 +106,6 @@ class Judgement:
 
 
 FAILED = Judgement(0.0, 0.0, 0.0, "", "")
-
-
-def strip_commands(text: str) -> str:
-    """``text`` without the sentences that address the grader; otherwise unchanged."""
-    return "".join(
-        sentence for sentence in _SENTENCE.findall(text) if not _COMMAND.search(sentence)
-    ).strip()
 
 
 def _rubric(value: object) -> float:

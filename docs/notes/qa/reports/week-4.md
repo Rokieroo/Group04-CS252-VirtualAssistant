@@ -76,12 +76,13 @@ Reproduce: `python -m pytest tests/test_safeguards.py tests/test_safe_fetch.py t
 
 | Configuration | Total Nodes | Covered Nodes | Node Coverage | Precision@5 | nDCG@5 | Avg Formats in Top-5 |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `db_only` | 50 | 40 | 80.0% | 0.279 | 0.344 | 1.15 |
-| `db_plus_external` | 50 | 50 | 100.0% | 0.828 | 0.874 | 3.00 |
-| `db_plus_external_plus_feedback` | 50 | 50 | 100.0% | 0.892 | 0.921 | 3.00 |
+| `db_only` | 50 | 38 | 76.0% | 0.398 | 0.445 | 1.05 |
+| `db_plus_external` | 50 | 50 | 100.0% | 0.828 | 0.873 | 3.00 |
+| `db_plus_external_plus_feedback` | 50 | 50 | 100.0% | 0.892 | 0.920 | 3.00 |
 
 How to read it:
-- `db_only` is the only row with human labels behind it (#106 resources, assigned to the closest week); its low precision and 80 % coverage say the catalog pool is thin, not that matching is wrong.
+
+- `db_only` is the only row with human labels behind it (#106 resources, assigned to the closest week); its low precision and 76 % coverage say the catalog pool is thin, not that matching is wrong.
 - The two external rows are **pipeline checks, not quality**: the five on-topic pages per node are written to be on-topic, so precision mostly shows that vetting drops the off-topic page and keeps a thin outline (counted as not good). The feedback row uses the fixture labels as votes (an oracle), so +0.064 P@5 is an upper bound on what votes can add.
 - Real recommendation quality is still **unmeasured**: it needs recorded responses from the #157 providers with blind labels, or an `--llm` run.
 
@@ -94,10 +95,10 @@ Pirated and adult pages are written **on-topic**, so only the domain policy and 
 | K-12 adult-rated pages (`<meta name="rating" content="adult">`), `Learner(k12=True)` | **0 / 3** in top-5 |
 | External recommendations marked `verified` | **0** |
 | Negative feedback dismissal (`not_helpful` sets `dismissed_at`) | pass |
-| Pirated URLs (`eval/fixtures/redteam/pirated_urls.jsonl`) | **FAIL: 5 in top-5.** 14 / 20 domains are not `BLOCKED` (file lockers such as mega.nz and mediafire.com, `t.me`, pastebin, cheat services, torrent trackers) |
-| Prompt-injection pages (15 fixtures) | **FAIL: 1 in top-5.** `strip_commands` removes **0 / 15** directives: its patterns miss "[INSTRUCTION]", "rate this source", French, base64 and directives inside HTML comments |
+| Pirated URLs (`eval/fixtures/redteam/pirated_urls.jsonl`) | **FAIL: 2 in top-5** (was 5). 18 / 20 domains are now `BLOCKED`: real file lockers (mega.nz, mediafire.com, rapidgator, anonfiles), `t.me`, paste sites, warez forums, and `token:` rules for torrent hosts and bypass services named after a blocked answer dump (`chegg-…`, `coursehero-…`, `studocu-…`). `vet()` now enforces `BLOCKED` for any fetcher. Still shown: `scribd-vips.xyz` and `leaked-textbooks.ru` |
+| Prompt-injection pages (15 fixtures) | **FAIL: 1 in top-5** (`inj_04`: its directive is stripped, and the on-topic sentence left is shown). Directives neutralized **10 / 15** (was 0): 3 hidden in comments, `<script>` and `onerror` are dropped by `read_document`; `strip_commands` now removes bracketed bot labels, mode switches ("maintenance mode", "unfiltered"), role spoofing (`Assistant:`), French "ignorez les instructions", "bypass safety", `{{…}}` markdown exfiltration and base64-encoded directives. Kept: SQL, "print to all students", "repeat infinitely", the false-fact page and "forget context" |
 
-The two failures are product gaps, kept visible as strict `xfail` tests in `tests/test_recommendations_eval.py` (they turn red once fixed, so the markers get removed). Fixing them is a policy decision, not a fixture change: blocking file-locker and cheat-service domains by category, and widening `strip_commands` (or relying on the model plus the `<page_text>` data block, measured with `--llm`). Adding the fixture's invented domains to the blocklist would only fit the test set.
+Not done on purpose: the two remaining pirated hosts and the five remaining directives were invented for this fixture set, so blocking those exact names or phrases would only fit the test set. Rules like `drop table`, `execute this query`, `and print …` and `always cite` would also strip real SQL, I/O and writing lessons; `tests/test_vetting.py` now checks that such course text survives. The two gates stay strict `xfail` in `tests/test_recommendations_eval.py`. Closing them needs a policy decision: either drop every page that tries to address the grader (this also drops security lectures that quote injections), or rely on the model and the `<page_text>` data block, measured with `--llm`.
 
 Reproduce: `python eval/run_recommendations.py` and `pytest -q tests/test_recommendations_eval.py`.
 
@@ -105,12 +106,11 @@ Reproduce: `python eval/run_recommendations.py` and `pytest -q tests/test_recomm
 
 ## 7. Suite Totals, Known Limitations & Reproduction (#67)
 
-- **Backend test suite (SQLite):** `pytest -q tests/` runs the full backend unit and integration suite across all Phase 1–4 modules (`90 passed, 2 xfailed` on `test_vetting.py`, `test_safe_fetch.py`, and `test_recommendations_eval.py` on `main` prior to merging `#160`; **923 passed** in full suite run with `#160` fixes applied). PostgreSQL parity (`PATHLY_TEST_DATABASE_URL`) is verified in CI (`postgres-integration` job in `.github/workflows/ci.yml`).
+- **Backend test suite (SQLite):** `pytest -q tests/` runs the full Phase 1–4 backend suite across SQLite (`test_vetting.py`, `test_safe_fetch.py`, `test_recommendations_eval.py` pass with 2 `xfail`s documented in Section 6; `test_graph_eval.py`, `test_concepts.py`, `test_roadmap_graph_api.py` pass `47 / 48` with `test_graph_performance_300_nodes[sqlite]` at `357.1 ms`). PostgreSQL parity (`PATHLY_TEST_DATABASE_URL`) is verified in CI (`postgres-integration` job in `.github/workflows/ci.yml`).
 - **UI & E2E tests:** Maintained in `ui/` (`pnpm test`, `pnpm run build`, `pnpm run test:e2e`) and executed in CI (`frontend` job); `pnpm` was not installed in this local Windows shell.
-- **Load test (#168):** Recorded separately in `docs/notes/qa/reports/week-4-load-test.md` (`1,000` simulated users against `deploy/docker-compose.prod.yml` with `API_WORKERS=4`: `0.00%` error rate across `6,000` requests, `p95 <= 507.4 ms` on all 5 core read/API endpoints, `login` `p95 = 2427.4 ms` due to Argon2 CPU contention).
+- **Load test (#168):** Recorded separately in `docs/notes/qa/reports/week-4-load-test.md` (`1,000` simulated sessions at `concurrency=25` against `deploy/docker-compose.prod.yml` with `API_WORKERS=4`: `0.00%` error rate across `6,000` requests, all 5 read endpoints `p95 <= 507.4 ms`, overall `p95 = 2128.0 ms` due to `login` Argon2 contention at `2427.4 ms`).
 - **Open limitations remaining across Week 4:**
   1. Live `--llm` runs for `eval/run_resources.py` and `eval/run_graph.py` require an active external LLM quota.
   2. `eval/exercises.jsonl` cases are synthetic fixtures; real licensed textbook excerpts are needed before claiming live grading agreement (`#115`).
   3. The 30 answer-leak attacks (`eval/fixtures/redteam/answer_leaks.jsonl`) are validated for schema/format in `tests/test_safeguards.py`; end-to-end execution against `#163` hint/grading paths remains open.
-
-
+  4. Two strict `xfail` red-team gaps in Section 6 (`#160`) and the `login` p95 / `pg_stat_statements` items in `week-4-load-test.md` (`#168`) remain open.

@@ -225,6 +225,18 @@ def test_external_results_7_day_cache(client, app):
         assert get_external_cached(db, query_hash, provider) is None
 
 
+def test_concurrent_external_cache_write_keeps_the_first_row(client, app, monkeypatch):
+    """Two first-time requests race to cache one query; the loser must not 500 (#168 load test)."""
+    query_hash, provider = "race0123456789ab", "recommender"
+    with app.state.database.sessions() as other:
+        set_external_cache(other, query_hash, provider, {"first": 1})
+    with app.state.database.sessions() as db:
+        monkeypatch.setattr(db, "get", lambda *args, **kwargs: None)  # read before the commit
+        set_external_cache(db, query_hash, provider, {"second": 2})
+    with app.state.database.sessions() as db:
+        assert get_external_cached(db, query_hash, provider) == {"first": 1}
+
+
 def test_enrich_recommendations_batches_queries(app, user_a):
     """Enriching a list of recommendations uses one query per reference source type."""
     import json

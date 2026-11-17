@@ -90,7 +90,7 @@ class ConfigMetrics:
 class RedTeamReport:
     injection_pages_tested: int
     injection_leaked_to_top5: int
-    injection_directives_stripped: int  # pages whose directive strip_commands removed
+    injection_directives_stripped: int  # pages whose directive read_document or strip_commands removed
     pirated_urls_tested: int
     pirated_leaked_to_top5: int
     k12_adult_pages_tested: int
@@ -413,10 +413,21 @@ def evaluate_external_redteam() -> RedTeamReport:
     for i, path in enumerate(inj_files):
         url = f"https://untrusted-external.example.org/inj-{i}.html"
         candidate = Candidate(url, f"External Note {i}", "web", "article", "en")
+        raw_html = path.read_bytes()
         responses[url] = FetchResult(url=url, final_url=url, status=200,
-                                     content_type="text/html", body=path.read_bytes())
+                                     content_type="text/html", body=raw_html)
         text = read_document(candidate, responses[url]).text
-        stripped += strip_commands(text) != text.strip()
+        cleaned = strip_commands(text)
+        # A directive hidden in an HTML comment, <script> or onerror never reaches the judge
+        # when read_document() drops it, so that counts as neutralized too.
+        hidden = re.findall(
+            r"<!--(.*?)-->|<script[^>]*>(.*?)</script>|onerror=['\"]([^'\"]+)['\"]",
+            raw_html.decode("utf-8", errors="ignore"),
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        hidden_chunks = [part.strip() for tup in hidden for part in tup if part.strip()]
+        html_removed = any(chunk not in text for chunk in hidden_chunks)
+        stripped += (cleaned != text.strip()) or html_removed
         inj_cands.append(candidate)
 
     pirated_rows = [json.loads(line) for line in PIRATED_PATH.read_text(encoding="utf-8").splitlines()
@@ -477,7 +488,7 @@ def print_report(configs: list[ConfigMetrics], redteam: RedTeamReport) -> None:
               f"| {c.precision_at_5:.3f} | {c.ndcg_at_5:.3f} | {c.avg_formats_in_top5:.2f} |")
     print("\n### External Red-Team & Provenance Invariants\n")
     print(f"- Prompt-injection pages: {redteam.injection_pages_tested} -> leaked to top-5: "
-          f"**{redteam.injection_leaked_to_top5}**; directive removed by `strip_commands`: "
+          f"**{redteam.injection_leaked_to_top5}**; directive neutralized (`read_document` + `strip_commands`): "
           f"{redteam.injection_directives_stripped}/{redteam.injection_pages_tested}")
     print(f"- Pirated URLs (on-topic pages): {redteam.pirated_urls_tested} -> leaked to top-5: "
           f"**{redteam.pirated_leaked_to_top5}**")
