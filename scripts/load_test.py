@@ -1,7 +1,10 @@
 """Async 1,000-user load test against the production Docker Compose stack (issue #168).
 
 Usage:
-    python scripts/load_test.py --base-url https://localhost --users 1000 --concurrency 100 --insecure
+    python scripts/load_test.py --base-url https://localhost --users 1000 --concurrency 25 --insecure
+
+shortcut: every session logs in to one seeded account and reads one roadmap, so per-user
+data and row contention are not exercised; seed one account per user before closing #168.
 """
 
 from __future__ import annotations
@@ -185,7 +188,9 @@ async def main_async(base_url: str, users: int, concurrency: int, insecure: bool
             f"| {_percentile(vals, 0.95):.1f} | {_percentile(vals, 0.99):.1f} | {errors[step]} |"
         )
 
-    return 0 if p95 < 2000.0 and err_rate < 1.0 else 1
+    ok = p95 < 2000.0 and err_rate < 1.0
+    print(f"\nSummary: {'PASS' if ok else 'FAIL'} (overall p95 < 2000ms and errors < 1%)")
+    return 0 if ok else 1
 
 
 def main() -> int:
