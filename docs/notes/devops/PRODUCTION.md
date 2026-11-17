@@ -3,7 +3,7 @@
 Runbook cho một server thật phục vụ người học (issue #18). Staging trên Render/Vercel vẫn theo [DEPLOYMENT.md](DEPLOYMENT.md); tài liệu này dành cho một máy chủ riêng (VPS hoặc máy của trường) chạy toàn bộ bằng Docker Compose.
 
 | Thành phần | Ở đâu | Ghi chú |
-|---|---|---|
+| --- | --- | --- |
 | `db` | PostgreSQL 16, volume `pgdata` | Không mở cổng ra ngoài; chỉ mạng `internal` |
 | `migrate` | chạy một lần mỗi lần `up` | `alembic upgrade head` bằng role `pathly_owner` |
 | `api` | FastAPI, 2 worker uvicorn | Đăng nhập DB bằng `pathly_app` (chỉ đọc/ghi dòng), `RUN_MIGRATIONS=0` |
@@ -16,7 +16,7 @@ Mọi file nằm trong `deploy/` và `db/postgres/`.
 ## Vai trò trong database
 
 | Role | Quyền | Ai dùng |
-|---|---|---|
+| --- | --- | --- |
 | `postgres` | superuser | Chỉ lần khởi tạo volume đầu tiên |
 | `pathly_owner` | chủ schema, tạo/sửa bảng | `migrate`, `backup` |
 | `pathly_app` | `SELECT/INSERT/UPDATE/DELETE` trên mọi bảng, không DDL | `api`, `worker` |
@@ -93,7 +93,7 @@ Khôi phục đè lên database đang chạy: dừng `api`, `worker`; `dropdb`/`
 ## Xử lý sự cố
 
 | Dấu hiệu | Kiểm tra |
-|---|---|
+| --- | --- |
 | `api` không healthy | `logs api`; thường do sai `PATHLY_APP_PASSWORD` hoặc `migrate` chưa xong |
 | `permission denied for table …` | Bảng tạo bằng role khác `pathly_owner`; chạy lại `roles.sql` |
 | HTTPS lỗi | Tên miền chưa trỏ đúng IP, hoặc cổng 80 bị chặn (Let's Encrypt cần cổng 80) |
