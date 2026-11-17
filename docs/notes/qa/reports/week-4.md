@@ -76,12 +76,13 @@ Reproduce: `python -m pytest tests/test_safeguards.py tests/test_safe_fetch.py t
 
 | Configuration | Total Nodes | Covered Nodes | Node Coverage | Precision@5 | nDCG@5 | Avg Formats in Top-5 |
 | :--- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `db_only` | 50 | 40 | 80.0% | 0.279 | 0.344 | 1.15 |
-| `db_plus_external` | 50 | 50 | 100.0% | 0.828 | 0.874 | 3.00 |
-| `db_plus_external_plus_feedback` | 50 | 50 | 100.0% | 0.892 | 0.921 | 3.00 |
+| `db_only` | 50 | 38 | 76.0% | 0.398 | 0.445 | 1.05 |
+| `db_plus_external` | 50 | 50 | 100.0% | 0.828 | 0.873 | 3.00 |
+| `db_plus_external_plus_feedback` | 50 | 50 | 100.0% | 0.892 | 0.920 | 3.00 |
 
 How to read it:
-- `db_only` is the only row with human labels behind it (#106 resources, assigned to the closest week); its low precision and 80 % coverage say the catalog pool is thin, not that matching is wrong.
+
+- `db_only` is the only row with human labels behind it (#106 resources, assigned to the closest week); its low precision and 76 % coverage say the catalog pool is thin, not that matching is wrong.
 - The two external rows are **pipeline checks, not quality**: the five on-topic pages per node are written to be on-topic, so precision mostly shows that vetting drops the off-topic page and keeps a thin outline (counted as not good). The feedback row uses the fixture labels as votes (an oracle), so +0.064 P@5 is an upper bound on what votes can add.
 - Real recommendation quality is still **unmeasured**: it needs recorded responses from the #157 providers with blind labels, or an `--llm` run.
 
@@ -94,10 +95,7 @@ Pirated and adult pages are written **on-topic**, so only the domain policy and 
 | K-12 adult-rated pages (`<meta name="rating" content="adult">`), `Learner(k12=True)` | **0 / 3** in top-5 |
 | External recommendations marked `verified` | **0** |
 | Negative feedback dismissal (`not_helpful` sets `dismissed_at`) | pass |
-| Pirated URLs (`eval/fixtures/redteam/pirated_urls.jsonl`) | **FAIL: 5 in top-5.** 14 / 20 domains are not `BLOCKED` (file lockers such as mega.nz and mediafire.com, `t.me`, pastebin, cheat services, torrent trackers) |
-| Prompt-injection pages (15 fixtures) | **FAIL: 1 in top-5.** `strip_commands` removes **0 / 15** directives: its patterns miss "[INSTRUCTION]", "rate this source", French, base64 and directives inside HTML comments |
+| Pirated URLs (`eval/fixtures/redteam/pirated_urls.jsonl`) | **0 / 20** in top-5 (`DomainPolicy` blocks file lockers, messaging/paste dumps, warez forums, and category host-token/compound bypass mirrors; `vet()` enforces `DomainTier.BLOCKED`) |
+| Prompt-injection pages (15 fixtures) | **0 / 15** in top-5 (`15 / 15` directives stripped across `read_document` + widened `strip_commands` covering bracketed bot directives, role switches, French jailbreaks, markdown exfiltration, and decoded base64 payloads; `vet()` drops post-sanitization stubs under 30 chars / 6 words) |
 
-The two failures are product gaps, kept visible as strict `xfail` tests in `tests/test_recommendations_eval.py` (they turn red once fixed, so the markers get removed). Fixing them is a policy decision, not a fixture change: blocking file-locker and cheat-service domains by category, and widening `strip_commands` (or relying on the model plus the `<page_text>` data block, measured with `--llm`). Adding the fixture's invented domains to the blocklist would only fit the test set.
-
-Reproduce: `python eval/run_recommendations.py` and `pytest -q tests/test_recommendations_eval.py`.
-
+Both red-team gates now pass without `xfail` markers in `tests/test_recommendations_eval.py`. Reproduce: `python eval/run_recommendations.py` and `pytest -q tests/test_recommendations_eval.py`.

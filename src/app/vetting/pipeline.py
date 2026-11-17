@@ -22,7 +22,7 @@ from app.vetting import score
 from app.vetting.document import Document, read_document
 from app.vetting.fetch import FetchResult, SafeFetcher
 from app.vetting.filters import Deduper, Learner, content_failure, fetch_failure
-from app.vetting.judge import judge
+from app.vetting.judge import judge, strip_commands
 from app.vetting.policy import DomainTier, default_policy
 
 __all__ = ["Node", "ScoredResource", "Vetting", "resource_format", "vet"]
@@ -183,8 +183,24 @@ def vet(
         return Vetting([], dropped)
 
     policy = fetcher.policy if fetcher else default_policy()
+    kept_pages: list[_Page] = []
+    clean_texts: list[str] = []
+    for page in pages:
+        if policy.tier(page.fetched.final_url) is DomainTier.BLOCKED:
+            dropped.append((page.candidate.url, "blocked_domain"))
+            continue
+        cleaned = strip_commands(page.document.text)
+        if len(cleaned) < 30 or len(cleaned.split()) < 6:
+            dropped.append((page.candidate.url, "no_text"))
+            continue
+        kept_pages.append(page)
+        clean_texts.append(cleaned)
+    pages = kept_pages
+    if not pages:
+        return Vetting([], dropped)
+
     goal = " ".join((node.title, *node.outcomes))
-    lexical = score_against(goal, [page.document.text for page in pages])
+    lexical = score_against(goal, clean_texts)
     tiers = [policy.tier(page.fetched.final_url) for page in pages]
     # Judge the likeliest pages first, so the budget and the early stop cost the least.
     order = sorted(

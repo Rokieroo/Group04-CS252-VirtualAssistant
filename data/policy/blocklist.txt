@@ -28,9 +28,58 @@ dokumen.tips
 # Homework and exam answer dumps
 chegg.com
 coursehero.com
+studocu.com
+bartleby.com
 
-# Piracy indexes
+# Piracy indexes & warez forums
 thepiratebay.*
 1337x.*
 rarbg.*
 kickass.*
+nulled.*
+cracked.*
+
+# Anonymous file lockers (unvetted binary/PDF shares)
+mega.nz
+mega.io
+mediafire.com
+rapidgator.*
+anonfiles.*
+uploaded.net
+turbobit.*
+nitroflare.*
+1fichier.com
+gofile.io
+pixeldrain.com
+sendspace.com
+zippyshare.*
+
+# Public messaging channels & paste/leak dumps
+t.me
+telegram.me
+pastebin.*
+doxbin.*
+ghostbin.*
+rentry.*
+controlc.com
+
+# Category host-token & compound rules (whole hyphen-delimited tokens in host labels)
+token:torrent
+token:torrents
+token:unlocker
+token:chegg
+token:coursehero
+token:studocu
+compound:scribd+vips
+compound:scribd+downloader
+compound:scribd+ripper
+compound:scribd+unlocker
+compound:leaked+textbooks
+compound:leaked+textbook
+compound:leaked+exams
+compound:leaked+exam
+compound:leaked+answers
+compound:leaked+slides
+compound:exam+dump
+compound:exam+dumps
+compound:answer+dump

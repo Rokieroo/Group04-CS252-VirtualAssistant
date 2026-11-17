@@ -413,10 +413,21 @@ def evaluate_external_redteam() -> RedTeamReport:
     for i, path in enumerate(inj_files):
         url = f"https://untrusted-external.example.org/inj-{i}.html"
         candidate = Candidate(url, f"External Note {i}", "web", "article", "en")
+        raw_html = path.read_bytes()
         responses[url] = FetchResult(url=url, final_url=url, status=200,
-                                     content_type="text/html", body=path.read_bytes())
+                                     content_type="text/html", body=raw_html)
         text = read_document(candidate, responses[url]).text
-        stripped += strip_commands(text) != text.strip()
+        cleaned = strip_commands(text)
+        # Count directives stripped by strip_commands() or removed by read_document()
+        # (HTML comments, <script>, onerror) whose raw text also matches strip_commands().
+        hidden = re.findall(
+            r"<!--(.*?)-->|<script[^>]*>(.*?)</script>|onerror=['\"]([^'\"]+)['\"]",
+            raw_html.decode("utf-8", errors="ignore"),
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+        hidden_chunks = [part.strip() for tup in hidden for part in tup if part.strip()]
+        html_removed = any(chunk not in text and strip_commands(chunk) != chunk for chunk in hidden_chunks)
+        stripped += (cleaned != text.strip()) or html_removed
         inj_cands.append(candidate)
 
     pirated_rows = [json.loads(line) for line in PIRATED_PATH.read_text(encoding="utf-8").splitlines()

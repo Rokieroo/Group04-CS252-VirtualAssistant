@@ -33,39 +33,58 @@ class DomainTier(IntEnum):
 
 @dataclass(frozen=True)
 class _Rules:
-    """Entries from one list: exact suffixes, and ``name.*`` bases."""
+    """Entries from one list: suffixes, ``name.*`` bases, and category tokens."""
 
     suffixes: frozenset[str]
     any_tld: frozenset[str]
+    tokens: frozenset[str] = frozenset()
+    compounds: tuple[tuple[str, str], ...] = ()
 
     @classmethod
     def read(cls, path: Path) -> _Rules:
-        suffixes, any_tld = set(), set()
+        suffixes, any_tld, tokens = set(), set(), set()
+        compounds: list[tuple[str, str]] = []
         if path.is_file():
             for line in path.read_text(encoding="utf-8").splitlines():
                 entry = line.split("#", 1)[0].strip().casefold().strip(".")
                 entry = entry.removeprefix("*.")
                 if not entry:
                     continue
-                if entry.endswith(".*"):
+                if entry.startswith("token:"):
+                    tok = entry.removeprefix("token:").strip()
+                    if tok:
+                        tokens.add(tok)
+                elif entry.startswith("compound:") and "+" in entry:
+                    parts = [p.strip() for p in entry.removeprefix("compound:").split("+", 1)]
+                    if len(parts) == 2 and parts[0] and parts[1]:
+                        compounds.append((parts[0], parts[1]))
+                elif entry.endswith(".*"):
                     any_tld.add(entry[:-2])
                 else:
                     suffixes.add(entry)
-        return cls(frozenset(suffixes), frozenset(any_tld))
+        return cls(frozenset(suffixes), frozenset(any_tld), frozenset(tokens), tuple(compounds))
 
     def union(self, domains: frozenset[str]) -> _Rules:
-        return _Rules(self.suffixes | domains, self.any_tld)
+        return _Rules(self.suffixes | domains, self.any_tld, self.tokens, self.compounds)
 
     def match(self, labels: list[str]) -> bool:
         # Suffix entry: the host is the entry or one of its subdomains.
         if any(".".join(labels[i:]) in self.suffixes for i in range(len(labels))):
             return True
         # "name.*" entry: the name followed by at least one more label.
-        return any(
+        if any(
             ".".join(labels[i:j]) in self.any_tld
             for i in range(len(labels))
             for j in range(i + 1, len(labels))
-        )
+        ):
+            return True
+        if self.tokens or self.compounds:
+            host_tokens = {tok for label in labels[:-1] for tok in label.split("-") if tok}
+            if not host_tokens.isdisjoint(self.tokens):
+                return True
+            if any(a in host_tokens and b in host_tokens for a, b in self.compounds):
+                return True
+        return False
 
 
 def _labels(url: str) -> list[str]:
