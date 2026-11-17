@@ -9,12 +9,14 @@
 ## 1. Observed Results
 
 ### Run A — 1,000 simulated users (`concurrency=25`, `elapsed=405.42s`)
+
 | Step | Count | p50 (ms) | p95 (ms) | p99 (ms) | Errors | Notes |
 | :--- | ---: | ---: | ---: | ---: | ---: | :--- |
 | `login` | 1000 | 2615.8 | 3553.2 | 4589.2 | 0 | Argon2 CPU saturation on single uvicorn worker |
 | `graph` | 1000 | 7264.5 | 8180.5 | 9213.2 | 0 | `GET /roadmaps/{id}/graph` bottleneck under load |
 
 ### Run B — 50 simulated users with corrected routes (`concurrency=10`, `elapsed=40.07s`)
+
 | Step | Count | p50 (ms) | p95 (ms) | p99 (ms) | Errors | Notes |
 | :--- | ---: | ---: | ---: | ---: | ---: | :--- |
 | `login` | 50 | 611.4 | 1116.9 | 1453.6 | 0 | Pass `< 2000ms` at low concurrency |
