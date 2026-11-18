@@ -1,4 +1,4 @@
-"""Regression and SQL query-count tests for auth middleware & login hot path."""
+"""The authenticated-request and login hot paths (#168)."""
 
 from __future__ import annotations
 
@@ -7,130 +7,72 @@ from datetime import timedelta
 from conftest import register
 from sqlalchemy import event, select
 
-from assistant.backend import routes_auth
+from assistant.backend import maintenance
 from assistant.backend.models import AuthSession
 
 
-def test_authenticated_request_uses_single_joined_query(app, client, clock):
-    """get_user resolves session + user in one joined SELECT while enforcing expiry."""
-    reg = register(client, email="single_query@example.com")
-    headers = {"Authorization": f"Bearer {reg['access_token']}"}
-
+def _statements(app, action):
     executed: list[str] = []
 
-    def _track(conn, cursor, statement, parameters, context, executemany):
-        executed.append(statement)
+    def track(conn, cursor, statement, parameters, context, executemany):
+        executed.append(statement.lower())
 
     engine = app.state.database.engine
-    event.listen(engine, "before_cursor_execute", _track)
+    event.listen(engine, "before_cursor_execute", track)
     try:
-        res = client.get("/api/v1/me", headers=headers)
+        result = action()
     finally:
-        event.remove(engine, "before_cursor_execute", _track)
+        event.remove(engine, "before_cursor_execute", track)
+    return result, executed
 
-    assert res.status_code == 200
+
+def _sessions_of(app, user_id):
+    with app.state.database.sessions() as db:
+        return set(db.scalars(select(AuthSession.token_hash).where(AuthSession.user_id == user_id)))
+
+
+def _login(client, email):
+    response = client.post(
+        "/api/v1/auth/login", json={"email": email, "password": "correct-horse-123"}
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_an_authenticated_request_reads_session_and_user_in_one_query(app, client, clock):
+    headers = {"Authorization": "Bearer " + register(client)["access_token"]}
+    response, executed = _statements(app, lambda: client.get("/api/v1/me", headers=headers))
+    assert response.status_code == 200
     assert len(executed) == 1
-    assert "auth_sessions" in executed[0].lower()
-    assert "users" in executed[0].lower()
+    assert "auth_sessions" in executed[0] and "users" in executed[0]
 
     clock[0] += timedelta(minutes=app.state.settings.session_minutes + 1)
     assert client.get("/api/v1/me", headers=headers).status_code == 401
 
 
-def test_register_skips_session_delete_and_login_throttles_global_sweep(
-    app, client, clock, monkeypatch
-):
-    """Register never sweeps auth_sessions; logins scope cleanup to user_id between sweeps."""
-    executed: list[str] = []
+def test_login_clears_only_its_own_expired_sessions(app, client, clock):
+    a = register(client, name="A", email="a@example.com")["user"]["id"]
+    b = register(client, name="B", email="b@example.com")["user"]["id"]
+    expired_b = _sessions_of(app, b)
+    clock[0] += timedelta(minutes=app.state.settings.session_minutes + 1)
 
-    def _track(conn, cursor, statement, parameters, context, executemany):
-        executed.append(statement)
+    _, executed = _statements(app, lambda: _login(client, "a@example.com"))
 
-    engine = app.state.database.engine
-    event.listen(engine, "before_cursor_execute", _track)
-    try:
-        reg_a = register(client, name="User A", email="sweep_a@example.com")
-        register_deletes = [
-            s for s in executed if "delete" in s.lower() and "auth_sessions" in s.lower()
-        ]
-        assert register_deletes == []
+    deletes = [s for s in executed if s.startswith("delete from auth_sessions")]
+    assert len(deletes) == 1 and "user_id" in deletes[0]
+    assert len(_sessions_of(app, a)) == 1  # the expired one went, the new one stayed
+    assert _sessions_of(app, b) == expired_b  # left for the daily prune job
 
-        reg_b = register(client, name="User B", email="sweep_b@example.com")
-    finally:
-        event.remove(engine, "before_cursor_execute", _track)
 
-    # First login at monotonic t=100 sweeps globally; second at t=110 scopes to user_id
-    mono = [100.0]
-    monkeypatch.setattr(routes_auth.time, "monotonic", lambda: mono[0])
-    monkeypatch.setattr(routes_auth, "_last_session_sweep", 0.0)
+def test_the_daily_prune_job_sweeps_every_expired_session(app, client, clock):
+    register(client, name="A", email="a@example.com")
+    b = register(client, name="B", email="b@example.com")["user"]["id"]
+    clock[0] += timedelta(minutes=app.state.settings.session_minutes + 1)
+    fresh = _login(client, "b@example.com")
 
-    clock[0] += timedelta(
-        minutes=app.state.settings.session_minutes + 5
-    )  # expire initial tokens for both A and B
-
-    executed.clear()
-    event.listen(engine, "before_cursor_execute", _track)
-    try:
-        res_a = client.post(
-            "/api/v1/auth/login",
-            json={"email": "sweep_a@example.com", "password": "correct-horse-123"},
-        )
-    finally:
-        event.remove(engine, "before_cursor_execute", _track)
-    assert res_a.status_code == 200
-    first_deletes = [
-        s for s in executed if "delete" in s.lower() and "auth_sessions" in s.lower()
-    ]
-    assert len(first_deletes) == 1
-    assert "user_id" not in first_deletes[0].lower()
-
-    # Re-create an expired session for User A to verify User B's quick login uses user_id scope
-    reg_a_login = res_a.json()
-    clock[0] += timedelta(minutes=app.state.settings.session_minutes + 5)
-    mono[0] = 110.0
-
-    executed.clear()
-    event.listen(engine, "before_cursor_execute", _track)
-    try:
-        res_b = client.post(
-            "/api/v1/auth/login",
-            json={"email": "sweep_b@example.com", "password": "correct-horse-123"},
-        )
-    finally:
-        event.remove(engine, "before_cursor_execute", _track)
-    assert res_b.status_code == 200
-    second_deletes = [
-        s for s in executed if "delete" in s.lower() and "auth_sessions" in s.lower()
-    ]
-    assert len(second_deletes) == 1
-    assert "user_id" in second_deletes[0].lower()
-
-    # After sweep interval elapses, global sweep removes stale sessions for other users too
     with app.state.database.sessions() as db:
-        stale_a = list(
-            db.scalars(
-                select(AuthSession).where(
-                    AuthSession.user_id == reg_a["user"]["id"],
-                    AuthSession.expires_at <= clock[0],
-                )
-            )
-        )
-        assert len(stale_a) >= 1 or reg_a_login is not None
-
-    mono[0] = 200.0
-    res_b2 = client.post(
-        "/api/v1/auth/login",
-        json={"email": "sweep_b@example.com", "password": "correct-horse-123"},
-    )
-    assert res_b2.status_code == 200
-    with app.state.database.sessions() as db:
-        remaining_expired_a = list(
-            db.scalars(
-                select(AuthSession).where(
-                    AuthSession.user_id == reg_a["user"]["id"],
-                    AuthSession.expires_at <= clock[0],
-                )
-            )
-        )
-        assert remaining_expired_a == []
-        assert reg_b["user"]["id"] != reg_a["user"]["id"]
+        assert maintenance.prune(db, {}, clock[0])["auth_sessions"] == 1  # A's
+        db.commit()
+        assert db.scalars(select(AuthSession.user_id)).all() == [b]
+    me = client.get("/api/v1/me", headers={"Authorization": "Bearer " + fresh["access_token"]})
+    assert me.status_code == 200

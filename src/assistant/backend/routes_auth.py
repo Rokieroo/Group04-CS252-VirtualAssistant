@@ -3,8 +3,6 @@
 import json
 import logging
 import secrets
-import threading
-import time
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -48,34 +46,19 @@ logger = logging.getLogger(__name__)
 _dummy_hash = hash_password("unregistered-account-placeholder")
 MAX_FAILED_LOGINS = 5
 LOCKOUT = timedelta(minutes=15)
-_SESSION_SWEEP_INTERVAL_SECONDS = 60.0
-_session_sweep_lock = threading.Lock()
-_last_session_sweep = 0.0
 
 
-def _should_sweep_expired_sessions() -> bool:
-    global _last_session_sweep
-    now_mono = time.monotonic()
-    with _session_sweep_lock:
-        if now_mono - _last_session_sweep >= _SESSION_SWEEP_INTERVAL_SECONDS:
-            _last_session_sweep = now_mono
-            return True
-    return False
-
-
-def issue_session(db, user, request, *, prune_expired: bool = True):
+def issue_session(db, user, request):
     raw = secrets.token_urlsafe(32)
     now = request.app.state.now()
     expires = now + timedelta(minutes=request.app.state.settings.session_minutes)
-    if prune_expired:
-        if _should_sweep_expired_sessions():
-            db.execute(delete(AuthSession).where(AuthSession.expires_at <= now))
-        else:
-            db.execute(
-                delete(AuthSession).where(
-                    AuthSession.user_id == user.id, AuthSession.expires_at <= now
-                )
-            )
+    # Only this user's rows, through ix_auth_sessions_user_id; the daily prune job
+    # sweeps everyone else's (#168: a table-wide DELETE per login topped pg_stat).
+    db.execute(
+        delete(AuthSession).where(
+            AuthSession.user_id == user.id, AuthSession.expires_at <= now
+        )
+    )
     db.add(AuthSession(token_hash=token_hash(raw), user_id=user.id, expires_at=expires))
     db.commit()
     return TokenOut(
@@ -106,7 +89,7 @@ def register(data: Register, request: Request, db: DB):
     except IntegrityError:
         db.rollback()
         raise HTTPException(409, "An account with this email already exists") from None
-    return issue_session(db, user, request, prune_expired=False)
+    return issue_session(db, user, request)
 
 
 @router.post(
