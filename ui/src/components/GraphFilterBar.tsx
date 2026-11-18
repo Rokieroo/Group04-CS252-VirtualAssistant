@@ -1,4 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
+import { Button } from "@astryxdesign/core/Button";
+import { Icon } from "@astryxdesign/core/Icon";
+import { defaultGraphFilters } from "../api/graphState";
 import "./GraphFilterBar.css";
 
 export interface FilterState {
@@ -49,6 +52,28 @@ export function GraphFilterBar({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeSuggestion, setActiveSuggestion] = useState(0);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  // Count hidden dimensions, not visible search, milestone or view choices.
+  const activeFilters = [
+    filters.status !== "all" &&
+      {
+        mastered: "Đã vững",
+        in_progress: "Đang học",
+        review_due: "Cần ôn",
+        not_started: "Chưa học",
+        locked: "Đang khóa",
+        available: "Có thể học",
+      }[filters.status],
+    filters.clo,
+    (filters.weekMin !== 1 || filters.weekMax !== 52) &&
+      `Tuần ${filters.weekMin}–${filters.weekMax}`,
+    filters.verifiedOnly && "Nguồn đã kiểm chứng",
+    filters.hideSoftEdges && "Ẩn cạnh tuần (soft)",
+    filters.transitiveReduction && "Thu gọn bắc cầu",
+    filters.isLocalGraph && `Local graph · ${filters.localDepth}`,
+  ].filter(Boolean);
+  const hasFilters =
+    activeFilters.length > 0 || !!filters.search || !!filters.selectedMilestone;
 
   // Global keydown listener for '/' shortcut to focus search
   useEffect(() => {
@@ -115,7 +140,7 @@ export function GraphFilterBar({
           </label>
           <div className="search-input-container">
             <span className="search-icon" aria-hidden="true">
-              🔍
+              <Icon icon="search" size="sm" />
             </span>
             <input
               id="kg-topic-search"
@@ -194,7 +219,7 @@ export function GraphFilterBar({
                   }}
                 >
                   <span className="suggestion-type">
-                    {item.type === "milestone" ? "💎 Mốc" : "📘 Chủ đề"}
+                    {item.type === "milestone" ? "Mốc" : "Chủ đề"}
                   </span>
                   <span className="suggestion-title">{item.title}</span>
                   {item.week && (
@@ -234,7 +259,7 @@ export function GraphFilterBar({
             title="Xem dạng Canvas đồ thị"
             aria-pressed={filters.viewMode === "graph"}
           >
-            📊 Đồ thị
+            Đồ thị
           </button>
           <button
             type="button"
@@ -243,12 +268,38 @@ export function GraphFilterBar({
             title="Xem dạng bảng danh sách tiếp cận (WCAG)"
             aria-pressed={filters.viewMode === "list"}
           >
-            📋 Danh sách
+            Danh sách
           </button>
         </div>
+        <Button
+          label={`Bộ lọc${activeFilters.length ? ` (${activeFilters.length})` : ""}`}
+          icon={<Icon icon="funnel" size="sm" />}
+          size="lg"
+          className="study-button filter-disclosure"
+          aria-expanded={filtersOpen}
+          aria-controls="kg-filter-options"
+          onClick={() => setFiltersOpen(!filtersOpen)}
+        />
       </div>
+      {hasFilters && (
+        <div className="filter-summary">
+          <span role="status">{activeFilters.join(" · ")}</span>
+          <Button
+            label="Xóa bộ lọc"
+            variant="ghost"
+            className="study-button"
+            onClick={() =>
+              onChange({ ...defaultGraphFilters, viewMode: filters.viewMode })
+            }
+          />
+        </div>
+      )}
 
-      <div className="filter-row-secondary">
+      <div
+        id="kg-filter-options"
+        className="filter-row-secondary"
+        hidden={!filtersOpen}
+      >
         {/* Status filter */}
         <div className="filter-item">
           <label htmlFor="kg-status-filter">Trạng thái:</label>
@@ -344,6 +395,7 @@ export function GraphFilterBar({
           <span>Nguồn đã kiểm chứng</span>
         </label>
 
+        <h3 className="filter-advanced-heading">Nâng cao</h3>
         {/* Checkbox: Ẩn cạnh soft */}
         <label className="checkbox-item">
           <input

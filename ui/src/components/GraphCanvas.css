@@ -1,3 +1,4 @@
+@layer study-legacy {
 /* Knowledge graph canvas (#108). One accent for focus and the learning path;
    status reads from fill and ring; every colour derives from the app tokens in
    styles.css, so light, dark and the accent picker all apply. The canvas reads the
@@ -394,4 +395,6 @@
   padding: 12px;
   border: 2px solid var(--color-primary);
   border-radius: 8px;
+}
+
 }

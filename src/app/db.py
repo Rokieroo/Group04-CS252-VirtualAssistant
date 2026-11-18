@@ -88,6 +88,7 @@ _TABLES = (
     "review_logs",
     "exercise_attempts",
     "placements",
+    "personal_sources",
     "search_runs",
     "schedule_entries",
     "notifications",

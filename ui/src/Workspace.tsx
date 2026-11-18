@@ -1,3 +1,4 @@
+import {WeeklySummary} from "./components/WeeklySummary";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   ApiClient, type Auth, type BusyBlock, type ChatReply, type Entry, type Goal, type Invitation,
@@ -79,8 +80,8 @@ export default function Workspace() {
   useEffect(() => {
     if (!token) return;
     const timer = setInterval(() => {
-      api.request<Notification[]>("/api/v1/notifications").then(notifications => {
-        if (activeToken.current === token) setData(current => current && { ...current, notifications });
+      Promise.all([api.request<Notification[]>("/api/v1/notifications"),api.request<Report>("/api/v1/reports/weekly")]).then(([notifications,report]) => {
+        if (activeToken.current === token) setData(current => current && { ...current, notifications, report });
       }).catch(() => { /* Foreground actions expose errors; polling resumes next time. */ });
     }, 30_000);
     return () => clearInterval(timer);
@@ -163,6 +164,13 @@ export default function Workspace() {
             }, "Signed out.")}>Sign out</button>
           </div>
         </div>
+        <WeeklySummary report={data.report} goals={data.goals}
+          onGoal={(id,title,form)=>void run(async()=>{
+            await api.request(id?"/api/v1/goals/"+encodeURIComponent(id):"/api/v1/goals",id?"PATCH":"POST",{title,due_at:data.goals.find(g=>g.id===id)?.due_at ?? data.report.next_week_deadline});
+            form.reset();
+          },"Đã lưu mục tiêu tuần sau.")}
+          onReminder={enabled=>void run(()=>api.request("/api/v1/me/learning-preferences","PATCH",{weekly_reminder:enabled}),"Đã lưu cài đặt nhắc nhở.")}
+          onAvailability={()=>{setTab("Planner");requestAnimationFrame(()=>document.getElementById("available-from")?.focus())}} />
         <div className="workspace-stats" aria-label="This week's progress">
           <div className="card"><b>{data.report.completed_tasks}/{data.report.total_tasks}</b><p>Tasks due this week completed</p></div>
           <div className="card"><b>{data.report.completed_minutes} min</b><p>Study time checked in this week</p></div>
@@ -207,7 +215,7 @@ export default function Workspace() {
                 windows: [...data.windows.map(({ starts_at, ends_at }) => ({ starts_at, ends_at })),
                   { starts_at: iso(values, "start"), ends_at: iso(values, "end") }],
               }), "Availability saved. Preview a new plan.")}>
-                <label>Available from<input type="datetime-local" name="start" defaultValue={localAfter(15)} required /></label>
+                <label>Available from<input id="available-from" type="datetime-local" name="start" defaultValue={localAfter(15)} required /></label>
                 <label>Available until<input type="datetime-local" name="end" defaultValue={localAfter(180)} required /></label>
                 <button className="button">Add availability</button>
               </form>

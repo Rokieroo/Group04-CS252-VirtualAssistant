@@ -18,6 +18,7 @@ from .catalog_models import Concept, ExerciseAttempt, GraphLayout, RoadmapEdge
 from .catalog_repository import node_sources
 from .dependencies import DB, CurrentUser
 from .exercise_repository import exercises_for_node, record_attempt, visible_exercise
+from .library_repository import edit_library, library_items, personal_states
 from .material_repository import decide, node_materials
 from .models import (
     Course,
@@ -91,6 +92,7 @@ class RankedSourceOut(BaseModel):
     format: str
     duration_min: int | None = None
     verification_status: str
+    personal_state: str = "none"
     score: float
     reason: str
 
@@ -184,9 +186,49 @@ def sources(
     limit: int = Query(5, ge=1, le=5),
 ):
     node, roadmap, course = _node(db, node_id, user.id)
-    return node_sources(
+    result = node_sources(
         db, [node], roadmap, course, request.app.state.now(), limit=limit
     )[node.id]
+    states = personal_states(db, node.id)
+    for source in result["sources"]:
+        source["personal_state"] = states.get(source["id"], "none")
+    return result
+
+
+class LibraryEdit(BaseModel):
+    source_key: str = Field(min_length=1, max_length=500)
+    state: Literal["pinned", "hidden", "none"] | None = None
+    note: str | None = Field(default=None, max_length=2000)
+
+
+class LibraryItem(BaseModel):
+    url: str | None = None
+    page: int | None = None
+    node_id: str
+    node_title: str
+    course_id: str
+    course_title: str
+    roadmap_id: str
+    source_key: str
+    title: str
+    state: str
+    note: str
+
+
+@router.get("/me/library", response_model=list[LibraryItem])
+def personal_library(db: DB, user: CurrentUser, request: Request):
+    return library_items(db, user.id, request.app.state.now())
+
+
+@router.patch("/concepts/{node_id}/library", status_code=204)
+def edit_personal_source(
+    node_id: str, data: LibraryEdit, db: DB, user: CurrentUser, request: Request
+):
+    node, roadmap, course = _node(db, node_id, user.id)
+    now = request.app.state.now()
+    if not edit_library(db, node, roadmap, course, data.source_key, data.state, data.note, now):
+        raise HTTPException(404, "Source not available for this node")
+    db.commit()
 
 
 @router.get("/roadmaps/{roadmap_id}/sources:summary", response_model=SourceSummaryOut)

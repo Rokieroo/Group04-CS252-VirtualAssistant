@@ -375,7 +375,21 @@ class MessageOut(Output):
     created_at: datetime
 
 
+class WeeklyNode(Output):
+    id: str
+    title: str
+    roadmap_id: str
+
+
 class ReportOut(Output):
+    completed_nodes: int = 0
+    overdue_nodes: int = 0
+    upcoming_milestones: list[WeeklyNode] = Field(default_factory=list)
+    review_nodes: list[WeeklyNode] = Field(default_factory=list)
+    reminder_due: bool = False
+    reminder_enabled: bool = True
+    next_week_deadline: datetime | None = None
+    review_count: int = 0
     start_date: date
     end_date: date
     total_tasks: int

@@ -32,6 +32,7 @@ EXPECTED_TABLES = {
     "roadmap_nodes",
     "resources",
     "node_resources",
+    "personal_sources",
     "resource_feedback",
     "search_runs",
     # Background jobs and the shared search cache (migration 0006).

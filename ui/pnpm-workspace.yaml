@@ -1,2 +1,4 @@
 allowBuilds:
+  '@astryxdesign/cli': false
+  '@astryxdesign/core': false
   esbuild: true

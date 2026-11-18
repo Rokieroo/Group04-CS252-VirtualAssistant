@@ -99,6 +99,8 @@ class User(Base):
         Integer, default=0, server_default="0"
     )
     parental_consent_at: Mapped[str | None] = mapped_column(Text, nullable=True)
+    guide_enabled: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    weekly_reminder: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
 
 
 class Course(Base):
@@ -428,6 +430,19 @@ class NodeResource(Base):
     status: Mapped[str] = mapped_column(  # shown | replaced | removed (spec 7.1)
         Text, default="shown", server_default="shown"
     )
+
+
+class PersonalSource(Base):
+    """A learner's pin, hide or note on one source of their own node (UC-15)."""
+
+    __tablename__ = "personal_sources"
+    node_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("roadmap_nodes.id", ondelete="CASCADE"), primary_key=True
+    )
+    source_key: Mapped[str] = mapped_column(Text, primary_key=True)
+    title: Mapped[str] = mapped_column(Text)
+    state: Mapped[str] = mapped_column(Text)  # pinned | hidden | none (note only)
+    note: Mapped[str] = mapped_column(Text, default="", server_default="")
 
 
 class ResourceFeedback(Base):

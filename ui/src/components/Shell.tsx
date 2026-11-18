@@ -1,6 +1,8 @@
 import { useState, type ReactNode } from "react";
 import type { Page } from "../navigation";
 import { today } from "../time";
+import { IconButton } from "@astryxdesign/core/IconButton";
+import { Icon } from "@astryxdesign/core/Icon";
 import { Navigation, NavItems } from "./Navigation";
 
 type Props = {
@@ -64,15 +66,14 @@ export function Shell({
       </Navigation>
       <main id="main">
         <header className="topbar">
-          <button
-            className="mobile-menu icon-button"
-            aria-label="Toggle navigation"
+          <IconButton
+            className="mobile-menu study-icon-button"
+            label="Toggle navigation"
+            icon={<Icon icon="menu" />}
             aria-controls="workspace-navigation"
             aria-expanded={menu}
             onClick={() => setMenu(!menu)}
-          >
-            ☰
-          </button>
+          />
           <strong className="course-name">{course}</strong>
           <span>
             {today().toLocaleDateString("en-US", {

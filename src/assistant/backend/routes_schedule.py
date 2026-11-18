@@ -1,15 +1,27 @@
 """Availability, calendar, planning/replanning, check-ins and reminders."""
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
-from sqlalchemy import delete, select
+from pydantic import BaseModel
+from sqlalchemy import delete, func, select
 
 from app.planner import merge, minutes
 
 from .dependencies import DB, CurrentUser
-from .models import Availability, BusyBlock, Notification, ScheduleEntry, Task, User
+from .models import (
+    Availability,
+    BusyBlock,
+    Notification,
+    ReviewCard,
+    ReviewLog,
+    Roadmap,
+    RoadmapNode,
+    ScheduleEntry,
+    Task,
+    User,
+)
 from .schemas import (
     AvailabilityPut,
     BusyCreate,
@@ -197,7 +209,108 @@ def weekly_report(
 ):
     local = request.app.state.now().astimezone(ZoneInfo(user.timezone)).date()
     start_date = start_date or local - timedelta(days=local.weekday())
-    return progress_report(db, user, start_date)
+    report = progress_report(db, user, start_date)
+    start = datetime.combine(start_date, time.min, ZoneInfo(user.timezone))
+    count = db.scalar(
+        select(func.count(ReviewLog.id)).where(
+            ReviewLog.user_id == user.id,
+            ReviewLog.reviewed_at >= start,
+            ReviewLog.reviewed_at < start + timedelta(days=7),
+        )
+    )
+    now = request.app.state.now()
+    end = start + timedelta(days=7)
+    tasks = select(func.count(func.distinct(Task.roadmap_node_id))).where(
+        Task.assignee_id == user.id, Task.due_at >= start, Task.due_at < end
+    )
+    nodes = (
+        select(RoadmapNode.id, RoadmapNode.title, RoadmapNode.roadmap_id)
+        .join(Roadmap)
+        .where(Roadmap.user_id == user.id)
+    )
+    milestones = nodes.where(
+        RoadmapNode.type == "milestone",
+        RoadmapNode.due_at >= now,
+        RoadmapNode.due_at < now + timedelta(days=7),
+    ).order_by(RoadmapNode.due_at)
+    reviews = nodes.where(
+        RoadmapNode.id.in_(
+            select(ReviewCard.node_id).where(
+                ReviewCard.user_id == user.id, ReviewCard.due_at <= now
+            )
+        )
+    ).order_by(RoadmapNode.title)
+    return {
+        **report.model_dump(),
+        "review_count": count,
+        "completed_nodes": db.scalar(tasks.where(Task.status == "completed")),
+        "overdue_nodes": db.scalar(
+            tasks.where(
+                Task.status.not_in(["completed", "cancelled"]), Task.due_at < now
+            )
+        ),
+        "upcoming_milestones": db.execute(milestones).mappings().all(),
+        "review_nodes": db.execute(reviews).mappings().all(),
+        "reminder_due": _reminder_window(user, now)[0],
+        "reminder_enabled": bool(user.weekly_reminder),
+        "next_week_deadline": end + timedelta(days=7, seconds=-1),
+    }
+
+
+REMINDER_AT = time(19)  # Sunday evening in the learner's own timezone (UC-16)
+
+
+def _reminder_window(user: User, now: datetime) -> tuple[bool, datetime]:
+    """Whether the weekly-summary reminder is due, and when that answer next changes."""
+    local = now.astimezone(ZoneInfo(user.timezone))
+    sunday = local.date() + timedelta(days=6 - local.weekday())
+    at = datetime.combine(sunday, REMINDER_AT, local.tzinfo)
+    if local < at:
+        return False, at
+    return bool(user.weekly_reminder), datetime.combine(
+        sunday + timedelta(days=1), time.min, local.tzinfo
+    )
+
+
+class ReminderStatus(BaseModel):
+    reminder_due: bool
+    seconds_to_change: int
+
+
+@router.get("/me/weekly-reminder", response_model=ReminderStatus)
+def weekly_reminder(user: CurrentUser, request: Request):
+    now = request.app.state.now()
+    due, boundary = _reminder_window(user, now)
+    return ReminderStatus(
+        reminder_due=due,
+        seconds_to_change=max(1, int((boundary - now).total_seconds()) + 1),
+    )
+
+
+class LearningPreferences(BaseModel):
+    guide_enabled: bool
+    weekly_reminder: bool
+
+
+class PreferenceUpdate(BaseModel):
+    guide_enabled: bool | None = None
+    weekly_reminder: bool | None = None
+
+
+@router.get("/me/learning-preferences", response_model=LearningPreferences)
+def learning_preferences(user: CurrentUser):
+    return LearningPreferences(
+        guide_enabled=bool(user.guide_enabled),
+        weekly_reminder=bool(user.weekly_reminder),
+    )
+
+
+@router.patch("/me/learning-preferences", response_model=LearningPreferences)
+def update_learning_preferences(data: PreferenceUpdate, db: DB, user: CurrentUser):
+    for field, value in data.model_dump(exclude_none=True).items():
+        setattr(user, field, int(value))
+    db.commit()
+    return learning_preferences(user)
 
 
 @router.get("/notifications", response_model=list[NotificationOut], tags=["Reminders"])

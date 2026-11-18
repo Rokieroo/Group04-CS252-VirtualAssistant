@@ -1,3 +1,5 @@
+import { Icon } from "@astryxdesign/core/Icon";
+import { TextInput } from "@astryxdesign/core/TextInput";
 import { useRef, useState } from "react";
 import type { UploadOptions } from "../../api/core";
 import { currentCourse } from "../../api/courses";
@@ -23,10 +25,15 @@ export function SyllabusUpload({ busy, mock, onUpload }: Props) {
           aria-labelledby="s3-title"
         >
           <h2 id="s3-title">Course details</h2>
-          <label>
-            Course name
-            <input value={currentCourse.name} readOnly />
-          </label>
+          <TextInput
+            label="Course name"
+            value={currentCourse.name}
+            isReadOnly
+            onChange={() => {}}
+            size="lg"
+            containerClassName="study-field"
+            controlClassName="study-field-control"
+          />
           <div>
             <span className="core-field-label">Syllabus file</span>
             <div
@@ -41,7 +48,7 @@ export function SyllabusUpload({ busy, mock, onUpload }: Props) {
               }}
             >
               <span className="core-upload-icon" aria-hidden="true">
-                ↑
+                <Icon icon="upload" size="lg" />
               </span>
               <strong>
                 {file ? file.name : "Drop your syllabus file here"}
@@ -100,7 +107,8 @@ export function SyllabusUpload({ busy, mock, onUpload }: Props) {
                 checked={goals}
                 onChange={(e) => setGoals(e.target.checked)}
               />
-              I have no syllabus: these are my learning goals or a table of contents
+              I have no syllabus: these are my learning goals or a table of
+              contents
             </label>
           )}
           <p className="hint">
@@ -108,9 +116,9 @@ export function SyllabusUpload({ busy, mock, onUpload }: Props) {
           </p>
           {mock ? (
             <p className="hint">
-              Preview reads weeks, CLOs and assessments from your file in
-              this browser with simple rules; nothing is uploaded. The full
-              app extracts with AI.
+              Preview reads weeks, CLOs and assessments from your file in this
+              browser with simple rules; nothing is uploaded. The full app
+              extracts with AI.
             </p>
           ) : (
             <p className="hint">

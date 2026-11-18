@@ -14,6 +14,7 @@ from app.companion import girlfriend_mode_allowed
 
 from .catalog_models import ExerciseAttempt, Placement, RoadmapEdge
 from .dependencies import DB, CurrentUser
+from .library_repository import library_items
 from .models import (
     AuthSession,
     Availability,
@@ -166,6 +167,8 @@ def export_user_data(user: CurrentUser, db: DB, request: Request):
         "parental_consent_at": user.parental_consent_at,
         "timezone": user.timezone,
         "personality": user.personality,
+        "guide_enabled": bool(user.guide_enabled),
+        "weekly_reminder": bool(user.weekly_reminder),
         "created_at": str(user.created_at),
     }
 
@@ -401,6 +404,7 @@ def export_user_data(user: CurrentUser, db: DB, request: Request):
         "review_logs": review_logs_data,
         "exercise_attempts": attempts_data,
         "placements": placements_data,
+        "personal_library": library_items(db, user.id, request.app.state.now()),
     }
 
 

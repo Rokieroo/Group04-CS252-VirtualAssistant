@@ -2461,6 +2461,102 @@
         }
       }
     },
+    "/api/v1/me/weekly-reminder": {
+      "get": {
+        "tags": [
+          "Schedule"
+        ],
+        "summary": "Weekly Reminder",
+        "operationId": "weekly_reminder_api_v1_me_weekly_reminder_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReminderStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/learning-preferences": {
+      "get": {
+        "tags": [
+          "Schedule"
+        ],
+        "summary": "Learning Preferences",
+        "operationId": "learning_preferences_api_v1_me_learning_preferences_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LearningPreferences"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Schedule"
+        ],
+        "summary": "Update Learning Preferences",
+        "operationId": "update_learning_preferences_api_v1_me_learning_preferences_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferenceUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LearningPreferences"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/notifications": {
       "get": {
         "tags": [
@@ -2787,6 +2883,86 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me/library": {
+      "get": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Personal Library",
+        "operationId": "personal_library_api_v1_me_library_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LibraryItem"
+                  },
+                  "type": "array",
+                  "title": "Response Personal Library Api V1 Me Library Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/concepts/{node_id}/library": {
+      "patch": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Edit Personal Source",
+        "operationId": "edit_personal_source_api_v1_concepts__node_id__library_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Node Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryEdit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -6386,6 +6562,142 @@
         ],
         "title": "LearningOutcomeOut"
       },
+      "LearningPreferences": {
+        "properties": {
+          "guide_enabled": {
+            "type": "boolean",
+            "title": "Guide Enabled"
+          },
+          "weekly_reminder": {
+            "type": "boolean",
+            "title": "Weekly Reminder"
+          }
+        },
+        "type": "object",
+        "required": [
+          "guide_enabled",
+          "weekly_reminder"
+        ],
+        "title": "LearningPreferences"
+      },
+      "LibraryEdit": {
+        "properties": {
+          "source_key": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Source Key"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pinned",
+                  "hidden",
+                  "none"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_key"
+        ],
+        "title": "LibraryEdit"
+      },
+      "LibraryItem": {
+        "properties": {
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "node_title": {
+            "type": "string",
+            "title": "Node Title"
+          },
+          "course_id": {
+            "type": "string",
+            "title": "Course Id"
+          },
+          "course_title": {
+            "type": "string",
+            "title": "Course Title"
+          },
+          "roadmap_id": {
+            "type": "string",
+            "title": "Roadmap Id"
+          },
+          "source_key": {
+            "type": "string",
+            "title": "Source Key"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node_id",
+          "node_title",
+          "course_id",
+          "course_title",
+          "roadmap_id",
+          "source_key",
+          "title",
+          "state",
+          "note"
+        ],
+        "title": "LibraryItem"
+      },
       "Login": {
         "properties": {
           "email": {
@@ -7052,6 +7364,34 @@
         ],
         "title": "PositionIn"
       },
+      "PreferenceUpdate": {
+        "properties": {
+          "guide_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guide Enabled"
+          },
+          "weekly_reminder": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weekly Reminder"
+          }
+        },
+        "type": "object",
+        "title": "PreferenceUpdate"
+      },
       "PrereqOut": {
         "properties": {
           "parent_id": {
@@ -7302,6 +7642,11 @@
             "type": "string",
             "title": "Verification Status"
           },
+          "personal_state": {
+            "type": "string",
+            "title": "Personal State",
+            "default": "none"
+          },
           "score": {
             "type": "number",
             "title": "Score"
@@ -7527,8 +7872,77 @@
         ],
         "title": "RejectIn"
       },
+      "ReminderStatus": {
+        "properties": {
+          "reminder_due": {
+            "type": "boolean",
+            "title": "Reminder Due"
+          },
+          "seconds_to_change": {
+            "type": "integer",
+            "title": "Seconds To Change"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reminder_due",
+          "seconds_to_change"
+        ],
+        "title": "ReminderStatus"
+      },
       "ReportOut": {
         "properties": {
+          "completed_nodes": {
+            "type": "integer",
+            "title": "Completed Nodes",
+            "default": 0
+          },
+          "overdue_nodes": {
+            "type": "integer",
+            "title": "Overdue Nodes",
+            "default": 0
+          },
+          "upcoming_milestones": {
+            "items": {
+              "$ref": "#/components/schemas/WeeklyNode"
+            },
+            "type": "array",
+            "title": "Upcoming Milestones"
+          },
+          "review_nodes": {
+            "items": {
+              "$ref": "#/components/schemas/WeeklyNode"
+            },
+            "type": "array",
+            "title": "Review Nodes"
+          },
+          "reminder_due": {
+            "type": "boolean",
+            "title": "Reminder Due",
+            "default": false
+          },
+          "reminder_enabled": {
+            "type": "boolean",
+            "title": "Reminder Enabled",
+            "default": true
+          },
+          "next_week_deadline": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Week Deadline"
+          },
+          "review_count": {
+            "type": "integer",
+            "title": "Review Count",
+            "default": 0
+          },
           "start_date": {
             "type": "string",
             "format": "date",
@@ -9369,6 +9783,29 @@
           "reason"
         ],
         "title": "VerifyIn"
+      },
+      "WeeklyNode": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "roadmap_id": {
+            "type": "string",
+            "title": "Roadmap Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "roadmap_id"
+        ],
+        "title": "WeeklyNode"
       },
       "WindowOut": {
         "properties": {
