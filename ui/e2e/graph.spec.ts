@@ -1084,3 +1084,96 @@ test("dark graph controls and list remain readable at enlarged text size", async
     ).toEqual([]);
   }
 });
+
+test("32-concept graph canvas passes axe accessibility in light and dark themes and honors reduced motion", async ({
+  page,
+}, info) => {
+  test.skip(
+    info.project.name.includes("mobile"),
+    "Desktop 1280x800 light/dark graph canvas accessibility and reduced-motion check.",
+  );
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const cscNodes = Array.from({ length: 32 }, (_, i) => ({
+    id: `csc-${i + 1}`,
+    title: `Khái niệm ${i + 1}`,
+    type: i % 8 === 7 ? "milestone" : "topic",
+    kind: i % 8 === 7 ? "milestone" : "topic",
+    status: i % 3 === 0 ? "mastered" : "in_progress",
+    sources_status: i % 4 === 0 ? "insufficient" : "sufficient",
+    est_minutes: 45,
+    duration_minutes: 45,
+    covers: [],
+    roadmap_id: "rm",
+    week: (i % 10) + 1,
+  }));
+
+  await backend(page, cscNodes);
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/?kg_roadmap=rm#roadmap");
+
+  const container = page.locator(".graph-canvas-container");
+  await expect(container.locator("canvas.graph-canvas")).toBeVisible();
+  await expect(container.locator(".graph-toolbar")).toBeVisible();
+  await expect(container.locator(".graph-legend")).toBeVisible();
+  await expect(container.locator(".graph-minimap")).toContainText(
+    "Tổng quan (32)",
+  );
+
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+
+  const lightResults = await new AxeBuilder({ page })
+    .include(".graph-canvas-container")
+    .withTags(["wcag2a", "wcag2aa"])
+    .analyze();
+  await info.attach("axe-graph-canvas-light.json", {
+    body: JSON.stringify(lightResults.violations, null, 2),
+    contentType: "application/json",
+  });
+  await info.attach("12-graph-canvas-32-light.png", {
+    body: await container.screenshot(),
+    contentType: "image/png",
+  });
+  expect(
+    lightResults.violations.filter(
+      (v) => v.impact === "critical" || v.impact === "serious",
+    ),
+  ).toEqual([]);
+
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.evaluate(() => {
+    document.documentElement.dataset.theme = "dark";
+    return new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    );
+  });
+
+  const darkResults = await new AxeBuilder({ page })
+    .include(".graph-canvas-container")
+    .withTags(["wcag2a", "wcag2aa"])
+    .analyze();
+  await info.attach("axe-graph-canvas-dark.json", {
+    body: JSON.stringify(darkResults.violations, null, 2),
+    contentType: "application/json",
+  });
+  await info.attach("13-graph-canvas-32-dark.png", {
+    body: await container.screenshot(),
+    contentType: "image/png",
+  });
+  expect(
+    darkResults.violations.filter(
+      (v) => v.impact === "critical" || v.impact === "serious",
+    ),
+  ).toEqual([]);
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const toolbarBtn = container.locator(".graph-toolbar button").first();
+  const transitionDuration = await toolbarBtn.evaluate(
+    (el) => parseFloat(getComputedStyle(el).transitionDuration),
+  );
+  expect(transitionDuration).toBeLessThanOrEqual(0.001);
+});

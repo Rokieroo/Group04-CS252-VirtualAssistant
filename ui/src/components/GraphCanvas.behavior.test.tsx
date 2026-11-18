@@ -26,33 +26,55 @@ beforeEach(() => {
     return next;
   });
   vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
-  ctx = Object.fromEntries(
-    [
-      "clearRect",
-      "save",
-      "restore",
-      "translate",
-      "scale",
-      "beginPath",
-      "moveTo",
-      "lineTo",
-      "stroke",
-      "setLineDash",
-      "closePath",
-      "fill",
-      "arc",
-      "fillRect",
-      "fillText",
-      "bezierCurveTo",
-      "strokeText",
-    ].map((key) => [key, vi.fn()]),
-  );
+  const canvasMethodNames = [
+    "clearRect",
+    "save",
+    "restore",
+    "setTransform",
+    "translate",
+    "scale",
+    "rotate",
+    "beginPath",
+    "moveTo",
+    "lineTo",
+    "stroke",
+    "setLineDash",
+    "closePath",
+    "fill",
+    "arc",
+    "fillRect",
+    "strokeRect",
+    "fillText",
+    "bezierCurveTo",
+    "strokeText",
+  ];
+  const makeMockCtx = (): Record<string, any> => {
+    const mock: Record<string, any> = Object.fromEntries(
+      canvasMethodNames.map((key) => [key, vi.fn()]),
+    );
+    mock.measureText = vi.fn((text: string) => ({ width: text.length * 7 }));
+    mock.font = "12px sans-serif";
+    mock.textAlign = "center";
+    mock.textBaseline = "middle";
+    return mock;
+  };
+  ctx = makeMockCtx();
+  const minimapCtx = makeMockCtx();
   fillColors = [];
+  let currentFill = "";
   Object.defineProperty(ctx, "fillStyle", {
-    set: (color: string) => fillColors.push(color),
+    get: () => currentFill,
+    set: (color: string) => {
+      currentFill = color;
+      fillColors.push(color);
+    },
   });
-  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
-    ctx as any,
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+    function (this: HTMLCanvasElement) {
+      return (
+        this.classList?.contains("graph-minimap-canvas") ? minimapCtx : ctx
+      ) as any;
+    },
   );
 });
 afterEach(() => {
@@ -216,4 +238,89 @@ it("prefers-reduced-motion snaps view and layout transitions in one frame withou
   ).toBe(true);
   expect(frames.size).toBe(0);
   expect(changeListener).toBeTypeOf("function");
+});
+
+it("fits 32 CSC10014 concepts across 10 weeks without label overlap and renders minimap", () => {
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+    width: 1200,
+    height: 580,
+    left: 0,
+    top: 0,
+    right: 1200,
+    bottom: 580,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  } as DOMRect);
+
+  const stack: Array<{ tx: number; ty: number; sx: number; sy: number }> = [];
+  let state = { tx: 0, ty: 0, sx: 1, sy: 1 };
+  const drawnLabels: Array<{
+    text: string;
+    left: number;
+    right: number;
+    top: number;
+    bottom: number;
+  }> = [];
+
+  ctx.clearRect.mockImplementation(() => {
+    drawnLabels.length = 0;
+  });
+  ctx.save.mockImplementation(() => {
+    stack.push({ ...state });
+  });
+  ctx.restore.mockImplementation(() => {
+    state = stack.pop() ?? { tx: 0, ty: 0, sx: 1, sy: 1 };
+  });
+  ctx.setTransform.mockImplementation((a: number, _b: number, _c: number, d: number, e: number, f: number) => {
+    state = { tx: e, ty: f, sx: a, sy: d };
+  });
+  ctx.translate.mockImplementation((dx: number, dy: number) => {
+    state = { ...state, tx: state.tx + dx * state.sx, ty: state.ty + dy * state.sy };
+  });
+  ctx.scale.mockImplementation((sx: number, sy: number) => {
+    state = { ...state, sx: state.sx * sx, sy: state.sy * sy };
+  });
+  ctx.fillText.mockImplementation((text: string, x: number, y: number) => {
+    if (!text || /^TUẦN\s/i.test(text)) return;
+    const match = /(\d+(?:\.\d+)?)px/.exec(String(ctx.font || "12px"));
+    const fontPx = match ? Number(match[1]) : 12;
+    const w = ctx.measureText(text).width * state.sx;
+    const h = fontPx * state.sy;
+    const sx = state.tx + x * state.sx;
+    const sy = state.ty + y * state.sy;
+    const left = ctx.textAlign === "left" ? sx : ctx.textAlign === "right" ? sx - w : sx - w / 2;
+    const top = ctx.textBaseline === "top" ? sy : ctx.textBaseline === "middle" ? sy - h / 2 : sy - h * 0.8;
+    drawnLabels.push({ text, left, right: left + w, top, bottom: top + h });
+  });
+
+  const cscNodes = Array.from({ length: 32 }, (_, i) => ({
+    id: `csc-${i + 1}`,
+    title: `Khái niệm ${i + 1}`,
+    mastery: (i % 5) * 0.25,
+    confidence: i % 4 === 0 ? ("insufficient" as const) : ("high" as const),
+    week: (i % 10) + 1,
+    type: i % 8 === 7 ? ("milestone" as const) : ("topic" as const),
+  }));
+  const cscEdges = Array.from({ length: 31 }, (_, i) => ({
+    parent_id: `csc-${i + 1}`,
+    child_id: `csc-${i + 2}`,
+  }));
+
+  const view = render(<GraphCanvas nodes={cscNodes} edges={cscEdges} />);
+  frame();
+  frame();
+
+  expect(view.container.textContent).toContain("Tổng quan (32)");
+  expect(drawnLabels.length).toBeGreaterThan(0);
+
+  for (let i = 0; i < drawnLabels.length; i += 1) {
+    for (let j = i + 1; j < drawnLabels.length; j += 1) {
+      const a = drawnLabels[i];
+      const b = drawnLabels[j];
+      const overlaps =
+        a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+      expect(overlaps, `Labels overlap: ${a.text} vs ${b.text}`).toBe(false);
+    }
+  }
 });
