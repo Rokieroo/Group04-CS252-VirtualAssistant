@@ -1,6 +1,7 @@
-"""Availability, calendar, planning/replanning, check-ins and reminders."""
+"""Availability, calendar, today's study list, planning/replanning, check-ins and reminders."""
 
 from datetime import date, datetime, time, timedelta
+from typing import Annotated
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
@@ -32,6 +33,7 @@ from .schemas import (
     PlanOut,
     PlanRequest,
     ReportOut,
+    TodayOut,
     WindowOut,
 )
 from .services import (
@@ -40,6 +42,7 @@ from .services import (
     progress_report,
     serialize_schedule_changes,
 )
+from .today_repository import today_plan
 
 router = APIRouter(tags=["Schedule"])
 
@@ -153,6 +156,19 @@ def calendar(
     if ends_at is not None:
         query = query.where(ScheduleEntry.starts_at < ends_at)
     return db.scalars(query.order_by(ScheduleEntry.starts_at, ScheduleEntry.id)).all()
+
+
+@router.get("/today", response_model=TodayOut)
+def get_today(
+    request: Request,
+    db: DB,
+    user: CurrentUser,
+    day: Annotated[date | None, Query(alias="date")] = None,
+):
+    """What to study on ``date`` (default: the learner's today): due reviews, unlocked
+    roadmap nodes and an upcoming checkpoint's path, within that day's free time (#158)."""
+    now = request.app.state.now()
+    return today_plan(db, user, day or now.astimezone(ZoneInfo(user.timezone)).date(), now)
 
 
 @router.post("/schedule/{entry_id}/check-in", response_model=EntryOut)
