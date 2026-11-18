@@ -78,20 +78,22 @@ def _words(text: str) -> list[str]:
     return comparison_key(text).split()
 
 
-def _contains(text: str, title: str) -> bool:
-    words, key = _words(title), f" {comparison_key(text)} "
+def _contains_key(key: str, words: list[str]) -> bool:
+    """Every word sits in ``key``, a comparison key padded with spaces on both ends."""
     return bool(words) and all(f" {w} " in key for w in words)
 
 
-def _grounded(title: str, page_text: str) -> str | None:
-    """The line of ``page_text`` that holds every word of ``title``, else None.
-
-    A line and the next are also tried together: PDF text wraps long topics.
-    """
+def _prepare_page_spans(page_text: str) -> list[tuple[str, str]]:
+    """``(quote, padded comparison key)`` for each line and each pair of adjacent
+    lines (PDF text wraps long topics), normalized once per page, not once per title."""
     lines = page_text.splitlines()
     spans = [*lines, *(f"{a} {b}" for a, b in pairwise(lines))]
-    line = next((span for span in spans if _contains(span, title)), None)
-    return None if line is None else " ".join(line.split())[:QUOTE_CHARS]
+    return [(" ".join(span.split())[:QUOTE_CHARS], f" {comparison_key(span)} ") for span in spans]
+
+
+def _grounded_from_spans(words: list[str], spans: list[tuple[str, str]]) -> str | None:
+    """The quote of the first span holding every title word, else None."""
+    return next((quote for quote, key in spans if _contains_key(key, words)), None)
 
 
 def merge_similar_concepts(
@@ -116,19 +118,19 @@ def merge_similar_concepts(
     except Exception:  # noqa: BLE001 - embeddings are optional; never lose concepts
         return concepts
 
-    kept: list[tuple[dict[str, Any], list[float]]] = []
+    kept: list[tuple[dict[str, Any], list[float], set[str]]] = []
     for concept, vector in zip(concepts, vectors, strict=True):
+        words = set(_words(concept["title"]))
         target = next(
-            (k for k, v in kept
-             if sum(a * b for a, b in zip(v, vector, strict=True)) >= threshold
-             and set(_words(k["title"])) & set(_words(concept["title"]))),
+            (k for k, v, k_words in kept
+             if (words & k_words) and sum(a * b for a, b in zip(v, vector, strict=True)) >= threshold),
             None,
         )
         if target is None:
-            kept.append(({**concept, "aliases": list(concept.get("aliases", []))}, vector))
+            kept.append(({**concept, "aliases": list(concept.get("aliases", []))}, vector, words))
         else:
             _absorb(target, concept)
-    return [concept for concept, _ in kept]
+    return [concept for concept, _, _ in kept]
 
 
 def _absorb(into: dict[str, Any], other: dict[str, Any]) -> None:
@@ -148,12 +150,14 @@ def _candidates(parsed: dict[str, Any], pages: list[str], llm: LLMClient | None)
     Schedule parts come first. A concept read elsewhere is a *mention*: it takes the
     first week whose topics name it, and joins a schedule concept that contains it.
     """
-    weeks = [(int(r.get("week") or 1), " ".join(map(str, r.get("topics", []))))
+    weeks = [(int(r.get("week") or 1), f" {comparison_key(' '.join(map(str, r.get('topics', []))))} ")
              for r in parsed.get("weeks", [])]
     first = min((week for week, _ in weeks), default=1)
 
     def week_of(title: str) -> int:
-        return min((week for week, text in weeks if _contains(text, title)), default=first)
+        words = _words(title)
+        return min((week for week, text_key in weeks if _contains_key(text_key, words)),
+                   default=first)
 
     for row in parsed.get("weeks", []):
         week, page = int(row.get("week") or 1), int(row.get("source_page") or 1)
@@ -185,6 +189,7 @@ def extract_course_concepts(
     (the cited line), ``week``, ``clo_codes`` and ``aliases``.
     """
     by_key: dict[str, dict[str, Any]] = {}
+    page_spans: dict[int, list[tuple[str, str]]] = {}
     for raw, week, page, codes, mention in _candidates(parsed, pages, llm):
         title = _clean_title(raw)
         key = comparison_key(title)
@@ -192,14 +197,18 @@ def extract_course_concepts(
             continue
         if not 1 <= page <= len(pages):
             continue
-        quote = _grounded(title, pages[page - 1])
+        spans = page_spans.get(page)
+        if spans is None:
+            spans = page_spans[page] = _prepare_page_spans(pages[page - 1])
+        title_words = key.split()
+        quote = _grounded_from_spans(title_words, spans)
         if quote is None:
             continue  # verify or drop
         concept = {"title": title, "week": week, "source_page": page, "source_pages": [page],
                    "quote": quote, "clo_codes": codes, "aliases": []}
         # "BFS" in a CLO is the schedule's "Breadth-First Search (BFS)".
         same = by_key.get(key) or (mention and next(
-            (c for c in by_key.values() if _contains(c["title"], title)), None))
+            (c for k, c in by_key.items() if _contains_key(f" {k} ", title_words)), None))
         if same:
             _absorb(same, concept)
         else:
