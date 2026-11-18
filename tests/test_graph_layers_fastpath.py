@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from app.roadmap import graph as graph_mod
 from app.roadmap.graph import Edge, layers
 
 
@@ -28,21 +27,9 @@ def test_layers_single_pass_handles_mixed_edges_and_skips_soft_bumps():
     assert result["m1"] == 3  # milestone pushed after covered topic at layer 2
 
 
-def test_layers_invokes_edge_pair_once_per_edge(monkeypatch):
-    """layers avoids a second _adjacency/topological_sort pass over edges."""
-    calls = 0
-    orig = graph_mod.edge_pair
-
-    def _counting(edge):
-        nonlocal calls
-        calls += 1
-        return orig(edge)
-
-    monkeypatch.setattr(graph_mod, "edge_pair", _counting)
-    nodes = [{"id": f"n{i}", "week": (i // 5) + 1} for i in range(40)]
-    edges = [
-        {"parent": f"n{i}", "child": f"n{i + 1}", "kind": "strict" if i % 3 == 0 else "soft"}
-        for i in range(39)
-    ]
-    layers(nodes, edges)
-    assert calls == len(edges)
+def test_layers_reads_its_edges_once():
+    """One pass over the edges (#103): a one-shot iterator gives the same layers as a list."""
+    # Listed last-first, so the layers are only right if the edges order the walk.
+    nodes = [{"id": f"n{i}", "week": 1} for i in reversed(range(10))]
+    edges = [{"parent": f"n{i}", "child": f"n{i + 1}"} for i in range(9)]
+    assert layers(nodes, iter(edges)) == {f"n{i}": i + 1 for i in range(10)}

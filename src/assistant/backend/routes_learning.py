@@ -559,21 +559,17 @@ def _build_roadmap_graph(
             )
         )
     )
-    if cards:
-        cards_by_node: dict[str, list[ReviewCard]] = defaultdict(list)
-        for c in cards:
-            if c.node_id:
-                cards_by_node[c.node_id].append(c)
-        mastery_by_node = {
-            nid: compute_node_mastery(node_cards, now)
-            for nid, node_cards in cards_by_node.items()
-        }
-    else:
-        mastery_by_node = {}
+    # Only nodes with cards; the rest read as 0.0 below, as compute_node_mastery([]) does.
+    cards_by_node: dict[str, list[ReviewCard]] = defaultdict(list)
+    for c in cards:
+        cards_by_node[c.node_id].append(c)
+    mastery_by_node = {
+        nid: compute_node_mastery(node_cards, now)
+        for nid, node_cards in cards_by_node.items()
+    }
 
     graph_nodes = []
     for node in nodes:
-        raw_pages = concept_pages.get(node.concept_id) if node.concept_id else None
         summary = sources_by_node.get(node.id, {})
         outcome_id = outcome_by_title.get(node.title)
         graph_nodes.append(
@@ -585,11 +581,7 @@ def _build_roadmap_graph(
                 "est_minutes": node.duration_minutes,
                 "due_at": node.due_at,
                 "outcome_ids": [outcome_id] if outcome_id else [],
-                "source_pages": (
-                    json.loads(raw_pages)
-                    if raw_pages and raw_pages != "[]"
-                    else []
-                ),
+                "source_pages": json.loads(concept_pages.get(node.concept_id) or "[]"),
                 "status": task_status.get(node.id, "pending"),
                 "source_count": summary.get("source_count", 0),
                 "user_material_count": summary.get("user_material_count", 0),

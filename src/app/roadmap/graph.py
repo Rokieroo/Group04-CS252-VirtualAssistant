@@ -66,8 +66,8 @@ def edge_pair(edge: Any) -> tuple[str, str]:
         return edge.parent, edge.child
     if isinstance(edge, dict):
         for parent, child in (
-            ("parent", "child"),
             ("parent_slug", "child_slug"),
+            ("parent", "child"),
             ("source", "target"),
             ("from", "to"),
         ):
