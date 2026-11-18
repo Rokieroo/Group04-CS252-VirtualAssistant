@@ -12,11 +12,9 @@ from sqlalchemy import event
 from app.catalog.taxonomy import ensure_taxonomy, subjects
 from assistant.backend.catalog_models import (
     CatalogEmbedding,
-    NodeSourceStatus,
     ResourceSubject,
 )
 from assistant.backend.catalog_repository import (
-    _decode_vector,
     node_sources,
     verified_resource_map,
     verified_resources,
@@ -157,12 +155,11 @@ def test_resources_and_library_skip_catalog_embeddings_and_enforce_read_gates(
     assert res_stale_id not in {r["id"] for r in res_resp.json()["resources"]}
 
 
-def test_verified_resources_caches_vector_decode_and_node_sources_skips_empty_catalog(
+def test_verified_resources_decodes_each_vector_once_until_it_changes(
     app, client, clock
 ):
-    """Repeated verified_resources hits cached vector decode, and empty catalog skips matching."""
+    """Vectors are decoded once per worker and re-read when their text changes."""
     now = clock[0]
-    _ = client
     with app.state.database.sessions() as db:
         ensure_taxonomy(db)
         res_verified = Resource(
@@ -234,16 +231,15 @@ def test_verified_resources_caches_vector_decode_and_node_sources_skips_empty_ca
         )
         db.commit()
 
-        _decode_vector.cache_clear()
         first = verified_resources(db, now)
-        hits_after_first = _decode_vector.cache_info().hits
         second = verified_resources(db, now)
-        assert len(first) == len(second) == 1
-        assert _decode_vector.cache_info().hits > hits_after_first
-        assert first[0]["vector"] is second[0]["vector"]
+        assert [r["id"] for r in first] == [res_verified.id]  # the rejected row never shows
+        assert second[0]["vector"] is first[0]["vector"]  # decoded once, not per request
 
-        # node_sources handles empty nodes and empty catalog cleanly
+        # Re-embedding new text changes content_hash, so the new vector is read.
+        row = db.get(CatalogEmbedding, (res_verified.id, "resource"))
+        row.content_hash, row.vector = "h1-v2", json.dumps([0.5] * 16)
+        db.commit()
+        assert verified_resources(db, now)[0]["vector"].tolist() == [0.5] * 16
+
         assert node_sources(db, [], None, None, now) == {}
-        course = Course(owner_id=None, title="Test", language="en", level="university")
-        assert NodeSourceStatus.__tablename__ == "node_source_status"
-        _ = course

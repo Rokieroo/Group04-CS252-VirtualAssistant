@@ -5,7 +5,8 @@ selects for them again once new sources are verified.
 """
 
 import json
-from collections import defaultdict
+import threading
+from collections import OrderedDict, defaultdict
 from functools import lru_cache
 
 import numpy as np
@@ -50,11 +51,32 @@ ENOUGH_CATALOG = 3  # verified sources a node needs without the learner's own ma
 REMATCH = "rematch_sources"
 
 
-@lru_cache(maxsize=8192)
-def _decode_vector(raw: str) -> np.ndarray:
-    arr = np.asarray(json.loads(raw))
-    arr.setflags(write=False)
-    return arr
+VECTOR_CACHE = 4096
+_vectors: OrderedDict[tuple[str, str, str, str], np.ndarray] = OrderedDict()
+_vectors_lock = threading.Lock()
+
+
+def _decode_vector(row: CatalogEmbedding) -> np.ndarray:
+    """A stored embedding as a read-only array, decoded once per worker.
+
+    The key is the row and the sha256 of the text it embeds, never the JSON itself:
+    a 3072-float vector is ~60 KB of text, which as a key would dwarf the array.
+    shortcut: up to VECTOR_CACHE arrays (~24 KB each at 3072 floats, ~100 MB) per
+    worker; move vectors into pgvector before the catalog outgrows that.
+    """
+    key = (row.id, row.kind, row.model, row.content_hash)
+    with _vectors_lock:
+        vector = _vectors.get(key)
+        if vector is not None:
+            _vectors.move_to_end(key)
+            return vector
+    vector = np.asarray(json.loads(row.vector))
+    vector.setflags(write=False)
+    with _vectors_lock:
+        _vectors[key] = vector
+        if len(_vectors) > VECTOR_CACHE:
+            _vectors.popitem(last=False)
+    return vector
 
 
 @lru_cache(maxsize=8192)
@@ -142,8 +164,8 @@ def verified_resources(db, now):
     institutions = {}  # domain -> its best-tier institution
     for org in db.scalars(select(Institution).order_by(Institution.tier, Institution.ror_id)):
         institutions.setdefault(domain_of(org.domain), org)
-    vectors = {  # decoded & cached by immutable payload string across requests
-        r.id: (_decode_vector(r.vector), r.model)
+    vectors = {  # decoded once per worker (_decode_vector), not once per request
+        r.id: (_decode_vector(r), r.model)
         for r in db.scalars(
             select(CatalogEmbedding)
             .join(Resource, Resource.id == CatalogEmbedding.id)
@@ -201,7 +223,7 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5, catalog=None):
         return {}
     identifiers = [n.id for n in nodes]
     node_vectors = {
-        r.id: (_decode_vector(r.vector), r.model)
+        r.id: (_decode_vector(r), r.model)
         for r in db.scalars(
             select(CatalogEmbedding).where(
                 CatalogEmbedding.kind == "node",
@@ -283,17 +305,6 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5, catalog=None):
     ):
         rejected[row.node_id].add(row.resource_id)
     catalog = verified_resources(db, now) if catalog is None else catalog
-    if not catalog:
-        return {
-            node.id: {
-                "node_id": node.id,
-                "status": "ready" if materials[node.id] else "insufficient",
-                "source_count": min(limit, len(materials[node.id])),
-                "user_material_count": min(limit, len(materials[node.id])),
-                "sources": list(materials[node.id].values())[:limit],
-            }
-            for node in nodes
-        }
     index = CatalogIndex(catalog)
     result = {}
     for node in nodes:
