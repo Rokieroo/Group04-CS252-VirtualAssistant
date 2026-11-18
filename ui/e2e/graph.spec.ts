@@ -1119,61 +1119,45 @@ test("32-concept graph canvas passes axe accessibility in light and dark themes 
     "Tổng quan (32)",
   );
 
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) =>
+  // #108 asks for no axe errors in either theme, so every impact level counts.
+  for (const theme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme: theme });
+    await page.evaluate((name) => {
+      document.documentElement.dataset.theme = name;
+      return new Promise<void>((resolve) =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-      ),
-  );
+      );
+    }, theme);
+    const results = await new AxeBuilder({ page })
+      .include(".graph-canvas-container")
+      .withTags(["wcag2a", "wcag2aa"])
+      .analyze();
+    await info.attach(`axe-graph-canvas-${theme}.json`, {
+      body: JSON.stringify(results.violations, null, 2),
+      contentType: "application/json",
+    });
+    await info.attach(`graph-canvas-32-${theme}.png`, {
+      body: await container.screenshot(),
+      contentType: "image/png",
+    });
+    expect(results.violations, theme).toEqual([]);
+  }
 
-  const lightResults = await new AxeBuilder({ page })
-    .include(".graph-canvas-container")
-    .withTags(["wcag2a", "wcag2aa"])
-    .analyze();
-  await info.attach("axe-graph-canvas-light.json", {
-    body: JSON.stringify(lightResults.violations, null, 2),
-    contentType: "application/json",
-  });
-  await info.attach("12-graph-canvas-32-light.png", {
-    body: await container.screenshot(),
-    contentType: "image/png",
-  });
-  expect(
-    lightResults.violations.filter(
-      (v) => v.impact === "critical" || v.impact === "serious",
-    ),
-  ).toEqual([]);
-
-  await page.emulateMedia({ colorScheme: "dark" });
-  await page.evaluate(() => {
-    document.documentElement.dataset.theme = "dark";
-    return new Promise<void>((resolve) =>
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  // Reduced motion turns off every CSS transition and animation in the graph, not
+  // just one button's; canvas motion is covered by the GraphCanvas unit test.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const longestMotion = await container.evaluate((root) => {
+    const seconds = (value: string) =>
+      Math.max(...value.split(",").map((part) => parseFloat(part) || 0));
+    return Math.max(
+      ...[root, ...root.querySelectorAll("*")].map((el) => {
+        const style = getComputedStyle(el);
+        return Math.max(
+          seconds(style.transitionDuration),
+          style.animationName === "none" ? 0 : seconds(style.animationDuration),
+        );
+      }),
     );
   });
-
-  const darkResults = await new AxeBuilder({ page })
-    .include(".graph-canvas-container")
-    .withTags(["wcag2a", "wcag2aa"])
-    .analyze();
-  await info.attach("axe-graph-canvas-dark.json", {
-    body: JSON.stringify(darkResults.violations, null, 2),
-    contentType: "application/json",
-  });
-  await info.attach("13-graph-canvas-32-dark.png", {
-    body: await container.screenshot(),
-    contentType: "image/png",
-  });
-  expect(
-    darkResults.violations.filter(
-      (v) => v.impact === "critical" || v.impact === "serious",
-    ),
-  ).toEqual([]);
-
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  const toolbarBtn = container.locator(".graph-toolbar button").first();
-  const transitionDuration = await toolbarBtn.evaluate(
-    (el) => parseFloat(getComputedStyle(el).transitionDuration),
-  );
-  expect(transitionDuration).toBeLessThanOrEqual(0.001);
+  expect(longestMotion).toBeLessThanOrEqual(0.001);
 });

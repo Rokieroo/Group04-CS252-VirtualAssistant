@@ -296,7 +296,16 @@ it("fits 32 CSC10014 concepts across 10 weeks without label overlap and renders 
 
   const cscNodes = Array.from({ length: 32 }, (_, i) => ({
     id: `csc-${i + 1}`,
-    title: `Khái niệm ${i + 1}`,
+    title: [
+      "Framing ladder", "Problem statement", "Stakeholder mapping", "Personas",
+      "Jobs-to-be-Done", "Four layers of a need", "FR vs NFR", "Non-goals",
+      "Solution ladder", "Four product risks", "Use case diagrams", "User stories",
+      "Acceptance criteria", "Prioritising with MoSCoW", "Decomposition", "Pattern recognition",
+      "Abstraction layers", "Algorithm design", "Flowcharts and pseudocode", "Midterm checkpoint",
+      "Trade-off analysis", "Prototyping", "Usability testing", "Measuring success",
+      "Data-driven decisions", "Ethics in design", "Team roles", "Iteration planning",
+      "Risk register", "Final presentation", "Retrospective", "Final exam",
+    ][i],
     mastery: (i % 5) * 0.25,
     confidence: i % 4 === 0 ? ("insufficient" as const) : ("high" as const),
     week: (i % 10) + 1,
@@ -312,7 +321,11 @@ it("fits 32 CSC10014 concepts across 10 weeks without label overlap and renders 
   frame();
 
   expect(view.container.textContent).toContain("Tổng quan (32)");
-  expect(drawnLabels.length).toBeGreaterThan(0);
+  // Labels that would collide are skipped by design, so "no overlap" alone is free:
+  // the graph is only readable at fit zoom if every concept keeps its label.
+  expect(drawnLabels.map((l) => l.text).sort()).toEqual(
+    cscNodes.map((n) => n.title).sort(),
+  );
 
   for (let i = 0; i < drawnLabels.length; i += 1) {
     for (let j = i + 1; j < drawnLabels.length; j += 1) {
