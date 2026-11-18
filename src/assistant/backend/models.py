@@ -755,6 +755,10 @@ class Recommendation(Base):
         UTCDateTime(), default=None, nullable=True
     )
     __table_args__ = (
+        CheckConstraint(
+            "kind IN ('user_material', 'catalog', 'external')",
+            name="ck_recommendations_kind",
+        ),
         Index("ix_recommendations_user_id", "user_id"),
         Index("ix_recommendations_node_id", "node_id"),
         Index("ix_recommendations_user_node", "user_id", "node_id"),

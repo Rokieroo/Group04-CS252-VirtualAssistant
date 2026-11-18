@@ -10,21 +10,23 @@ second learner of the same node costs nothing and is logged as a cache hit.
 """
 
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.curator import Curation
 from app.finder import SearchStats, find_resources
 from app.llm import get_client
+from app.recommend import STRONG, needs_external
 from app.search import SearchService, canonical_url, node_signature
 from app.vetting import Learner, Node, SafeFetcher
 
 from .cache import cached_search, store_search
-from .jobs import handler
+from .jobs import enqueue, handler
 from .models import (
     Course,
+    Job,
     LearningOutcome,
     NodeResource,
     Resource,
@@ -40,6 +42,8 @@ from .models import (
 make_search = SearchService
 make_llm = get_client
 make_fetcher = SafeFetcher
+
+SEARCHES_PER_HOUR = 20  # per learner: searches cost provider quota and judge calls
 
 
 def _outcomes(db: Session, course_id: str) -> tuple[str, ...]:
@@ -149,6 +153,48 @@ def _log(
     return search
 
 
+def search_signature(db: Session, node: RoadmapNode, course: Course) -> str:
+    """The key of the node's shared 7-day search cache (spec 11.8)."""
+    outcomes = _outcomes(db, course.id)
+    return node_signature(node.title, list(outcomes), course.level, course.language)
+
+
+def learner_for(course: Course, user: User | None) -> Learner:
+    """Who the course's resources are for: course language first, never personal data."""
+    return Learner(
+        langs=tuple(dict.fromkeys((course.language, "vi", "en"))),
+        level=course.level,
+        k12=user is not None and user.account_level == "k12",
+    )
+
+
+def recent_searches(db: Session, user_id: str, now: datetime) -> int:
+    """Resource searches the learner queued in the last hour, asked for or automatic."""
+    return db.scalar(
+        select(func.count())
+        .select_from(Job)
+        .where(
+            Job.user_id == user_id,
+            Job.kind == "search_resources",
+            Job.created_at > now - timedelta(hours=1),
+        )
+    )
+
+
+def request_search(db: Session, node_id: str, user_id: str, now: datetime) -> Job | None:
+    """Queue the node's external search at most once a day, within the hourly budget."""
+    if recent_searches(db, user_id, now) >= SEARCHES_PER_HOUR:
+        return None
+    return enqueue(
+        db,
+        "search_resources",
+        {"node_id": node_id},
+        now=now,
+        user_id=user_id,
+        dedupe_key=f"search_resources:{node_id}:{now.date().isoformat()}",
+    )
+
+
 @handler("search_resources")
 def search_resources(db: Session, payload: dict, now: datetime) -> dict:
     """Find, link and log the resources of ``payload["node_id"]``."""
@@ -158,10 +204,10 @@ def search_resources(db: Session, payload: dict, now: datetime) -> dict:
     roadmap = db.get(Roadmap, node.roadmap_id)
     course = db.get(Course, roadmap.course_id)
     user = db.get(User, roadmap.user_id)
-    from .catalog_repository import ENOUGH_CATALOG, refresh_node_sources
+    from .catalog_repository import refresh_node_sources
     selection = refresh_node_sources(db, [node], roadmap, course, now)[node.id]
-    public = [r for r in selection["sources"] if r["kind"] != "user_material" and r["score"] >= 0.8]
-    if len(public) >= ENOUGH_CATALOG:
+    if not needs_external(selection["sources"]):
+        public = [r for r in selection["sources"] if r["kind"] != "user_material" and r["score"] >= STRONG]
         search = ResourceSearch(node_id=node.id, user_id=roadmap.user_id, node_title=node.title,
             status=selection["status"], kept=len(public), candidates=len(public), created_at=now)
         db.add(search)
@@ -170,13 +216,9 @@ def search_resources(db: Session, payload: dict, now: datetime) -> dict:
                 "cache_hit": False, "cost_usd": 0.0, "catalog_sufficient": True}
     outcomes = _outcomes(db, course.id)
     target = Node(node.title, outcomes, node.duration_minutes)
-    learner = Learner(
-        langs=tuple(dict.fromkeys((course.language, "vi", "en"))),
-        level=course.level,
-        k12=user is not None and user.account_level == "k12",
-    )
+    learner = learner_for(course, user)
 
-    signature = node_signature(node.title, list(outcomes), course.level, course.language)
+    signature = search_signature(db, node, course)
     cached = cached_search(db, signature, now)
     if cached is not None:
         curation, stats = Curation.from_dict(cached), None

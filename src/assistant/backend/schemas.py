@@ -853,7 +853,8 @@ class RecommendationOut(Output):
     id: str
     node_id: str
     resource_ref: str
-    kind: str
+    kind: Literal["user_material", "catalog", "external"]
+    verification_status: Literal["private", "verified", "unverified"]
     rank: int
     score: float
     reason: str

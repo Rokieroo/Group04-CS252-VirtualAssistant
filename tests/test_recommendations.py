@@ -3,6 +3,8 @@
 from datetime import timedelta
 from pathlib import Path
 
+from conftest import roadmap_with_catalog
+
 from app.catalog.privacy import build_safe_external_query, pii_filter
 from assistant.backend.models import (
     Course,
@@ -95,11 +97,14 @@ def _seed_user_a_roadmap_node(app, user_id):
         return roadmap.id, node.id
 
 
+CATALOG = [f"Binary Search Trees notes, part {i}" for i in range(1, 5)]
+
+
 def test_authorization_user_b_gets_404_for_user_a_recommendations(
-    app, client, user_a, headers_a, user_b, headers_b
+    app, client, clock, headers_a, user_b, headers_b
 ):
     """Recommendations, events, and summaries of User A return 404 for User B."""
-    roadmap_id, node_id = _seed_user_a_roadmap_node(app, user_a["user"]["id"])
+    roadmap_id, node_id = roadmap_with_catalog(client, headers_a, app, clock[0], CATALOG)
 
     # 1. User B cannot read User A's node recommendations -> 404
     resp = client.get(
@@ -134,11 +139,9 @@ def test_authorization_user_b_gets_404_for_user_a_recommendations(
     assert resp_sum_b.status_code == 404
 
 
-def test_recommendation_lifecycle_events_and_summary(
-    app, client, user_a, headers_a
-):
+def test_recommendation_lifecycle_events_and_summary(app, client, clock, headers_a):
     """User can fetch recommendations, log feedback events, and query roadmap summary."""
-    roadmap_id, node_id = _seed_user_a_roadmap_node(app, user_a["user"]["id"])
+    roadmap_id, node_id = roadmap_with_catalog(client, headers_a, app, clock[0], CATALOG)
 
     # Fetch recommendations
     resp = client.get(
@@ -274,7 +277,7 @@ def test_enrich_recommendations_batches_queries(app, user_a):
                 user_id=user_id,
                 node_id=node_id,
                 resource_ref=f"catalog:{r1.id}",
-                kind="verified",
+                kind="catalog",
                 rank=1,
                 score=0.95,
                 reason="Catalog",
@@ -284,7 +287,7 @@ def test_enrich_recommendations_batches_queries(app, user_a):
                 user_id=user_id,
                 node_id=node_id,
                 resource_ref=f"catalog:{r2.id}",
-                kind="verified",
+                kind="catalog",
                 rank=2,
                 score=0.90,
                 reason="Catalog",
@@ -294,7 +297,7 @@ def test_enrich_recommendations_batches_queries(app, user_a):
                 user_id=user_id,
                 node_id=node_id,
                 resource_ref=f"material:{s1.id}",
-                kind="material",
+                kind="user_material",
                 rank=3,
                 score=0.88,
                 reason="Slides",

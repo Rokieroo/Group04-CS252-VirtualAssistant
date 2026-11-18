@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+from dataclasses import asdict
 from pathlib import Path
 from uuid import uuid4
 
@@ -14,11 +15,16 @@ if str(EVAL_DIR) not in sys.path:
     sys.path.insert(0, str(EVAL_DIR))
 
 from run_recommendations import (
+    NDCG_TARGET,
+    PRECISION_TARGET,
     ContentJudge,
     evaluate_external_redteam,
     evaluate_three_configs,
 )
 
+from app.curator import Curation
+from app.vetting import ScoredResource
+from assistant.backend.cache import store_search
 from assistant.backend.catalog_repository import verified_resources
 from assistant.backend.models import (
     Course,
@@ -27,12 +33,12 @@ from assistant.backend.models import (
     Roadmap,
     RoadmapNode,
     User,
-    utcnow,
 )
 from assistant.backend.recommendations_repository import (
     get_or_generate_node_recommendations,
     record_recommendation_event,
 )
+from assistant.backend.resources import search_signature
 
 
 @pytest.fixture(scope="module")
@@ -42,11 +48,7 @@ def three_config_results():
 
 
 def test_three_configs_show_the_pipeline_effects(three_config_results):
-    """Synthetic external pages add coverage and formats; oracle votes never hurt ranking.
-
-    Precision@5 / nDCG@5 are not asserted against the spec targets: the pages are fixtures,
-    so the numbers describe the fixture, not recommendation quality (see the script).
-    """
+    """Synthetic external pages add coverage and formats; oracle votes never hurt ranking."""
     configs, per_syllabus = three_config_results
     by_name = {cfg.config: cfg for cfg in configs}
     db_only = by_name["db_only"]
@@ -60,6 +62,19 @@ def test_three_configs_show_the_pipeline_effects(three_config_results):
     assert db_ext_fb.ndcg_at_5 >= db_ext.ndcg_at_5
     assert set(per_syllabus["db_plus_external_plus_feedback"]) == {
         "CSC10014", "CS102", "CS201", "CS202", "CS203"}
+
+
+def test_recommender_meets_the_ranking_targets(three_config_results):
+    """#155 done-when, offline: ``recommend`` over the #106-labelled catalog plus external pages.
+
+    External pages are fixtures and the judge a label-blind stand-in, so this proves the
+    product's merge (database first, external when short, MMR) ranks what the labels call
+    good on top; it does not measure live search quality.
+    """
+    configs, _ = three_config_results
+    unified = {cfg.config: cfg for cfg in configs}["db_plus_external"]
+    assert unified.precision_at_5 >= PRECISION_TARGET
+    assert unified.ndcg_at_5 >= NDCG_TARGET
 
 
 def _judged(page: str) -> dict:
@@ -102,53 +117,48 @@ def test_no_injection_page_reaches_the_top5(redteam):
     assert redteam.injection_leaked_to_top5 == 0
 
 
-def test_repository_external_provenance_and_not_helpful_dismissal(app, client):
-    """External recommendations never mark Resource verified and are dismissed on not_helpful."""
+def test_repository_external_provenance_and_not_helpful_dismissal(app, client, clock):
+    """Cached external pages are served unverified, never stored as Resource, and replaced."""
     _ = client  # Trigger FastAPI lifespan so Alembic migrations initialize tables
+    now = clock[0]
     with app.state.database.sessions() as db:
-        user = User(
-            email=f"eval-user-{uuid4().hex}@example.com",
-            password_hash="x",
-            name="Eval User",
-        )
+        user = User(email=f"eval-user-{uuid4().hex}@example.com", password_hash="x",
+                    name="Eval User")
         db.add(user)
         db.flush()
-
-        course = Course(title="CS201 Algorithms", owner_id=user.id)
+        course = Course(title="CS201 Algorithms", owner_id=user.id, language="en")
         db.add(course)
         db.flush()
-
         roadmap = Roadmap(course_id=course.id, user_id=user.id, title="Main Track")
         db.add(roadmap)
         db.flush()
-
-        node = RoadmapNode(
-            roadmap_id=roadmap.id,
-            type="topic",
-            title="Graph Traversals: BFS & DFS",
-            week=9,
-        )
+        node = RoadmapNode(roadmap_id=roadmap.id, type="topic",
+                           title="Graph Traversals: BFS & DFS", week=9)
         db.add(node)
+        db.flush()
+        # What the search job caches for the node: two vetted pages.
+        pages = [ScoredResource(
+            url=f"https://{host}/graph-traversal", title=f"Graph traversal notes ({host})",
+            provider="web", format="reading", lang="en", domain=host, is_free=True,
+            minutes=None, score=0.85, breakdown={}, reason="", content_hash=host, excerpt="",
+            evidence_quote="Breadth-first search visits vertices level by level.")
+            for host in ("cs.stanford.edu", "en.wikipedia.org")]
+        store_search(db, search_signature(db, node, course),
+                     asdict(Curation("ready", pages)), now)
         db.commit()
 
-        recs = get_or_generate_node_recommendations(db, node, user.id, limit=5)
-        external_recs = [r for r in recs if r.kind == "external"]
-        assert len(external_recs) >= 1
-        assert all(r.resource_ref.startswith("external:") for r in external_recs)
-
-        # External candidates must never appear in Resource rows or verified_resources()
+        recs = get_or_generate_node_recommendations(db, node, user.id, now, limit=5)
+        assert {(r.kind, r.verification_status) for r in recs} == {("external", "unverified")}
+        assert all(r.resource_ref.startswith("external:") and r.url for r in recs)
+        # External candidates never become Resource rows or verified catalog entries here.
         assert db.query(Resource).count() == 0
-        assert verified_resources(db, utcnow()) == []
+        assert verified_resources(db, now) == []
 
-        target = external_recs[0]
-        event = record_recommendation_event(db, target.id, user.id, "not_helpful")
-        assert event is not None
-        assert event.event == "not_helpful"
+        target = recs[0]
+        event = record_recommendation_event(db, target.id, user.id, "not_helpful", now)
+        assert event is not None and event.event == "not_helpful"
+        assert db.get(Recommendation, target.id).dismissed_at is not None
 
-        db_row = db.get(Recommendation, target.id)
-        assert db_row is not None
-        assert db_row.dismissed_at is not None
-
-        # Dismissed recommendation must not remain among active undismissed rows
-        remaining = get_or_generate_node_recommendations(db, node, user.id, limit=5)
-        assert all(r.id != target.id for r in remaining)
+        remaining = get_or_generate_node_recommendations(db, node, user.id, now, limit=5)
+        assert target.resource_ref not in {r.resource_ref for r in remaining}
+        assert len(remaining) == 1
