@@ -216,7 +216,8 @@ def get_or_generate_node_recommendations(
         .order_by(Recommendation.rank)
     ).all()
     feedback, answered_at = _feedback(db, user_id, node.id)
-    cached = cached_search_entry(db, search_signature(db, node, course), now)
+    outcomes = _outcomes(db, course.id)
+    cached = cached_search_entry(db, search_signature(db, node, course, outcomes=outcomes), now)
     changed_at = max((t for t in (answered_at, cached and cached[1]) if t), default=None)
     if active:
         newest = max(r.created_at for r in active)
@@ -240,7 +241,7 @@ def get_or_generate_node_recommendations(
     wanted = limit + len(feedback.rejected)
     sources = node_sources(db, [node], roadmap, course, now, limit=wanted)[node.id]["sources"]
     chosen = recommend(
-        Node(node.title, _outcomes(db, course.id), node.duration_minutes),
+        Node(node.title, outcomes, node.duration_minutes),
         learner_for(course, db.get(User, roadmap.user_id)),
         database=sources,
         external=vetted_pages,

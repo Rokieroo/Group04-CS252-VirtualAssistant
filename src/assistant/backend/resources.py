@@ -9,6 +9,7 @@ Results are shared through the 7-day search cache keyed by node signature, so a
 second learner of the same node costs nothing and is logged as a cache hit.
 """
 
+from collections.abc import Sequence
 from dataclasses import asdict
 from datetime import datetime, timedelta
 
@@ -83,30 +84,62 @@ def _search(node: Node, learner: Learner, course: Course, *, db=None) -> tuple[C
 
 def _link(db: Session, node_id: str, curation: Curation) -> None:
     """Show the curated resources on the node; one ``resources`` row per canonical URL."""
-    for resource in curation.resources:
-        key = canonical_url(resource.url)
-        row = db.scalars(select(Resource).where(Resource.canonical_url == key)).first()
-        if row is None:
-            # New rows start pending: only the catalog pipeline (#101) verifies.
-            row = Resource(
-                url=resource.url,
-                canonical_url=key,
-                title=resource.title,
-                provider=resource.provider,
-                kind="video" if resource.format == "video" else "article",
-                lang=resource.lang,
-                domain=resource.domain or None,
-                format=resource.format,
-                is_free=resource.is_free,
-                duration_min=resource.minutes,
-                content_hash=resource.content_hash or None,
+    if not curation.resources:
+        return
+    keyed = [(canonical_url(resource.url), resource) for resource in curation.resources]
+    keys = list(dict.fromkeys(key for key, _ in keyed))
+    existing_rows = {
+        row.canonical_url: row
+        for row in db.scalars(select(Resource).where(Resource.canonical_url.in_(keys)))
+    }
+    new_rows: list[Resource] = []
+    for key, resource in keyed:
+        if key in existing_rows:
+            continue
+        # New rows start pending: only the catalog pipeline (#101) verifies.
+        row = Resource(
+            url=resource.url,
+            canonical_url=key,
+            title=resource.title,
+            provider=resource.provider,
+            kind="video" if resource.format == "video" else "article",
+            lang=resource.lang,
+            domain=resource.domain or None,
+            format=resource.format,
+            is_free=resource.is_free,
+            duration_min=resource.minutes,
+            content_hash=resource.content_hash or None,
+        )
+        db.add(row)
+        existing_rows[key] = row
+        new_rows.append(row)
+    if new_rows:
+        db.flush()
+    resource_ids = list(
+        dict.fromkeys(row.id for row in existing_rows.values() if row.id is not None)
+    )
+    links_by_resource = (
+        {
+            link.resource_id: link
+            for link in db.scalars(
+                select(NodeResource).where(
+                    NodeResource.node_id == node_id,
+                    NodeResource.resource_id.in_(resource_ids),
+                )
             )
-            db.add(row)
-            db.flush()
-        link = db.get(NodeResource, (node_id, row.id))
+        }
+        if resource_ids
+        else {}
+    )
+    for key, resource in keyed:
+        row = existing_rows[key]
+        link = links_by_resource.get(row.id)
         if link is None:
-            db.add(NodeResource(node_id=node_id, resource_id=row.id,
-                                relevance_score=resource.score))
+            link = NodeResource(
+                node_id=node_id, resource_id=row.id, relevance_score=resource.score
+            )
+            db.add(link)
+            links_by_resource[row.id] = link
         elif link.status == "shown":
             link.relevance_score = resource.score
 
@@ -153,10 +186,16 @@ def _log(
     return search
 
 
-def search_signature(db: Session, node: RoadmapNode, course: Course) -> str:
+def search_signature(
+    db: Session,
+    node: RoadmapNode,
+    course: Course,
+    *,
+    outcomes: Sequence[str] | None = None,
+) -> str:
     """The key of the node's shared 7-day search cache (spec 11.8)."""
-    outcomes = _outcomes(db, course.id)
-    return node_signature(node.title, list(outcomes), course.level, course.language)
+    resolved = _outcomes(db, course.id) if outcomes is None else outcomes
+    return node_signature(node.title, list(resolved), course.level, course.language)
 
 
 def learner_for(course: Course, user: User | None) -> Learner:
@@ -218,7 +257,7 @@ def search_resources(db: Session, payload: dict, now: datetime) -> dict:
     target = Node(node.title, outcomes, node.duration_minutes)
     learner = learner_for(course, user)
 
-    signature = search_signature(db, node, course)
+    signature = search_signature(db, node, course, outcomes=outcomes)
     cached = cached_search(db, signature, now)
     if cached is not None:
         curation, stats = Curation.from_dict(cached), None
