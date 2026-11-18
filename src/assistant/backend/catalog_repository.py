@@ -6,6 +6,7 @@ selects for them again once new sources are verified.
 
 import json
 from collections import defaultdict
+from functools import lru_cache
 
 import numpy as np
 from sqlalchemy import exists, func, select
@@ -49,55 +50,114 @@ ENOUGH_CATALOG = 3  # verified sources a node needs without the learner's own ma
 REMATCH = "rematch_sources"
 
 
+@lru_cache(maxsize=8192)
+def _decode_vector(raw: str) -> np.ndarray:
+    arr = np.asarray(json.loads(raw))
+    arr.setflags(write=False)
+    return arr
+
+
+@lru_cache(maxsize=8192)
+def _canon_url(url: str) -> str:
+    return canonical_url(url)
+
+
+@lru_cache(maxsize=8192)
+def _policy_tier(policy, url: str) -> int:
+    return policy.tier(url).value
+
+
+def _verified_resource_filter():
+    return (Resource.verification_status == "verified", Resource.failed_checks < 2)
+
+
+def _load_verified_checks(db, resource_ids=None):
+    stmt = (
+        select(
+            ResourceVerification.resource_id,
+            ResourceVerification.check_name,
+            ResourceVerification.result,
+            ResourceVerification.checked_at,
+        )
+        .join(Resource, Resource.id == ResourceVerification.resource_id)
+        .where(*_verified_resource_filter())
+        .order_by(ResourceVerification.checked_at.desc(), ResourceVerification.id.desc())
+    )
+    if resource_ids is not None:
+        stmt = stmt.where(Resource.id.in_(resource_ids))
+    return latest_results(db.execute(stmt))
+
+
+def _passes_read_gate(resource: Resource, checks, now, policy) -> tuple[bool, int]:
+    if (
+        not is_current(checks.get(resource.id, {}), now)
+        or not resource.license
+        or not resource.content_hash
+        or not resource.canonical_url
+        or resource.http_status not in {None, 200}
+    ):
+        return False, 0
+    policy_tier = _policy_tier(policy, resource.url)
+    if policy_tier == 0 or resource.canonical_url != _canon_url(resource.url):
+        return False, policy_tier
+    return True, policy_tier
+
+
+def verified_resource_map(db, now, resource_ids) -> dict[str, str]:
+    """Scoped ``resource_id -> canonical_url`` for already-identified resources.
+
+    Applies the exact same verification and policy checks as :func:`verified_resources`
+    without reading catalog-wide embeddings, tags or institutions (#102, #168).
+    """
+    ids = list(dict.fromkeys(i for i in resource_ids if i))
+    if not ids:
+        return {}
+    policy = default_policy()
+    checks = _load_verified_checks(db, ids)
+    rows = db.scalars(
+        select(Resource).where(Resource.id.in_(ids), *_verified_resource_filter())
+    )
+    return {
+        r.id: r.canonical_url
+        for r in rows
+        if _passes_read_gate(r, checks, now, policy)[0]
+    }
+
+
 def verified_resources(db, now):
     """Bulk read of what learners may see (``verification.is_current``).
 
     Read paths do not mutate the catalog.
     """
-    checks = latest_results(
-        db.execute(
-            select(
-                ResourceVerification.resource_id,
-                ResourceVerification.check_name,
-                ResourceVerification.result,
-                ResourceVerification.checked_at,
-            ).order_by(
-                ResourceVerification.checked_at.desc(), ResourceVerification.id.desc()
-            )
-        )
-    )
+    policy = default_policy()
+    verified_filter = _verified_resource_filter()
+    checks = _load_verified_checks(db)
     tags = defaultdict(set)
     for row in db.scalars(
-        select(ResourceSubject).where(ResourceSubject.confidence >= 0.6)
+        select(ResourceSubject)
+        .join(Resource, Resource.id == ResourceSubject.resource_id)
+        .where(ResourceSubject.confidence >= 0.6, *verified_filter)
     ):
         tags[row.resource_id].add(row.subject_id)
     institutions = {}  # domain -> its best-tier institution
     for org in db.scalars(select(Institution).order_by(Institution.tier, Institution.ror_id)):
         institutions.setdefault(domain_of(org.domain), org)
-    vectors = {  # decoded once per request, not once per node that compares against it
-        r.id: (np.asarray(json.loads(r.vector)), r.model)
+    vectors = {  # decoded & cached by immutable payload string across requests
+        r.id: (_decode_vector(r.vector), r.model)
         for r in db.scalars(
-            select(CatalogEmbedding).where(
-                CatalogEmbedding.kind == "resource",
-            )
+            select(CatalogEmbedding)
+            .join(Resource, Resource.id == CatalogEmbedding.id)
+            .where(CatalogEmbedding.kind == "resource", *verified_filter)
         )
     }
     rows = []
     for resource, course in db.execute(
         select(Resource, CatalogCourse)
         .outerjoin(CatalogCourse, Resource.catalog_course_id == CatalogCourse.id)
-        .where(Resource.verification_status == "verified", Resource.failed_checks < 2)
+        .where(*verified_filter)
     ):
-        if (
-            not is_current(checks.get(resource.id, {}), now)
-            or not resource.license
-            or not resource.content_hash
-            or not resource.canonical_url
-            or resource.http_status not in {None, 200}
-        ):
-            continue
-        policy_tier = default_policy().tier(resource.url).value
-        if policy_tier == 0 or resource.canonical_url != canonical_url(resource.url):
+        ok, policy_tier = _passes_read_gate(resource, checks, now, policy)
+        if not ok:
             continue
         matching = [
             institutions[domain]
@@ -137,9 +197,11 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5, catalog=None):
     ``catalog`` is ``verified_resources(db, now)``, passed by callers that match
     several roadmaps so the catalog is read once.
     """
+    if not nodes:
+        return {}
     identifiers = [n.id for n in nodes]
     node_vectors = {
-        r.id: (np.asarray(json.loads(r.vector)), r.model)
+        r.id: (_decode_vector(r.vector), r.model)
         for r in db.scalars(
             select(CatalogEmbedding).where(
                 CatalogEmbedding.kind == "node",
@@ -221,6 +283,17 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5, catalog=None):
     ):
         rejected[row.node_id].add(row.resource_id)
     catalog = verified_resources(db, now) if catalog is None else catalog
+    if not catalog:
+        return {
+            node.id: {
+                "node_id": node.id,
+                "status": "ready" if materials[node.id] else "insufficient",
+                "source_count": min(limit, len(materials[node.id])),
+                "user_material_count": min(limit, len(materials[node.id])),
+                "sources": list(materials[node.id].values())[:limit],
+            }
+            for node in nodes
+        }
     index = CatalogIndex(catalog)
     result = {}
     for node in nodes:
