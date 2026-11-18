@@ -1,3 +1,4 @@
+import { LearningGuide } from "../components/LearningGuide";
 import { BackendError, call } from "../api/backend";
 import {
   fetchRoadmapGraph,
@@ -34,6 +35,8 @@ import { GraphCanvas } from "../components/GraphCanvas";
 import { GraphFilterBar, type FilterState } from "../components/GraphFilterBar";
 import { GraphListView } from "../components/GraphListView";
 import { NodePanel } from "../components/NodePanel";
+import { PlacementDialog } from "../components/PlacementDialog";
+import { setNodeKnown } from "../api/placement";
 import {
   computeTransitiveReduction,
   computeMilestoneScope,
@@ -124,6 +127,7 @@ export function CoreJourney({
   const [positions, setPositions] = useState<NodePosition[]>([]);
   const [graphLoading, setGraphLoading] = useState(false);
   const [graphReload, setGraphReload] = useState(0);
+  const [placementOpen, setPlacementOpen] = useState(false);
   const fallbackGraph = normalizeGraph({
     nodes: (roadmap?.nodes || []).map((n) => ({
       ...n,
@@ -796,6 +800,7 @@ export function CoreJourney({
           <button onClick={() => setSourcePage(null)}>Đóng</button>
         </Modal>
       )}
+      {!mock && (page === "Library" || (page === "Roadmap" && roadmapApproved)) && <LearningGuide step={stage==="upload"?2:stage==="review"?3:stage==="plan"&&page==="Library"?4:5} />}
       {page === "Library" && stage !== "complete" && (
         <div
           className="core-setup-progress"
@@ -962,7 +967,23 @@ export function CoreJourney({
                     }}
                   >
                     <h3>Knowledge Graph môn học</h3>
+                    {!mock && (
+                      <button
+                        type="button"
+                        className="button"
+                        onClick={() => setPlacementOpen(true)}
+                      >
+                        Kiểm tra xếp lớp
+                      </button>
+                    )}
                   </div>
+                  {placementOpen && (
+                    <PlacementDialog
+                      roadmapId={roadmap.id}
+                      onClose={() => setPlacementOpen(false)}
+                      onFinished={() => setGraphReload((n) => n + 1)}
+                    />
+                  )}
                   {graphLoading && (
                     <div
                       role="status"
@@ -1015,6 +1036,7 @@ export function CoreJourney({
                   )}
                   {selectedNodeObj && (
                     <NodePanel
+                      persistLibrary={!mock}
                       manageUrl={false}
                       scheduleScope="course"
                       onOpenFullStage={(id) => {
@@ -1081,6 +1103,22 @@ export function CoreJourney({
                       }}
                       onClose={() => setNodePanelOpen(false)}
                       onSelectNode={selectGraphNode}
+                      known={
+                        fullGraph?.nodes.find((n) => n.id === selectedNodeObj.id)
+                          ?.known ?? null
+                      }
+                      onToggleKnown={
+                        mock
+                          ? undefined
+                          : (id, known) =>
+                              void setNodeKnown(id, known)
+                                .then(() => setGraphReload((n) => n + 1))
+                                .catch((e) =>
+                                  setGraphError(
+                                    e instanceof Error ? e.message : String(e),
+                                  ),
+                                )
+                      }
                     />
                   )}
                   {graphError && (

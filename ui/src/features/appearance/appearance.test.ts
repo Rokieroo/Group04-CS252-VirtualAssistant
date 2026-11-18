@@ -13,6 +13,14 @@ describe("parseAppearance", () => {
       accent: "ocean",
       theme: "dark",
     });
+    expect(parseAppearance('{"accent":"violet","theme":"windy"}')).toEqual({
+      accent: "violet",
+      theme: "windy",
+    });
+    expect(parseAppearance('{"accent":"sunset","theme":"flame"}')).toEqual({
+      accent: "sunset",
+      theme: "flame",
+    });
   });
   it("falls back for missing, malformed or unknown values", () => {
     expect(parseAppearance(null)).toEqual(DEFAULT_APPEARANCE);
@@ -54,6 +62,10 @@ describe("applyAppearance", () => {
     const root = document.createElement("html");
     applyAppearance({ accent: "sunset", theme: "dark" }, root);
     expect(root.dataset).toMatchObject({ accent: "sunset", theme: "dark" });
+    applyAppearance({ accent: "sunset", theme: "windy" }, root);
+    expect(root.dataset).toMatchObject({ accent: "sunset", theme: "windy" });
+    applyAppearance({ accent: "sunset", theme: "flame" }, root);
+    expect(root.dataset).toMatchObject({ accent: "sunset", theme: "flame" });
     applyAppearance({ accent: "sunset", theme: "system" }, root);
     expect(root.dataset.theme).toBeUndefined();
   });

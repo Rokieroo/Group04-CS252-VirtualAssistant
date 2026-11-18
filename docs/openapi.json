@@ -2461,6 +2461,102 @@
         }
       }
     },
+    "/api/v1/me/weekly-reminder": {
+      "get": {
+        "tags": [
+          "Schedule"
+        ],
+        "summary": "Weekly Reminder",
+        "operationId": "weekly_reminder_api_v1_me_weekly_reminder_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReminderStatus"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/me/learning-preferences": {
+      "get": {
+        "tags": [
+          "Schedule"
+        ],
+        "summary": "Learning Preferences",
+        "operationId": "learning_preferences_api_v1_me_learning_preferences_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LearningPreferences"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Schedule"
+        ],
+        "summary": "Update Learning Preferences",
+        "operationId": "update_learning_preferences_api_v1_me_learning_preferences_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreferenceUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LearningPreferences"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/v1/notifications": {
       "get": {
         "tags": [
@@ -2801,6 +2897,86 @@
         }
       }
     },
+    "/api/v1/me/library": {
+      "get": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Personal Library",
+        "operationId": "personal_library_api_v1_me_library_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LibraryItem"
+                  },
+                  "type": "array",
+                  "title": "Response Personal Library Api V1 Me Library Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/concepts/{node_id}/library": {
+      "patch": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Edit Personal Source",
+        "operationId": "edit_personal_source_api_v1_concepts__node_id__library_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Node Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryEdit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/roadmaps/{roadmap_id}/sources:summary": {
       "get": {
         "tags": [
@@ -2971,6 +3147,131 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AttemptOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmap-nodes/{node_id}/ask": {
+      "post": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Ask",
+        "description": "Answer from the learner's own pages, every claim quoted verbatim (issue #163).",
+        "operationId": "ask_api_v1_roadmap_nodes__node_id__ask_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Node Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmap-nodes/{node_id}/exercises/{exercise_id}/hints": {
+      "post": {
+        "tags": [
+          "Node learning and graph"
+        ],
+        "summary": "Hint",
+        "description": "The next rung of the hint ladder; a milestone's checkpoint never gets a solution.",
+        "operationId": "hint_api_v1_roadmap_nodes__node_id__exercises__exercise_id__hints_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Node Id"
+            }
+          },
+          {
+            "name": "exercise_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Exercise Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HintIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HintOut"
                 }
               }
             }
@@ -3552,6 +3853,170 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmaps/{roadmap_id}/placement": {
+      "post": {
+        "tags": [
+          "Placement"
+        ],
+        "summary": "Start",
+        "description": "Start a placement test on the roadmap, or resume the open one.",
+        "operationId": "start_api_v1_roadmaps__roadmap_id__placement_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "roadmap_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Roadmap Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlacementOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/placements/{placement_id}/answers": {
+      "post": {
+        "tags": [
+          "Placement"
+        ],
+        "summary": "Answer",
+        "description": "Mark the open question against its source's key and open the next one.",
+        "operationId": "answer_api_v1_placements__placement_id__answers_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "placement_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Placement Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlacementAnswerIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlacementOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/roadmap-nodes/{node_id}/known": {
+      "put": {
+        "tags": [
+          "Placement"
+        ],
+        "summary": "Known",
+        "description": "The learner corrects the placement: mark or unmark a concept as known.",
+        "operationId": "known_api_v1_roadmap_nodes__node_id__known_put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Node Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnownIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnownOut"
+                }
               }
             }
           },
@@ -4183,6 +4648,97 @@
   },
   "components": {
     "schemas": {
+      "AnswerCitationOut": {
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "quote": {
+            "type": "string",
+            "title": "Quote"
+          },
+          "file_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_id",
+          "page",
+          "quote",
+          "file_name"
+        ],
+        "title": "AnswerCitationOut"
+      },
+      "AnswerOut": {
+        "properties": {
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "found": {
+            "type": "boolean",
+            "title": "Found"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/AnswerCitationOut"
+            },
+            "type": "array",
+            "title": "Citations"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/RankedSourceOut"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answer",
+          "found",
+          "citations"
+        ],
+        "title": "AnswerOut"
+      },
+      "AskIn": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Question"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "AskIn"
+      },
       "AssessmentIn": {
         "properties": {
           "name": {
@@ -5615,6 +6171,22 @@
             "type": "number",
             "title": "Mastery",
             "default": 0.0
+          },
+          "known": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "tested",
+                  "inferred",
+                  "learner"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Known"
           }
         },
         "type": "object",
@@ -5637,6 +6209,64 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HintIn": {
+        "properties": {
+          "level": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 1.0,
+            "title": "Level",
+            "default": 1
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "HintIn"
+      },
+      "HintOut": {
+        "properties": {
+          "exercise_id": {
+            "type": "string",
+            "title": "Exercise Id"
+          },
+          "level": {
+            "type": "integer",
+            "title": "Level"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "refused": {
+            "type": "boolean",
+            "title": "Refused"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/ExerciseCitationOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exercise_id",
+          "level",
+          "content",
+          "refused",
+          "reason",
+          "citation"
+        ],
+        "title": "HintOut"
       },
       "ItemOut": {
         "properties": {
@@ -5776,6 +6406,58 @@
         ],
         "title": "JobOut"
       },
+      "KnownIn": {
+        "properties": {
+          "known": {
+            "type": "boolean",
+            "title": "Known"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "known"
+        ],
+        "title": "KnownIn"
+      },
+      "KnownOut": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "known": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "tested",
+                  "inferred",
+                  "learner"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Known"
+          },
+          "changed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Changed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node_id",
+          "known",
+          "changed"
+        ],
+        "title": "KnownOut"
+      },
       "LayoutIn": {
         "properties": {
           "positions": {
@@ -5879,6 +6561,142 @@
           "bloom_level"
         ],
         "title": "LearningOutcomeOut"
+      },
+      "LearningPreferences": {
+        "properties": {
+          "guide_enabled": {
+            "type": "boolean",
+            "title": "Guide Enabled"
+          },
+          "weekly_reminder": {
+            "type": "boolean",
+            "title": "Weekly Reminder"
+          }
+        },
+        "type": "object",
+        "required": [
+          "guide_enabled",
+          "weekly_reminder"
+        ],
+        "title": "LearningPreferences"
+      },
+      "LibraryEdit": {
+        "properties": {
+          "source_key": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Source Key"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "pinned",
+                  "hidden",
+                  "none"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_key"
+        ],
+        "title": "LibraryEdit"
+      },
+      "LibraryItem": {
+        "properties": {
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "node_title": {
+            "type": "string",
+            "title": "Node Title"
+          },
+          "course_id": {
+            "type": "string",
+            "title": "Course Id"
+          },
+          "course_title": {
+            "type": "string",
+            "title": "Course Title"
+          },
+          "roadmap_id": {
+            "type": "string",
+            "title": "Roadmap Id"
+          },
+          "source_key": {
+            "type": "string",
+            "title": "Source Key"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node_id",
+          "node_title",
+          "course_id",
+          "course_title",
+          "roadmap_id",
+          "source_key",
+          "title",
+          "state",
+          "note"
+        ],
+        "title": "LibraryItem"
       },
       "Login": {
         "properties": {
@@ -6255,6 +7073,141 @@
         ],
         "title": "NotificationOut"
       },
+      "PlacementAnswerIn": {
+        "properties": {
+          "exercise_id": {
+            "type": "string",
+            "title": "Exercise Id"
+          },
+          "response": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Response"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "exercise_id",
+          "response"
+        ],
+        "title": "PlacementAnswerIn"
+      },
+      "PlacementOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "roadmap_id": {
+            "type": "string",
+            "title": "Roadmap Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "finished"
+            ],
+            "title": "Status"
+          },
+          "asked": {
+            "type": "integer",
+            "title": "Asked"
+          },
+          "max_questions": {
+            "type": "integer",
+            "title": "Max Questions"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlacementQuestionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "known": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Known"
+          },
+          "unknown": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unknown"
+          },
+          "skipped": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Skipped"
+          },
+          "total_minutes": {
+            "type": "integer",
+            "title": "Total Minutes"
+          },
+          "known_minutes": {
+            "type": "integer",
+            "title": "Known Minutes"
+          },
+          "last_attempt": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AttemptOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "roadmap_id",
+          "status",
+          "asked",
+          "max_questions",
+          "question",
+          "known",
+          "unknown",
+          "skipped",
+          "total_minutes",
+          "known_minutes"
+        ],
+        "title": "PlacementOut"
+      },
+      "PlacementQuestionOut": {
+        "properties": {
+          "node_id": {
+            "type": "string",
+            "title": "Node Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "exercise": {
+            "$ref": "#/components/schemas/ExerciseOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node_id",
+          "title",
+          "exercise"
+        ],
+        "title": "PlacementQuestionOut"
+      },
       "PlanDiffOut": {
         "properties": {
           "moved": {
@@ -6410,6 +7363,34 @@
           "y"
         ],
         "title": "PositionIn"
+      },
+      "PreferenceUpdate": {
+        "properties": {
+          "guide_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guide Enabled"
+          },
+          "weekly_reminder": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weekly Reminder"
+          }
+        },
+        "type": "object",
+        "title": "PreferenceUpdate"
       },
       "PrereqOut": {
         "properties": {
@@ -6661,6 +7642,11 @@
             "type": "string",
             "title": "Verification Status"
           },
+          "personal_state": {
+            "type": "string",
+            "title": "Personal State",
+            "default": "none"
+          },
           "score": {
             "type": "number",
             "title": "Score"
@@ -6901,8 +7887,77 @@
         ],
         "title": "RejectIn"
       },
+      "ReminderStatus": {
+        "properties": {
+          "reminder_due": {
+            "type": "boolean",
+            "title": "Reminder Due"
+          },
+          "seconds_to_change": {
+            "type": "integer",
+            "title": "Seconds To Change"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reminder_due",
+          "seconds_to_change"
+        ],
+        "title": "ReminderStatus"
+      },
       "ReportOut": {
         "properties": {
+          "completed_nodes": {
+            "type": "integer",
+            "title": "Completed Nodes",
+            "default": 0
+          },
+          "overdue_nodes": {
+            "type": "integer",
+            "title": "Overdue Nodes",
+            "default": 0
+          },
+          "upcoming_milestones": {
+            "items": {
+              "$ref": "#/components/schemas/WeeklyNode"
+            },
+            "type": "array",
+            "title": "Upcoming Milestones"
+          },
+          "review_nodes": {
+            "items": {
+              "$ref": "#/components/schemas/WeeklyNode"
+            },
+            "type": "array",
+            "title": "Review Nodes"
+          },
+          "reminder_due": {
+            "type": "boolean",
+            "title": "Reminder Due",
+            "default": false
+          },
+          "reminder_enabled": {
+            "type": "boolean",
+            "title": "Reminder Enabled",
+            "default": true
+          },
+          "next_week_deadline": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Week Deadline"
+          },
+          "review_count": {
+            "type": "integer",
+            "title": "Review Count",
+            "default": 0
+          },
           "start_date": {
             "type": "string",
             "format": "date",
@@ -8743,6 +9798,29 @@
           "reason"
         ],
         "title": "VerifyIn"
+      },
+      "WeeklyNode": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "roadmap_id": {
+            "type": "string",
+            "title": "Roadmap Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "roadmap_id"
+        ],
+        "title": "WeeklyNode"
       },
       "WindowOut": {
         "properties": {

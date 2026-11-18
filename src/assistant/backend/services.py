@@ -166,9 +166,7 @@ def make_plan(db: Session, user: User, data: PlanRequest, now: datetime):
             planned_elsewhere[entry.task_id] = planned_elsewhere.get(
                 entry.task_id, 0
             ) + minutes(entry.starts_at, entry.ends_at)
-    tasks = db.scalars(
-        select(Task).where(Task.assignee_id == user.id, Task.status == "pending")
-    ).all()
+    tasks = db.scalars(_to_study(user.id)).all()
     rules = _roadmap_rules(db, tasks)
     proposal = build_plan(
         [
@@ -250,6 +248,19 @@ def make_plan(db: Session, user: User, data: PlanRequest, now: datetime):
         db.commit()
         plan.committed = True
     return plan
+
+
+def _to_study(user_id: str):
+    """Pending tasks, minus those of a concept the learner already knows (#166)."""
+    return (
+        select(Task)
+        .outerjoin(RoadmapNode, RoadmapNode.id == Task.roadmap_node_id)
+        .where(
+            Task.assignee_id == user_id,
+            Task.status == "pending",
+            RoadmapNode.known.is_(None),
+        )
+    )
 
 
 def _roadmap_rules(db: Session, tasks: list[Task]) -> dict[str, dict]:
@@ -457,10 +468,7 @@ def companion_reply(
         db, user, local_date - timedelta(days=local_date.weekday())
     )
     tasks = db.scalars(
-        select(Task)
-        .where(Task.assignee_id == user.id, Task.status == "pending")
-        .order_by(Task.priority, Task.due_at, Task.id)
-        .limit(5)
+        _to_study(user.id).order_by(Task.priority, Task.due_at, Task.id).limit(5)
     ).all()
     next_entry = db.scalar(
         select(ScheduleEntry)

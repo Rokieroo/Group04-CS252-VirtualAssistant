@@ -41,9 +41,9 @@ test("API errors retry without demo fallback; answers are graded by the response
   await expect(page.getByText(/test-lesson.pdf, page 2/)).toBeVisible();
   await page.getByRole("radio", { name: "went", exact: true }).check();
   await page.getByRole("button", { name: "Submit answers" }).click();
-  await expect(page.getByRole("dialog").getByRole("status")).toContainText(
-    "25% · Keep practicing",
-  );
+  await expect(
+    page.getByRole("dialog").locator(".result[role=status]"),
+  ).toContainText("25% · Keep practicing");
   expect(submissions).toHaveLength(1);
   expect(submissions[0]).toMatchObject({
     attemptId: expect.any(String),

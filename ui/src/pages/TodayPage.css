@@ -1,3 +1,4 @@
+@layer study-legacy {
 /* Màn hình Hôm nay - Issue #159 */
 .today-page {
   display: flex;
@@ -216,4 +217,6 @@
   text-align: center;
   color: var(--color-muted);
   font-size: 0.92rem;
+}
+
 }

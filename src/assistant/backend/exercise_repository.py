@@ -358,6 +358,16 @@ def _visible(db, node, roadmap, course, now, roles, only=None):
     ]
 
 
+def visible_exercise(db, node, roadmap, course, now, exercise_id):
+    """(row, learner view) of one exercise; LookupError when the learner cannot see it here."""
+    found = _visible(
+        db, node, roadmap, course, now, tuple(REQUIRED), only={exercise_id}
+    )
+    if not found:
+        raise LookupError("Exercise not found")
+    return found[0]
+
+
 def exercises_for_node(db, node, roadmap, course, now, *, role="practice", limit=10):
     """Quoted exercises for a node, chosen by subject, difficulty and Bloom level.
 
@@ -376,6 +386,20 @@ def exercises_for_node(db, node, roadmap, course, now, *, role="practice", limit
     }
 
 
+def markable_exercise(db, node, roadmap, course, now, *, only=None):
+    """The hardest exercise at ``node`` whose source prints a key to mark, or None.
+
+    A placement question (#166) is always marked: a learner's own verdict on a
+    proof cannot be what marks a concept as known. ``only`` as in :func:`_visible`.
+    """
+    markable = [
+        view
+        for _, view in _visible(db, node, roadmap, course, now, tuple(REQUIRED), only)
+        if view["auto_grade"]
+    ]
+    return max(markable, key=lambda view: (view["difficulty"], view["id"]), default=None)
+
+
 # --- attempts ------------------------------------------------------------------------
 
 
@@ -387,12 +411,7 @@ def record_attempt(db, node, roadmap, course, now, exercise_id, user_id, respons
     citation back, and ``correct`` stays None. Raises LookupError when the
     exercise is not one this learner can see at this node.
     """
-    found = _visible(
-        db, node, roadmap, course, now, tuple(REQUIRED), only={exercise_id}
-    )
-    if not found:
-        raise LookupError("Exercise not found")
-    exercise, view = found[0]
+    exercise, view = visible_exercise(db, node, roadmap, course, now, exercise_id)
     correct = grade(exercise.type, view["choices"], exercise.answer, response)
     attempt = ExerciseAttempt(
         user_id=user_id,

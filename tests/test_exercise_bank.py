@@ -119,27 +119,6 @@ def test_html_pages_keep_the_line_starts_numbered_exercises_need():
     assert len(extract_numbered(pages[0])) == 3
 
 
-@pytest.fixture
-def milestone_roadmap(client, headers):
-    course = client.post(
-        "/api/v1/courses", headers=headers, json={"title": "CSC10014", "language": "en"}
-    ).json()["id"]
-    response = client.post(
-        f"/api/v1/courses/{course}/roadmap:generate",
-        headers=headers,
-        json={
-            "nodes": [
-                {"title": "Solution ladder", "week": 1},
-                {"title": "Use case", "week": 2},
-                {"title": "Midterm", "type": "milestone", "week": 2},
-                {"title": "Final", "type": "milestone", "week": 3},
-            ]
-        },
-    )
-    assert response.status_code == 201, response.text
-    return response.json()
-
-
 def test_each_milestone_has_ten_cited_checkpoint_questions_or_says_insufficient(
     app, client, headers, milestone_roadmap
 ):

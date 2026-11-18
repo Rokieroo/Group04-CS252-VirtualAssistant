@@ -184,7 +184,10 @@ class BM25Retriever:
         self._texts = [_source_text(source) for source in self.sources]
         self._pages = [_source_page(source) for source in self.sources]
         self._file_names = [_source_file_name(source) for source in self.sources]
-        self._index = Bm25Index(self._texts)
+        # Okapi scores every page <= 0 in a one- or two-page course; larger courses
+        # keep Okapi, which MIN_SCORE and eval/run_retrieval.py are calibrated on.
+        model = _PositiveIdfBM25 if len(self.sources) < 3 else BM25Okapi
+        self._index = Bm25Index(self._texts, model=model)
 
     def retrieve(
         self,

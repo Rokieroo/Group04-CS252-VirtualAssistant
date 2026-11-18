@@ -13,6 +13,7 @@ export interface GraphListNode {
   sources_status?: string;
   sources_count?: number;
   verified_sources_count?: number;
+  known?: string | null;
   clo?: string[];
   prereqs_count?: number;
 }
@@ -31,6 +32,7 @@ const STATUS_LABELS: Record<string, { text: string; className: string }> = {
   available: { text: "Có thể học", className: "status-in-progress" },
   unknown: { text: "Chưa có trạng thái", className: "status-not-started" },
   mastered: { text: "Đã vững", className: "status-mastered" },
+  known: { text: "Đã biết", className: "status-mastered" },
   in_progress: { text: "Đang học", className: "status-in-progress" },
   review_due: { text: "Cần ôn tập", className: "status-review-due" },
   not_started: { text: "Chưa học", className: "status-not-started" },
@@ -96,7 +98,7 @@ export function GraphListView({
             sortedNodes.map((node) => {
               const isSelected = selectedId === node.id;
               const statusInfo =
-                STATUS_LABELS[node.status || "unknown"] ||
+                STATUS_LABELS[node.known ? "known" : node.status || "unknown"] ||
                 STATUS_LABELS.unknown;
 
               return (

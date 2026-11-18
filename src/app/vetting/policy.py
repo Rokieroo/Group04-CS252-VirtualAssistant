@@ -33,38 +33,47 @@ class DomainTier(IntEnum):
 
 @dataclass(frozen=True)
 class _Rules:
-    """Entries from one list: exact suffixes, and ``name.*`` bases."""
+    """Entries from one list: suffixes, ``name.*`` bases, and category tokens."""
 
     suffixes: frozenset[str]
     any_tld: frozenset[str]
+    tokens: frozenset[str] = frozenset()
 
     @classmethod
     def read(cls, path: Path) -> _Rules:
-        suffixes, any_tld = set(), set()
+        suffixes, any_tld, tokens = set(), set(), set()
         if path.is_file():
             for line in path.read_text(encoding="utf-8").splitlines():
                 entry = line.split("#", 1)[0].strip().casefold().strip(".")
                 entry = entry.removeprefix("*.")
                 if not entry:
                     continue
-                if entry.endswith(".*"):
+                if entry.startswith("token:"):
+                    if tok := entry.removeprefix("token:").strip():
+                        tokens.add(tok)
+                elif entry.endswith(".*"):
                     any_tld.add(entry[:-2])
                 else:
                     suffixes.add(entry)
-        return cls(frozenset(suffixes), frozenset(any_tld))
+        return cls(frozenset(suffixes), frozenset(any_tld), frozenset(tokens))
 
     def union(self, domains: frozenset[str]) -> _Rules:
-        return _Rules(self.suffixes | domains, self.any_tld)
+        return _Rules(self.suffixes | domains, self.any_tld, self.tokens)
 
     def match(self, labels: list[str]) -> bool:
         # Suffix entry: the host is the entry or one of its subdomains.
         if any(".".join(labels[i:]) in self.suffixes for i in range(len(labels))):
             return True
         # "name.*" entry: the name followed by at least one more label.
-        return any(
+        if any(
             ".".join(labels[i:j]) in self.any_tld
             for i in range(len(labels))
             for j in range(i + 1, len(labels))
+        ):
+            return True
+        # "token:word" entry: a whole hyphen-delimited word of any label but the TLD.
+        return any(
+            word in self.tokens for label in labels[:-1] for word in label.split("-")
         )
 
 

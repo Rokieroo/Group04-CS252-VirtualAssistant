@@ -1,3 +1,4 @@
+@layer study-legacy {
 /* Design tokens (docs/progress/phase1/UIUX.md). New components use only these. */
 :root {
   /* User accent (src/appearance.ts sets data-accent). Both ends keep white text >= 4.5:1;
@@ -112,6 +113,51 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
+}
+:root[data-theme="windy"] {
+  color-scheme: light;
+  --windy-fallback: #acb6e5;
+  --windy-gradient: linear-gradient(to right, #86fde8, #acb6e5);
+  --color-bg: #acb6e5;
+  --color-surface: rgba(255, 255, 255, 0.86);
+  --color-surface-alt: rgba(244, 249, 255, 0.78);
+  --color-text: #101828;
+  --color-muted: #2d3b4e;
+  --color-line: rgba(16, 24, 40, 0.16);
+  --color-primary-ink: color-mix(in oklab, var(--accent-a) 62%, #0b1324);
+  background: #acb6e5; /* fallback for old browsers */
+  background: -webkit-linear-gradient(to right, #86fde8, #acb6e5); /* Chrome 10-25, Safari 5.1-6 */
+  background: linear-gradient(to right, #86fde8, #acb6e5); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+  background-color: #acb6e5;
+}
+:root[data-theme="windy"] :is(body, .app, .auth) {
+  background: #acb6e5; /* fallback for old browsers */
+  background: -webkit-linear-gradient(to right, #86fde8, #acb6e5); /* Chrome 10-25, Safari 5.1-6 */
+  background: linear-gradient(to right, #86fde8, #acb6e5); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+  background-color: #acb6e5;
+}
+:root[data-theme="flame"] {
+  color-scheme: light;
+  --flame-fallback: #ff0000;
+  --flame-gradient: linear-gradient(to right, #fdcf58, #ff0000);
+  --color-bg: #ff0000;
+  --color-surface: rgba(255, 251, 245, 0.9);
+  --color-surface-alt: rgba(255, 244, 232, 0.84);
+  --color-text: #180804;
+  --color-muted: #1f0a06;
+  --color-line: rgba(68, 20, 8, 0.16);
+  --color-primary-ink: color-mix(in oklab, var(--accent-a) 55%, #180804);
+  --color-nav-bg: #1f110e;
+  background: #ff0000; /* fallback for old browsers */
+  background: -webkit-linear-gradient(to right, #fdcf58, #ff0000); /* Chrome 10-25, Safari 5.1-6 */
+  background: linear-gradient(to right, #fdcf58, #ff0000); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+  background-color: #ff0000;
+}
+:root[data-theme="flame"] :is(body, .app, .auth) {
+  background: #ff0000; /* fallback for old browsers */
+  background: -webkit-linear-gradient(to right, #fdcf58, #ff0000); /* Chrome 10-25, Safari 5.1-6 */
+  background: linear-gradient(to right, #fdcf58, #ff0000); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+  background-color: #ff0000;
 }
 /* Accent presets: white text contrast checked >= 4.8:1 at both ends and the midpoint.
    Not scoped to :root so each picker swatch can preview its own preset. */
@@ -1839,4 +1885,6 @@ legend {
 }
 @media (orientation: portrait) and (max-width:430px) {
   .study-companion .sidebar nav button { font-size:10px; flex-direction:column; }
+}
+
 }

@@ -1,7 +1,7 @@
 -- Canonical portable schema through migration 0010.
 
 CREATE TABLE IF NOT EXISTS users (
-    id                     TEXT PRIMARY KEY,
+    id                    TEXT PRIMARY KEY,
     email                  TEXT UNIQUE NOT NULL,
     password_hash          TEXT NOT NULL,
     role                   TEXT NOT NULL DEFAULT 'student',
@@ -17,7 +17,9 @@ CREATE TABLE IF NOT EXISTS users (
     timezone               VARCHAR(64) NOT NULL DEFAULT 'Asia/Ho_Chi_Minh',
     personality            VARCHAR(16) NOT NULL DEFAULT 'warm',
     parental_consent       INTEGER NOT NULL DEFAULT 0,
-    parental_consent_at    TEXT
+    parental_consent_at    TEXT,
+    guide_enabled          INTEGER NOT NULL DEFAULT 1,
+    weekly_reminder        INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS search_cache (
@@ -263,6 +265,7 @@ CREATE TABLE IF NOT EXISTS roadmap_nodes (
 	due_at TIMESTAMP,
 	covers TEXT,
 	concept_id TEXT,
+	known TEXT,
 	PRIMARY KEY (id),
 	FOREIGN KEY(roadmap_id) REFERENCES roadmaps (id) ON DELETE CASCADE,
 	FOREIGN KEY(concept_id) REFERENCES concepts (id) ON DELETE SET NULL
@@ -552,6 +555,19 @@ CREATE TABLE IF NOT EXISTS exercise_attempts (
 CREATE INDEX IF NOT EXISTS ix_exercise_attempts_user_exercise ON exercise_attempts (user_id, exercise_id);
 CREATE INDEX IF NOT EXISTS ix_exercise_attempts_node_id ON exercise_attempts (node_id);
 
+CREATE TABLE IF NOT EXISTS placements (
+    id          VARCHAR(36) PRIMARY KEY,
+    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    roadmap_id  VARCHAR(36) NOT NULL REFERENCES roadmaps(id) ON DELETE CASCADE,
+    answers     TEXT NOT NULL,
+    skipped     TEXT NOT NULL,
+    node_id     VARCHAR(36) REFERENCES roadmap_nodes(id) ON DELETE SET NULL,
+    exercise_id VARCHAR(36) REFERENCES exercises(id) ON DELETE SET NULL,
+    created_at  TIMESTAMP NOT NULL,
+    finished_at TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS ix_placements_user_roadmap ON placements (user_id, roadmap_id);
+
 CREATE TABLE IF NOT EXISTS search_runs (
     id             VARCHAR(36) PRIMARY KEY,
     user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -717,8 +733,17 @@ CREATE INDEX IF NOT EXISTS ix_recommendation_events_recommendation_id ON recomme
 
 CREATE INDEX IF NOT EXISTS ix_external_results_fetched_at ON external_results (fetched_at);
 
+CREATE TABLE IF NOT EXISTS personal_sources (
+    node_id VARCHAR(36) NOT NULL REFERENCES roadmap_nodes(id) ON DELETE CASCADE,
+    source_key TEXT NOT NULL,
+    title TEXT NOT NULL,
+    state TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (node_id, source_key)
+);
+
 INSERT INTO alembic_version (version_num)
-SELECT '0018_recommendation_kinds'
+SELECT '0020_recommendation_kinds'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);
 
 CREATE INDEX IF NOT EXISTS ix_roadmap_edges_roadmap_id ON roadmap_edges (roadmap_id);

@@ -13,6 +13,7 @@ from collections import Counter
 from datetime import datetime, timedelta
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.curator import Curation
@@ -75,10 +76,18 @@ def _remember_external(
     """Upsert one cache row in the caller's transaction."""
     text_payload = json.dumps(payload, ensure_ascii=False)
     row = db.get(ExternalResult, (query_hash, provider))
-    if row is None:
-        row = ExternalResult(query_hash=query_hash, provider=provider)
-        db.add(row)
-    row.payload, row.fetched_at = text_payload, now
+    if row is not None:
+        row.payload, row.fetched_at = text_payload, now
+        return row
+    row = ExternalResult(
+        query_hash=query_hash, provider=provider, payload=text_payload, fetched_at=now
+    )
+    try:
+        with db.begin_nested():
+            db.add(row)
+    except IntegrityError:
+        # A concurrent request cached the same query first; keep theirs.
+        return db.get(ExternalResult, (query_hash, provider))
     return row
 
 

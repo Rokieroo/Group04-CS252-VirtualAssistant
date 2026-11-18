@@ -8,9 +8,11 @@ import {
 } from "react";
 import type { Edge, NodeStatus } from "../api/core";
 import type { RoadmapNode } from "../api/types";
+import { editLibrary, type SourceState } from "../api/personalLibrary";
 import { nodeSources, type NodeSources } from "../api/materials";
 import { fetchNodeExercises, type ExerciseItem } from "../api/exercises";
 import { searchNodeResources } from "../api/resources";
+import type { Known } from "../api/placement";
 import {
   InsufficientSourcesNotice,
   VerifiedSourceCard,
@@ -27,6 +29,7 @@ export type ExtendedNode = RoadmapNode & {
 };
 
 export type NodePanelProps = {
+  persistLibrary?: boolean;
   manageUrl?: boolean;
   scheduleScope?: "node" | "course";
   roadmapId: string;
@@ -44,9 +47,12 @@ export type NodePanelProps = {
   onOpenSyllabusPage?: (page: number) => void;
   onOpenMaterialPage?: (sourceId: string, page: number) => void;
   onOpenPractice?: (nodeId: string, exerciseIds?: string[]) => void;
+  known?: Known | null;
+  onToggleKnown?: (nodeId: string, known: boolean) => void;
 };
 
 export function NodePanel({
+  persistLibrary = false,
   manageUrl = true,
   scheduleScope = "node",
   roadmapId,
@@ -64,6 +70,8 @@ export function NodePanel({
   onOpenSyllabusPage,
   onOpenMaterialPage,
   onOpenPractice,
+  known = null,
+  onToggleKnown,
 }: NodePanelProps) {
   const [sourcesData, setSourcesData] = useState<NodeSources | null>(null);
   const [exercises, setExercises] = useState<ExerciseItem[]>([]);
@@ -114,7 +122,11 @@ export function NodePanel({
       fetchNodeExercises(nodeId, 5),
     ]);
     if (version !== loadVersion.current) return;
-    if (sourceResult.status === "fulfilled") setSourcesData(sourceResult.value);
+    if (sourceResult.status === "fulfilled") {
+      setSourcesData(sourceResult.value);
+      setPinnedSourceIds(new Set(sourceResult.value.sources.filter(s=>s.personal_state==="pinned").map(s=>s.id)));
+      setHiddenSourceIds(new Set(sourceResult.value.sources.filter(s=>s.personal_state==="hidden").map(s=>s.id)));
+    }
     else
       setLoadError(
         sourceResult.reason instanceof Error
@@ -246,8 +258,16 @@ export function NodePanel({
     }
   };
 
-  const handleFeedback = (sourceId: string, helpful: boolean) => {
+  const saveState = async (sourceId:string,state:SourceState) => {
+    const version=loadVersion.current;
+    try {
+      await editLibrary(node.id,sourceId,{state});
+      return version===loadVersion.current;
+    } catch(e){if(version===loadVersion.current)setLoadError(String(e));return false;}
+  };
+  const handleFeedback = async (sourceId: string, helpful: boolean) => {
     if (!helpful) {
+      if (persistLibrary && !await saveState(sourceId,"hidden")) return;
       const prevTimer = feedbackTimersRef.current.get(sourceId);
       if (prevTimer) clearTimeout(prevTimer);
       setExitingSourceIds((prev) => new Set(prev).add(sourceId));
@@ -264,7 +284,8 @@ export function NodePanel({
     }
   };
 
-  const handlePin = (sourceId: string, pinned: boolean) => {
+  const handlePin = async (sourceId: string, pinned: boolean) => {
+    if (persistLibrary && !await saveState(sourceId,pinned?"pinned":"none")) return;
     setPinnedSourceIds((prev) => {
       const next = new Set(prev);
       if (pinned) next.add(sourceId);
@@ -411,6 +432,29 @@ export function NodePanel({
           >
             Xem đồ thị cục bộ
           </button>
+        )}
+        {onToggleKnown && node.type !== "milestone" && (
+          <div className="np-known">
+            {known && (
+              <span className="sm">
+                Đã biết (
+                {known === "tested"
+                  ? "qua bài kiểm tra"
+                  : known === "inferred"
+                    ? "suy ra từ câu trả lời"
+                    : "bạn đánh dấu"}
+                ) — không xếp vào lịch.
+              </span>
+            )}
+            <button
+              type="button"
+              className="np-path-btn"
+              aria-pressed={Boolean(known)}
+              onClick={() => onToggleKnown(node.id, !known)}
+            >
+              {known ? "Bỏ đánh dấu đã biết" : "Tôi đã biết chặng này"}
+            </button>
+          </div>
         )}
         {/* 2. Scrollable Body Content */}
         <div className="np-body" aria-live="polite">

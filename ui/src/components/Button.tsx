@@ -1,4 +1,19 @@
-import type { ReactNode } from "react";
+import { Children, isValidElement, type ReactNode } from "react";
+import { Button as AstryxButton } from "@astryxdesign/core/Button";
+
+function labelOf(content: ReactNode): string {
+  return Children.toArray(content)
+    .map((child) =>
+      isValidElement<{ children?: ReactNode }>(child)
+        ? labelOf(child.props.children)
+        : typeof child === "string" || typeof child === "number"
+          ? String(child)
+          : "",
+    )
+    .join("");
+}
+
+/** Keeps existing callers and copy while centralising size, states and theme. */
 export function Button({
   children,
   onClick,
@@ -11,13 +26,15 @@ export function Button({
   disabled?: boolean;
 }) {
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      className={primary ? "button primary" : "button"}
+    <AstryxButton
+      label={labelOf(children)}
+      size="lg"
+      variant={primary ? "primary" : "secondary"}
+      isDisabled={disabled}
+      className={`study-button ${primary ? "study-primary" : ""}`}
       onClick={onClick}
     >
       {children}
-    </button>
+    </AstryxButton>
   );
 }

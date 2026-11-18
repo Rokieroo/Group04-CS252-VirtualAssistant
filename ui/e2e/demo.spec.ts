@@ -14,7 +14,9 @@ test("quiz credit persists and retakes cannot inflate it", async ({
   for (const answer of ["went", "was", "They were playing.", "saw"])
     await dialog.getByRole("radio", { name: answer, exact: true }).check();
   await dialog.getByRole("button", { name: "Submit answers" }).click();
-  await expect(dialog.getByRole("status")).toContainText("100% · Passed");
+  await expect(dialog.locator(".result[role=status]")).toContainText(
+    "100% · Passed",
+  );
   await dialog.evaluate((element) => {
     element.scrollTop = 0;
   });
@@ -31,7 +33,9 @@ test("quiz credit persists and retakes cannot inflate it", async ({
   for (const answer of ["went", "was", "They were playing.", "saw"])
     await dialog.getByRole("radio", { name: answer, exact: true }).check();
   await dialog.getByRole("button", { name: "Submit answers" }).click();
-  await expect(dialog.getByRole("status")).toContainText("100% · Passed");
+  await expect(dialog.locator(".result[role=status]")).toContainText(
+    "100% · Passed",
+  );
   await page.keyboard.press("Escape");
   await page.reload();
   await signIn(page);
@@ -73,7 +77,9 @@ test("Mastery cards open their own session and update after a check", async ({
   for (const answer of ["went", "was", "They were playing.", "saw"])
     await dialog.getByRole("radio", { name: answer, exact: true }).check();
   await dialog.getByRole("button", { name: "Submit answers" }).click();
-  await expect(dialog.getByRole("status")).toContainText("100% · Passed");
+  await expect(dialog.locator(".result[role=status]")).toContainText(
+    "100% · Passed",
+  );
   await page.keyboard.press("Escape");
 
   await expect(quiz).toContainText("Verified");
@@ -105,7 +111,9 @@ test("search, empty state, enrollment, navigation and calendar still work", asyn
   await page.getByRole("button", { name: "I meet the prerequisite" }).click();
   await page.getByRole("button", { name: "Approve plan" }).click();
   await navigate(page, "Schedule");
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Schedule");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(
+    "Schedule",
+  );
   await page.getByLabel("Calendar view").selectOption("Month");
   await expect(page.locator(".calendar.month")).toBeVisible();
   await expect(

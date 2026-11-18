@@ -15,6 +15,8 @@ import { AdminCatalogPage } from "./pages/AdminCatalogPage";
 import { TodayPage } from "./pages/TodayPage";
 import { CoreJourney } from "./pages/CoreJourney";
 import { CoursesPage } from "./pages/CoursesPage";
+import { WeeklyReminder } from "./components/WeeklyReminder";
+import { LearningGuide } from "./components/LearningGuide";
 import { SourcesPage } from "./pages/SourcesPage";
 import Workspace from "./Workspace";
 
@@ -145,6 +147,7 @@ export default function CoreApp({ mock = false }: { mock?: boolean }) {
         )
       }
     >
+      {!mock && page !== "Schedule" && page !== "Workspace" && <WeeklyReminder open={()=>go("Schedule")} />}
       {!mock && page === "Library" && (
         <>
           {selectedCourse && (
@@ -163,6 +166,7 @@ export default function CoreApp({ mock = false }: { mock?: boolean }) {
               Danh sách môn học
             </button>
           )}
+          {!selectedCourse && <LearningGuide step={1} />}
           {showCourses && <CourseLibrary onOpen={openCourse} />}
         </>
       )}
@@ -197,7 +201,7 @@ export default function CoreApp({ mock = false }: { mock?: boolean }) {
           {(page === "Schedule" || page === "Workspace") && <Workspace />}
         </>
       )}
-      {page === "Sources" && <SourcesPage go={go} />}
+      {page === "Sources" && <SourcesPage go={go} live={!mock} />}
       {page === "Costs" && (
         <>
           <CostsPage />
