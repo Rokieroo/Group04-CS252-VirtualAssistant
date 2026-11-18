@@ -14,6 +14,7 @@ from app.companion import girlfriend_mode_allowed
 
 from .catalog_models import ExerciseAttempt, Placement, RoadmapEdge
 from .dependencies import DB, CurrentUser
+from .library_repository import library_items
 from .models import (
     AuthSession,
     Availability,
@@ -37,7 +38,6 @@ from .models import (
     Team,
     User,
 )
-from .routes_learning import personal_library
 from .schemas import Login, ProfilePatch, Register, TokenOut, UserOut
 from .security import hash_password, token_hash, verify_password
 
@@ -404,7 +404,7 @@ def export_user_data(user: CurrentUser, db: DB, request: Request):
         "review_logs": review_logs_data,
         "exercise_attempts": attempts_data,
         "placements": placements_data,
-        "personal_library": personal_library(db, user, request),
+        "personal_library": library_items(db, user.id, request.app.state.now()),
     }
 
 

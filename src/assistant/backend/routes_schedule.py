@@ -219,7 +219,6 @@ def weekly_report(
         )
     )
     now = request.app.state.now()
-    local_now = now.astimezone(ZoneInfo(user.timezone))
     end = start + timedelta(days=7)
     tasks = select(func.count(func.distinct(Task.roadmap_node_id))).where(
         Task.assignee_id == user.id, Task.due_at >= start, Task.due_at < end
@@ -252,12 +251,25 @@ def weekly_report(
         ),
         "upcoming_milestones": db.execute(milestones).mappings().all(),
         "review_nodes": db.execute(reviews).mappings().all(),
-        "reminder_due": bool(
-            user.weekly_reminder and local_now.weekday() == 6 and local_now.hour >= 19
-        ),
+        "reminder_due": _reminder_window(user, now)[0],
         "reminder_enabled": bool(user.weekly_reminder),
         "next_week_deadline": end + timedelta(days=7, seconds=-1),
     }
+
+
+REMINDER_AT = time(19)  # Sunday evening in the learner's own timezone (UC-16)
+
+
+def _reminder_window(user: User, now: datetime) -> tuple[bool, datetime]:
+    """Whether the weekly-summary reminder is due, and when that answer next changes."""
+    local = now.astimezone(ZoneInfo(user.timezone))
+    sunday = local.date() + timedelta(days=6 - local.weekday())
+    at = datetime.combine(sunday, REMINDER_AT, local.tzinfo)
+    if local < at:
+        return False, at
+    return bool(user.weekly_reminder), datetime.combine(
+        sunday + timedelta(days=1), time.min, local.tzinfo
+    )
 
 
 class ReminderStatus(BaseModel):
@@ -267,18 +279,11 @@ class ReminderStatus(BaseModel):
 
 @router.get("/me/weekly-reminder", response_model=ReminderStatus)
 def weekly_reminder(user: CurrentUser, request: Request):
-    now = request.app.state.now().astimezone(ZoneInfo(user.timezone))
-    sunday = now.date() + timedelta(days=6 - now.weekday())
-    at = datetime.combine(sunday, time(19), now.tzinfo)
-    due = now >= at
-    boundary = (
-        datetime.combine(sunday + timedelta(days=1), time.min, now.tzinfo)
-        if due
-        else at
-    )
+    now = request.app.state.now()
+    due, boundary = _reminder_window(user, now)
     return ReminderStatus(
-        reminder_due=bool(user.weekly_reminder and due),
-        seconds_to_change=max(1, int(boundary.timestamp() - now.timestamp()) + 1),
+        reminder_due=due,
+        seconds_to_change=max(1, int((boundary - now).total_seconds()) + 1),
     )
 
 

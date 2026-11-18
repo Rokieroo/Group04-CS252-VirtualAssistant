@@ -2932,8 +2932,8 @@
         "tags": [
           "Node learning and graph"
         ],
-        "summary": "Edit Library",
-        "operationId": "edit_library_api_v1_concepts__node_id__library_patch",
+        "summary": "Edit Personal Source",
+        "operationId": "edit_personal_source_api_v1_concepts__node_id__library_patch",
         "security": [
           {
             "HTTPBearer": []

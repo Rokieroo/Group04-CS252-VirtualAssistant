@@ -1,9 +1,7 @@
 -- Canonical portable schema through migration 0010.
 
 CREATE TABLE IF NOT EXISTS users (
-    guide_enabled INTEGER NOT NULL DEFAULT 1,
-    weekly_reminder INTEGER NOT NULL DEFAULT 1,
-    id                     TEXT PRIMARY KEY,
+    id                    TEXT PRIMARY KEY,
     email                  TEXT UNIQUE NOT NULL,
     password_hash          TEXT NOT NULL,
     role                   TEXT NOT NULL DEFAULT 'student',
@@ -19,7 +17,9 @@ CREATE TABLE IF NOT EXISTS users (
     timezone               VARCHAR(64) NOT NULL DEFAULT 'Asia/Ho_Chi_Minh',
     personality            VARCHAR(16) NOT NULL DEFAULT 'warm',
     parental_consent       INTEGER NOT NULL DEFAULT 0,
-    parental_consent_at    TEXT
+    parental_consent_at    TEXT,
+    guide_enabled          INTEGER NOT NULL DEFAULT 1,
+    weekly_reminder        INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS search_cache (
@@ -742,7 +742,7 @@ CREATE TABLE IF NOT EXISTS personal_sources (
 );
 
 INSERT INTO alembic_version (version_num)
-SELECT '0019_merge_learning'
+SELECT '0019_personal_library'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);
 
 CREATE INDEX IF NOT EXISTS ix_roadmap_edges_roadmap_id ON roadmap_edges (roadmap_id);
