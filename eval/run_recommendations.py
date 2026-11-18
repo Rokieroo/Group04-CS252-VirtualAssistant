@@ -8,7 +8,8 @@ Usage::
 Compares three configurations on the 5 benchmark syllabi (50 week nodes total):
 
 1. ``db_only``: verified catalog resources only (``match_sources``).
-2. ``db_plus_external``: catalog + recorded external pages, through ``vet`` + ``curate``.
+2. ``db_plus_external``: the product's ``app.recommend.recommend`` (#155): the catalog
+   first, recorded external pages through ``vet`` + ``curate`` only while it is short.
 3. ``db_plus_external_plus_feedback``: as 2, with learner votes passed to ``vet``.
 
 What the offline numbers can and cannot say. The external pages are synthetic fixtures
@@ -41,19 +42,22 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from app.catalog.matching import match_sources
 from app.catalog.taxonomy import cosine, encode, normalize, tag_node, tag_resource
-from app.curator import curate
+from app.curator import Curation, curate
 from app.llm import LLMClient, LLMResult
+from app.recommend import recommend
 from app.search import Candidate, canonical_url
-from app.vetting import Learner, Node, read_document, vet
+from app.vetting import Learner, Node, ScoredResource, read_document, vet
 from app.vetting.fetch import FetchResult
 from app.vetting.judge import MIN_QUOTE_CHARS, strip_commands
 from app.vetting.policy import default_policy
+from assistant.backend.cache import store_search
 from assistant.backend.catalog_repository import verified_resources
 from assistant.backend.database import Database
 from assistant.backend.models import Course, Roadmap, RoadmapNode, User, utcnow
 from assistant.backend.recommendations_repository import (
     get_or_generate_node_recommendations,
 )
+from assistant.backend.resources import search_signature
 
 SYLLABUS_DIR = ROOT / "eval" / "syllabus"
 RESOURCES_PATH = ROOT / "eval" / "resources.jsonl"
@@ -211,6 +215,7 @@ def _load_db_pool(
             title = f"{node['title']} - {row.get('reason', 'Verified Guide').capitalize()}"
             tags = tag_resource({"title": title, "description": node["title"]})
             db_pool.append({
+                "kind": "catalog",
                 "id": f"{case['id']}-db-{idx}",
                 "title": title,
                 "url": url,
@@ -325,18 +330,21 @@ def evaluate_three_configs() -> tuple[list[ConfigMetrics], dict[str, Any]]:
                 good_set = good_by_node.get((code, week), set())
             else:
                 good_set = good_by_ext_node[(code, week)]
-                db_cands = [Candidate(r["url"], r["title"], "catalog",
-                                      "video" if r["format"] == "video" else "article", r["lang"])
-                            for r in db_hits]
                 ratings = None
                 if config_name == "db_plus_external_plus_feedback":
                     # Oracle votes: learners agree with the fixture labels (an upper bound).
                     ratings = {url: (18, 20) for url in good_set}
                     ratings[outline_by_node[(code, week)]] = (0, 25)
-                vetted = vet([*db_cands, *ext_cands_by_node[(code, week)]],
-                             Node(title=topic, outcomes=(code,), est_minutes=60), learner,
-                             llm=llm, fetcher=fetcher, ratings=ratings)  # type: ignore[arg-type]
-                top5 = curate(vetted.resources, est_minutes=60).resources[:5]
+                node = Node(title=topic, outcomes=(code,), est_minutes=60)
+
+                def searched(node=node, ratings=ratings, key=(code, week)):
+                    # What the search job caches: vetted pages, shown and reserve.
+                    vetted = vet(ext_cands_by_node[key], node, learner, llm=llm,
+                                 fetcher=fetcher, ratings=ratings)  # type: ignore[arg-type]
+                    curation = curate(vetted.resources, est_minutes=60)
+                    return curation.resources + curation.reserve
+
+                top5 = recommend(node, learner, database=db_hits, external=searched, limit=5)
                 shown_urls = [canonical_url(r.url) for r in top5]
                 shown_formats = {r.format for r in top5}
 
@@ -369,15 +377,20 @@ def evaluate_three_configs() -> tuple[list[ConfigMetrics], dict[str, Any]]:
 
 
 def _external_verified_count() -> int:
-    """External suggestions of the real repository must never be ``verified``."""
+    """External suggestions of the real repository must never be ``verified``.
+
+    The node has no catalog source, so the repository serves the vetted page the search
+    job cached for it (``store_search``), exactly as after a real search.
+    """
     db_mgr = Database("sqlite://")
     db_mgr.create_schema()
+    now = utcnow()
     try:
         with db_mgr.sessions() as db:
             user = User(email="eval-provenance@example.com", password_hash="x", name="Eval")
             db.add(user)
             db.flush()
-            course = Course(title="CS Eval", owner_id=user.id)
+            course = Course(title="CS Eval", owner_id=user.id, language="en")
             db.add(course)
             db.flush()
             roadmap = Roadmap(course_id=course.id, user_id=user.id, title="Eval Track")
@@ -386,14 +399,23 @@ def _external_verified_count() -> int:
             node = RoadmapNode(roadmap_id=roadmap.id, type="topic",
                                title="Distributed Consensus", week=1)
             db.add(node)
+            db.flush()
+            page = ScoredResource(
+                url="https://en.wikipedia.org/wiki/Consensus_(computer_science)",
+                title="Consensus (computer science)", provider="wikipedia", format="reading",
+                lang="en", domain="en.wikipedia.org", is_free=True, minutes=None, score=0.9,
+                breakdown={}, reason="", content_hash="", excerpt="",
+                evidence_quote="A consensus protocol lets distributed processes agree.")
+            store_search(db, search_signature(db, node, course),
+                         asdict(Curation("insufficient", [page])), now)
             db.commit()
-            recs = get_or_generate_node_recommendations(db, node, user.id, limit=5)
-            verified_refs = {f"catalog:{row['id']}" for row in verified_resources(db, utcnow())}
+            recs = get_or_generate_node_recommendations(db, node, user.id, now, limit=5)
+            assert any(rec.kind == "external" for rec in recs), "the invariant was not exercised"
+            verified_refs = {f"catalog:{row['id']}" for row in verified_resources(db, now)}
             return sum(
                 1 for rec in recs
-                if (rec.kind == "external" or rec.resource_ref.startswith("external:"))
-                and (getattr(rec, "verification_status", None) == "verified"
-                     or rec.resource_ref in verified_refs)
+                if rec.kind == "external"
+                and (rec.verification_status != "unverified" or rec.resource_ref in verified_refs)
             )
     finally:
         db_mgr.engine.dispose()
@@ -486,6 +508,8 @@ def print_report(configs: list[ConfigMetrics], redteam: RedTeamReport) -> None:
     for c in configs:
         print(f"| `{c.config}` | {c.total_nodes} | {c.covered_nodes} | {c.coverage_rate * 100:.1f}% "
               f"| {c.precision_at_5:.3f} | {c.ndcg_at_5:.3f} | {c.avg_formats_in_top5:.2f} |")
+    print(f"\n#155 targets for `db_plus_external`: Precision@5 >= {PRECISION_TARGET}, "
+          f"nDCG@5 >= {NDCG_TARGET} (asserted in tests/test_recommendations_eval.py).")
     print("\n### External Red-Team & Provenance Invariants\n")
     print(f"- Prompt-injection pages: {redteam.injection_pages_tested} -> leaked to top-5: "
           f"**{redteam.injection_leaked_to_top5}**; directive neutralized (`read_document` + `strip_commands`): "

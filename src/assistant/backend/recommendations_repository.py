@@ -1,8 +1,8 @@
-"""Recommendation repository and external caching (issue #156, Phase 4).
+"""Recommendation storage, feedback events and the external display cache (#155, #156).
 
-Stores recommendations, user feedback events (shown, opened, helpful, not_helpful, pinned),
-and external result cache (7-day validity). All queries to external providers are sanitized
-via pii_filter.
+``get_or_generate_node_recommendations`` stores what ``app.recommend`` chose for a
+learner and node; every query that leaves the process goes through the search job,
+whose ``SearchService`` filters PII (spec 11.1).
 """
 
 from __future__ import annotations
@@ -10,28 +10,32 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import Counter
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.catalog.privacy import build_safe_external_query
+from app.curator import Curation
+from app.recommend import NO_FEEDBACK, VERIFICATION, Feedback, recommend
+from app.search import canonical_url
+from app.vetting import Node
 
-from .catalog_models import NodeMaterial
+from .cache import cached_search_entry
+from .catalog_repository import node_sources
 from .models import (
+    Course,
     ExternalResult,
-    NodeResource,
-    NodeSubject,
     Recommendation,
     RecommendationEvent,
     Resource,
-    ResourceSubject,
     Roadmap,
     RoadmapNode,
     Source,
+    User,
     utcnow,
 )
+from .resources import _outcomes, learner_for, request_search, search_signature
 from .schemas import (
     RecommendationEventOut,
     RecommendationOut,
@@ -40,6 +44,8 @@ from .schemas import (
 
 CACHE_LIFETIME = timedelta(days=7)
 RECOMMENDATION_TTL = timedelta(hours=24)
+EXTERNAL = "recommender"  # external_results provider holding shown pages' title and URL
+UNHELPFUL_MEMORY = 50  # latest "not helpful" answers that still lower similar sources
 
 
 def get_external_cached(db: Session, query_hash: str, provider: str) -> dict | list | None:
@@ -57,27 +63,32 @@ def get_external_cached(db: Session, query_hash: str, provider: str) -> dict | l
 
 def set_external_cache(
     db: Session, query_hash: str, provider: str, payload: dict | list
-) -> None:
+) -> ExternalResult:
     """Store external results in cache with current timestamp."""
+    row = _remember_external(db, query_hash, provider, payload, utcnow())
+    db.commit()
+    return row
+
+
+def _remember_external(
+    db: Session, query_hash: str, provider: str, payload: dict | list, now: datetime
+) -> ExternalResult:
+    """Upsert one cache row in the caller's transaction."""
     text_payload = json.dumps(payload, ensure_ascii=False)
     row = db.get(ExternalResult, (query_hash, provider))
     if row is not None:
-        row.payload = text_payload
-        row.fetched_at = utcnow()
-    else:
-        try:
-            with db.begin_nested():
-                db.add(
-                    ExternalResult(
-                        query_hash=query_hash,
-                        provider=provider,
-                        payload=text_payload,
-                        fetched_at=utcnow(),
-                    )
-                )
-        except IntegrityError:
-            pass  # A concurrent request cached the same query first; keep theirs.
-    db.commit()
+        row.payload, row.fetched_at = text_payload, now
+        return row
+    row = ExternalResult(
+        query_hash=query_hash, provider=provider, payload=text_payload, fetched_at=now
+    )
+    try:
+        with db.begin_nested():
+            db.add(row)
+    except IntegrityError:
+        # A concurrent request cached the same query first; keep theirs.
+        return db.get(ExternalResult, (query_hash, provider))
+    return row
 
 
 def _parse_external_title_url(payload: str) -> tuple[str | None, str | None]:
@@ -129,7 +140,7 @@ def enrich_recommendations(
             e.query_hash: e
             for e in db.scalars(
                 select(ExternalResult).where(
-                    ExternalResult.provider == "recommender",
+                    ExternalResult.provider == EXTERNAL,
                     ExternalResult.query_hash.in_(external_keys),
                 )
             )
@@ -162,6 +173,7 @@ def enrich_recommendations(
                 node_id=rec.node_id,
                 resource_ref=rec.resource_ref,
                 kind=rec.kind,
+                verification_status=VERIFICATION[rec.kind],
                 rank=rec.rank,
                 score=round(rec.score, 3),
                 reason=rec.reason,
@@ -183,10 +195,18 @@ def get_or_generate_node_recommendations(
     db: Session,
     node: RoadmapNode,
     user_id: str,
+    now: datetime,
     limit: int = 5,
 ) -> list[RecommendationOut]:
-    """Retrieve active recommendations for a node, recalculating if >24h old or empty."""
-    active_recs = db.scalars(
+    """The node's active recommendations, recomputed when stale or when an input changed.
+
+    Inputs are the node's database sources, the shared external search cache and
+    this learner's "not helpful" answers; a newer cache entry or answer than the
+    newest recommendation means the stored list no longer reflects them.
+    """
+    roadmap = db.get(Roadmap, node.roadmap_id)
+    course = db.get(Course, roadmap.course_id)
+    active = db.scalars(
         select(Recommendation)
         .where(
             Recommendation.user_id == user_id,
@@ -195,125 +215,88 @@ def get_or_generate_node_recommendations(
         )
         .order_by(Recommendation.rank)
     ).all()
+    feedback, answered_at = _feedback(db, user_id, node.id)
+    cached = cached_search_entry(db, search_signature(db, node, course), now)
+    changed_at = max((t for t in (answered_at, cached and cached[1]) if t), default=None)
+    if active:
+        newest = max(r.created_at for r in active)
+        # An input as new as the list came after it: an answer always refers to a list.
+        if now - newest < RECOMMENDATION_TTL and (changed_at is None or changed_at < newest):
+            return enrich_recommendations(db, active[:limit])
+        for row in active:  # superseded, not rejected: answers live in the events
+            row.dismissed_at = now
 
-    # If active recommendations exist and newest is fresher than 24h, return them
-    if active_recs:
-        newest = max(r.created_at for r in active_recs)
-        if utcnow() - newest < RECOMMENDATION_TTL:
-            return enrich_recommendations(db, active_recs[:limit])
+    def vetted_pages():
+        if cached is not None:
+            curation = Curation.from_dict(cached[0])
+            return curation.resources + curation.reserve
+        # Searching takes minutes (fetch + judge), so it runs as a job; its results
+        # reach the next request through the cache and replace this list.
+        request_search(db, node.id, user_id, now)
+        return []
 
-    # Otherwise, clean stale undismissed recommendations and generate fresh candidates
-    if active_recs:
-        for r in active_recs:
-            r.dismissed_at = utcnow()
-        db.commit()
-
-    candidates: list[tuple[str, str, float, str]] = []  # (resource_ref, kind, score, reason)
-
-    # 1. Verified catalog resources linked to this node or shared subjects
-    node_res_ids = select(NodeResource.resource_id).where(NodeResource.node_id == node.id)
-    linked_resources = db.scalars(
-        select(Resource).where(
-            Resource.id.in_(node_res_ids),
-            Resource.verification_status == "verified",
-        )
-    ).all()
-
-    for res in linked_resources:
-        candidates.append((
-            f"catalog:{res.id}",
-            "verified",
-            0.95,
-            "Nguồn tài liệu chính thống đã được thẩm định chất lượng",
-        ))
-
-    # Match by subjects if not enough linked resources
-    if len(candidates) < limit:
-        sub_ids = select(NodeSubject.subject_id).where(NodeSubject.node_id == node.id)
-        shared_res_ids = select(ResourceSubject.resource_id).where(
-            ResourceSubject.subject_id.in_(sub_ids)
-        )
-        subject_resources = db.scalars(
-            select(Resource)
-            .where(
-                Resource.id.in_(shared_res_ids),
-                Resource.verification_status == "verified",
+    # One more database candidate per rejected source, so a rejection is replaced
+    # from what the database already holds (spec 11.6: no new search).
+    wanted = limit + len(feedback.rejected)
+    sources = node_sources(db, [node], roadmap, course, now, limit=wanted)[node.id]["sources"]
+    chosen = recommend(
+        Node(node.title, _outcomes(db, course.id), node.duration_minutes),
+        learner_for(course, db.get(User, roadmap.user_id)),
+        database=sources,
+        external=vetted_pages,
+        feedback=feedback,
+        limit=limit,
+    )
+    rows = []
+    for rank, item in enumerate(chosen, start=1):
+        rows.append(
+            Recommendation(
+                user_id=user_id,
+                node_id=node.id,
+                resource_ref=_ref(db, item, now),
+                kind=item.kind,
+                rank=rank,
+                score=item.score,
+                reason=item.reason,
+                created_at=now,
             )
-            .limit(limit)
-        ).all()
-        for res in subject_resources:
-            ref = f"catalog:{res.id}"
-            if not any(c[0] == ref for c in candidates):
-                candidates.append((
-                    ref,
-                    "verified",
-                    0.90,
-                    "Nguồn học liệu xác minh phù hợp chủ đề môn học",
-                ))
-
-    # 2. Node course materials uploaded by student/instructor
-    node_materials = db.scalars(
-        select(NodeMaterial).where(NodeMaterial.node_id == node.id)
-    ).all()
-    for mat in node_materials:
-        ref = f"material:{mat.source_id}"
-        if not any(c[0] == ref for c in candidates):
-            candidates.append((
-                ref,
-                "material",
-                0.88,
-                "Tài liệu bài giảng chính khóa của môn học",
-            ))
-
-    # 3. External provider candidate (sanitized via pii_filter)
-    safe_query = build_safe_external_query(node_title=node.title)
-    if safe_query:
-        query_hash = hashlib.sha256(safe_query.encode("utf-8")).hexdigest()
-        cached = get_external_cached(db, query_hash, "recommender")
-        if not cached:
-            cached_payload = {
-                "title": f"Tham khảo mở rộng: {safe_query}",
-                "url": f"https://openstax.org/search?q={safe_query.replace(' ', '+')}",
-                "provider": "openstax",
-            }
-            set_external_cache(db, query_hash, "recommender", cached_payload)
-
-        candidates.append((
-            f"external:{query_hash}",
-            "external",
-            0.82,
-            "Tài liệu tham khảo học liệu mở bổ trợ cho chủ đề",
-        ))
-
-    # If still empty, supply a safe general verified or external suggestion
-    if not candidates:
-        safe_q = build_safe_external_query(node_title=node.title or "General Topic")
-        q_hash = hashlib.sha256(safe_q.encode("utf-8")).hexdigest()
-        candidates.append((
-            f"external:{q_hash}",
-            "external",
-            0.75,
-            "Tài liệu mở rộng theo tiêu chuẩn mở",
-        ))
-
-    # Save candidates to database
-    created_rows: list[Recommendation] = []
-    for rank, (ref, kind, score, reason) in enumerate(candidates[:limit], start=1):
-        rec = Recommendation(
-            user_id=user_id,
-            node_id=node.id,
-            resource_ref=ref,
-            kind=kind,
-            rank=rank,
-            score=score,
-            reason=reason,
-            created_at=utcnow(),
         )
-        db.add(rec)
-        created_rows.append(rec)
-
+    db.add_all(rows)
     db.commit()
-    return enrich_recommendations(db, created_rows)
+    return enrich_recommendations(db, rows)
+
+
+def _ref(db: Session, item, now: datetime) -> str:
+    """``kind:key`` of a recommended source; an external page is remembered for display."""
+    if item.kind == "user_material":
+        return f"material:{item.source_id}"
+    if item.kind == "catalog":
+        return f"catalog:{item.source_id}"
+    key = hashlib.sha256(item.source_id.encode("utf-8")).hexdigest()
+    _remember_external(db, key, EXTERNAL, {"title": item.title, "url": item.url}, now)
+    return f"external:{key}"
+
+
+def _feedback(db: Session, user_id: str, node_id: str) -> tuple[Feedback, datetime | None]:
+    """This learner's "not helpful" answers, and when the node last received one."""
+    answers = db.execute(
+        select(Recommendation, RecommendationEvent.created_at)
+        .join(RecommendationEvent, RecommendationEvent.recommendation_id == Recommendation.id)
+        .where(Recommendation.user_id == user_id, RecommendationEvent.event == "not_helpful")
+        .order_by(RecommendationEvent.created_at.desc())
+        .limit(UNHELPFUL_MEMORY)
+    ).all()
+    if not answers:
+        return NO_FEEDBACK, None
+    shown = enrich_recommendations(db, [rec for rec, _ in answers])
+    rejected = {
+        canonical_url(out.url) if rec.kind == "external" else rec.resource_ref.split(":", 1)[1]
+        for (rec, _), out in zip(answers, shown, strict=True)
+        if rec.node_id == node_id and (rec.kind != "external" or out.url)
+    }
+    on_node = [at for rec, at in answers if rec.node_id == node_id]
+    titles = tuple(out.title for out in shown if out.title)
+    return Feedback(frozenset(rejected), titles), max(on_node, default=None)
 
 
 def record_recommendation_event(
@@ -321,6 +304,7 @@ def record_recommendation_event(
     recommendation_id: str,
     user_id: str,
     event: str,
+    now: datetime,
 ) -> RecommendationEventOut | None:
     """Record an interaction event (shown, opened, helpful, not_helpful, pinned)."""
     rec = db.get(Recommendation, recommendation_id)
@@ -330,12 +314,12 @@ def record_recommendation_event(
     event_row = RecommendationEvent(
         recommendation_id=rec.id,
         event=event,
-        created_at=utcnow(),
+        created_at=now,
     )
     db.add(event_row)
 
     if event == "not_helpful":
-        rec.dismissed_at = utcnow()
+        rec.dismissed_at = now
 
     db.commit()
     return RecommendationEventOut(

@@ -4152,7 +4152,7 @@
           "Recommendations"
         ],
         "summary": "Get Node Recommendations",
-        "description": "Retrieve recommendations for a roadmap node, recalculating if stale (>24h).",
+        "description": "The node's recommendations: own material, verified catalog, then vetted external pages.",
         "operationId": "get_node_recommendations_api_v1_roadmap_nodes__node_id__recommendations_get",
         "security": [
           {
@@ -7736,7 +7736,21 @@
           },
           "kind": {
             "type": "string",
+            "enum": [
+              "user_material",
+              "catalog",
+              "external"
+            ],
             "title": "Kind"
+          },
+          "verification_status": {
+            "type": "string",
+            "enum": [
+              "private",
+              "verified",
+              "unverified"
+            ],
+            "title": "Verification Status"
           },
           "rank": {
             "type": "integer",
@@ -7796,6 +7810,7 @@
           "node_id",
           "resource_ref",
           "kind",
+          "verification_status",
           "rank",
           "score",
           "reason",

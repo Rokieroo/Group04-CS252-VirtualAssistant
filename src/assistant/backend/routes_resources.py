@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import urllib.parse
 from dataclasses import asdict
-from datetime import timedelta
 
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import func, select
@@ -25,7 +24,7 @@ from .models import (
     Roadmap,
     RoadmapNode,
 )
-from .resources import _outcomes
+from .resources import SEARCHES_PER_HOUR, _outcomes, recent_searches
 from .schemas import (
     NodeResourcesOut,
     ResourceFeedbackIn,
@@ -35,8 +34,6 @@ from .schemas import (
 )
 
 router = APIRouter(tags=["Learning resources"])
-
-RESOURCE_SEARCH_PER_HOUR = 20
 
 
 @router.post(
@@ -66,16 +63,7 @@ def search_node_resources(
         raise HTTPException(404, "Roadmap node not found")
 
     now = request.app.state.now()
-    recent = db.scalar(
-        select(func.count())
-        .select_from(Job)
-        .where(
-            Job.user_id == user.id,
-            Job.kind == "search_resources",
-            Job.created_at > now - timedelta(hours=1),
-        )
-    )
-    if recent >= RESOURCE_SEARCH_PER_HOUR:
+    if recent_searches(db, user.id, now) >= SEARCHES_PER_HOUR:
         raise HTTPException(
             429,
             "Resource search rate limit reached (20 requests per hour)",

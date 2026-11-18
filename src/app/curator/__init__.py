@@ -9,6 +9,7 @@ from app.curator.selection import (
     curate,
     lexical_similarity,
     replace,
+    select_shown,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "curate",
     "lexical_similarity",
     "replace",
+    "select_shown",
 ]

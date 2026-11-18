@@ -77,6 +77,32 @@ def register(client, name="Minh", email="minh@example.com"):
     return response.json()
 
 
+def roadmap_with_catalog(client, headers, app, now, titles, *, node="Binary Search Trees"):
+    """A one-node roadmap, generated after ``titles`` became verified catalog sources.
+
+    Returns ``(roadmap id, node id)``; generation tags the node, so the catalog matches it.
+    """
+    import sys
+    from pathlib import Path
+
+    from app.catalog.taxonomy import tag_records
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "eval"))
+    from run_node_sources import add_verified
+
+    course = client.post("/api/v1/courses", headers=headers,
+                         json={"title": "Data Structures", "language": "en"}).json()["id"]
+    with app.state.database.sessions() as db:
+        rows = [add_verified(db, now, f"https://bst{i}.mit.edu/notes", title)
+                for i, title in enumerate(titles)]
+        tag_records(db, "resource", [{"id": r.id, "title": r.title} for r in rows])
+        db.commit()
+    roadmap = client.post(f"/api/v1/courses/{course}/roadmap:generate", headers=headers,
+                          json={"nodes": [{"title": node, "week": 1}]})
+    assert roadmap.status_code == 201, roadmap.text
+    return roadmap.json()["id"], roadmap.json()["nodes"][0]["id"]
+
+
 @pytest.fixture
 def account(client):
     return register(client)
