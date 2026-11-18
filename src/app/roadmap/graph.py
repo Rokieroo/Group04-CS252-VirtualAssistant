@@ -64,20 +64,21 @@ def edge_pair(edge: Any) -> tuple[str, str]:
     """Read a ``(parent, child)`` pair from a tuple, dict, Edge or object."""
     if isinstance(edge, Edge):
         return edge.parent, edge.child
+    if isinstance(edge, dict):
+        for parent, child in (
+            ("parent", "child"),
+            ("parent_slug", "child_slug"),
+            ("source", "target"),
+            ("from", "to"),
+        ):
+            p, c = edge.get(parent), edge.get(child)
+            if p and c:
+                return str(p), str(c)
+        raise ValueError(f"edge needs parent and child: {edge!r}")
     if isinstance(edge, (tuple, list)):
         if len(edge) < 2:
             raise ValueError(f"edge needs two endpoints: {edge!r}")
         return str(edge[0]), str(edge[1])
-    if isinstance(edge, dict):
-        for parent, child in (
-            ("parent_slug", "child_slug"),
-            ("parent", "child"),
-            ("source", "target"),
-            ("from", "to"),
-        ):
-            if edge.get(parent) and edge.get(child):
-                return str(edge[parent]), str(edge[child])
-        raise ValueError(f"edge needs parent and child: {edge!r}")
     parent = getattr(edge, "parent", None) or getattr(edge, "source", None)
     child = getattr(edge, "child", None) or getattr(edge, "target", None)
     if parent is None or child is None:
@@ -121,14 +122,9 @@ def _adjacency(nodes: Iterable[Any], edges: Iterable[Any]) -> tuple[
     return ids, adjacency, indegree
 
 
-def topological_sort(nodes: Iterable[Any], edges: Iterable[Any]) -> list[str]:
-    """Kahn's topological order, deterministic for the given node and edge order.
-
-    A cyclic graph has no complete order. The returned list then contains only the
-    nodes Kahn could release; call :func:`find_cycles` first when the caller needs to
-    explain or repair the cycle. Use :func:`topological_sort_or_raise` to reject it.
-    """
-    ids, adjacency, indegree = _adjacency(nodes, edges)
+def _kahn(
+    ids: list[str], adjacency: dict[str, list[str]], indegree: dict[str, int]
+) -> list[str]:
     ready = deque(key for key in ids if indegree[key] == 0)
     order: list[str] = []
     while ready:
@@ -139,6 +135,17 @@ def topological_sort(nodes: Iterable[Any], edges: Iterable[Any]) -> list[str]:
             if indegree[child] == 0:
                 ready.append(child)
     return order
+
+
+def topological_sort(nodes: Iterable[Any], edges: Iterable[Any]) -> list[str]:
+    """Kahn's topological order, deterministic for the given node and edge order.
+
+    A cyclic graph has no complete order. The returned list then contains only the
+    nodes Kahn could release; call :func:`find_cycles` first when the caller needs to
+    explain or repair the cycle. Use :func:`topological_sort_or_raise` to reject it.
+    """
+    ids, adjacency, indegree = _adjacency(nodes, edges)
+    return _kahn(ids, adjacency, indegree)
 
 
 def topological_sort_or_raise(nodes: Iterable[Any], edges: Iterable[Any]) -> list[str]:
@@ -379,34 +386,30 @@ def layers(
 
     Defaults to `week` of syllabus; pushes child to later layer if prerequisite requires it.
     """
-    node_list = list(nodes)
-    ids = _unique_ids(node_list)
-    node_by_id = {}
-    for item in node_list:
-        k = node_key(item)
-        if k not in node_by_id:
-            node_by_id[k] = item
+    ids: list[str] = []
+    layer_map: dict[str, int] = {}
+    for item in nodes:
+        nid = node_key(item)
+        if nid not in layer_map:
+            ids.append(nid)
+            w = getattr(item, "week", None)
+            if w is None and isinstance(item, dict):
+                w = item.get("week")
+            layer_map[nid] = max(1, w) if w is not None else 1
 
-    def get_week(nid: str) -> int:
-        item = node_by_id.get(nid)
-        if item is None:
-            return 1
-        w = getattr(item, "week", None)
-        if w is None and isinstance(item, dict):
-            w = item.get("week")
-        return max(1, w) if w is not None else 1
-
-    layer_map: dict[str, int] = {nid: get_week(nid) for nid in ids}
-
+    adjacency: dict[str, list[str]] = {nid: [] for nid in ids}
+    indegree: dict[str, int] = {nid: 0 for nid in ids}
     strict_parents: dict[str, list[str]] = {nid: [] for nid in ids}
     for edge in edges:
         p, c = edge_pair(edge)
-        if p in layer_map and c in layer_map and p != c and edge_kind(edge) in PREREQUISITE_KINDS:
-            strict_parents[c].append(p)
+        if p in layer_map and c in layer_map:
+            adjacency[p].append(c)
+            indegree[c] += 1
+            if p != c and edge_kind(edge) in PREREQUISITE_KINDS:
+                strict_parents[c].append(p)
 
-    order = topological_sort(ids, edges)
-    for nid in order:
-        for p in strict_parents.get(nid, []):
+    for nid in _kahn(ids, adjacency, indegree):
+        for p in strict_parents[nid]:
             layer_map[nid] = max(layer_map[nid], layer_map[p] + 1)
 
     return layer_map
