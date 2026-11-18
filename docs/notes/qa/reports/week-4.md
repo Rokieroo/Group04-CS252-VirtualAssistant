@@ -106,11 +106,24 @@ Reproduce: `python eval/run_recommendations.py` and `pytest -q tests/test_recomm
 
 ## 7. Suite Totals, Known Limitations & Reproduction (#67)
 
-- **Backend test suite (SQLite):** `pytest -q tests/` runs the full Phase 1–4 backend suite across SQLite (`test_vetting.py`, `test_safe_fetch.py`, `test_recommendations_eval.py` pass with 2 `xfail`s documented in Section 6; `test_graph_eval.py`, `test_concepts.py`, `test_roadmap_graph_api.py` pass `47 / 48` with `test_graph_performance_300_nodes[sqlite]` at `357.1 ms`). PostgreSQL parity (`PATHLY_TEST_DATABASE_URL`) is verified in CI (`postgres-integration` job in `.github/workflows/ci.yml`).
-- **UI & E2E tests:** Maintained in `ui/` (`pnpm test`, `pnpm run build`, `pnpm run test:e2e`) and executed in CI (`frontend` job); `pnpm` was not installed in this local Windows shell.
-- **Load test (#168):** Recorded separately in `docs/notes/qa/reports/week-4-load-test.md` (`1,000` simulated sessions at `concurrency=25` against `deploy/docker-compose.prod.yml` with `API_WORKERS=4`: `0.00%` error rate across `6,000` requests, all 5 read endpoints `p95 <= 507.4 ms`, overall `p95 = 2128.0 ms` due to `login` Argon2 contention at `2427.4 ms`).
-- **Open limitations remaining across Week 4:**
-  1. Live `--llm` runs for `eval/run_resources.py` and `eval/run_graph.py` require an active external LLM quota.
-  2. `eval/exercises.jsonl` cases are synthetic fixtures; real licensed textbook excerpts are needed before claiming live grading agreement (`#115`).
-  3. The 30 answer-leak attacks (`eval/fixtures/redteam/answer_leaks.jsonl`) are validated for schema/format in `tests/test_safeguards.py`; end-to-end execution against `#163` hint/grading paths remains open.
-  4. Two strict `xfail` red-team gaps in Section 6 (`#160`) and the `login` p95 / `pg_stat_statements` items in `week-4-load-test.md` (`#168`) remain open.
+Run on `main` at `3e4f97d` on 2026-11-18, one Windows laptop:
+
+| Suite | Command | Result |
+| --- | --- | --- |
+| Backend, SQLite | `python -m pytest -q tests/` | **921 passed, 2 xfailed** (the #160 gates in section 6), 6 min 25 s |
+| Backend, PostgreSQL 16 | `PATHLY_TEST_DATABASE_URL=postgresql+psycopg://pathly:pathly-test-only@127.0.0.1:55432/pathly_test python -m pytest -q tests/` | **1,166 passed, 1 failed, 2 xfailed**, 15 min 40 s. The failure is the 300 ms budget of `test_node_sources_eval.py::test_summary_p95_for_40_nodes_and_300_sources[postgres]` (p95 546.8 ms while the UI e2e suite ran on the same machine); it passes when run alone. |
+| UI unit | `cd ui && pnpm test` | **231 passed** (40 files) |
+| UI build | `cd ui && pnpm run build` | pass |
+| UI e2e | `cd ui && PLAYWRIGHT_CHANNEL=chrome pnpm run test:e2e` | **65 passed, 9 skipped** (desktop-only / mobile-only splits and the opt-in `GRAPH_PERFORMANCE=1` test) |
+
+The PostgreSQL run is a separate database (`docker run -e POSTGRES_USER=pathly -e POSTGRES_PASSWORD=pathly-test-only -e POSTGRES_DB=pathly_test -p 55432:5432 postgres:16-alpine`); it runs every SQLite test plus the `[postgres]` variants, hence the larger count.
+
+**Load test (#168):** `week-4-load-test.md`. With 1,000 distinct accounts on the production compose stack (`API_WORKERS=2`), p95 is under 2 s up to 50 sessions in flight and fails from 100 in flight (p95 4.5 s) to 1,000 at once (91 % timeouts). Which concurrency #168 means is still a team decision.
+
+**Open limitations:**
+
+1. Live `--llm` runs of `eval/run_resources.py` and `eval/run_graph.py` need LLM quota and are unmeasured.
+2. `eval/exercises.jsonl` cases are synthetic; real licensed excerpts are needed before claiming a grading agreement rate (#115).
+3. The 30 answer-leak attacks (`eval/fixtures/redteam/answer_leaks.jsonl`) are only checked for format in `tests/test_safeguards.py`; running them against the #163 hint and grading paths is still open.
+4. The two strict `xfail` red-team gates in section 6 (#160).
+5. Two timing tests with a 300 ms budget (`test_graph_performance_300_nodes`, `test_summary_p95_for_40_nodes_and_300_sources`) fail on a loaded laptop and pass alone.
