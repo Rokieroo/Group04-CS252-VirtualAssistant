@@ -7,7 +7,6 @@ from sqlalchemy import event, text
 from app.concepts import from_pages, syllabus_concepts
 from app.concepts.from_pages import _prompt, save_concepts
 from app.concepts.syllabus_concepts import (
-    _grounded,
     _grounded_from_spans,
     _prepare_page_spans,
     _words,
@@ -16,7 +15,7 @@ from app.concepts.syllabus_concepts import (
 )
 
 
-def test_grounded_from_spans_matches_wrapped_and_direct_lines():
+def test_a_title_is_grounded_on_its_line_or_a_wrapped_pair_of_lines():
     page = (
         "Week 1 Syllabus Overview\n"
         "Breadth-First Search and\n"
@@ -24,16 +23,16 @@ def test_grounded_from_spans_matches_wrapped_and_direct_lines():
         "Dynamic Programming on DAGs"
     )
     spans = _prepare_page_spans(page)
-    for title in [
-        "Breadth-First Search",
-        "Shortest Paths",
-        "Search and Shortest Paths",
-        "Dynamic Programming",
-        "Missing Topic",
-        "",
+    # The quotes main's per-title _grounded returned before spans were precomputed.
+    for title, quote in [
+        ("Breadth-First Search", "Breadth-First Search and"),
+        ("Shortest Paths", "Shortest Paths in Unweighted Graphs"),
+        ("Search and Shortest Paths", "Breadth-First Search and Shortest Paths in Unweighted Graphs"),
+        ("Dynamic Programming", "Dynamic Programming on DAGs"),
+        ("Missing Topic", None),
+        ("", None),
     ]:
-        expected = _grounded(title, page)
-        assert _grounded_from_spans(_words(title), spans) == expected
+        assert _grounded_from_spans(_words(title), spans) == quote, title
 
 
 def test_extract_course_concepts_prepares_each_page_once(monkeypatch):

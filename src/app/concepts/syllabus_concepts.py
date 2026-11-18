@@ -13,7 +13,6 @@ here may name a concept of its own; titles come only from the syllabus text.
 
 from __future__ import annotations
 
-import operator
 from itertools import pairwise
 from typing import Any
 
@@ -80,41 +79,21 @@ def _words(text: str) -> list[str]:
 
 
 def _contains_key(key: str, words: list[str]) -> bool:
+    """Every word sits in ``key``, a comparison key padded with spaces on both ends."""
     return bool(words) and all(f" {w} " in key for w in words)
 
 
-def _contains(text: str, title: str) -> bool:
-    return _contains_key(f" {comparison_key(text)} ", _words(title))
-
-
 def _prepare_page_spans(page_text: str) -> list[tuple[str, str]]:
-    """Precompute ``(clean_quote, padded_comparison_key)`` pairs once per page."""
+    """``(quote, padded comparison key)`` for each line and each pair of adjacent
+    lines (PDF text wraps long topics), normalized once per page, not once per title."""
     lines = page_text.splitlines()
     spans = [*lines, *(f"{a} {b}" for a, b in pairwise(lines))]
     return [(" ".join(span.split())[:QUOTE_CHARS], f" {comparison_key(span)} ") for span in spans]
 
 
-def _grounded_from_spans(words: list[str], prepared_spans: list[tuple[str, str]]) -> str | None:
-    if not words:
-        return None
-    return next(
-        (quote for quote, span_key in prepared_spans if _contains_key(span_key, words)),
-        None,
-    )
-
-
-def _grounded(title: str, page_text: str) -> str | None:
-    """The line of ``page_text`` that holds every word of ``title``, else None.
-
-    A line and the next are also tried together: PDF text wraps long topics.
-    """
-    words = _words(title)
-    if not words:
-        return None
-    lines = page_text.splitlines()
-    spans = [*lines, *(f"{a} {b}" for a, b in pairwise(lines))]
-    line = next((span for span in spans if _contains_key(f" {comparison_key(span)} ", words)), None)
-    return None if line is None else " ".join(line.split())[:QUOTE_CHARS]
+def _grounded_from_spans(words: list[str], spans: list[tuple[str, str]]) -> str | None:
+    """The quote of the first span holding every title word, else None."""
+    return next((quote for quote, key in spans if _contains_key(key, words)), None)
 
 
 def merge_similar_concepts(
@@ -144,7 +123,7 @@ def merge_similar_concepts(
         words = set(_words(concept["title"]))
         target = next(
             (k for k, v, k_words in kept
-             if (words & k_words) and sum(map(operator.mul, v, vector)) >= threshold),
+             if (words & k_words) and sum(a * b for a, b in zip(v, vector, strict=True)) >= threshold),
             None,
         )
         if target is None:
@@ -210,7 +189,6 @@ def extract_course_concepts(
     (the cited line), ``week``, ``clo_codes`` and ``aliases``.
     """
     by_key: dict[str, dict[str, Any]] = {}
-    padded_keys: dict[str, str] = {}
     page_spans: dict[int, list[tuple[str, str]]] = {}
     for raw, week, page, codes, mention in _candidates(parsed, pages, llm):
         title = _clean_title(raw)
@@ -230,12 +208,11 @@ def extract_course_concepts(
                    "quote": quote, "clo_codes": codes, "aliases": []}
         # "BFS" in a CLO is the schedule's "Breadth-First Search (BFS)".
         same = by_key.get(key) or (mention and next(
-            (c for k, c in by_key.items() if _contains_key(padded_keys[k], title_words)), None))
+            (c for k, c in by_key.items() if _contains_key(f" {k} ", title_words)), None))
         if same:
             _absorb(same, concept)
         else:
             by_key[key] = concept
-            padded_keys[key] = f" {key} "
 
     concepts = merge_similar_concepts(list(by_key.values()), encoder=encoder)
     used: set[str] = set()
