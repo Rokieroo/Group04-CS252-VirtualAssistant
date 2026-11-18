@@ -884,6 +884,29 @@ class NodeRecommendationsOut(Output):
     recommendations: list[RecommendationOut] = Field(default_factory=list)
 
 
+class TodayItemOut(Output):
+    kind: Literal["review", "study"]
+    title: str
+    minutes: int
+    reason: str
+    node_id: str | None = None
+    review_item_ids: list[str] = Field(default_factory=list)
+    # The recommender's top sources for a study item (#155); reviews have none.
+    sources: list[RecommendationOut] = Field(default_factory=list)
+
+
+class TodayOut(Output):
+    """What to study on one local day (#158). ``total_minutes`` never exceeds
+    ``free_minutes``; what did not fit is in ``deferred``."""
+
+    day: date
+    timezone: str
+    free_minutes: int
+    total_minutes: int
+    items: list[TodayItemOut] = Field(default_factory=list)
+    deferred: list[TodayItemOut] = Field(default_factory=list)
+
+
 class RecommendationEventCreate(Input):
     event: Literal["shown", "opened", "helpful", "not_helpful", "pinned"]
 
