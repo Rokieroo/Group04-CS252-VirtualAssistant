@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
+from functools import lru_cache
 from urllib.parse import urlsplit
 
 from app.catalog.matching import stem
@@ -114,7 +115,7 @@ def recommend(
         _external(page) for page in (external() if needs_external(database) else ())
         if canonical_url(page.url) not in known  # the verified copy wins
     ]
-    unhelpful = [encode(title) for title in feedback.unhelpful_titles]
+    unhelpful = [_title_vector(title) for title in feedback.unhelpful_titles]
     eligible = {}
     for candidate in catalog + found:
         if candidate.source_id in feedback.rejected:
@@ -133,7 +134,8 @@ def recommend(
         top_k=limit,
     )
     by_url = {c.resource.url: c for c in own} | eligible
-    return [_recommendation(node, by_url[r.url]) for r in chosen.resources]
+    node_terms = _node_terms(node.title)
+    return [_recommendation(node, by_url[r.url], node_terms=node_terms) for r in chosen.resources]
 
 
 def _own(row: Mapping) -> _Candidate:
@@ -190,16 +192,26 @@ def _fit(lang: str, learner: Learner) -> float:
     return 1.0 if not lang or not learner.langs or lang == learner.langs[0] else OTHER_LANGUAGE
 
 
-def _feedback(title: str, unhelpful: list[list[float]]) -> float:
+@lru_cache(maxsize=4096)
+def _title_vector(title: str) -> tuple[float, ...]:
+    return tuple(encode(title))
+
+
+def _feedback(title: str, unhelpful: Sequence[Sequence[float]]) -> float:
     """Lower sources that resemble what this learner found unhelpful (spec 11.6)."""
     if not unhelpful:
         return 1.0
-    vector = encode(title)
+    vector = _title_vector(title)
     likeness = max(max(cosine(vector, other), 0.0) for other in unhelpful)
     return 1 - SIMILAR_PENALTY * likeness
 
 
-def _recommendation(node: Node, candidate: _Candidate) -> Recommendation:
+def _recommendation(
+    node: Node,
+    candidate: _Candidate,
+    *,
+    node_terms: Sequence[tuple[str, str]] | None = None,
+) -> Recommendation:
     resource = candidate.resource
     return Recommendation(
         kind=candidate.kind,
@@ -208,15 +220,20 @@ def _recommendation(node: Node, candidate: _Candidate) -> Recommendation:
         url=None if candidate.kind == "user_material" else resource.url,
         format=resource.format,
         score=round(resource.score, 3),
-        reason=_reason(node.title, candidate),
+        reason=_reason(node.title, candidate, node_terms=node_terms),
     )
 
 
-def _reason(node_title: str, candidate: _Candidate) -> str:
+def _reason(
+    node_title: str,
+    candidate: _Candidate,
+    *,
+    node_terms: Sequence[tuple[str, str]] | None = None,
+) -> str:
     """Facts only: what matches the node, where it comes from, its format and length."""
     resource = candidate.resource
     parts = []
-    shared = _shared_words(node_title, resource.title)
+    shared = _shared_words(node_title, resource.title, node_terms=node_terms)
     if shared:
         parts.append("Khớp " + ", ".join(f"“{word}”" for word in shared[:3]))
     if candidate.kind == "user_material":
@@ -232,11 +249,23 @@ def _reason(node_title: str, candidate: _Candidate) -> str:
     return " · ".join(part for part in parts if part)
 
 
-def _shared_words(node_title: str, title: str) -> list[str]:
+def _node_terms(node_title: str) -> tuple[tuple[str, str], ...]:
+    seen: set[str] = set()
+    terms: list[tuple[str, str]] = []
+    for word in normalize(node_title).split():
+        if len(word) >= 3 and word not in _FILLER and word not in seen:
+            seen.add(word)
+            terms.append((word, stem(word)))
+    return tuple(terms)
+
+
+def _shared_words(
+    node_title: str,
+    title: str,
+    *,
+    node_terms: Sequence[tuple[str, str]] | None = None,
+) -> list[str]:
     """Words of the node title that the source title also uses (plurals folded)."""
     stems = {stem(word) for word in normalize(title).split()}
-    words = []
-    for word in normalize(node_title).split():
-        if len(word) >= 3 and word not in _FILLER and stem(word) in stems and word not in words:
-            words.append(word)
-    return words
+    terms = _node_terms(node_title) if node_terms is None else node_terms
+    return [word for word, root in terms if root in stems]
