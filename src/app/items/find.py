@@ -3,7 +3,7 @@
 import json
 from uuid import uuid4
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 
 from app.catalog.exercises import exact, extract_numbered, from_offsets
 from app.concepts.normalize import pages_in
@@ -69,42 +69,65 @@ def save_items(db, concept_id, items):
     """FSRS compatibility rows always point at a verified, owner-scoped exercise."""
     from app.catalog.exercises import store_private
 
-    saved = []
-    course_id = db.scalar(
-        text("SELECT course_id FROM concepts WHERE id=:id"), {"id": concept_id}
-    )
-    owner = db.scalar(
-        text("SELECT owner_id FROM courses WHERE id=:id"), {"id": course_id}
-    )
-    if owner is None:
+    if not items:
         return []
-    for item in items:
-        source = (
-            db.execute(
-                text("SELECT id,course_id,text,page FROM sources WHERE id=:id"),
-                {"id": item.get("source_id")},
-            )
-            .mappings()
-            .first()
+    concept_course = (
+        db.execute(
+            text(
+                "SELECT c.course_id, cr.owner_id FROM concepts c "
+                "JOIN courses cr ON cr.id = c.course_id WHERE c.id = :id"
+            ),
+            {"id": concept_id},
         )
+        .mappings()
+        .first()
+    )
+    if concept_course is None or concept_course["owner_id"] is None:
+        return []
+    course_id = concept_course["course_id"]
+    owner = concept_course["owner_id"]
+
+    source_ids = list(
+        dict.fromkeys(
+            item["source_id"] for item in items if item.get("source_id") is not None
+        )
+    )
+    if not source_ids:
+        return []
+
+    sources_by_id: dict = {}
+    stmt = text(
+        "SELECT id,course_id,text,page FROM sources WHERE id IN :ids"
+    ).bindparams(bindparam("ids", expanding=True))
+    for start in range(0, len(source_ids), 500):
+        for row in db.execute(stmt, {"ids": source_ids[start : start + 500]}).mappings():
+            sources_by_id[row["id"]] = row
+
+    seen_exercises = set(
+        db.scalars(
+            text("SELECT exercise_id FROM items WHERE concept_id=:c"),
+            {"c": concept_id},
+        )
+    )
+    exercises_by_source: dict[object, dict[str, dict]] = {}
+    saved = []
+    for item in items:
+        source_id = item.get("source_id")
+        source = sources_by_id.get(source_id)
         if (
             source is None
             or source["course_id"] != course_id
             or not exact(item, source["text"])
         ):
             continue
-        exercises = store_private(db, source, owner)
-        exercise = next(
-            (e for e in exercises if e["quote_hash"] == item["quote_hash"]), None
-        )
-        if exercise is None:
+        by_hash = exercises_by_source.get(source_id)
+        if by_hash is None:
+            by_hash = {e["quote_hash"]: e for e in store_private(db, source, owner)}
+            exercises_by_source[source_id] = by_hash
+        exercise = by_hash.get(item["quote_hash"])
+        if exercise is None or exercise["id"] in seen_exercises:
             continue
-        exists = db.execute(
-            text("SELECT id FROM items WHERE concept_id=:c AND exercise_id=:e"),
-            {"c": concept_id, "e": exercise["id"]},
-        ).first()
-        if exists:
-            continue
+        seen_exercises.add(exercise["id"])
         row = {
             **item,
             "id": str(uuid4()),
@@ -114,12 +137,13 @@ def save_items(db, concept_id, items):
             "answer": item.get("answer") or "",
             "rubric": None,
         }
+        saved.append(row)
+    if saved:
         db.execute(
             text(
                 "INSERT INTO items (id,concept_id,exercise_id,source_id,type,prompt,choices,answer,rubric) "
                 "VALUES (:id,:concept_id,:exercise_id,:source_id,:type,:prompt,:choices,:answer,:rubric)"
             ),
-            row,
+            saved,
         )
-        saved.append(row)
     return saved

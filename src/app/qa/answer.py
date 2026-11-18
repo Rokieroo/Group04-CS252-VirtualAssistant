@@ -85,22 +85,31 @@ def _cite(hit: RetrievalHit, quote: str) -> Citation:
 def _extract(terms: set[str], hit: RetrievalHit) -> Answer:
     """The top page's sentence sharing most words with the question; the first wins ties."""
     sentences = [s.strip() for s in _SENTENCE_END.split(hit.text) if s.strip()]
-    sentence = max(sentences, key=lambda s: len(terms & set(tokenize_vi(s))))
+    if not terms:
+        sentence = sentences[0]
+    else:
+        sentence = max(sentences, key=lambda s: sum(1 for t in set(tokenize_vi(s)) if t in terms))
     return Answer(sentence, [_cite(hit, sentence)])
 
 
 def _verified(raw: Any, hits: list[RetrievalHit]) -> list[Citation]:
     """Keep the model's citations that quote a retrieved page verbatim; drop the rest."""
     by_id = {hit.source_id: hit for hit in hits}
+    normalized_pages: dict[str, str] = {}
     kept = []
     for item in raw if isinstance(raw, list) else []:
         if not isinstance(item, dict):
             continue
-        hit = by_id.get(str(item.get("source_id") or ""))
+        source_id = str(item.get("source_id") or "")
+        hit = by_id.get(source_id)
         quote = str(item.get("quote") or "").strip()
-        # The page comes from retrieval, never from the model.
-        if hit and len(quote) >= 5 and _normalized(quote) in _normalized(hit.text):
-            kept.append(_cite(hit, quote))
+        if hit and len(quote) >= 5:
+            page_norm = normalized_pages.get(source_id)
+            if page_norm is None:
+                page_norm = normalized_pages[source_id] = _normalized(hit.text)
+            # The page comes from retrieval, never from the model.
+            if _normalized(quote) in page_norm:
+                kept.append(_cite(hit, quote))
     return kept
 
 

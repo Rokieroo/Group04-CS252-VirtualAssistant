@@ -14,6 +14,7 @@ import re
 import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any
 
 from rank_bm25 import BM25Okapi
@@ -68,6 +69,21 @@ class RetrievalHit:
     text: str | None = None
 
 
+def _tokenize_vi_uncached(text: str, remove_stopwords: bool) -> list[str]:
+    normalized = unicodedata.normalize("NFC", text.lower())
+    tokens = _WORD_RE.findall(normalized)
+    if not remove_stopwords:
+        return tokens
+
+    meaningful = [token for token in tokens if token not in VIETNAMESE_STOPWORDS]
+    return meaningful or tokens
+
+
+@lru_cache(maxsize=4096)
+def _tokenize_vi_cached(text: str, remove_stopwords: bool) -> tuple[str, ...]:
+    return tuple(_tokenize_vi_uncached(text, remove_stopwords))
+
+
 def tokenize_vi(text: str, remove_stopwords: bool = True) -> list[str]:
     """Tokenize Vietnamese text while keeping diacritics.
 
@@ -78,14 +94,9 @@ def tokenize_vi(text: str, remove_stopwords: bool = True) -> list[str]:
     """
     if not text:
         return []
-
-    normalized = unicodedata.normalize("NFC", text.lower())
-    tokens = _WORD_RE.findall(normalized)
-    if not remove_stopwords:
-        return tokens
-
-    meaningful = [token for token in tokens if token not in VIETNAMESE_STOPWORDS]
-    return meaningful or tokens
+    if len(text) <= 50_000:
+        return list(_tokenize_vi_cached(text, remove_stopwords))
+    return _tokenize_vi_uncached(text, remove_stopwords)
 
 
 class _PositiveIdfBM25(BM25Okapi):
