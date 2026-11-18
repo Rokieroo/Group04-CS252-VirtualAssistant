@@ -13,6 +13,7 @@ from collections import Counter
 from datetime import timedelta
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.catalog.privacy import build_safe_external_query
@@ -56,7 +57,7 @@ def get_external_cached(db: Session, query_hash: str, provider: str) -> dict | l
 
 def set_external_cache(
     db: Session, query_hash: str, provider: str, payload: dict | list
-) -> ExternalResult:
+) -> None:
     """Store external results in cache with current timestamp."""
     text_payload = json.dumps(payload, ensure_ascii=False)
     row = db.get(ExternalResult, (query_hash, provider))
@@ -64,15 +65,19 @@ def set_external_cache(
         row.payload = text_payload
         row.fetched_at = utcnow()
     else:
-        row = ExternalResult(
-            query_hash=query_hash,
-            provider=provider,
-            payload=text_payload,
-            fetched_at=utcnow(),
-        )
-        db.add(row)
+        try:
+            with db.begin_nested():
+                db.add(
+                    ExternalResult(
+                        query_hash=query_hash,
+                        provider=provider,
+                        payload=text_payload,
+                        fetched_at=utcnow(),
+                    )
+                )
+        except IntegrityError:
+            pass  # A concurrent request cached the same query first; keep theirs.
     db.commit()
-    return row
 
 
 def _parse_external_title_url(payload: str) -> tuple[str | None, str | None]:

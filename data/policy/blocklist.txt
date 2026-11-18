@@ -28,9 +28,45 @@ dokumen.tips
 # Homework and exam answer dumps
 chegg.com
 coursehero.com
+studocu.com
+bartleby.com
 
-# Piracy indexes
+# Piracy indexes & warez forums
 thepiratebay.*
 1337x.*
 rarbg.*
 kickass.*
+nulled.*
+cracked.*
+
+# Anonymous file lockers (unvetted binary/PDF shares)
+mega.nz
+mega.io
+mediafire.com
+rapidgator.*
+anonfiles.*
+uploaded.net
+turbobit.*
+nitroflare.*
+1fichier.com
+gofile.io
+pixeldrain.com
+sendspace.com
+zippyshare.*
+
+# Public messaging channels & paste/leak dumps
+t.me
+telegram.me
+pastebin.*
+doxbin.*
+ghostbin.*
+rentry.*
+controlc.com
+
+# "token:word" blocks any host with that whole hyphen-delimited word in a label:
+# torrent sites, and bypass services named after an answer dump above.
+token:torrent
+token:torrents
+token:chegg
+token:coursehero
+token:studocu

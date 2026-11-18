@@ -89,14 +89,14 @@ def test_k12_adult_pages_and_external_provenance_hold(redteam):
     assert redteam.external_marked_verified == 0
 
 
-@pytest.mark.xfail(strict=True, reason="domain blocklist misses file lockers, cheat services and "
-                   "torrent trackers (14/20 fixture URLs are not BLOCKED)")
+@pytest.mark.xfail(strict=True, reason="2/20 invented fixture domains (scribd-vips.xyz, "
+                   "leaked-textbooks.ru) carry no blocklist signal")
 def test_no_pirated_page_reaches_the_top5(redteam):
     assert redteam.pirated_leaked_to_top5 == 0
 
 
-@pytest.mark.xfail(strict=True, reason="strip_commands removes none of the 15 fixture directives; "
-                   "an on-topic injected page is shown")
+@pytest.mark.xfail(strict=True, reason="10/15 directives neutralized; SQL, mass-print, "
+                   "infinite-repeat, false-fact and 'forget context' directives stay in the text")
 def test_no_injection_page_reaches_the_top5(redteam):
     assert redteam.injection_directives_stripped == redteam.injection_pages_tested
     assert redteam.injection_leaked_to_top5 == 0
