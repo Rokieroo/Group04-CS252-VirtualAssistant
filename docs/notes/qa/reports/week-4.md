@@ -101,3 +101,29 @@ Pirated and adult pages are written **on-topic**, so only the domain policy and 
 Not done on purpose: the two remaining pirated hosts and the five remaining directives were invented for this fixture set, so blocking those exact names or phrases would only fit the test set. Rules like `drop table`, `execute this query`, `and print …` and `always cite` would also strip real SQL, I/O and writing lessons; `tests/test_vetting.py` now checks that such course text survives. The two gates stay strict `xfail` in `tests/test_recommendations_eval.py`. Closing them needs a policy decision: either drop every page that tries to address the grader (this also drops security lectures that quote injections), or rely on the model and the `<page_text>` data block, measured with `--llm`.
 
 Reproduce: `python eval/run_recommendations.py` and `pytest -q tests/test_recommendations_eval.py`.
+
+---
+
+## 7. Suite Totals, Known Limitations & Reproduction (#67)
+
+Run on `main` at `3e4f97d` on 2026-11-18, one Windows laptop:
+
+| Suite | Command | Result |
+| --- | --- | --- |
+| Backend, SQLite | `python -m pytest -q tests/` | **921 passed, 2 xfailed** (the #160 gates in section 6), 6 min 25 s |
+| Backend, PostgreSQL 16 | `PATHLY_TEST_DATABASE_URL=postgresql+psycopg://pathly:pathly-test-only@127.0.0.1:55432/pathly_test python -m pytest -q tests/` | **1,166 passed, 1 failed, 2 xfailed**, 15 min 40 s. The failure is the 300 ms budget of `test_node_sources_eval.py::test_summary_p95_for_40_nodes_and_300_sources[postgres]` (p95 546.8 ms while the UI e2e suite ran on the same machine); it passes when run alone. |
+| UI unit | `cd ui && pnpm test` | **231 passed** (40 files) |
+| UI build | `cd ui && pnpm run build` | pass |
+| UI e2e | `cd ui && PLAYWRIGHT_CHANNEL=chrome pnpm run test:e2e` | **65 passed, 9 skipped** (desktop-only / mobile-only splits and the opt-in `GRAPH_PERFORMANCE=1` test) |
+
+The PostgreSQL run is a separate database (`docker run -e POSTGRES_USER=pathly -e POSTGRES_PASSWORD=pathly-test-only -e POSTGRES_DB=pathly_test -p 55432:5432 postgres:16-alpine`); it runs every SQLite test plus the `[postgres]` variants, hence the larger count.
+
+**Load test (#168):** `week-4-load-test.md`. With 1,000 distinct accounts on the production compose stack (`API_WORKERS=2`), p95 is under 2 s up to 50 sessions in flight and fails from 100 in flight (p95 4.5 s) to 1,000 at once (91 % timeouts). Which concurrency #168 means is still a team decision.
+
+**Open limitations:**
+
+1. Live `--llm` runs of `eval/run_resources.py` and `eval/run_graph.py` need LLM quota and are unmeasured.
+2. `eval/exercises.jsonl` cases are synthetic; real licensed excerpts are needed before claiming a grading agreement rate (#115).
+3. The 30 answer-leak attacks (`eval/fixtures/redteam/answer_leaks.jsonl`) are only checked for format in `tests/test_safeguards.py`; running them against the #163 hint and grading paths is still open.
+4. The two strict `xfail` red-team gates in section 6 (#160).
+5. Two timing tests with a 300 ms budget (`test_graph_performance_300_nodes`, `test_summary_p95_for_40_nodes_and_300_sources`) fail on a loaded laptop and pass alone.
