@@ -74,6 +74,22 @@ def subjects():
     return rows
 
 
+@lru_cache(maxsize=1)
+def _topic_labels():
+    """Depth-3 subject id -> the names and aliases its vector is built from."""
+    return {
+        r["id"]: " ".join([r["name"], r["name_vi"], *r.get("aliases", [])])
+        for r in subjects()
+        if r.get("depth") == 3
+    }
+
+
+@lru_cache(maxsize=1)
+def _lexical_topic_vectors():
+    """The bundled encoder is deterministic, so label vectors are built once."""
+    return [(i, encode(label)) for i, label in _topic_labels().items()]
+
+
 def _phrase(text):
     """Normalized, space-padded, with a plural "s" dropped so "heaps" matches "heap".
 
@@ -212,22 +228,14 @@ def _matched(title, context="", own="", *, encoder=encode, semantic=False):
     if course:
         return course[:2]
     vector = encoder(f"{title} {context} {own}")
-    ranked = sorted(
-        (
-            (
-                cosine(
-                    vector,
-                    encoder(" ".join([r["name"], r["name_vi"], *r.get("aliases", [])])),
-                ),
-                r["id"],
-            )
-            for r in subjects()
-            if r.get("depth") == 3
-        ),
-        reverse=True,
+    labels = (
+        _lexical_topic_vectors()
+        if encoder is encode
+        else [(i, encoder(label)) for i, label in _topic_labels().items()]
     )
-    if ranked and ranked[0][0] > 0.12:
-        score, identifier = ranked[0]
+    best = max(((cosine(vector, v), i) for i, v in labels), default=None)
+    if best and best[0] > 0.12:
+        score, identifier = best
         confidence = min(0.9 if semantic else 0.59, max(0.2, score))
         return [
             Tag(
@@ -256,14 +264,13 @@ def ensure_taxonomy(db):
     """Seed stable labels atomically when concurrent workers see an empty catalog."""
     from sqlalchemy import text
 
-    for row in subjects():
-        db.execute(
-            text(
-                "INSERT INTO subjects (id,parent_id,slug,name,name_vi) "
-                "VALUES (:id,:parent_id,:slug,:name,:name_vi) ON CONFLICT(id) DO NOTHING"
-            ),
-            {"parent_id": None, **row, "slug": row["id"]},
-        )
+    db.execute(
+        text(
+            "INSERT INTO subjects (id,parent_id,slug,name,name_vi) "
+            "VALUES (:id,:parent_id,:slug,:name,:name_vi) ON CONFLICT(id) DO NOTHING"
+        ),
+        [{"parent_id": None, **row, "slug": row["id"]} for row in subjects()],
+    )
 
 
 def save_tags(
@@ -285,13 +292,7 @@ def save_tags(
         text(f"DELETE FROM {table} WHERE {key}=:id AND method <> 'manual'"),
         {"id": identifier},
     )
-    for tag in tags:
-        values = {
-            "id": identifier,
-            "subject": tag.subject_id,
-            "confidence": tag.confidence,
-            "method": tag.method,
-        }
+    if tags:
         db.execute(
             text(
                 f"INSERT INTO {table} ({key},subject_id,confidence,method) "
@@ -299,7 +300,15 @@ def save_tags(
                 f"ON CONFLICT({key},subject_id) DO UPDATE SET confidence=excluded.confidence, "
                 f"method=excluded.method WHERE {table}.method <> 'manual'"
             ),
-            values,
+            [
+                {
+                    "id": identifier,
+                    "subject": t.subject_id,
+                    "confidence": t.confidence,
+                    "method": t.method,
+                }
+                for t in tags
+            ],
         )
     params = {
         "id": identifier,
@@ -329,7 +338,7 @@ def tag_records(db, kind, records, *, embedding=None, llm=None):
     Vendor errors fall back to lexical rules/vectors without logging uploaded text.
     ``llm`` decides the records rules and vectors leave below review confidence.
     """
-    from sqlalchemy import text
+    from sqlalchemy import bindparam, text
 
     from app.llm.embeddings import clean
 
@@ -341,19 +350,28 @@ def tag_records(db, kind, records, *, embedding=None, llm=None):
     fields = [_fields(kind, row) for row in records]
     # The same text _tags embeds, so the vectors prepared here are the ones it looks up.
     contents = [clean(" ".join(parts)) for parts in fields]
-    vocabulary = {
-        r["id"]: clean(" ".join([r["name"], r["name_vi"], *r.get("aliases", [])]))
-        for r in subjects()
-        if r.get("depth") == 3
-    }
+    vocabulary = {i: clean(label) for i, label in _topic_labels().items()}
     if embedding is not None:
-        cached = db.execute(
-            text(
-                "SELECT id,kind,model,content_hash,vector FROM catalog_embeddings "
-                "WHERE model=:model"
-            ),
-            {"model": embedding.model},
-        ).mappings()
+        # Primary-key lookups for this batch and the labels; filtering on model alone
+        # would load every stored vector of the model.
+        by_ids = text(
+            "SELECT id,kind,model,content_hash,vector FROM catalog_embeddings "
+            "WHERE model=:model AND kind=:kind AND id IN :ids"
+        ).bindparams(bindparam("ids", expanding=True))
+        cached = []
+        for group, ids in (
+            (kind, [r["id"] for r in records]),
+            ("taxonomy", [*vocabulary]),
+        ):
+            for start in range(0, len(ids), 500):
+                cached += db.execute(
+                    by_ids,
+                    {
+                        "model": embedding.model,
+                        "kind": group,
+                        "ids": ids[start : start + 500],
+                    },
+                ).mappings()
         wanted = {
             (r["id"], kind): value for r, value in zip(records, contents, strict=True)
         }
@@ -373,22 +391,23 @@ def tag_records(db, kind, records, *, embedding=None, llm=None):
             )
             embedding = None
     if embedding is not None:
-        for identifier, value in vocabulary.items():
-            params = {
-                "id": identifier,
-                "model": embedding.model,
-                "hash": hashlib.sha256(value.encode()).hexdigest(),
-                "vector": json.dumps(embedding.encode(value)),
-            }
-            db.execute(
-                text(
-                    "INSERT INTO catalog_embeddings (id,kind,model,content_hash,vector) "
-                    "VALUES (:id,'taxonomy',:model,:hash,:vector) "
-                    "ON CONFLICT(id,kind) DO UPDATE SET model=excluded.model, "
-                    "content_hash=excluded.content_hash, vector=excluded.vector"
-                ),
-                params,
-            )
+        db.execute(
+            text(
+                "INSERT INTO catalog_embeddings (id,kind,model,content_hash,vector) "
+                "VALUES (:id,'taxonomy',:model,:hash,:vector) "
+                "ON CONFLICT(id,kind) DO UPDATE SET model=excluded.model, "
+                "content_hash=excluded.content_hash, vector=excluded.vector"
+            ),
+            [
+                {
+                    "id": identifier,
+                    "model": embedding.model,
+                    "hash": hashlib.sha256(value.encode()).hexdigest(),
+                    "vector": json.dumps(embedding.encode(value)),
+                }
+                for identifier, value in vocabulary.items()
+            ],
+        )
     ensure_taxonomy(db)
     encoder = embedding.encode if embedding else encode
     for row, parts, content in zip(records, fields, contents, strict=True):
