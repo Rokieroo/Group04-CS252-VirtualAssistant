@@ -1084,3 +1084,80 @@ test("dark graph controls and list remain readable at enlarged text size", async
     ).toEqual([]);
   }
 });
+
+test("32-concept graph canvas passes axe accessibility in light and dark themes and honors reduced motion", async ({
+  page,
+}, info) => {
+  test.skip(
+    info.project.name.includes("mobile"),
+    "Desktop 1280x800 light/dark graph canvas accessibility and reduced-motion check.",
+  );
+  await page.setViewportSize({ width: 1280, height: 800 });
+  const cscNodes = Array.from({ length: 32 }, (_, i) => ({
+    id: `csc-${i + 1}`,
+    title: `Khái niệm ${i + 1}`,
+    type: i % 8 === 7 ? "milestone" : "topic",
+    kind: i % 8 === 7 ? "milestone" : "topic",
+    status: i % 3 === 0 ? "mastered" : "in_progress",
+    sources_status: i % 4 === 0 ? "insufficient" : "sufficient",
+    est_minutes: 45,
+    duration_minutes: 45,
+    covers: [],
+    roadmap_id: "rm",
+    week: (i % 10) + 1,
+  }));
+
+  await backend(page, cscNodes);
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/?kg_roadmap=rm#roadmap");
+
+  const container = page.locator(".graph-canvas-container");
+  await expect(container.locator("canvas.graph-canvas")).toBeVisible();
+  await expect(container.locator(".graph-toolbar")).toBeVisible();
+  await expect(container.locator(".graph-legend")).toBeVisible();
+  await expect(container.locator(".graph-minimap")).toContainText(
+    "Tổng quan (32)",
+  );
+
+  // #108 asks for no axe errors in either theme, so every impact level counts.
+  for (const theme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme: theme });
+    await page.evaluate((name) => {
+      document.documentElement.dataset.theme = name;
+      return new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+    }, theme);
+    const results = await new AxeBuilder({ page })
+      .include(".graph-canvas-container")
+      .withTags(["wcag2a", "wcag2aa"])
+      .analyze();
+    await info.attach(`axe-graph-canvas-${theme}.json`, {
+      body: JSON.stringify(results.violations, null, 2),
+      contentType: "application/json",
+    });
+    await info.attach(`graph-canvas-32-${theme}.png`, {
+      body: await container.screenshot(),
+      contentType: "image/png",
+    });
+    expect(results.violations, theme).toEqual([]);
+  }
+
+  // Reduced motion turns off every CSS transition and animation in the graph, not
+  // just one button's; canvas motion is covered by the GraphCanvas unit test.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const longestMotion = await container.evaluate((root) => {
+    const seconds = (value: string) =>
+      Math.max(...value.split(",").map((part) => parseFloat(part) || 0));
+    return Math.max(
+      ...[root, ...root.querySelectorAll("*")].map((el) => {
+        const style = getComputedStyle(el);
+        return Math.max(
+          seconds(style.transitionDuration),
+          style.animationName === "none" ? 0 : seconds(style.animationDuration),
+        );
+      }),
+    );
+  });
+  expect(longestMotion).toBeLessThanOrEqual(0.001);
+});

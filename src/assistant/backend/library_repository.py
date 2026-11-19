@@ -8,7 +8,7 @@ from datetime import datetime
 
 from sqlalchemy import select, update
 
-from .catalog_repository import node_sources, verified_resources
+from .catalog_repository import node_sources, verified_resource_map
 from .models import Course, PersonalSource, Roadmap, RoadmapNode, Source
 
 
@@ -55,7 +55,7 @@ def library_items(db, user_id: str, now: datetime) -> list[dict]:
         .all()
     )
     urls = (
-        {r["id"]: r["url"] for r in verified_resources(db, now)}
+        verified_resource_map(db, now, [r.source_key for r in rows if r.page is None])
         if any(r.page is None for r in rows)
         else {}
     )

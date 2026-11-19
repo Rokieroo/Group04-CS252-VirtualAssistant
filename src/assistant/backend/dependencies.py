@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .models import AuthSession, User
@@ -32,11 +33,15 @@ def get_user(
     )
     if credentials is None:
         raise error
-    session = db.get(AuthSession, token_hash(credentials.credentials))
-    if session is None or session.expires_at <= request.app.state.now():
+    row = db.execute(
+        select(AuthSession, User)
+        .join(User, User.id == AuthSession.user_id)
+        .where(AuthSession.token_hash == token_hash(credentials.credentials))
+    ).first()
+    if row is None:
         raise error
-    user = db.get(User, session.user_id)
-    if user is None:
+    session, user = row
+    if session.expires_at <= request.app.state.now():
         raise error
     return user
 
