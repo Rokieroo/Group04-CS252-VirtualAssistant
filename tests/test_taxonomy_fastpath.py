@@ -19,7 +19,9 @@ from assistant.backend.models import Resource
 def test_lexical_fallback_picks_the_closest_topic_label():
     title = "qwerty pointers allocation"  # names no label, so only vectors decide
     vector = encode(title)
-    expected = max((cosine(vector, encode(label)), i) for i, label in _topic_labels().items())
+    expected = max(
+        (cosine(vector, encode(label)), i) for i, label in _topic_labels().items()
+    )
 
     for _ in range(2):  # the second call reads the label vectors built by the first
         (tag,) = tag_resource({"title": title})
@@ -45,7 +47,9 @@ def test_tag_records_looks_up_only_this_batch_and_the_labels(app, client):
 
         def embed_content(self, **options):
             return SimpleNamespace(
-                embeddings=[SimpleNamespace(values=[3.0, 4.0]) for _ in options["contents"]]
+                embeddings=[
+                    SimpleNamespace(values=[3.0, 4.0]) for _ in options["contents"]
+                ]
             )
 
     with app.state.database.sessions() as db:
@@ -80,9 +84,16 @@ def test_tag_records_looks_up_only_this_batch_and_the_labels(app, client):
         finally:
             event.remove(engine, "before_cursor_execute", capture)
 
-        assert db.get(CatalogEmbedding, ("unrelated-node-1", "node")).vector == "[0.6, 0.8]"
+        assert (
+            db.get(CatalogEmbedding, ("unrelated-node-1", "node")).vector
+            == "[0.6, 0.8]"
+        )
         stored = db.get(CatalogEmbedding, (resource.id, "resource"))
         assert stored.model == embedding.model
 
-    lookups = [s for s in statements if s.lstrip().startswith("SELECT") and "catalog_embeddings" in s]
+    lookups = [
+        s
+        for s in statements
+        if s.lstrip().startswith("SELECT") and "catalog_embeddings" in s
+    ]
     assert lookups and all("id IN" in s for s in lookups)

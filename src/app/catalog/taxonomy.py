@@ -301,8 +301,12 @@ def save_tags(
                 f"method=excluded.method WHERE {table}.method <> 'manual'"
             ),
             [
-                {"id": identifier, "subject": t.subject_id, "confidence": t.confidence,
-                 "method": t.method}
+                {
+                    "id": identifier,
+                    "subject": t.subject_id,
+                    "confidence": t.confidence,
+                    "method": t.method,
+                }
                 for t in tags
             ],
         )
@@ -355,11 +359,18 @@ def tag_records(db, kind, records, *, embedding=None, llm=None):
             "WHERE model=:model AND kind=:kind AND id IN :ids"
         ).bindparams(bindparam("ids", expanding=True))
         cached = []
-        for group, ids in ((kind, [r["id"] for r in records]), ("taxonomy", [*vocabulary])):
+        for group, ids in (
+            (kind, [r["id"] for r in records]),
+            ("taxonomy", [*vocabulary]),
+        ):
             for start in range(0, len(ids), 500):
                 cached += db.execute(
                     by_ids,
-                    {"model": embedding.model, "kind": group, "ids": ids[start : start + 500]},
+                    {
+                        "model": embedding.model,
+                        "kind": group,
+                        "ids": ids[start : start + 500],
+                    },
                 ).mappings()
         wanted = {
             (r["id"], kind): value for r, value in zip(records, contents, strict=True)
