@@ -9,6 +9,7 @@ Results are shared through the 7-day search cache keyed by node signature, so a
 second learner of the same node costs nothing and is logged as a cache hit.
 """
 
+from collections.abc import Sequence
 from dataclasses import asdict
 from datetime import datetime, timedelta
 
@@ -83,12 +84,21 @@ def _search(node: Node, learner: Learner, course: Course, *, db=None) -> tuple[C
 
 def _link(db: Session, node_id: str, curation: Curation) -> None:
     """Show the curated resources on the node; one ``resources`` row per canonical URL."""
-    for resource in curation.resources:
-        key = canonical_url(resource.url)
-        row = db.scalars(select(Resource).where(Resource.canonical_url == key)).first()
-        if row is None:
+    curated = {}
+    for resource in curation.resources:  # ranked, so the first copy of a URL wins
+        curated.setdefault(canonical_url(resource.url), resource)
+    if not curated:
+        return
+    rows = {
+        row.canonical_url: row
+        for row in db.scalars(
+            select(Resource).where(Resource.canonical_url.in_(curated))
+        )
+    }
+    for key, resource in curated.items():
+        if key not in rows:
             # New rows start pending: only the catalog pipeline (#101) verifies.
-            row = Resource(
+            rows[key] = Resource(
                 url=resource.url,
                 canonical_url=key,
                 title=resource.title,
@@ -101,12 +111,27 @@ def _link(db: Session, node_id: str, curation: Curation) -> None:
                 duration_min=resource.minutes,
                 content_hash=resource.content_hash or None,
             )
-            db.add(row)
-            db.flush()
-        link = db.get(NodeResource, (node_id, row.id))
+            db.add(rows[key])
+    db.flush()  # ids for the new rows
+    links = {
+        link.resource_id: link
+        for link in db.scalars(
+            select(NodeResource).where(
+                NodeResource.node_id == node_id,
+                NodeResource.resource_id.in_([row.id for row in rows.values()]),
+            )
+        )
+    }
+    for key, resource in curated.items():
+        link = links.get(rows[key].id)
         if link is None:
-            db.add(NodeResource(node_id=node_id, resource_id=row.id,
-                                relevance_score=resource.score))
+            db.add(
+                NodeResource(
+                    node_id=node_id,
+                    resource_id=rows[key].id,
+                    relevance_score=resource.score,
+                )
+            )
         elif link.status == "shown":
             link.relevance_score = resource.score
 
@@ -153,9 +178,19 @@ def _log(
     return search
 
 
-def search_signature(db: Session, node: RoadmapNode, course: Course) -> str:
-    """The key of the node's shared 7-day search cache (spec 11.8)."""
-    outcomes = _outcomes(db, course.id)
+def search_signature(
+    db: Session,
+    node: RoadmapNode,
+    course: Course,
+    *,
+    outcomes: Sequence[str] | None = None,
+) -> str:
+    """The key of the node's shared 7-day search cache (spec 11.8).
+
+    Callers that already read the course's outcomes pass them to skip a second query.
+    """
+    if outcomes is None:
+        outcomes = _outcomes(db, course.id)
     return node_signature(node.title, list(outcomes), course.level, course.language)
 
 
@@ -218,7 +253,7 @@ def search_resources(db: Session, payload: dict, now: datetime) -> dict:
     target = Node(node.title, outcomes, node.duration_minutes)
     learner = learner_for(course, user)
 
-    signature = search_signature(db, node, course)
+    signature = search_signature(db, node, course, outcomes=outcomes)
     cached = cached_search(db, signature, now)
     if cached is not None:
         curation, stats = Curation.from_dict(cached), None
