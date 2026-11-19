@@ -7,6 +7,10 @@ export const ACCENTS = [
   { id: "forest", label: "Forest" },
   { id: "sunset", label: "Sunset" },
   { id: "slate", label: "Slate" },
+  { id: "neon-yellow", label: "Neon Yellow" },
+  { id: "neon-cyan", label: "Neon Cyan" },
+  { id: "glower-yellow", label: "Glower Yellow" },
+  { id: "glower-cyan", label: "Glower Cyan" },
 ] as const;
 export const THEMES = [
   { id: "system", label: "Match device" },

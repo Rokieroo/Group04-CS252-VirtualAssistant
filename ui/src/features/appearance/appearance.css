@@ -1,11 +1,15 @@
 @layer study-legacy {
   /* Only the chosen gradient enables these surfaces. Status colors retain their meaning. */
-  :root[data-gradient="true"]:not([data-theme="windy"]):not([data-theme="flame"])
+  :root[data-gradient="true"]:not([data-theme="windy"]):not(
+      [data-theme="flame"]
+    )
     .app:not(.study-companion) {
     background: var(--gradient-wash);
   }
 
-  :root[data-gradient="true"]:not([data-theme="windy"]):not([data-theme="flame"])
+  :root[data-gradient="true"]:not([data-theme="windy"]):not(
+      [data-theme="flame"]
+    )
     .app:not(.study-companion)
     :is(.card, .day, .proposal) {
     background: var(--gradient-wash);
@@ -51,5 +55,221 @@
     .study-companion
     :is(.root-course-card small, .root-selection small) {
     color: var(--color-muted);
+  }
+}
+
+@layer study-app {
+  /* Share the exact colors between the picker dots and the selected accent. */
+  [data-accent="neon-yellow"],
+  [data-accent="glower-yellow"] {
+    --neon-light: #f5ff00;
+    --neon-ink: #575b00;
+    --accent-a: var(--neon-ink);
+    --accent-b: #3d4100;
+  }
+
+  [data-accent="neon-cyan"],
+  [data-accent="glower-cyan"] {
+    --neon-light: #00f5ff;
+    --neon-ink: #00606c;
+    --accent-a: var(--neon-ink);
+    --accent-b: #004550;
+  }
+
+  :root[data-accent="neon-aura"] {
+    --neon-light: #00e5ff;
+    --neon-halo: 0 0 7px #00e5ffb0, -4px 0 15px #6500ff59, 4px 0 15px #d9ff0059;
+  }
+
+  :root:is(
+    [data-accent="neon-yellow"],
+    [data-accent="neon-cyan"],
+    [data-accent^="glower-"]
+  ) {
+    --neon-halo:
+      0 0 7px color-mix(in srgb, var(--neon-light) 80%, transparent),
+      0 0 17px color-mix(in srgb, var(--neon-light) 56%, transparent);
+    --color-primary-ink: light-dark(var(--neon-ink), var(--neon-light));
+    --color-focus: light-dark(#10151e, #eef2f6);
+  }
+
+  :root:is(
+      [data-accent="neon-yellow"],
+      [data-accent="neon-cyan"],
+      [data-accent^="glower-"]
+    )
+    .study-companion {
+    /* Windy and Flame use light cards even when the device is set to Dark. */
+    --color-primary-ink: light-dark(var(--neon-ink), var(--neon-light));
+  }
+
+  .swatch:is([data-accent="neon-yellow"], [data-accent="neon-cyan"])
+    .swatch-dot {
+    background: var(--neon-light);
+    box-shadow:
+      inset 0 0 0 1px #10151e,
+      0 0 7px var(--neon-light);
+  }
+
+  :root:is(
+      [data-accent="neon-yellow"],
+      [data-accent="neon-cyan"],
+      [data-accent="neon-aura"]
+    )
+    :is(
+      .button.primary,
+      .primary-action,
+      .study-button.study-primary,
+      .auth-submit
+    ):not(:disabled):not([aria-disabled="true"]) {
+    /* A crisp rim, then a soft outer halo, like a lit neon tube. */
+    box-shadow:
+      0 0 0 1px #10151e,
+      0 0 0 2px var(--neon-light),
+      var(--neon-halo);
+  }
+
+  :root:is(
+      [data-accent="neon-yellow"],
+      [data-accent="neon-cyan"],
+      [data-accent="neon-aura"]
+    )
+    :is(.button.primary, .primary-action, .auth-submit)::before {
+    content: none;
+    animation: none;
+  }
+
+  :root:is([data-accent="neon-yellow"], [data-accent="neon-cyan"])
+    :is(
+      .button.primary,
+      .primary-action,
+      .study-button.study-primary,
+      .auth-submit
+    ),
+  :root:is([data-accent="neon-yellow"], [data-accent="neon-cyan"])
+    :is(.button.primary, .primary-action, .auth-submit)::after {
+    background: var(--neon-light);
+    color: #10151e;
+  }
+
+  :root:is(
+      [data-accent="neon-yellow"],
+      [data-accent="neon-cyan"],
+      [data-accent="neon-aura"]
+    )
+    .study-companion
+    .sidebar
+    nav
+    button[aria-current="page"] {
+    border-image: none;
+    border-left: none;
+    box-shadow:
+      inset 3px 0 var(--neon-light),
+      inset 9px 0 16px -12px var(--neon-light);
+  }
+
+  :root:is(
+      [data-accent="neon-yellow"],
+      [data-accent="neon-cyan"],
+      [data-accent="neon-aura"]
+    )
+    .core-setup-progress
+    span.active {
+    /* The dark rim separates the light from the pale and orange themes. */
+    box-shadow:
+      0 0 0 1px #10151e,
+      var(--neon-halo);
+  }
+
+  :root:is([data-accent="neon-yellow"], [data-accent="neon-cyan"])
+    .core-setup-progress
+    span.active {
+    background: var(--neon-light);
+  }
+  :root:is(
+      [data-accent="neon-yellow"],
+      [data-accent="neon-cyan"],
+      [data-accent="neon-aura"]
+    )
+    .core-setup-progress {
+    color: var(--color-text);
+  }
+
+  /* The same inset shadow follows each component's rounded rectangle. */
+  [data-accent^="glower-"] {
+    --glower-edge: light-dark(var(--neon-ink), var(--neon-light));
+    --glower-inner:
+      inset 0 0 2px 1px var(--neon-light), inset 0 0 8px 3px var(--neon-light);
+    --glower-marker: inset 0 0 3px var(--neon-light);
+    --glower-halo:
+      0 0 0 1px var(--glower-edge),
+      0 0 8px color-mix(in srgb, var(--neon-light) 80%, transparent),
+      0 0 19px color-mix(in srgb, var(--neon-light) 58%, transparent);
+  }
+
+  .swatch[data-accent^="glower-"] .swatch-dot {
+    background: #fff;
+    box-shadow: var(--glower-marker), var(--glower-halo);
+  }
+
+  :root[data-accent^="glower-"]
+    :is(
+      .button.primary,
+      .primary-action,
+      .study-button.study-primary,
+      .auth-submit
+    ):not(:disabled):not([aria-disabled="true"]) {
+    background: #fff;
+    color: #10151e;
+    box-shadow: var(--glower-inner), var(--glower-halo);
+  }
+
+  :root[data-accent^="glower-"]
+    :is(.button.primary, .primary-action, .auth-submit)::before {
+    content: none;
+    animation: none;
+  }
+
+  :root[data-accent^="glower-"]
+    :is(.button.primary, .primary-action, .auth-submit):not(:disabled):not(
+      [aria-disabled="true"]
+    )::after {
+    /* The host paints the white face and the rim together. */
+    content: none;
+  }
+
+  :root[data-accent^="glower-"]
+    .study-companion
+    .sidebar
+    nav
+    button[aria-current="page"] {
+    position: relative;
+    box-shadow: none;
+  }
+
+  :root[data-accent^="glower-"]
+    .study-companion
+    .sidebar
+    nav
+    button[aria-current="page"]::before {
+    content: "";
+    position: absolute;
+    inset: 6px auto 6px 3px;
+    width: 3px;
+    border-radius: 2px;
+    background: #fff;
+    box-shadow:
+      var(--glower-marker),
+      0 0 8px var(--neon-light);
+    pointer-events: none;
+  }
+
+  :root[data-accent^="glower-"] .core-setup-progress {
+    color: var(--color-text);
+  }
+
+  :root[data-accent^="glower-"] .core-setup-progress span.active {
+    background: #fff;
+    box-shadow: var(--glower-marker), var(--glower-halo);
   }
 }

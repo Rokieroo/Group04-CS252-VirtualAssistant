@@ -535,3 +535,204 @@ test("all saved gradients retain every stop in both modes without filling readin
   );
   await expect(page.locator("html")).toHaveAttribute("data-theme", "flame");
 });
+
+test("neon accents glow in all four themes and survive reload", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(60_000);
+  await backend(page);
+  await page.goto("/");
+  await page
+    .getByRole("button", { name: "Thêm đề cương", exact: true })
+    .click();
+  const settings = page.getByRole("button", {
+    name: "Account settings",
+    exact: true,
+  });
+  const action = page.getByRole("button", {
+    name: "Select a file",
+    exact: true,
+  });
+  const app = page.locator(".study-companion");
+  const avatarStyle = () =>
+    page.locator(".avatar").evaluateAll((elements) =>
+      elements.map((element) => {
+        const style = getComputedStyle(element);
+        return [style.background, style.boxShadow];
+      }),
+    );
+  const background = () =>
+    app.evaluate((element) => getComputedStyle(element).background);
+  const actionStyle = () =>
+    action.evaluate((element) => {
+      const button = getComputedStyle(element);
+      const face = getComputedStyle(element, "::after");
+      return {
+        fill: face.backgroundColor,
+        image: face.backgroundImage,
+        label: button.color,
+        shadow: button.boxShadow,
+        animation: getComputedStyle(element, "::before").animationName,
+      };
+    });
+  const shades = [
+    { name: "Neon Yellow", id: "neon-yellow", rgb: "rgb(245, 255, 0)" },
+    { name: "Neon Cyan", id: "neon-cyan", rgb: "rgb(0, 245, 255)" },
+  ];
+
+  for (const mode of ["Light", "Dark", "Windy", "Flame"]) {
+    await settings.click();
+    await page.getByText(mode, { exact: true }).click();
+    await page.getByText("Violet", { exact: true }).click();
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-theme",
+      mode.toLowerCase(),
+    );
+    const neutralAvatars = await avatarStyle();
+    const themeBackground = await background();
+
+    for (const shade of shades) {
+      await page.getByText(shade.name, { exact: true }).click();
+      await page.getByRole("button", { name: "Close dialog" }).click();
+      expect(await avatarStyle()).toEqual(neutralAvatars);
+      expect(await background()).toBe(themeBackground);
+      await expect
+        .poll(async () => (await actionStyle()).shadow)
+        .toContain(shade.rgb);
+      const style = await actionStyle();
+      expect(style.fill).toBe(shade.rgb);
+      expect(style.label).toBe("rgb(16, 21, 30)");
+      expect(style.shadow).toContain(shade.rgb);
+      expect(style.shadow).toContain("17px");
+      expect(style.animation).toBe("none");
+
+      if (testInfo.project.name === "backend-ui") {
+        await page.screenshot({
+          fullPage: true,
+          path: testInfo.outputPath(`${mode.toLowerCase()}-${shade.id}.png`),
+        });
+      }
+      await settings.click();
+    }
+    await page.getByRole("button", { name: "Close dialog" }).click();
+  }
+
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-accent",
+    "neon-cyan",
+  );
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "flame");
+  await expect(action).toBeVisible();
+  await expect
+    .poll(async () => (await actionStyle()).shadow)
+    .toContain("rgb(0, 245, 255)");
+
+  await settings.click();
+  await page.getByText("Neon Aura", { exact: true }).click();
+  await page.getByRole("button", { name: "Close dialog" }).click();
+  await expect
+    .poll(async () => (await actionStyle()).shadow)
+    .toContain("rgb(0, 229, 255)");
+  const aura = await actionStyle();
+  expect(aura.image).toContain("rgb(0, 245, 160)");
+  expect(aura.label).toBe("rgb(255, 255, 255)");
+  expect(aura.shadow).toContain("rgb(0, 229, 255)");
+});
+
+for (const accent of [
+  { name: "Glower Yellow", id: "glower-yellow", rim: "rgb(245, 255, 0)" },
+  { name: "Glower Cyan", id: "glower-cyan", rim: "rgb(0, 245, 255)" },
+]) {
+  test(`${accent.name} has a white center and perimeter glow in all themes`, async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(60_000);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await backend(page);
+    await page.goto("/");
+    await page
+      .getByRole("button", { name: "Thêm đề cương", exact: true })
+      .click();
+    const account = page.getByRole("button", {
+      name: "Account settings",
+      exact: true,
+    });
+    const primary = page.getByRole("button", {
+      name: "Select a file",
+      exact: true,
+    });
+    const inactive = page.getByRole("button", {
+      name: "Continue to review →",
+      exact: true,
+    });
+    const step = page.locator(".core-setup-progress span.active");
+    const avatar = page.locator(".topbar .avatar");
+    const app = page.locator(".study-companion");
+
+    const themeBackgrounds = {
+      Light: "rgb(245, 246, 248)",
+      Dark: "rgb(16, 21, 30)",
+      Windy: "rgb(172, 182, 229)",
+      Flame: "rgb(255, 0, 0)",
+    };
+    for (const [mode, backdrop] of Object.entries(themeBackgrounds)) {
+      await account.click();
+      await page.getByText(mode, { exact: true }).click();
+      await page.getByText("Violet", { exact: true }).click();
+      await expect(app).toHaveCSS("background-color", backdrop);
+      const originalBackground = await app.evaluate(
+        (el) => getComputedStyle(el).background,
+      );
+      const avatarBackground = await avatar.evaluate(
+        (el) => getComputedStyle(el).background,
+      );
+      await page.getByText(accent.name, { exact: true }).click();
+      await page.getByRole("button", { name: "Close dialog" }).click();
+      await expect(page.locator("html")).toHaveAttribute(
+        "data-theme",
+        mode.toLowerCase(),
+      );
+      await expect(primary).toHaveCSS("background-color", "rgb(255, 255, 255)");
+      await expect(primary).toHaveCSS("color", "rgb(16, 21, 30)");
+      await expect(primary).toHaveCSS("box-shadow", /inset/);
+      expect(
+        await primary.evaluate((el) => getComputedStyle(el).boxShadow),
+      ).toContain(accent.rim);
+      expect(
+        await primary.evaluate((el) => getComputedStyle(el, "::after").content),
+      ).toBe("none");
+      await expect(step).toHaveCSS("background-color", "rgb(255, 255, 255)");
+      await expect(step).toHaveCSS("box-shadow", /inset/);
+      await expect(inactive).toBeDisabled();
+      expect(
+        await inactive.evaluate((el) => getComputedStyle(el).boxShadow),
+      ).not.toContain(accent.rim);
+      expect(await app.evaluate((el) => getComputedStyle(el).background)).toBe(
+        originalBackground,
+      );
+      expect(
+        await avatar.evaluate((el) => getComputedStyle(el).background),
+      ).toBe(avatarBackground);
+
+      if (mode === "Windy" && testInfo.project.name === "backend-ui") {
+        await page.locator(".core-setup-columns").screenshot({
+          path: testInfo.outputPath(`${accent.id}-windy.png`),
+        });
+      }
+    }
+
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-accent",
+      accent.id,
+    );
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "flame");
+    await expect(primary).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    await account.click();
+    await page.getByText("Neon Yellow", { exact: true }).click();
+    await page.getByRole("button", { name: "Close dialog" }).click();
+    await expect(primary).toHaveCSS("background-color", "rgb(245, 255, 0)");
+    await expect(primary).not.toHaveCSS("box-shadow", /inset/);
+  });
+}
