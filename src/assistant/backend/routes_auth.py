@@ -52,7 +52,13 @@ def issue_session(db, user, request):
     raw = secrets.token_urlsafe(32)
     now = request.app.state.now()
     expires = now + timedelta(minutes=request.app.state.settings.session_minutes)
-    db.execute(delete(AuthSession).where(AuthSession.expires_at <= now))
+    # Only this user's rows, through ix_auth_sessions_user_id; the daily prune job
+    # sweeps everyone else's (#168: a table-wide DELETE per login topped pg_stat).
+    db.execute(
+        delete(AuthSession).where(
+            AuthSession.user_id == user.id, AuthSession.expires_at <= now
+        )
+    )
     db.add(AuthSession(token_hash=token_hash(raw), user_id=user.id, expires_at=expires))
     db.commit()
     return TokenOut(

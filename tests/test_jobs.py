@@ -276,6 +276,7 @@ def test_prune_drops_expired_cache_and_old_finished_jobs(sessions, echo):
         assert maintenance.prune(db, {}, NOW + maintenance.JOB_RETENTION) == {
             "cache_entries": 1,
             "jobs": 1,
+            "auth_sessions": 0,
         }
         db.commit()
         assert db.get(Job, old) is None and db.get(Job, pending) is not None
