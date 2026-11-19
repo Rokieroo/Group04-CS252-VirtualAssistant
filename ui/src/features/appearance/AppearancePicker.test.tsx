@@ -32,6 +32,14 @@ describe("appearance picker", () => {
         .checked,
     ).toBe(true);
   });
+  it("marks lit swatches so each previews its own glow", () => {
+    setup();
+    const swatch = (name: string) =>
+      screen.getByRole("radio", { name }).closest("label")!;
+    expect(swatch("Neon Cyan").dataset.glow).toBe("neon");
+    expect(swatch("Glower Yellow").dataset.glow).toBe("glower");
+    expect(swatch("Violet").dataset.glow).toBeUndefined();
+  });
   it("applies and saves an accent and a theme as soon as they are picked", async () => {
     const user = userEvent.setup();
     const store = setup();

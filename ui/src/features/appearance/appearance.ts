@@ -7,6 +7,10 @@ export const ACCENTS = [
   { id: "forest", label: "Forest" },
   { id: "sunset", label: "Sunset" },
   { id: "slate", label: "Slate" },
+  { id: "neon-yellow", label: "Neon Yellow" },
+  { id: "neon-cyan", label: "Neon Cyan" },
+  { id: "glower-yellow", label: "Glower Yellow" },
+  { id: "glower-cyan", label: "Glower Cyan" },
 ] as const;
 export const THEMES = [
   { id: "system", label: "Match device" },
@@ -20,6 +24,16 @@ export type Accent =
   (typeof ACCENTS)[number]["id"] | (typeof GRADIENTS)[number]["id"];
 export type Theme = (typeof THEMES)[number]["id"];
 export type Appearance = { accent: Accent; theme: Theme };
+
+/** Lit accents (appearance.css keys off data-glow): neon adds a halo, glower a white face with a glowing rim. */
+const GLOWS: Partial<Record<Accent, "neon" | "glower">> = {
+  "neon-yellow": "neon",
+  "neon-cyan": "neon",
+  "neon-aura": "neon",
+  "glower-yellow": "glower",
+  "glower-cyan": "glower",
+};
+export const glowOf = (accent: Accent) => GLOWS[accent];
 
 export const DEFAULT_APPEARANCE: Appearance = {
   accent: "violet",
@@ -91,6 +105,9 @@ export function applyAppearance(
   root: HTMLElement = document.documentElement,
 ) {
   root.dataset.accent = appearance.accent;
+  const glow = glowOf(appearance.accent);
+  if (glow) root.dataset.glow = glow;
+  else delete root.dataset.glow;
   const gradient = GRADIENTS.find((item) => item.id === appearance.accent);
   if (gradient) {
     const colors: readonly string[] = gradient.colors;
@@ -99,9 +116,13 @@ export function applyAppearance(
       (color) =>
         `light-dark(color-mix(in oklab, ${color} 10%, white), color-mix(in oklab, ${color} 14%, #182238))`,
     );
+    // Bound every sRGB channel so interpolated text stays readable between stops.
     const textColors = colors.map(
       (color) =>
-        `light-dark(color-mix(in oklab, ${color} 35%, #101828), color-mix(in oklab, ${color} 45%, white))`,
+        `light-dark(color-mix(in srgb, ${color} 30%, #10151e), color-mix(in srgb, ${color} 35%, white))`,
+    );
+    const iconColors = colors.map(
+      (color) => `color-mix(in srgb, ${color} 48%, white)`,
     );
     root.dataset.gradient = "true";
     root.style.setProperty("--gradient-brand", fullGradient);
@@ -120,7 +141,11 @@ export function applyAppearance(
     );
     root.style.setProperty(
       "--gradient-text",
-      `linear-gradient(90deg, ${textColors.join(", ")})`,
+      `linear-gradient(90deg in srgb, ${textColors.join(", ")})`,
+    );
+    root.style.setProperty(
+      "--gradient-icon",
+      `linear-gradient(135deg in srgb, ${iconColors.join(", ")})`,
     );
     root.style.setProperty(
       "--accent-a",
@@ -138,6 +163,7 @@ export function applyAppearance(
       "--gradient-action",
       "--gradient-wash",
       "--gradient-text",
+      "--gradient-icon",
       "--accent-a",
       "--accent-b",
     ])
