@@ -30,10 +30,7 @@ def test_save_items_batches_queries_and_calls_store_private_once_per_source(
         "Answer: A. BFS\n"
         "Exercise 2: State the recurrence.\n"
     )
-    page2 = (
-        "Exercise 3: Prove loop invariant.\n"
-        "Exercise 4: Compare time complexity.\n"
-    )
+    page2 = "Exercise 3: Prove loop invariant.\nExercise 4: Compare time complexity.\n"
     with app.state.database.sessions() as db:
         db.execute(
             text(

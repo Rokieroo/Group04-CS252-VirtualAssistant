@@ -82,9 +82,9 @@ def save_items(db, concept_id, items):
     sources = {
         row["id"]: row
         for row in db.execute(
-            text("SELECT id,course_id,text,page FROM sources WHERE id IN :ids").bindparams(
-                bindparam("ids", expanding=True)
-            ),
+            text(
+                "SELECT id,course_id,text,page FROM sources WHERE id IN :ids"
+            ).bindparams(bindparam("ids", expanding=True)),
             {"ids": list({item.get("source_id") for item in items})},
         ).mappings()
     }
