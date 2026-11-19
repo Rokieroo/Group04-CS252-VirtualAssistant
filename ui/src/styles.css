@@ -36,6 +36,12 @@
     color-mix(in oklab, var(--accent-a) 70%, #182238)
   );
   --color-scrim: light-dark(#18243970, #05081299);
+  /* Private uploads keep one hue under every accent so they never read as verified sources. */
+  --color-private-source-bg: light-dark(#e0f2fe, #075985);
+  --color-private-source-ink: light-dark(#0369a1, #e0f2fe);
+  --color-private-source-border: light-dark(#bae6fd, #0284c7);
+  --color-field-face: light-dark(#f7f8fa, #202b38);
+  --color-field-border: light-dark(#65758b, #8294ab);
   /* Sidebar and toast stay dark in both themes. */
   --color-nav-bg: #1b2440;
   --color-nav-text: #b8c2d9;
@@ -180,6 +186,21 @@
 [data-accent="slate"] {
   --accent-a: #475569;
   --accent-b: #334155;
+}
+/* Lit presets (appearance.css): --neon-light is the glow, --neon-ink its readable shade on light surfaces. */
+[data-accent="neon-yellow"],
+[data-accent="glower-yellow"] {
+  --neon-light: #f5ff00;
+  --neon-ink: #575b00;
+  --accent-a: #575b00;
+  --accent-b: #3d4100;
+}
+[data-accent="neon-cyan"],
+[data-accent="glower-cyan"] {
+  --neon-light: #00f5ff;
+  --neon-ink: #00606c;
+  --accent-a: #00606c;
+  --accent-b: #004550;
 }
 @media (prefers-reduced-motion: reduce) {
   *,

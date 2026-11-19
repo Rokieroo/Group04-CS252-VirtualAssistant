@@ -25,6 +25,16 @@ export type Accent =
 export type Theme = (typeof THEMES)[number]["id"];
 export type Appearance = { accent: Accent; theme: Theme };
 
+/** Lit accents (appearance.css keys off data-glow): neon adds a halo, glower a white face with a glowing rim. */
+const GLOWS: Partial<Record<Accent, "neon" | "glower">> = {
+  "neon-yellow": "neon",
+  "neon-cyan": "neon",
+  "neon-aura": "neon",
+  "glower-yellow": "glower",
+  "glower-cyan": "glower",
+};
+export const glowOf = (accent: Accent) => GLOWS[accent];
+
 export const DEFAULT_APPEARANCE: Appearance = {
   accent: "violet",
   theme: "system",
@@ -95,6 +105,9 @@ export function applyAppearance(
   root: HTMLElement = document.documentElement,
 ) {
   root.dataset.accent = appearance.accent;
+  const glow = glowOf(appearance.accent);
+  if (glow) root.dataset.glow = glow;
+  else delete root.dataset.glow;
   const gradient = GRADIENTS.find((item) => item.id === appearance.accent);
   if (gradient) {
     const colors: readonly string[] = gradient.colors;

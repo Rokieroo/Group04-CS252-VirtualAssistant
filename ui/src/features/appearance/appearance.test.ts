@@ -69,6 +69,19 @@ describe("applyAppearance", () => {
     applyAppearance({ accent: "sunset", theme: "system" }, root);
     expect(root.dataset.theme).toBeUndefined();
   });
+
+  it("marks lit accents and clears the mark for plain ones", () => {
+    const root = document.createElement("html");
+    applyAppearance({ accent: "neon-cyan", theme: "dark" }, root);
+    expect(root.dataset).toMatchObject({ glow: "neon" });
+    expect(root.dataset.gradient).toBeUndefined();
+    applyAppearance({ accent: "neon-aura", theme: "dark" }, root);
+    expect(root.dataset).toMatchObject({ glow: "neon", gradient: "true" });
+    applyAppearance({ accent: "glower-yellow", theme: "dark" }, root);
+    expect(root.dataset.glow).toBe("glower");
+    applyAppearance({ accent: "violet", theme: "dark" }, root);
+    expect(root.dataset.glow).toBeUndefined();
+  });
 });
 
 describe("gradient appearance", () => {

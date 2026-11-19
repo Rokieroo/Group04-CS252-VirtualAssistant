@@ -1,26 +1,14 @@
 @layer study-legacy {
   /* Only the chosen gradient enables these surfaces. Status colors retain their meaning. */
-  :root[data-gradient="true"]:not([data-theme="windy"]):not(
-      [data-theme="flame"]
-    )
+  :root[data-gradient="true"]:not([data-theme="windy"]):not([data-theme="flame"])
     .app:not(.study-companion) {
     background: var(--gradient-wash);
   }
 
-  :root[data-gradient="true"]:not([data-theme="windy"]):not(
-      [data-theme="flame"]
-    )
+  :root[data-gradient="true"]:not([data-theme="windy"]):not([data-theme="flame"])
     .app:not(.study-companion)
     :is(.card, .day, .proposal) {
     background: var(--gradient-wash);
-  }
-
-  /* Keep a selected roadmap week/course visibly distinct from other cards. */
-  :root[data-gradient="true"]
-    .study-companion
-    :is(.core-week.selected, .root-course-card[aria-pressed="true"]) {
-    border-color: var(--color-primary-ink);
-    box-shadow: inset 0 0 0 1px var(--color-primary-ink);
   }
 
   :root[data-gradient="true"] .hero {
@@ -59,33 +47,233 @@
 }
 
 @layer study-app {
-  /* Share the exact colors between the picker dots and the selected accent. */
-  [data-accent="neon-yellow"],
-  [data-accent="glower-yellow"] {
-    --neon-light: #f5ff00;
-    --neon-ink: #575b00;
-    --accent-a: var(--neon-ink);
-    --accent-b: #3d4100;
+  /* ── Gradient accents: applyAppearance sets data-gradient and the --gradient-* tokens. ── */
+
+  /* A solid ink for small labels, links and control states on themed surfaces. */
+  :root[data-gradient="true"],
+  :root[data-gradient="true"] .study-companion {
+    --color-primary-ink: light-dark(#253850, #cbd9eb);
+    --color-focus: var(--color-primary-ink);
   }
 
-  [data-accent="neon-cyan"],
-  [data-accent="glower-cyan"] {
-    --neon-light: #00f5ff;
-    --neon-ink: #00606c;
-    --accent-a: var(--neon-ink);
-    --accent-b: #004550;
+  /* Paint the face on the control so it stays behind the label in all compositing layers. */
+  :root[data-gradient="true"]
+    :is(
+      .button.primary,
+      .primary-action,
+      .study-button.study-primary,
+      .auth-submit
+    ) {
+    background: var(--gradient-action);
+    color: white;
   }
+
+  :root[data-gradient="true"]
+    :is(.button.primary, .primary-action, .auth-submit)::after {
+    content: none;
+  }
+
+  /* The brand mark gets its own face and ink. This selector excludes avatars. */
+  :root:is([data-gradient="true"], [data-glow="glower"]) .brand > span {
+    display: grid;
+    place-items: center;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    color: #10151e;
+    font-size: 22px;
+    background-clip: border-box;
+  }
+
+  :root[data-gradient="true"] .brand > span {
+    background: var(--gradient-icon);
+  }
+
+  :root[data-gradient="true"] .study-companion .study-syllabus-text:focus {
+    border-color: transparent;
+    background:
+      linear-gradient(var(--color-field-face), var(--color-field-face))
+        padding-box,
+      var(--gradient-brand) border-box;
+    /* The solid outline from study-ui.css marks focus through all palette stops. */
+  }
+
+  :root[data-gradient="true"]
+    .study-companion
+    :is(
+      .core-setup-progress > strong,
+      .core-upload > h2,
+      .core-upload > .core-text-button
+    ) {
+    justify-self: start;
+    color: var(--color-primary-ink);
+  }
+
+  @supports (background-clip: text) {
+    :root[data-gradient="true"]
+      .study-companion
+      :is(
+        .core-setup-progress > strong,
+        .core-upload > h2,
+        .core-upload > .core-text-button
+      ) {
+      background-image: var(--gradient-text);
+      background-clip: text;
+      color: transparent;
+    }
+
+    :root[data-gradient="true"]
+      .study-companion
+      .core-upload
+      > .core-text-button {
+      text-decoration-color: var(--color-primary-ink);
+    }
+
+    :root[data-gradient="true"]:is([data-theme="windy"], [data-theme="flame"])
+      .study-companion
+      .core-setup-progress
+      > strong {
+      padding-inline: 6px;
+      border-radius: 4px;
+      background-image: var(--gradient-text), linear-gradient(#fffaf4, #fffaf4);
+      background-clip: text, padding-box;
+    }
+  }
+
+  :root[data-gradient="true"]
+    .study-companion
+    :is(
+      .core-tabs button[aria-selected="true"],
+      .core-filter-btn[aria-pressed="true"],
+      .view-mode-toggle button[aria-pressed="true"],
+      .graph-segmented button[aria-pressed="true"],
+      .core-week.selected,
+      .root-course-card[aria-pressed="true"]
+    ) {
+    color: var(--color-text);
+    background-color: var(--color-surface-alt);
+    background-image: var(--gradient-brand);
+    background-position: center bottom;
+    background-repeat: no-repeat;
+    background-size: 80% 3px;
+    border-color: var(--color-focus);
+  }
+
+  :root[data-gradient="true"]
+    .study-tabs
+    .astryx-tab-indicator[data-selected="selected"] {
+    background: var(--gradient-brand);
+  }
+
+  :root[data-gradient="true"]
+    .study-companion
+    :is(.core-week.selected, .root-course-card[aria-pressed="true"]) {
+    box-shadow: none;
+  }
+
+  :root[data-gradient="true"] .study-companion .kg-list-row.selected {
+    background:
+      linear-gradient(var(--color-tint), var(--color-tint)) padding-box,
+      var(--gradient-vertical) border-box;
+    border-left-color: transparent;
+  }
+
+  :root[data-gradient="true"] .graph-canvas-container {
+    --graph-accent: var(--color-focus);
+  }
+
+  :root[data-gradient="true"]
+    .study-companion
+    :is(.vsc-title-link, .node-title-button) {
+    background: var(--gradient-text) left bottom / 100% 1px no-repeat;
+    padding-bottom: 2px;
+  }
+
+  :root[data-gradient="true"]
+    .study-companion
+    :is(.vsc-title-link, .node-title-button):hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  :root[data-gradient="true"]
+    .study-companion
+    :is(.core-citation, .np-path-btn) {
+    background-image: var(--gradient-text);
+    background-position: center bottom;
+    background-repeat: no-repeat;
+    background-size: 76% 2px;
+  }
+
+  :root[data-gradient="true"]
+    .study-companion
+    :is(.np-path-btn, .np-page-btn, .today-action-btn) {
+    border-color: var(--color-focus);
+  }
+
+  :root[data-gradient="true"] .study-companion .np-path-btn:hover {
+    border-color: var(--color-primary);
+  }
+
+  @media (forced-colors: active) {
+    :root[data-gradient="true"]
+      .study-companion
+      :is(
+        .core-setup-progress > strong,
+        .core-upload > h2,
+        .core-upload > .core-text-button
+      ) {
+      color: CanvasText;
+      background-image: none;
+      text-decoration-color: LinkText;
+    }
+
+    :root[data-gradient="true"]:is([data-theme="windy"], [data-theme="flame"])
+      .study-companion
+      .core-setup-progress
+      > strong {
+      background-image: none;
+    }
+
+    :root[data-gradient="true"]
+      .study-companion
+      :is(.vsc-title-link, .node-title-button, .core-citation, .np-path-btn) {
+      text-decoration: underline;
+    }
+
+    :root[data-gradient="true"] .study-companion .study-syllabus-text:focus {
+      border-color: Highlight;
+      outline-color: Highlight;
+    }
+
+    :root[data-gradient="true"]
+      .study-companion
+      :is(
+        .core-tabs button[aria-selected="true"],
+        .study-tabs [role="tab"][aria-selected="true"],
+        .core-filter-btn[aria-pressed="true"],
+        .view-mode-toggle button[aria-pressed="true"],
+        .graph-segmented button[aria-pressed="true"],
+        .core-week.selected,
+        .root-course-card[aria-pressed="true"],
+        .kg-list-row.selected
+      ) {
+      outline: 1px solid Highlight;
+      outline-offset: -2px;
+    }
+  }
+
+  /* ── Lit accents: applyAppearance sets data-glow; presets in styles.css give --neon-light and --neon-ink. ── */
 
   :root[data-accent="neon-aura"] {
     --neon-light: #00e5ff;
     --neon-halo: 0 0 7px #00e5ffb0, -4px 0 15px #6500ff59, 4px 0 15px #d9ff0059;
   }
 
-  :root:is(
-    [data-accent="neon-yellow"],
-    [data-accent="neon-cyan"],
-    [data-accent^="glower-"]
-  ) {
+  /* Solid lit accents. Windy and Flame redefine the ink on light cards, so it is set there too. */
+  :root[data-glow]:not([data-gradient]),
+  :root[data-glow]:not([data-gradient]) .study-companion {
     --neon-halo:
       0 0 7px color-mix(in srgb, var(--neon-light) 80%, transparent),
       0 0 17px color-mix(in srgb, var(--neon-light) 56%, transparent);
@@ -93,70 +281,67 @@
     --color-focus: light-dark(#10151e, #eef2f6);
   }
 
-  :root:is(
-      [data-accent="neon-yellow"],
-      [data-accent="neon-cyan"],
-      [data-accent^="glower-"]
-    )
-    .study-companion {
-    /* Windy and Flame use light cards even when the device is set to Dark. */
-    --color-primary-ink: light-dark(var(--neon-ink), var(--neon-light));
+  /* Not scoped to :root so each picker swatch previews its own glow. */
+  [data-glow="glower"] {
+    --glower-edge: light-dark(var(--neon-ink), var(--neon-light));
+    --glower-inner:
+      inset 0 0 2px 1px var(--neon-light), inset 0 0 8px 3px var(--neon-light);
+    --glower-marker: inset 0 0 3px var(--neon-light);
+    --glower-halo:
+      0 0 0 1px var(--glower-edge),
+      0 0 8px color-mix(in srgb, var(--neon-light) 80%, transparent),
+      0 0 19px color-mix(in srgb, var(--neon-light) 58%, transparent);
   }
 
-  .swatch:is([data-accent="neon-yellow"], [data-accent="neon-cyan"])
-    .swatch-dot {
+  .swatch[data-glow="neon"] .swatch-dot {
     background: var(--neon-light);
     box-shadow:
       inset 0 0 0 1px #10151e,
       0 0 7px var(--neon-light);
   }
 
-  :root:is(
-      [data-accent="neon-yellow"],
-      [data-accent="neon-cyan"],
-      [data-accent="neon-aura"]
-    )
+  .swatch[data-glow="glower"] .swatch-dot {
+    background: #fff;
+    box-shadow: var(--glower-marker), var(--glower-halo);
+  }
+
+  :root[data-glow] :is(.button.primary, .primary-action, .auth-submit)::before {
+    content: none;
+    animation: none;
+  }
+
+  :root[data-glow] .core-setup-progress {
+    color: var(--color-text);
+  }
+
+  /* Neon: a crisp rim, then a soft outer halo, like a lit neon tube. */
+  :root[data-glow="neon"]
     :is(
       .button.primary,
       .primary-action,
       .study-button.study-primary,
       .auth-submit
     ):not(:disabled):not([aria-disabled="true"]) {
-    /* A crisp rim, then a soft outer halo, like a lit neon tube. */
     box-shadow:
       0 0 0 1px #10151e,
       0 0 0 2px var(--neon-light),
       var(--neon-halo);
   }
 
-  :root:is(
-      [data-accent="neon-yellow"],
-      [data-accent="neon-cyan"],
-      [data-accent="neon-aura"]
-    )
-    :is(.button.primary, .primary-action, .auth-submit)::before {
-    content: none;
-    animation: none;
-  }
-
-  :root:is([data-accent="neon-yellow"], [data-accent="neon-cyan"])
+  :root[data-glow="neon"]:not([data-gradient])
     :is(
       .button.primary,
       .primary-action,
       .study-button.study-primary,
       .auth-submit
     ),
-  :root:is([data-accent="neon-yellow"], [data-accent="neon-cyan"])
+  :root[data-glow="neon"]:not([data-gradient])
     :is(.button.primary, .primary-action, .auth-submit)::after {
     background: var(--neon-light);
     color: #10151e;
   }
 
-  :root:is(
-      [data-accent="neon-yellow"],
-      [data-accent="neon-cyan"],
-      [data-accent="neon-aura"]
-    )
+  :root[data-glow="neon"]
     .study-companion
     .sidebar
     nav
@@ -168,51 +353,19 @@
       inset 9px 0 16px -12px var(--neon-light);
   }
 
-  :root:is(
-      [data-accent="neon-yellow"],
-      [data-accent="neon-cyan"],
-      [data-accent="neon-aura"]
-    )
-    .core-setup-progress
-    span.active {
+  :root[data-glow="neon"] .core-setup-progress span.active {
     /* The dark rim separates the light from the pale and orange themes. */
     box-shadow:
       0 0 0 1px #10151e,
       var(--neon-halo);
   }
 
-  :root:is([data-accent="neon-yellow"], [data-accent="neon-cyan"])
-    .core-setup-progress
-    span.active {
+  :root[data-glow="neon"]:not([data-gradient]) .core-setup-progress span.active {
     background: var(--neon-light);
   }
-  :root:is(
-      [data-accent="neon-yellow"],
-      [data-accent="neon-cyan"],
-      [data-accent="neon-aura"]
-    )
-    .core-setup-progress {
-    color: var(--color-text);
-  }
 
-  /* The same inset shadow follows each component's rounded rectangle. */
-  [data-accent^="glower-"] {
-    --glower-edge: light-dark(var(--neon-ink), var(--neon-light));
-    --glower-inner:
-      inset 0 0 2px 1px var(--neon-light), inset 0 0 8px 3px var(--neon-light);
-    --glower-marker: inset 0 0 3px var(--neon-light);
-    --glower-halo:
-      0 0 0 1px var(--glower-edge),
-      0 0 8px color-mix(in srgb, var(--neon-light) 80%, transparent),
-      0 0 19px color-mix(in srgb, var(--neon-light) 58%, transparent);
-  }
-
-  .swatch[data-accent^="glower-"] .swatch-dot {
-    background: #fff;
-    box-shadow: var(--glower-marker), var(--glower-halo);
-  }
-
-  :root[data-accent^="glower-"]
+  /* Glower: a white face; the same inset shadow follows each component's rounded rectangle. */
+  :root[data-glow="glower"]
     :is(
       .button.primary,
       .primary-action,
@@ -224,13 +377,7 @@
     box-shadow: var(--glower-inner), var(--glower-halo);
   }
 
-  :root[data-accent^="glower-"]
-    :is(.button.primary, .primary-action, .auth-submit)::before {
-    content: none;
-    animation: none;
-  }
-
-  :root[data-accent^="glower-"]
+  :root[data-glow="glower"]
     :is(.button.primary, .primary-action, .auth-submit):not(:disabled):not(
       [aria-disabled="true"]
     )::after {
@@ -238,7 +385,13 @@
     content: none;
   }
 
-  :root[data-accent^="glower-"]
+  :root[data-glow="glower"] .brand > span {
+    background: white;
+    border: 1px solid var(--neon-light);
+    box-shadow: var(--glower-halo);
+  }
+
+  :root[data-glow="glower"]
     .study-companion
     .sidebar
     nav
@@ -247,7 +400,7 @@
     box-shadow: none;
   }
 
-  :root[data-accent^="glower-"]
+  :root[data-glow="glower"]
     .study-companion
     .sidebar
     nav
@@ -264,11 +417,7 @@
     pointer-events: none;
   }
 
-  :root[data-accent^="glower-"] .core-setup-progress {
-    color: var(--color-text);
-  }
-
-  :root[data-accent^="glower-"] .core-setup-progress span.active {
+  :root[data-glow="glower"] .core-setup-progress span.active {
     background: #fff;
     box-shadow: var(--glower-marker), var(--glower-halo);
   }
