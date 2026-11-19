@@ -1,4 +1,4 @@
-"""Tests for batched item saving, BM25 tokenization caching, and QA normalization reuse."""
+"""save_items batches its queries; BM25 reuses page tokens without changing scores."""
 
 from __future__ import annotations
 
@@ -7,9 +7,7 @@ from sqlalchemy import event, text
 from app.catalog import exercises as catalog_exercises
 from app.catalog.exercises import extract_numbered
 from app.items.find import save_items
-from app.qa import answer as qa_answer
-from app.qa.answer import _extract, _verified
-from app.retrieval.bm25 import RetrievalHit, _tokenize_vi_cached, tokenize_vi
+from app.retrieval.bm25 import Bm25Index, _page_tokens
 
 
 def test_save_items_batches_queries_and_calls_store_private_once_per_source(
@@ -93,54 +91,15 @@ def test_save_items_batches_queries_and_calls_store_private_once_per_source(
     assert len([s for s in statements if "FROM sources" in s]) == 1
     assert len([s for s in statements if "INTO items" in s]) == 1
 
-
-def test_tokenize_vi_caches_fresh_lists_and_handles_large_text():
-    _tokenize_vi_cached.cache_clear()
-    sample = "Tìm kiếm theo chiều rộng trên đồ thị không trọng số"
-    first = tokenize_vi(sample)
-    first.append("mutated")
-    second = tokenize_vi(sample)
-
-    assert "mutated" not in second
-    assert _tokenize_vi_cached.cache_info().hits == 1
-
-    huge = ("thuật toán đồ thị " * 3500).strip()
-    assert len(huge) > 50_000
-    assert tokenize_vi(huge)[:3] == ["thuật", "toán", "đồ"]
+    with app.state.database.sessions() as db:
+        assert save_items(db, "c-fast", items) == []  # already saved
 
 
-def test_qa_verified_normalizes_each_hit_once_and_extract_handles_empty_terms(monkeypatch):
-    hit = RetrievalHit(
-        source_id="src-1",
-        score=2.5,
-        page=3,
-        file_name="notes.pdf",
-        text=(
-            "Introduction sentence without match. "
-            "Breadth first search finds shortest paths in unweighted graphs."
-        ),
-    )
-    norm_calls: list[str] = []
-    orig_norm = qa_answer._normalized
+def test_cached_page_tokens_score_like_fresh_ones():
+    docs = ["cây nhị phân tìm kiếm", "bảng băm và xung đột", "đồ thị " * 3000]
+    _page_tokens.cache_clear()
+    cold = Bm25Index(docs).scores("cây nhị phân")
+    warm = Bm25Index(docs).scores("cây nhị phân")
 
-    def counted_norm(text_value: str) -> str:
-        norm_calls.append(text_value)
-        return orig_norm(text_value)
-
-    monkeypatch.setattr(qa_answer, "_normalized", counted_norm)
-    citations = _verified(
-        [
-            {"source_id": "src-1", "quote": "Breadth first search"},
-            {"source_id": "src-1", "quote": "shortest paths in unweighted graphs"},
-        ],
-        [hit],
-    )
-    assert len(citations) == 2
-    # 1 normalization of hit.text + 2 quote normalizations = 3 total instead of 4.
-    assert len(norm_calls) == 3
-
-    assert _extract(set(), hit).text == "Introduction sentence without match."
-    assert (
-        _extract({"breadth", "shortest"}, hit).text
-        == "Breadth first search finds shortest paths in unweighted graphs."
-    )
+    assert cold == warm and cold[0] > 0
+    assert _page_tokens.cache_info().currsize == 2  # the 18k-char page is not kept

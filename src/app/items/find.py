@@ -69,75 +69,59 @@ def save_items(db, concept_id, items):
     """FSRS compatibility rows always point at a verified, owner-scoped exercise."""
     from app.catalog.exercises import store_private
 
-    if not items:
+    course = db.execute(
+        text(
+            "SELECT c.course_id, cr.owner_id FROM concepts c "
+            "JOIN courses cr ON cr.id = c.course_id WHERE c.id = :id"
+        ),
+        {"id": concept_id},
+    ).first()
+    if course is None or course.owner_id is None or not items:
         return []
-    concept_course = (
-        db.execute(
-            text(
-                "SELECT c.course_id, cr.owner_id FROM concepts c "
-                "JOIN courses cr ON cr.id = c.course_id WHERE c.id = :id"
+    # items come from find_items, at most MAX_ITEMS, so one IN query needs no chunking.
+    sources = {
+        row["id"]: row
+        for row in db.execute(
+            text("SELECT id,course_id,text,page FROM sources WHERE id IN :ids").bindparams(
+                bindparam("ids", expanding=True)
             ),
-            {"id": concept_id},
-        )
-        .mappings()
-        .first()
-    )
-    if concept_course is None or concept_course["owner_id"] is None:
-        return []
-    course_id = concept_course["course_id"]
-    owner = concept_course["owner_id"]
-
-    source_ids = list(
-        dict.fromkeys(
-            item["source_id"] for item in items if item.get("source_id") is not None
-        )
-    )
-    if not source_ids:
-        return []
-
-    sources_by_id: dict = {}
-    stmt = text(
-        "SELECT id,course_id,text,page FROM sources WHERE id IN :ids"
-    ).bindparams(bindparam("ids", expanding=True))
-    for start in range(0, len(source_ids), 500):
-        for row in db.execute(stmt, {"ids": source_ids[start : start + 500]}).mappings():
-            sources_by_id[row["id"]] = row
-
-    seen_exercises = set(
+            {"ids": list({item.get("source_id") for item in items})},
+        ).mappings()
+    }
+    known = set(
         db.scalars(
-            text("SELECT exercise_id FROM items WHERE concept_id=:c"),
-            {"c": concept_id},
+            text("SELECT exercise_id FROM items WHERE concept_id=:c"), {"c": concept_id}
         )
     )
-    exercises_by_source: dict[object, dict[str, dict]] = {}
+    exercises = {}  # source id -> quote hash -> exercise; one store_private per page
     saved = []
     for item in items:
-        source_id = item.get("source_id")
-        source = sources_by_id.get(source_id)
+        source = sources.get(item.get("source_id"))
         if (
             source is None
-            or source["course_id"] != course_id
+            or source["course_id"] != course.course_id
             or not exact(item, source["text"])
         ):
             continue
-        by_hash = exercises_by_source.get(source_id)
-        if by_hash is None:
-            by_hash = {e["quote_hash"]: e for e in store_private(db, source, owner)}
-            exercises_by_source[source_id] = by_hash
-        exercise = by_hash.get(item["quote_hash"])
-        if exercise is None or exercise["id"] in seen_exercises:
+        if source["id"] not in exercises:
+            exercises[source["id"]] = {
+                e["quote_hash"]: e for e in store_private(db, source, course.owner_id)
+            }
+        exercise = exercises[source["id"]].get(item["quote_hash"])
+        if exercise is None or exercise["id"] in known:
             continue
-        seen_exercises.add(exercise["id"])
-        row = {
-            **item,
-            "id": str(uuid4()),
-            "concept_id": concept_id,
-            "exercise_id": exercise["id"],
-            "choices": json.dumps(item.get("choices") or [], ensure_ascii=False),
-            "answer": item.get("answer") or "",
-            "rubric": None,
-        }
-        saved.append(row)
+        known.add(exercise["id"])
+        saved.append(
+            {
+                **item,
+                "id": str(uuid4()),
+                "concept_id": concept_id,
+                "exercise_id": exercise["id"],
+                "choices": json.dumps(item.get("choices") or [], ensure_ascii=False),
+                "answer": item.get("answer") or "",
+                "rubric": None,
+            }
+        )
     if saved:
         db.execute(
             text(
