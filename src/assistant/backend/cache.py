@@ -66,10 +66,18 @@ class ReportCache:
 
 def cached_search(db: Session, signature: str, now: datetime) -> Any | None:
     """The stored results for ``signature``, or None when missing or expired."""
+    entry = cached_search_entry(db, signature, now)
+    return None if entry is None else entry[0]
+
+
+def cached_search_entry(
+    db: Session, signature: str, now: datetime
+) -> tuple[Any, datetime] | None:
+    """The stored results for ``signature`` and when they were stored, or None."""
     entry = db.get(SearchCacheEntry, signature)
     if entry is None or entry.expires_at <= now:
         return None
-    return json.loads(entry.payload)
+    return json.loads(entry.payload), entry.expires_at - SEARCH_TTL
 
 
 def store_search(db: Session, signature: str, results: Any, now: datetime) -> None:

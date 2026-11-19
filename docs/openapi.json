@@ -2349,6 +2349,62 @@
         }
       }
     },
+    "/api/v1/today": {
+      "get": {
+        "tags": [
+          "Schedule"
+        ],
+        "summary": "Get Today",
+        "description": "What to study on ``date`` (default: the learner's today): due reviews, unlocked\nroadmap nodes and an upcoming checkpoint's path, within that day's free time (#158).",
+        "operationId": "get_today_api_v1_today_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/schedule/{entry_id}/check-in": {
       "post": {
         "tags": [
@@ -4152,7 +4208,7 @@
           "Recommendations"
         ],
         "summary": "Get Node Recommendations",
-        "description": "Retrieve recommendations for a roadmap node, recalculating if stale (>24h).",
+        "description": "The node's recommendations: own material, verified catalog, then vetted external pages.",
         "operationId": "get_node_recommendations_api_v1_roadmap_nodes__node_id__recommendations_get",
         "security": [
           {
@@ -7736,7 +7792,21 @@
           },
           "kind": {
             "type": "string",
+            "enum": [
+              "user_material",
+              "catalog",
+              "external"
+            ],
             "title": "Kind"
+          },
+          "verification_status": {
+            "type": "string",
+            "enum": [
+              "private",
+              "verified",
+              "unverified"
+            ],
+            "title": "Verification Status"
           },
           "rank": {
             "type": "integer",
@@ -7796,6 +7866,7 @@
           "node_id",
           "resource_ref",
           "kind",
+          "verification_status",
           "rank",
           "score",
           "reason",
@@ -9519,6 +9590,107 @@
           "ends_at"
         ],
         "title": "TimeRange"
+      },
+      "TodayItemOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "review",
+              "study"
+            ],
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "minutes": {
+            "type": "integer",
+            "title": "Minutes"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "node_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node Id"
+          },
+          "review_item_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Review Item Ids"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/RecommendationOut"
+            },
+            "type": "array",
+            "title": "Sources"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "title",
+          "minutes",
+          "reason"
+        ],
+        "title": "TodayItemOut"
+      },
+      "TodayOut": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "free_minutes": {
+            "type": "integer",
+            "title": "Free Minutes"
+          },
+          "total_minutes": {
+            "type": "integer",
+            "title": "Total Minutes"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TodayItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "deferred": {
+            "items": {
+              "$ref": "#/components/schemas/TodayItemOut"
+            },
+            "type": "array",
+            "title": "Deferred"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "timezone",
+          "free_minutes",
+          "total_minutes"
+        ],
+        "title": "TodayOut",
+        "description": "What to study on one local day (#158). ``total_minutes`` never exceeds\n``free_minutes``; what did not fit is in ``deferred``."
       },
       "TokenOut": {
         "properties": {

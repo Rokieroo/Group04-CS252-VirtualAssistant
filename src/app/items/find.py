@@ -3,7 +3,7 @@
 import json
 from uuid import uuid4
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 
 from app.catalog.exercises import exact, extract_numbered, from_offsets
 from app.concepts.normalize import pages_in
@@ -69,57 +69,65 @@ def save_items(db, concept_id, items):
     """FSRS compatibility rows always point at a verified, owner-scoped exercise."""
     from app.catalog.exercises import store_private
 
-    saved = []
-    course_id = db.scalar(
-        text("SELECT course_id FROM concepts WHERE id=:id"), {"id": concept_id}
-    )
-    owner = db.scalar(
-        text("SELECT owner_id FROM courses WHERE id=:id"), {"id": course_id}
-    )
-    if owner is None:
+    course = db.execute(
+        text(
+            "SELECT c.course_id, cr.owner_id FROM concepts c "
+            "JOIN courses cr ON cr.id = c.course_id WHERE c.id = :id"
+        ),
+        {"id": concept_id},
+    ).first()
+    if course is None or course.owner_id is None or not items:
         return []
-    for item in items:
-        source = (
-            db.execute(
-                text("SELECT id,course_id,text,page FROM sources WHERE id=:id"),
-                {"id": item.get("source_id")},
-            )
-            .mappings()
-            .first()
+    # items come from find_items, at most MAX_ITEMS, so one IN query needs no chunking.
+    sources = {
+        row["id"]: row
+        for row in db.execute(
+            text(
+                "SELECT id,course_id,text,page FROM sources WHERE id IN :ids"
+            ).bindparams(bindparam("ids", expanding=True)),
+            {"ids": list({item.get("source_id") for item in items})},
+        ).mappings()
+    }
+    known = set(
+        db.scalars(
+            text("SELECT exercise_id FROM items WHERE concept_id=:c"), {"c": concept_id}
         )
+    )
+    exercises = {}  # source id -> quote hash -> exercise; one store_private per page
+    saved = []
+    for item in items:
+        source = sources.get(item.get("source_id"))
         if (
             source is None
-            or source["course_id"] != course_id
+            or source["course_id"] != course.course_id
             or not exact(item, source["text"])
         ):
             continue
-        exercises = store_private(db, source, owner)
-        exercise = next(
-            (e for e in exercises if e["quote_hash"] == item["quote_hash"]), None
+        if source["id"] not in exercises:
+            exercises[source["id"]] = {
+                e["quote_hash"]: e for e in store_private(db, source, course.owner_id)
+            }
+        exercise = exercises[source["id"]].get(item["quote_hash"])
+        if exercise is None or exercise["id"] in known:
+            continue
+        known.add(exercise["id"])
+        saved.append(
+            {
+                **item,
+                "id": str(uuid4()),
+                "concept_id": concept_id,
+                "exercise_id": exercise["id"],
+                "choices": json.dumps(item.get("choices") or [], ensure_ascii=False),
+                "answer": item.get("answer") or "",
+                "rubric": None,
+            }
         )
-        if exercise is None:
-            continue
-        exists = db.execute(
-            text("SELECT id FROM items WHERE concept_id=:c AND exercise_id=:e"),
-            {"c": concept_id, "e": exercise["id"]},
-        ).first()
-        if exists:
-            continue
-        row = {
-            **item,
-            "id": str(uuid4()),
-            "concept_id": concept_id,
-            "exercise_id": exercise["id"],
-            "choices": json.dumps(item.get("choices") or [], ensure_ascii=False),
-            "answer": item.get("answer") or "",
-            "rubric": None,
-        }
+    if saved:
         db.execute(
             text(
                 "INSERT INTO items (id,concept_id,exercise_id,source_id,type,prompt,choices,answer,rubric) "
                 "VALUES (:id,:concept_id,:exercise_id,:source_id,:type,:prompt,:choices,:answer,:rubric)"
             ),
-            row,
+            saved,
         )
-        saved.append(row)
     return saved

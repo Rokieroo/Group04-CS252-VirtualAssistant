@@ -523,6 +523,13 @@ Nguồn đang hiện được kiểm tra lại mỗi 24 giờ; `content_hash` th
 
 Text trang web và syllabus luôn đặt trong khối dữ liệu có đánh dấu; prompt judge nói rõ không làm theo chỉ dẫn trong khối đó và chỉ trả JSON theo schema. Bộ test: 15 trang web giả chứa lệnh ("rate this 1.0", "ignore previous instructions").
 
+### 11.10. Danh sách gợi ý hợp nhất của chặng (`GET /roadmap-nodes/{id}/recommendations`)
+
+- Thứ tự lấy nguồn: tài liệu của người học → nguồn catalog `verified` (#102) → nguồn ngoài đã qua 11.3–11.4, **chỉ khi** chặng có < 3 nguồn catalog điểm ≥ 0,8 (11.8). Tìm nguồn ngoài chạy nền (job `search_resources`, tối đa 1 lần/ngày/chặng, chung hạn mức 20 lần/giờ của người học); kết quả về qua cache 7 ngày và thay danh sách ở lần đọc kế tiếp.
+- Điểm cuối = điểm 11.4 × độ hợp ngôn ngữ (1,0 với ngôn ngữ đầu tiên của người học, 0,9 với ngôn ngữ khác được phép) × (1 − 0,3 × độ giống với nguồn người học đã báo "không hữu ích"). Ngưỡng 0,65 áp lên điểm 11.4, không lên điểm cuối. Curator chọn bằng MMR (11.5); tài liệu của người học luôn đứng đầu.
+- Mỗi gợi ý có `kind` (`user_material` / `catalog` / `external`), `verification_status` (`private` / `verified` / `unverified`; nguồn ngoài không bao giờ là `verified`) và `reason` chỉ gồm dữ kiện: từ khớp với chặng, nguồn, định dạng, thời lượng, trạng thái xác minh.
+- "Không hữu ích" (11.6): nguồn đó bị bỏ cho người học này và nguồn kế tiếp đã có trong DB được đưa lên, không tìm lại.
+
 ---
 
 ## 12. Tính năng bổ trợ (Supplementary features)

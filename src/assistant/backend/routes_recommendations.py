@@ -1,6 +1,6 @@
 """API routes for learning resource recommendations and feedback (issue #156, Phase 4)."""
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from .dependencies import DB, CurrentUser
 from .models import Roadmap, RoadmapNode
@@ -25,11 +25,12 @@ router = APIRouter(tags=["Recommendations"])
 )
 def get_node_recommendations(
     node_id: str,
+    request: Request,
     db: DB,
     user: CurrentUser,
     limit: int = Query(default=5, ge=1, le=20),
 ):
-    """Retrieve recommendations for a roadmap node, recalculating if stale (>24h)."""
+    """The node's recommendations: own material, verified catalog, then vetted external pages."""
     node = db.get(RoadmapNode, node_id)
     if node is None:
         raise HTTPException(404, "Roadmap node not found")
@@ -39,7 +40,7 @@ def get_node_recommendations(
         raise HTTPException(404, "Roadmap node not found")
 
     recommendations = get_or_generate_node_recommendations(
-        db, node, user.id, limit=limit
+        db, node, user.id, request.app.state.now(), limit=limit
     )
     return NodeRecommendationsOut(node_id=node.id, recommendations=recommendations)
 
@@ -52,12 +53,13 @@ def get_node_recommendations(
 def submit_recommendation_event(
     recommendation_id: str,
     data: RecommendationEventCreate,
+    request: Request,
     db: DB,
     user: CurrentUser,
 ):
     """Log an interaction event for a recommendation (shown, opened, helpful, not_helpful, pinned)."""
     event_out = record_recommendation_event(
-        db, recommendation_id, user.id, data.event
+        db, recommendation_id, user.id, data.event, request.app.state.now()
     )
     if event_out is None:
         raise HTTPException(404, "Recommendation not found")

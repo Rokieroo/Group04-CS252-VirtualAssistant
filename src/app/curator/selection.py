@@ -26,6 +26,7 @@ __all__ = [
     "curate",
     "lexical_similarity",
     "replace",
+    "select_shown",
 ]
 
 TOP_K = 5
@@ -138,22 +139,41 @@ def curate(
     A resource is eligible only with a grounded ``evidence_quote``, so every shown
     reason is backed by text the page really contains.
     """
+    eligible = (r for r in scored if r.score >= threshold and r.evidence_quote)
+    return select_shown(
+        eligible,
+        pinned=pinned,
+        est_minutes=est_minutes,
+        top_k=top_k,
+        lam=lam,
+        similarity=similarity,
+    )
+
+
+def select_shown(
+    eligible: Iterable[ScoredResource],
+    *,
+    pinned: Iterable[ScoredResource] = (),
+    est_minutes: int | None = None,
+    top_k: int = TOP_K,
+    lam: float = LAMBDA,
+    similarity: Similarity = lexical_similarity,
+) -> Curation:
+    """MMR under the domain, format and duration rules over resources already eligible.
+
+    ``curate`` decides eligibility for vetted pages; callers whose resources were
+    verified another way (the catalog, #101) decide it themselves and share this step.
+    """
     pins = list(pinned)
     pinned_urls = {resource.url for resource in pins}
-    eligible = sorted(
-        (
-            resource
-            for resource in scored
-            if resource.url not in pinned_urls
-            and resource.score >= threshold
-            and resource.evidence_quote
-        ),
+    ranked = sorted(
+        (resource for resource in eligible if resource.url not in pinned_urls),
         key=lambda resource: resource.score,
         reverse=True,
     )
     budget = est_minutes * DURATION_SLACK if est_minutes else None
     shown, reserve = _select(
-        pins, eligible, max(0, top_k - len(pins)), budget, lam, similarity
+        pins, ranked, max(0, top_k - len(pins)), budget, lam, similarity
     )
     return _finish(shown, reserve, budget)
 

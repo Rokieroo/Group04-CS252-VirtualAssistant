@@ -189,6 +189,22 @@ def test_match_sources_scores_an_exact_title_in_a_two_title_pool():
     assert [r["id"] for r in match_sources(node, rows)] == ["sched"]
 
 
+def test_one_shared_word_is_not_a_topic_but_a_named_concept_is():
+    """BM25 over the pool's best made "array" alone a full match; coverage is absolute."""
+    from app.catalog.matching import match_sources
+
+    rows = [catalog_row("heaps", "Priority Queues & Binary Heaps, array representation lecture",
+                        subjects={"ds.lists"}),
+            catalog_row("nfr", "Non-functional requirement", subjects={"ds.lists"})]
+    arrays = {**HEAPS, "title": "Arrays, Dynamic Vectors, and Singly/Doubly Linked Lists",
+              "subjects": {"ds.lists"}}
+    assert match_sources(arrays, rows) == []
+    # A long syllabus node still matches a short title it names in full.
+    framing = {**arrays, "title": "Frame business problems, distinguish functional vs "
+                                  "non-functional requirements"}
+    assert [r["id"] for r in match_sources(framing, rows)] == ["nfr"]
+
+
 def test_catalog_index_never_chooses_an_excluded_source():
     from app.catalog.matching import CatalogIndex
 

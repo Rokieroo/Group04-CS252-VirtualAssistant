@@ -483,22 +483,22 @@ def _build_roadmap_graph(
         return {"nodes": [], "edges": []}
 
     node_ids = [n.id for n in nodes]
-    tasks = {
-        t.roadmap_node_id: t
-        for t in db.scalars(
-            select(Task).where(
+    task_status = dict(
+        db.execute(
+            select(Task.roadmap_node_id, Task.status).where(
                 Task.owner_id == user_id,
                 Task.roadmap_node_id.in_(node_ids),
             )
-        )
-    }
+        ).all()
+    )
 
     concept_ids = [n.concept_id for n in nodes if n.concept_id]
-    concepts = (
-        {
-            c.id: c
-            for c in db.scalars(select(Concept).where(Concept.id.in_(concept_ids)))
-        }
+    concept_pages = (
+        dict(
+            db.execute(
+                select(Concept.id, Concept.source_pages).where(Concept.id.in_(concept_ids))
+            ).all()
+        )
         if concept_ids
         else {}
     )
@@ -559,11 +559,10 @@ def _build_roadmap_graph(
             )
         )
     )
-    cards_by_node: dict[str, list[ReviewCard]] = {nid: [] for nid in node_ids}
+    # Only nodes with cards; the rest read as 0.0 below, as compute_node_mastery([]) does.
+    cards_by_node: dict[str, list[ReviewCard]] = defaultdict(list)
     for c in cards:
-        if c.node_id in cards_by_node:
-            cards_by_node[c.node_id].append(c)
-
+        cards_by_node[c.node_id].append(c)
     mastery_by_node = {
         nid: compute_node_mastery(node_cards, now)
         for nid, node_cards in cards_by_node.items()
@@ -571,8 +570,6 @@ def _build_roadmap_graph(
 
     graph_nodes = []
     for node in nodes:
-        concept = concepts.get(node.concept_id)
-        task = tasks.get(node.id)
         summary = sources_by_node.get(node.id, {})
         outcome_id = outcome_by_title.get(node.title)
         graph_nodes.append(
@@ -584,10 +581,8 @@ def _build_roadmap_graph(
                 "est_minutes": node.duration_minutes,
                 "due_at": node.due_at,
                 "outcome_ids": [outcome_id] if outcome_id else [],
-                "source_pages": json.loads(concept.source_pages or "[]")
-                if concept
-                else [],
-                "status": task.status if task else "pending",
+                "source_pages": json.loads(concept_pages.get(node.concept_id) or "[]"),
+                "status": task_status.get(node.id, "pending"),
                 "source_count": summary.get("source_count", 0),
                 "user_material_count": summary.get("user_material_count", 0),
                 "sources_status": summary.get("status", "insufficient"),

@@ -9,22 +9,25 @@ Results are shared through the 7-day search cache keyed by node signature, so a
 second learner of the same node costs nothing and is logged as a cache hit.
 """
 
+from collections.abc import Sequence
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.curator import Curation
 from app.finder import SearchStats, find_resources
 from app.llm import get_client
+from app.recommend import STRONG, needs_external
 from app.search import SearchService, canonical_url, node_signature
 from app.vetting import Learner, Node, SafeFetcher
 
 from .cache import cached_search, store_search
-from .jobs import handler
+from .jobs import enqueue, handler
 from .models import (
     Course,
+    Job,
     LearningOutcome,
     NodeResource,
     Resource,
@@ -40,6 +43,8 @@ from .models import (
 make_search = SearchService
 make_llm = get_client
 make_fetcher = SafeFetcher
+
+SEARCHES_PER_HOUR = 20  # per learner: searches cost provider quota and judge calls
 
 
 def _outcomes(db: Session, course_id: str) -> tuple[str, ...]:
@@ -79,12 +84,21 @@ def _search(node: Node, learner: Learner, course: Course, *, db=None) -> tuple[C
 
 def _link(db: Session, node_id: str, curation: Curation) -> None:
     """Show the curated resources on the node; one ``resources`` row per canonical URL."""
-    for resource in curation.resources:
-        key = canonical_url(resource.url)
-        row = db.scalars(select(Resource).where(Resource.canonical_url == key)).first()
-        if row is None:
+    curated = {}
+    for resource in curation.resources:  # ranked, so the first copy of a URL wins
+        curated.setdefault(canonical_url(resource.url), resource)
+    if not curated:
+        return
+    rows = {
+        row.canonical_url: row
+        for row in db.scalars(
+            select(Resource).where(Resource.canonical_url.in_(curated))
+        )
+    }
+    for key, resource in curated.items():
+        if key not in rows:
             # New rows start pending: only the catalog pipeline (#101) verifies.
-            row = Resource(
+            rows[key] = Resource(
                 url=resource.url,
                 canonical_url=key,
                 title=resource.title,
@@ -97,12 +111,27 @@ def _link(db: Session, node_id: str, curation: Curation) -> None:
                 duration_min=resource.minutes,
                 content_hash=resource.content_hash or None,
             )
-            db.add(row)
-            db.flush()
-        link = db.get(NodeResource, (node_id, row.id))
+            db.add(rows[key])
+    db.flush()  # ids for the new rows
+    links = {
+        link.resource_id: link
+        for link in db.scalars(
+            select(NodeResource).where(
+                NodeResource.node_id == node_id,
+                NodeResource.resource_id.in_([row.id for row in rows.values()]),
+            )
+        )
+    }
+    for key, resource in curated.items():
+        link = links.get(rows[key].id)
         if link is None:
-            db.add(NodeResource(node_id=node_id, resource_id=row.id,
-                                relevance_score=resource.score))
+            db.add(
+                NodeResource(
+                    node_id=node_id,
+                    resource_id=rows[key].id,
+                    relevance_score=resource.score,
+                )
+            )
         elif link.status == "shown":
             link.relevance_score = resource.score
 
@@ -149,6 +178,58 @@ def _log(
     return search
 
 
+def search_signature(
+    db: Session,
+    node: RoadmapNode,
+    course: Course,
+    *,
+    outcomes: Sequence[str] | None = None,
+) -> str:
+    """The key of the node's shared 7-day search cache (spec 11.8).
+
+    Callers that already read the course's outcomes pass them to skip a second query.
+    """
+    if outcomes is None:
+        outcomes = _outcomes(db, course.id)
+    return node_signature(node.title, list(outcomes), course.level, course.language)
+
+
+def learner_for(course: Course, user: User | None) -> Learner:
+    """Who the course's resources are for: course language first, never personal data."""
+    return Learner(
+        langs=tuple(dict.fromkeys((course.language, "vi", "en"))),
+        level=course.level,
+        k12=user is not None and user.account_level == "k12",
+    )
+
+
+def recent_searches(db: Session, user_id: str, now: datetime) -> int:
+    """Resource searches the learner queued in the last hour, asked for or automatic."""
+    return db.scalar(
+        select(func.count())
+        .select_from(Job)
+        .where(
+            Job.user_id == user_id,
+            Job.kind == "search_resources",
+            Job.created_at > now - timedelta(hours=1),
+        )
+    )
+
+
+def request_search(db: Session, node_id: str, user_id: str, now: datetime) -> Job | None:
+    """Queue the node's external search at most once a day, within the hourly budget."""
+    if recent_searches(db, user_id, now) >= SEARCHES_PER_HOUR:
+        return None
+    return enqueue(
+        db,
+        "search_resources",
+        {"node_id": node_id},
+        now=now,
+        user_id=user_id,
+        dedupe_key=f"search_resources:{node_id}:{now.date().isoformat()}",
+    )
+
+
 @handler("search_resources")
 def search_resources(db: Session, payload: dict, now: datetime) -> dict:
     """Find, link and log the resources of ``payload["node_id"]``."""
@@ -158,10 +239,10 @@ def search_resources(db: Session, payload: dict, now: datetime) -> dict:
     roadmap = db.get(Roadmap, node.roadmap_id)
     course = db.get(Course, roadmap.course_id)
     user = db.get(User, roadmap.user_id)
-    from .catalog_repository import ENOUGH_CATALOG, refresh_node_sources
+    from .catalog_repository import refresh_node_sources
     selection = refresh_node_sources(db, [node], roadmap, course, now)[node.id]
-    public = [r for r in selection["sources"] if r["kind"] != "user_material" and r["score"] >= 0.8]
-    if len(public) >= ENOUGH_CATALOG:
+    if not needs_external(selection["sources"]):
+        public = [r for r in selection["sources"] if r["kind"] != "user_material" and r["score"] >= STRONG]
         search = ResourceSearch(node_id=node.id, user_id=roadmap.user_id, node_title=node.title,
             status=selection["status"], kept=len(public), candidates=len(public), created_at=now)
         db.add(search)
@@ -170,13 +251,9 @@ def search_resources(db: Session, payload: dict, now: datetime) -> dict:
                 "cache_hit": False, "cost_usd": 0.0, "catalog_sufficient": True}
     outcomes = _outcomes(db, course.id)
     target = Node(node.title, outcomes, node.duration_minutes)
-    learner = Learner(
-        langs=tuple(dict.fromkeys((course.language, "vi", "en"))),
-        level=course.level,
-        k12=user is not None and user.account_level == "k12",
-    )
+    learner = learner_for(course, user)
 
-    signature = node_signature(node.title, list(outcomes), course.level, course.language)
+    signature = search_signature(db, node, course, outcomes=outcomes)
     cached = cached_search(db, signature, now)
     if cached is not None:
         curation, stats = Curation.from_dict(cached), None

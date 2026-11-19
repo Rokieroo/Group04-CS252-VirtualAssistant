@@ -621,7 +621,8 @@ CREATE TABLE IF NOT EXISTS recommendations (
     score REAL NOT NULL DEFAULT 0.0,
     reason TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    dismissed_at TIMESTAMP
+    dismissed_at TIMESTAMP,
+    CONSTRAINT ck_recommendations_kind CHECK (kind IN ('user_material', 'catalog', 'external'))
 );
 
 CREATE TABLE IF NOT EXISTS recommendation_events (
@@ -742,7 +743,7 @@ CREATE TABLE IF NOT EXISTS personal_sources (
 );
 
 INSERT INTO alembic_version (version_num)
-SELECT '0019_personal_library'
+SELECT '0020_recommendation_kinds'
 WHERE NOT EXISTS (SELECT 1 FROM alembic_version);
 
 CREATE INDEX IF NOT EXISTS ix_roadmap_edges_roadmap_id ON roadmap_edges (roadmap_id);

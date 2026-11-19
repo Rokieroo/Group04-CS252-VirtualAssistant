@@ -1,4 +1,4 @@
-"""Rank verified catalog metadata with BM25 + reusable lexical embeddings (#102).
+"""Rank verified catalog metadata by IDF-weighted term overlap + lexical embeddings (#102).
 
 Topical relevance to the node decides the order; the seven-criteria score only decides
 whether a source may be shown. ``CatalogIndex`` prepares the catalog once per request
@@ -18,9 +18,16 @@ from app.vetting.policy import DomainTier
 from app.vetting.score import THRESHOLD, authority, total
 
 NODE_KEYS = ("title", "language", "level")
-MIN_SIMILARITY = 0.3  # a title sharing no word with the node must be this close in meaning
+MIN_COVERAGE = 0.25  # term weight a title must share with the node, of either side's total
+MIN_SIMILARITY = 0.3  # a title below that coverage must be this close in meaning
 CANDIDATES = 25  # MMR reranks the most topical eligible sources, not the whole pool
 REASON = "Khớp chủ đề, trình độ và ngôn ngữ của chặng; nguồn đã được xác minh."
+# English and (diacritic-free) Vietnamese function words, as ``normalize`` leaves them.
+FUNCTION_WORDS = frozenset({
+    "a", "an", "and", "or", "of", "the", "in", "on", "to", "for", "with", "by", "at",
+    "from", "into", "via", "vs", "as", "is", "are", "its",
+    "va", "cua", "cac", "trong", "cho", "voi", "la", "mot", "nhung", "duoc", "ve",
+})
 
 
 def stem(word):
@@ -36,11 +43,15 @@ def stem(word):
 
 @lru_cache(maxsize=16384)
 def _title(text):
-    """(normalized text, stemmed terms, lexical vector); titles recur across requests."""
+    """(normalized text, stemmed content terms, lexical vector); titles recur across requests.
+
+    Function words are not terms: in a small pool BM25 gives "and" a positive IDF, and
+    a title sharing only "and" with the node then looked fully on topic.
+    """
     words = normalize(text)
     vector = np.asarray(encode(text))
     vector.setflags(write=False)  # shared by every caller of the cache
-    return words, tuple(stem(word) for word in words.split()), vector
+    return words, tuple(stem(w) for w in words.split() if w not in FUNCTION_WORDS), vector
 
 
 def match_sources(node, resources, *, limit=5):
@@ -60,12 +71,14 @@ class CatalogIndex:
         self.rows = [r for r in resources if r.get("verification_status") == "verified"]
         self.position = {r["id"]: i for i, r in enumerate(self.rows)}
         self.titles = [_title(r["title"]) for r in self.rows]
+        self.terms = [frozenset(terms) for _, terms, _ in self.titles]
         self.lexical = (
             np.stack([vector for _, _, vector in self.titles])
             if self.rows
             else np.zeros((0, 0))
         )
         self._audiences, self._subjects, self._models, self._bm25 = {}, {}, {}, {}
+        self._terms, self._weights = {}, {}
 
     def match(self, node, *, limit=5, exclude=()):
         """Up to ``limit`` sources for ``node``; ids in ``exclude`` are never chosen."""
@@ -83,14 +96,13 @@ class CatalogIndex:
         # The node's own title is the query: outcomes describe the whole course, so adding
         # them made every source of the course look relevant to every node of it.
         _, query_terms, query_vector = _title(node["title"])
-        bm25 = self._pool_bm25(pool).get_scores(list(query_terms))
-        lexical = np.maximum(bm25, 0) / max(bm25.max(), 0.001)
+        lexical = self._coverage(pool, query_terms)
         similarity, vector_of = self._similarity(node, pool, query_vector)
         topical = (lexical + similarity) / 2
         textbook = self._textbook(node, pool)
         ranked = []
         for at in np.lexsort((-topical, -textbook.astype(int))):  # textbooks first, then by topic
-            if not lexical[at] and similarity[at] < MIN_SIMILARITY:
+            if lexical[at] < MIN_COVERAGE and similarity[at] < MIN_SIMILARITY:
                 continue  # shares the node's subject but not its topic
             resource = self.rows[pool[at]]
             overlap = len(subjects.intersection(resource["subjects"])) / max(1, len(subjects))
@@ -145,11 +157,45 @@ class CatalogIndex:
             mask |= self._subjects[subject]
         return mask
 
+    def _coverage(self, pool, terms):
+        """IDF-weighted term overlap of each pooled title with the node, in [0, 1].
+
+        Absolute, unlike BM25 divided by the pool's best score: there, a title sharing
+        one word out of seven with the node scored 1.0 whenever nothing matched better.
+        The larger of the two sides counts, so a short exact title ("Functional
+        requirement") still matches a long syllabus node that names it among others.
+        """
+        model, title_weights = self._pool_weights(pool)
+        # The pool says nothing about how rare a term no title has is: average weight.
+        weights = {term: model.idf.get(term, model.average_idf) for term in terms}
+        shared = np.zeros(len(pool))
+        for term, weight in weights.items():
+            shared += weight * self._term(term)[pool]
+        of_node = shared / max(sum(weights.values()), 1e-9)
+        of_title = shared / np.maximum(title_weights, 1e-9)
+        return np.maximum(of_node, of_title)
+
+    def _pool_weights(self, pool):
+        """The pool's BM25 model and each pooled title's total term weight."""
+        model = self._pool_bm25(pool)
+        key = pool.tobytes()
+        if key not in self._weights:
+            self._weights[key] = np.array(
+                [sum(model.idf.get(t, 0.0) for t in self.terms[i]) for i in pool]
+            )
+        return model, self._weights[key]
+
+    def _term(self, term):
+        """Which rows' titles contain ``term``; shared by every node that uses it."""
+        if term not in self._terms:
+            self._terms[term] = np.array([term in terms for terms in self.terms], dtype=bool)
+        return self._terms[term]
+
     def _pool_bm25(self, pool):
         """Positive IDF over the pool's titles, shared by the nodes with the same pool.
 
         Okapi's IDF drops to zero or below in the few-title pools the subject filter
-        leaves, where an exact title match would then score nothing.
+        leaves, where a term in every title would then weigh nothing.
         """
         key = pool.tobytes()
         if key not in self._bm25:

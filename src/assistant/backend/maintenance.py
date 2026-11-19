@@ -11,7 +11,7 @@ from app import vetting
 
 from . import catalog_jobs, catalog_verification  # register their job handlers
 from .jobs import NetworkDown, enqueue, handler
-from .models import Job, NodeResource, Resource, SearchCacheEntry
+from .models import AuthSession, Job, NodeResource, Resource, SearchCacheEntry
 
 CHECK_EVERY = timedelta(hours=24)
 DEAD_AFTER = 2  # consecutive dead checks before a link is removed (spec 11.7)
@@ -73,7 +73,7 @@ def _remove_everywhere(db: Session, resource_id: str) -> int:
 
 @handler("prune")
 def prune(db: Session, payload: dict, now: datetime) -> dict:
-    """Keep the cache and the job table from growing without bound."""
+    """Keep the cache, the job table and expired logins from growing without bound."""
     cache = db.execute(
         delete(SearchCacheEntry).where(SearchCacheEntry.expires_at <= now)
     ).rowcount
@@ -83,5 +83,7 @@ def prune(db: Session, payload: dict, now: datetime) -> dict:
             Job.updated_at <= now - JOB_RETENTION,
         )
     ).rowcount
-    return {"cache_entries": cache, "jobs": jobs}
+    # Login only clears its own user's expired sessions (#168); everyone else's go here.
+    sessions = db.execute(delete(AuthSession).where(AuthSession.expires_at <= now)).rowcount
+    return {"cache_entries": cache, "jobs": jobs, "auth_sessions": sessions}
 
