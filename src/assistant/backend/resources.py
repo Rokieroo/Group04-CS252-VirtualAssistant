@@ -91,7 +91,9 @@ def _link(db: Session, node_id: str, curation: Curation) -> None:
         return
     rows = {
         row.canonical_url: row
-        for row in db.scalars(select(Resource).where(Resource.canonical_url.in_(curated)))
+        for row in db.scalars(
+            select(Resource).where(Resource.canonical_url.in_(curated))
+        )
     }
     for key, resource in curated.items():
         if key not in rows:
@@ -123,8 +125,13 @@ def _link(db: Session, node_id: str, curation: Curation) -> None:
     for key, resource in curated.items():
         link = links.get(rows[key].id)
         if link is None:
-            db.add(NodeResource(node_id=node_id, resource_id=rows[key].id,
-                                relevance_score=resource.score))
+            db.add(
+                NodeResource(
+                    node_id=node_id,
+                    resource_id=rows[key].id,
+                    relevance_score=resource.score,
+                )
+            )
         elif link.status == "shown":
             link.relevance_score = resource.score
 
@@ -172,7 +179,11 @@ def _log(
 
 
 def search_signature(
-    db: Session, node: RoadmapNode, course: Course, *, outcomes: Sequence[str] | None = None
+    db: Session,
+    node: RoadmapNode,
+    course: Course,
+    *,
+    outcomes: Sequence[str] | None = None,
 ) -> str:
     """The key of the node's shared 7-day search cache (spec 11.8).
 

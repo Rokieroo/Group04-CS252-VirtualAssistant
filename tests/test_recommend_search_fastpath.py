@@ -32,7 +32,9 @@ def _scored(url: str, title: str, score: float = 0.88) -> ScoredResource:
     )
 
 
-def test_recommendations_reuses_outcomes_once_on_miss(client, headers, app, clock, monkeypatch):
+def test_recommendations_reuses_outcomes_once_on_miss(
+    client, headers, app, clock, monkeypatch
+):
     _, node_id = roadmap_with_catalog(
         client,
         headers,
@@ -64,7 +66,9 @@ def test_recommendations_reuses_outcomes_once_on_miss(client, headers, app, cloc
 
     monkeypatch.setattr(resources, "_outcomes", counted_res_outcomes)
 
-    resp = client.get(f"/api/v1/roadmap-nodes/{node_id}/recommendations", headers=headers)
+    resp = client.get(
+        f"/api/v1/roadmap-nodes/{node_id}/recommendations", headers=headers
+    )
     assert resp.status_code == 200
     assert len(resp.json()["recommendations"]) == 3
     assert repo_calls == 1
@@ -151,7 +155,9 @@ def test_search_resources_reuses_outcomes_and_link_batches_queries(
         return orig_outcomes(db, cid)
 
     monkeypatch.setattr(resources, "_outcomes", counted_outcomes)
-    monkeypatch.setattr(resources, "cached_search", lambda db, sig, now: asdict(curation))
+    monkeypatch.setattr(
+        resources, "cached_search", lambda db, sig, now: asdict(curation)
+    )
 
     with app.state.database.sessions() as db:
         result = resources.search_resources(db, {"node_id": node_id}, clock[0])

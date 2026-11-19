@@ -217,7 +217,9 @@ def get_or_generate_node_recommendations(
     ).all()
     feedback, answered_at = _feedback(db, user_id, node.id)
     outcomes = _outcomes(db, course.id)
-    cached = cached_search_entry(db, search_signature(db, node, course, outcomes=outcomes), now)
+    cached = cached_search_entry(
+        db, search_signature(db, node, course, outcomes=outcomes), now
+    )
     changed_at = max((t for t in (answered_at, cached and cached[1]) if t), default=None)
     if active:
         newest = max(r.created_at for r in active)
