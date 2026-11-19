@@ -84,6 +84,7 @@ describe("gradient appearance", () => {
       "--gradient-action",
       "--gradient-wash",
       "--gradient-text",
+      "--gradient-icon",
     ]) {
       expect(root.style.getPropertyValue(token)).toContain("#00ff76");
       expect(root.style.getPropertyValue(token)).toContain("#fff200");
@@ -100,6 +101,7 @@ describe("gradient appearance", () => {
       "--gradient-action",
       "--gradient-wash",
       "--gradient-text",
+      "--gradient-icon",
     ]) {
       expect(root.style.getPropertyValue(token)).toBe("");
     }

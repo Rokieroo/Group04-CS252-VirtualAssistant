@@ -730,6 +730,16 @@ test("reopened graph restores the syllabus editor and saves to the original cour
 test("node gateways open real source details, a private page, and course scheduling", async ({
   page,
 }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "pathly.appearance.v1",
+      JSON.stringify({
+        theme: "dark",
+        accent: "mystic-amethyst",
+      }),
+    );
+  });
   await backend(page);
   await page.goto("/?kg_roadmap=rm&kg_viewMode=list#roadmap");
   await page.getByRole("button", { name: "Chọn chặng A Retrieval" }).click();
@@ -744,6 +754,9 @@ test("node gateways open real source details, a private page, and course schedul
     .getByRole("button", { name: "Trang chặng (S6)", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toContainText("One verified reading");
+  const privateBadge = page.locator(".core-own-badge");
+  await expect(privateBadge).toHaveCSS("color", "rgb(224, 242, 254)");
+  await expect(privateBadge).toHaveCSS("background-color", "rgb(7, 89, 133)");
   await expect(page.getByRole("dialog")).toContainText(
     "Chưa tìm được nguồn đủ tốt",
   );

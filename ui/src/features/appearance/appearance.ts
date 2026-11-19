@@ -103,9 +103,13 @@ export function applyAppearance(
       (color) =>
         `light-dark(color-mix(in oklab, ${color} 10%, white), color-mix(in oklab, ${color} 14%, #182238))`,
     );
+    // Bound every sRGB channel so interpolated text stays readable between stops.
     const textColors = colors.map(
       (color) =>
-        `light-dark(color-mix(in oklab, ${color} 35%, #101828), color-mix(in oklab, ${color} 45%, white))`,
+        `light-dark(color-mix(in srgb, ${color} 30%, #10151e), color-mix(in srgb, ${color} 35%, white))`,
+    );
+    const iconColors = colors.map(
+      (color) => `color-mix(in srgb, ${color} 48%, white)`,
     );
     root.dataset.gradient = "true";
     root.style.setProperty("--gradient-brand", fullGradient);
@@ -124,7 +128,11 @@ export function applyAppearance(
     );
     root.style.setProperty(
       "--gradient-text",
-      `linear-gradient(90deg, ${textColors.join(", ")})`,
+      `linear-gradient(90deg in srgb, ${textColors.join(", ")})`,
+    );
+    root.style.setProperty(
+      "--gradient-icon",
+      `linear-gradient(135deg in srgb, ${iconColors.join(", ")})`,
     );
     root.style.setProperty(
       "--accent-a",
@@ -142,6 +150,7 @@ export function applyAppearance(
       "--gradient-action",
       "--gradient-wash",
       "--gradient-text",
+      "--gradient-icon",
       "--accent-a",
       "--accent-b",
     ])

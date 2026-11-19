@@ -16,7 +16,7 @@
   --color-surface-alt: light-dark(#f8fafd, #1e2a44);
   --color-avatar: light-dark(#8993a5, #a3b0c7);
   --color-text: light-dark(#182439, #e8edf7);
-  --color-muted: light-dark(#66748a, #a3b0c7);
+  --color-muted: light-dark(#59677c, #a3b0c7);
   --color-line: light-dark(#e6eaf2, #2c3956);
   --color-tint: light-dark(
     color-mix(in oklab, var(--accent-a) 10%, white),

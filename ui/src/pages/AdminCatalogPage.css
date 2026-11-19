@@ -119,7 +119,7 @@
 }
 
 .acp-select:focus, .acp-input:focus {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-focus);
 }
 
 /* Main 2-column workspace layout */
@@ -171,7 +171,7 @@
 }
 
 .acp-queue-item:focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-focus);
 }
 
 .acp-qi-title {

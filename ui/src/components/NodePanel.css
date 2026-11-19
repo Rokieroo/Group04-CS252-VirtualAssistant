@@ -120,7 +120,7 @@
 .np-close-btn:focus-visible {
   color: var(--color-text);
   background: var(--color-surface-alt);
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-focus);
 }
 
 .np-meta-chips {
@@ -203,7 +203,11 @@
 .np-node-pill:focus-visible {
   background: var(--color-tint);
   border-color: var(--color-primary);
-  outline: none;
+}
+
+.np-node-pill:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 .np-path-btn {

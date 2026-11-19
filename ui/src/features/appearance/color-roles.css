@@ -1,0 +1,270 @@
+@layer study-app {
+  :root {
+    --color-private-source-bg: light-dark(#e0f2fe, #075985);
+    --color-private-source-ink: light-dark(#0369a1, #e0f2fe);
+    --color-private-source-border: light-dark(#bae6fd, #0284c7);
+    --color-field-face: light-dark(#f7f8fa, #202b38);
+    --color-field-border: light-dark(#65758b, #8294ab);
+  }
+
+  /* A solid ink for small labels, links and control states on themed surfaces. */
+  :root[data-gradient="true"],
+  :root[data-gradient="true"] .study-companion {
+    --color-primary-ink: light-dark(#253850, #cbd9eb);
+    --color-focus: var(--color-primary-ink);
+  }
+
+  /* Paint the face on the control so it stays behind the label in all compositing layers. */
+  :root[data-gradient="true"]
+    :is(
+      .button.primary,
+      .primary-action,
+      .study-button.study-primary,
+      .auth-submit
+    ) {
+    background: var(--gradient-action);
+    color: white;
+  }
+
+  :root[data-gradient="true"]
+    :is(.button.primary, .primary-action, .auth-submit)::after {
+    content: none;
+  }
+
+  :root[data-theme="windy"] .study-companion {
+    --color-field-face: #f1f8fc;
+  }
+
+  :root[data-theme="flame"] .study-companion {
+    --color-field-face: #fff4e8;
+  }
+
+  .study-companion .demo-label {
+    color: var(--color-muted);
+  }
+
+  .study-companion .workspace-list summary {
+    color: var(--color-primary-ink);
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  /* The brand mark has its own face and ink. This selector excludes avatars. */
+  :root:is([data-gradient="true"], [data-accent^="glower-"]) .brand > span {
+    display: grid;
+    place-items: center;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    color: #10151e;
+    font-size: 22px;
+    background-clip: border-box;
+  }
+
+  :root[data-gradient="true"] .brand > span {
+    background: var(--gradient-icon);
+  }
+
+  :root[data-accent^="glower-"] .brand > span {
+    background: white;
+    border: 1px solid var(--neon-light);
+    box-shadow: var(--glower-halo);
+  }
+
+  .study-companion :is(.study-field-control, .study-syllabus-text) {
+    border: 1px solid var(--color-field-border);
+    border-radius: 8px;
+    background: var(--color-field-face);
+    color: var(--color-text);
+  }
+
+  .study-companion .core-panel .study-field-control input {
+    color: var(--color-text);
+    background: transparent;
+  }
+
+  .study-companion .study-syllabus-text::placeholder {
+    color: var(--color-muted);
+  }
+
+  .study-companion
+    :is(.study-syllabus-text:focus, .study-field-control:focus-within) {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  :root[data-gradient="true"] .study-companion .study-syllabus-text:focus {
+    border-color: transparent;
+    background:
+      linear-gradient(var(--color-field-face), var(--color-field-face))
+        padding-box,
+      var(--gradient-brand) border-box;
+    /* The solid outline above marks focus through all palette stops. */
+  }
+
+  :root[data-gradient="true"]
+    .study-companion
+    :is(
+      .core-setup-progress > strong,
+      .core-upload > h2,
+      .core-upload > .core-text-button
+    ) {
+    justify-self: start;
+    color: var(--color-primary-ink);
+  }
+
+  @supports (background-clip: text) {
+    :root[data-gradient="true"]
+      .study-companion
+      :is(
+        .core-setup-progress > strong,
+        .core-upload > h2,
+        .core-upload > .core-text-button
+      ) {
+      background-image: var(--gradient-text);
+      background-clip: text;
+      color: transparent;
+    }
+
+    :root[data-gradient="true"]
+      .study-companion
+      .core-upload
+      > .core-text-button {
+      text-decoration-color: var(--color-primary-ink);
+    }
+
+    :root[data-gradient="true"]:is([data-theme="windy"], [data-theme="flame"])
+      .study-companion
+      .core-setup-progress
+      > strong {
+      padding-inline: 6px;
+      border-radius: 4px;
+      background-image: var(--gradient-text), linear-gradient(#fffaf4, #fffaf4);
+      background-clip: text, padding-box;
+    }
+  }
+
+  :root[data-gradient="true"]
+    .study-companion
+    :is(
+      .core-tabs button[aria-selected="true"],
+      .core-filter-btn[aria-pressed="true"],
+      .view-mode-toggle button[aria-pressed="true"],
+      .graph-segmented button[aria-pressed="true"],
+      .core-week.selected,
+      .root-course-card[aria-pressed="true"]
+    ) {
+    color: var(--color-text);
+    background-color: var(--color-surface-alt);
+    background-image: var(--gradient-brand);
+    background-position: center bottom;
+    background-repeat: no-repeat;
+    background-size: 80% 3px;
+    border-color: var(--color-focus);
+  }
+
+  :root[data-gradient="true"]
+    .study-tabs
+    .astryx-tab-indicator[data-selected="selected"] {
+    background: var(--gradient-brand);
+  }
+
+  :root[data-gradient="true"]
+    .study-companion
+    :is(.core-week.selected, .root-course-card[aria-pressed="true"]) {
+    box-shadow: none;
+  }
+
+  :root[data-gradient="true"] .study-companion .kg-list-row.selected {
+    background:
+      linear-gradient(var(--color-tint), var(--color-tint)) padding-box,
+      var(--gradient-vertical) border-box;
+    border-left-color: transparent;
+  }
+
+  :root[data-gradient="true"] .graph-canvas-container {
+    --graph-accent: var(--color-focus);
+  }
+
+  :root[data-gradient="true"]
+    .study-companion
+    :is(.vsc-title-link, .node-title-button) {
+    background: var(--gradient-text) left bottom / 100% 1px no-repeat;
+    padding-bottom: 2px;
+  }
+
+  :root[data-gradient="true"]
+    .study-companion
+    :is(.vsc-title-link, .node-title-button):hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  :root[data-gradient="true"]
+    .study-companion
+    :is(.core-citation, .np-path-btn) {
+    background-image: var(--gradient-text);
+    background-position: center bottom;
+    background-repeat: no-repeat;
+    background-size: 76% 2px;
+  }
+
+  :root[data-gradient="true"]
+    .study-companion
+    :is(.np-path-btn, .np-page-btn, .today-action-btn) {
+    border-color: var(--color-focus);
+  }
+
+  :root[data-gradient="true"] .study-companion .np-path-btn:hover {
+    border-color: var(--color-primary);
+  }
+
+  @media (forced-colors: active) {
+    :root[data-gradient="true"]
+      .study-companion
+      :is(
+        .core-setup-progress > strong,
+        .core-upload > h2,
+        .core-upload > .core-text-button
+      ) {
+      color: CanvasText;
+      background-image: none;
+      text-decoration-color: LinkText;
+    }
+
+    :root[data-gradient="true"]:is([data-theme="windy"], [data-theme="flame"])
+      .study-companion
+      .core-setup-progress
+      > strong {
+      background-image: none;
+    }
+
+    :root[data-gradient="true"]
+      .study-companion
+      :is(.vsc-title-link, .node-title-button, .core-citation, .np-path-btn) {
+      text-decoration: underline;
+    }
+
+    :root[data-gradient="true"] .study-companion .study-syllabus-text:focus {
+      border-color: Highlight;
+      outline-color: Highlight;
+    }
+
+    :root[data-gradient="true"]
+      .study-companion
+      :is(
+        .core-tabs button[aria-selected="true"],
+        .study-tabs [role="tab"][aria-selected="true"],
+        .core-filter-btn[aria-pressed="true"],
+        .view-mode-toggle button[aria-pressed="true"],
+        .graph-segmented button[aria-pressed="true"],
+        .core-week.selected,
+        .root-course-card[aria-pressed="true"],
+        .kg-list-row.selected
+      ) {
+      outline: 1px solid Highlight;
+      outline-offset: -2px;
+    }
+  }
+}

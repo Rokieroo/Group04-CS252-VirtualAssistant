@@ -338,8 +338,8 @@
   gap: 6px;
 }
 .core-own-badge {
-  background: var(--color-tint);
-  color: var(--color-primary);
+  background: var(--color-private-source-bg);
+  color: var(--color-private-source-ink);
   border-radius: 999px;
   padding: 2px 8px;
   margin-right: 8px;

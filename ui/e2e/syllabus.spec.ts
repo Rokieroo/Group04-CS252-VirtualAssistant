@@ -60,6 +60,10 @@ async function backend(
       ? req.postDataJSON()
       : req.postData();
     requests.push({ path, method: req.method(), body });
+    if (path.endsWith("/me/learning-preferences"))
+      return route.fulfill({
+        json: { guide_enabled: false, weekly_reminder: false },
+      });
     if (path.endsWith("/courses"))
       return route.fulfill({
         json: [
@@ -153,6 +157,15 @@ async function tabTo(page: Page, locator: ReturnType<Page["getByRole"]>) {
 test("PDF → four review tabs → citation → corrected confirmation payload", async ({
   page,
 }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "pathly.appearance.v1",
+      JSON.stringify({
+        accent: "visible-spectrum",
+        theme: "dark",
+      }),
+    );
+  });
   const requests = await backend(page);
   await page.goto("/");
   await page
@@ -184,6 +197,11 @@ test("PDF → four review tabs → citation → corrected confirmation payload",
   await expect(
     page.getByRole("tab", { name: "Giáo trình", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page
+      .getByRole("tab", { name: "Giáo trình", exact: true })
+      .locator(".astryx-tab-indicator"),
+  ).toHaveCSS("background-image", /rgb\(0, 255, 118\)/);
   await page.getByLabel("Tác giả", { exact: true }).fill("Updated lecturer");
   await page.getByRole("tab", { name: "Đánh giá", exact: true }).click();
   await page.getByLabel("Trọng số %", { exact: true }).fill("100");
@@ -424,7 +442,7 @@ test("gradient fills survive scoped styles while account circles stay neutral", 
   await page.getByRole("button", { name: "Close dialog" }).click();
   const action = page.locator(".core-drop .primary-action");
   const face = await action.evaluate(
-    (element) => getComputedStyle(element, "::after").backgroundImage,
+    (element) => getComputedStyle(element).backgroundImage,
   );
   expect(face).toContain("rgb(0, 255, 118)");
   expect(face).toContain("rgb(255, 242, 0)");
@@ -456,9 +474,11 @@ test("gradient fills survive scoped styles while account circles stay neutral", 
   ).toBe("none");
 });
 
-test("all saved gradients retain every stop in both modes without filling reading cards or avatars", async ({
+test("saved gradients retain every stop, color the brand and upload labels, and preserve avatars", async ({
   page,
-}) => {
+}, testInfo) => {
+  test.setTimeout(90_000);
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await backend(page);
   await page.goto("/");
   await page
@@ -493,6 +513,24 @@ test("all saved gradients retain every stop in both modes without filling readin
       );
     for (const gradient of GRADIENTS) {
       await page.getByText(gradient.label, { exact: true }).click();
+      const icon = page.locator(".sidebar .brand > span");
+      await expect(icon).toHaveCSS("background-image", /^linear-gradient/);
+      await expect(icon).toHaveCSS("color", "rgb(16, 21, 30)");
+      const treatments = await page
+        .locator(
+          ".core-setup-progress > strong, .core-upload > h2, .core-upload > .core-text-button",
+        )
+        .evaluateAll((labels) =>
+          labels.map((label) => {
+            const css = getComputedStyle(label);
+            return { clip: css.backgroundClip, image: css.backgroundImage };
+          }),
+        );
+      expect(treatments).toHaveLength(3);
+      for (const { clip, image } of treatments) {
+        expect(clip).toMatch(/^text/);
+        expect(image).toMatch(/^linear-gradient/);
+      }
       expect(
         await page
           .locator(".avatar")
@@ -502,7 +540,7 @@ test("all saved gradients retain every stop in both modes without filling readin
       ).toEqual(neutral);
       const face = await page
         .locator(".core-drop .primary-action")
-        .evaluate((el) => getComputedStyle(el, "::after").backgroundImage);
+        .evaluate((el) => getComputedStyle(el).backgroundImage);
       for (const hex of gradient.colors) {
         const rgb = [1, 3, 5].map((offset) =>
           parseInt(hex.slice(offset, offset + 2), 16),
@@ -515,7 +553,31 @@ test("all saved gradients retain every stop in both modes without filling readin
           .evaluate((el) => getComputedStyle(el).backgroundImage),
       ).toBe("none");
     }
+    await page.getByText("Visible Spectrum", { exact: true }).click();
     await page.getByRole("button", { name: "Close dialog" }).click();
+    const paste = page.getByRole("button", { name: /Prefer text/ });
+    await paste.click();
+    const textarea = page.getByRole("textbox", { name: "Syllabus text" });
+    await textarea.fill("Week 1: Introduction");
+    await expect(textarea).toHaveCSS(
+      "background-clip",
+      "padding-box, border-box",
+    );
+    await expect(textarea).toHaveCSS("background-image", /rgb\(0, 255, 118\)/);
+    await expect(textarea).toHaveCSS("outline-style", "solid");
+    if (testInfo.project.name === "backend-ui") {
+      await page.locator(".core-journey").screenshot({
+        path: testInfo.outputPath(`gradient-${mode.toLowerCase()}.png`),
+      });
+      if (mode === "Dark") {
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.screenshot({
+          path: testInfo.outputPath("gradient-dark-workspace.png"),
+          fullPage: true,
+        });
+      }
+    }
+    await paste.click();
     await expect(
       page.getByRole("textbox", { name: "Course name", exact: true }),
     ).toHaveAttribute("readonly", "");
@@ -531,9 +593,22 @@ test("all saved gradients retain every stop in both modes without filling readin
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute(
     "data-accent",
-    GRADIENTS[4].id,
+    "visible-spectrum",
   );
   await expect(page.locator("html")).toHaveAttribute("data-theme", "flame");
+  await page.emulateMedia({ forcedColors: "active" });
+  const heading = page.getByRole("heading", { name: "Course details" });
+  await expect(heading).not.toHaveCSS("color", "rgba(0, 0, 0, 0)");
+  await expect(heading).toHaveCSS("background-image", "none");
+  await page.getByRole("button", { name: /Prefer text/ }).click();
+  const textarea = page.getByRole("textbox", { name: "Syllabus text" });
+  await textarea.focus();
+  await expect(textarea).toHaveCSS("outline-style", "solid");
+  await page.emulateMedia({ forcedColors: "none" });
+  await settings.click();
+  await page.getByText("Violet", { exact: true }).click();
+  await page.getByRole("button", { name: "Close dialog" }).click();
+  await expect(heading).toHaveCSS("background-image", "none");
 });
 
 test("neon accents glow in all four themes and survive reload", async ({
@@ -569,7 +644,7 @@ test("neon accents glow in all four themes and survive reload", async ({
       const face = getComputedStyle(element, "::after");
       return {
         fill: face.backgroundColor,
-        image: face.backgroundImage,
+        image: button.backgroundImage,
         label: button.color,
         shadow: button.boxShadow,
         animation: getComputedStyle(element, "::before").animationName,

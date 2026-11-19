@@ -170,7 +170,7 @@
       input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
       select,
       textarea
-    ) {
+    ):not(:where(.study-field-control input, .study-syllabus-text)) {
     background-color: rgba(255, 255, 255, 0.94);
     border-color: rgba(16, 24, 40, 0.22);
     color: #101828;
