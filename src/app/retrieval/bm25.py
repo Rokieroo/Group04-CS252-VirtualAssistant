@@ -14,6 +14,7 @@ import re
 import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any
 
 from rank_bm25 import BM25Okapi
@@ -101,12 +102,27 @@ class _PositiveIdfBM25(BM25Okapi):
         self.average_idf = sum(self.idf.values()) / len(self.idf) if self.idf else 0.0
 
 
+def _doc_tokens(text: str) -> tuple[str, ...]:
+    """Tokens of one indexed document; whole web pages (vetting) skip the cache."""
+    if len(text) <= 10_000:
+        return _page_tokens(text)
+    return tuple(tokenize_vi(text)) or (_EMPTY_TOKEN,)
+
+
+# Every question re-indexes the course's pages, and tokenizing them was two thirds of
+# retrieval time. shortcut: keyed by page text, at most 512 pages of <= 10k chars (~50 MB
+# worst case per worker); cache the built index per course if many courses are hot.
+@lru_cache(maxsize=512)
+def _page_tokens(text: str) -> tuple[str, ...]:
+    return tuple(tokenize_vi(text)) or (_EMPTY_TOKEN,)
+
+
 class Bm25Index:
     """A BM25 index over plain documents, independent of the ``sources`` table."""
 
     def __init__(self, docs: list[str], *, model: type[BM25Okapi] = BM25Okapi) -> None:
         self.docs = list(docs)
-        corpus = [tokenize_vi(text) or [_EMPTY_TOKEN] for text in self.docs]
+        corpus = [_doc_tokens(text) for text in self.docs]
         self._bm25 = model(corpus) if corpus else None
 
     def scores(self, query: str) -> list[float]:
