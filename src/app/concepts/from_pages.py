@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 from pathlib import Path
 from uuid import uuid4
 
@@ -216,6 +217,8 @@ def save_concepts(db, course_id: str, concepts: list[dict],
                     for c in concepts]
     revised = {c["slug"]: c for c in concepts}
     result = merge(concepts, stored)
+    updates: list[dict] = []
+    inserts: list[dict] = []
     for concept in result:
         if "id" in concept and not concept["confirmed"] and concept["slug"] in revised:
             new = revised[concept["slug"]]
@@ -225,19 +228,28 @@ def save_concepts(db, course_id: str, concepts: list[dict],
                   "source_pages": json.dumps(concept["source_pages"]),
                   "source_refs": json.dumps(concept.get("source_refs", []), ensure_ascii=False)}
         if "id" in concept:
-            db.execute(text(
-                "UPDATE concepts SET title = :title, summary = :summary, "
-                "bloom_level = :bloom_level, source_pages = :source_pages, "
-                "source_refs = :source_refs WHERE id = :id"),
-                params)
+            updates.append(params)
         else:
             concept["id"] = params["id"] = str(uuid4())
-            db.execute(text(
-                "INSERT INTO concepts (id, course_id, slug, title, summary, bloom_level, "
-                "source_pages, source_refs, confirmed) VALUES (:id, :course_id, :slug, :title, "
-                ":summary, :bloom_level, :source_pages, :source_refs, 0)"), params)
+            inserts.append(params)
+    if updates:
+        db.execute(text(
+            "UPDATE concepts SET title = :title, summary = :summary, "
+            "bloom_level = :bloom_level, source_pages = :source_pages, "
+            "source_refs = :source_refs WHERE id = :id"),
+            updates)
+    if inserts:
+        db.execute(text(
+            "INSERT INTO concepts (id, course_id, slug, title, summary, bloom_level, "
+            "source_pages, source_refs, confirmed) VALUES (:id, :course_id, :slug, :title, "
+            ":summary, :bloom_level, :source_pages, :source_refs, 0)"), inserts)
     return result
 
 
+@lru_cache(maxsize=16)
+def _read_prompt_file(path: str) -> str:
+    return Path(path).read_text(encoding="utf-8")
+
+
 def _prompt(name: str) -> str:
-    return (PROMPTS / f"{name}.txt").read_text(encoding="utf-8")
+    return _read_prompt_file(str(PROMPTS / f"{name}.txt"))

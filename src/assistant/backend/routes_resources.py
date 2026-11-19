@@ -102,15 +102,15 @@ def get_node_resources(
     now = request.app.state.now()
 
     # If there is a queued or running search job for this node, return "searching".
-    active_jobs = db.scalars(
-        select(Job).where(
+    active_payloads = db.scalars(
+        select(Job.payload).where(
             Job.kind == "search_resources",
             Job.status.in_(["queued", "running"]),
             Job.user_id == user.id,
         )
     ).all()
     is_searching = any(
-        json.loads(j.payload).get("node_id") == node.id for j in active_jobs
+        json.loads(payload).get("node_id") == node.id for payload in active_payloads
     )
     if is_searching:
         return NodeResourcesOut(status="searching", resources=[], gaps=[])
@@ -165,9 +165,9 @@ def get_node_resources(
     else:
         links.sort(key=lambda l: l.relevance_score, reverse=True)
 
-    from .catalog_repository import verified_resources
+    from .catalog_repository import verified_resource_map
 
-    verified_ids = {r["id"] for r in verified_resources(db, now)}
+    verified_ids = set(verified_resource_map(db, now, [l.resource_id for l in links]))
     items = []
     for rank, link in enumerate(links, start=1):
         res = resources_by_id.get(link.resource_id)
