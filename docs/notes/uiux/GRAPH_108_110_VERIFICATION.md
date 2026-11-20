@@ -66,3 +66,15 @@ The remaining review items need separate work: discoverable account/course-to-ro
 ![Restored syllabus editor](graph-108-110/11-restored-syllabus.png)
 
 The dark-theme axe scan waits for finite panel color transitions to settle. CI exposed intermediate animation colors during an immediate scan; no axe rule or severity check was removed. The complete panel/source scan passed three repeated desktop runs and three repeated mobile runs after this timing correction.
+
+## Phase 4 #108 GraphCanvas polish & verification
+
+- Centralized all graph colors, radii (`--graph-node-radius-min`/`max`), stroke widths (`--graph-edge-width*`, `--graph-ring-width*`), and motion tokens (`--graph-motion-duration`, `--graph-motion-ease`) in `ui/src/components/GraphCanvas.css` deriving from `styles.css` tokens (`--color-warning`, `--color-primary`, `--color-success`, `--color-danger`, `--duration-base`, `--ease-decelerate`).
+- Kept semantic canvas hues to at most 3 beyond neutral/background (`--graph-accent` Đang học, `--graph-success` Đã vững, `--graph-warning` Cần chú ý), aligned `GraphMinimap` `review_due` styling with the main canvas, documented every hue in the single-line `.graph-legend`, and kept the subtle dot grid visible down to 35% zoom (`zoom >= 0.35`).
+- Verified 32-concept CSC10014 layout readability (zero overlapping labels), idle `requestAnimationFrame` shutdown, semantic hue/legend completeness, CSS token overrides, zero WCAG AA axe violations in both light and dark themes, `prefers-reduced-motion` transition shutdown (`<= 0.001s`), and 300-node Chrome pan performance (`week`: 117.1 FPS, `force`: 115.6 FPS).
+
+### Before / After (#108)
+
+- **Before** (initial canvas): ![Before graph](graph-108-110/01-desktop-week.png)
+- **After — Light theme (32 concepts, 10 weeks):** ![After light 32-concept graph](graph-108-110/12-graph-32-light.png)
+- **After — Dark theme (32 concepts, 10 weeks):** ![After dark 32-concept graph](graph-108-110/13-graph-32-dark.png)

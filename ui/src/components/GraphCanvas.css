@@ -16,9 +16,21 @@
   --graph-edge: color-mix(in oklab, var(--color-muted) 80%, var(--color-text));
   --graph-accent: var(--color-primary);
   --graph-success: var(--color-success);
-  --graph-warning: light-dark(#b7791f, #f2c27a);
+  --graph-warning: var(--color-warning);
   --graph-danger: var(--color-danger);
   --graph-chrome: color-mix(in oklab, var(--color-surface) 90%, transparent);
+
+  /* Geometry, strokes and motion centralized as graph CSS tokens (#108). */
+  --graph-node-radius-min: 16px;
+  --graph-node-radius-max: 28px;
+  --graph-edge-width: 1.2px;
+  --graph-edge-width-strong: 1.8px;
+  --graph-edge-width-cycle: 2.5px;
+  --graph-ring-width: 1.5px;
+  --graph-ring-width-active: 2.5px;
+  --graph-ring-width-selected: 3px;
+  --graph-motion-duration: var(--duration-base, 200ms);
+  --graph-motion-ease: var(--ease-decelerate, ease-out);
 
   position: relative;
   width: 100%;
@@ -131,9 +143,8 @@
   font: 500 13px/1 var(--font-body);
   cursor: pointer;
   transition:
-    background-color var(--duration-fast, 150ms)
-      var(--ease-decelerate, ease-out),
-    color var(--duration-fast, 150ms) var(--ease-decelerate, ease-out);
+    background-color var(--graph-motion-duration) var(--graph-motion-ease),
+    color var(--graph-motion-duration) var(--graph-motion-ease);
 }
 .graph-zoom button {
   padding: 0 7px;
@@ -199,8 +210,8 @@
   box-shadow: 0 6px 18px
     color-mix(in oklab, var(--graph-danger) 18%, transparent);
   z-index: 20;
-  animation: graph-alert-in var(--duration-base, 220ms)
-    var(--ease-decelerate, ease-out);
+  animation: graph-alert-in var(--graph-motion-duration)
+    var(--graph-motion-ease);
 }
 .graph-cycle-alert svg {
   flex: none;
@@ -241,27 +252,27 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 14px;
+  gap: 5px 10px;
   width: fit-content;
   max-width: calc(100% - 24px);
-  padding: 7px 12px;
+  padding: 6px 10px;
   background: var(--graph-chrome);
   backdrop-filter: blur(8px);
   border: 1px solid var(--color-line);
   border-radius: 10px;
   color: var(--graph-muted);
-  font: 500 12px/1.2 var(--font-body);
+  font: 500 11.5px/1.2 var(--font-body);
   pointer-events: none;
   z-index: 10;
 }
 .graph-legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   white-space: nowrap;
 }
 .graph-legend-hint {
-  padding-left: 14px;
+  padding-left: 10px;
   border-left: 1px solid var(--color-line);
   white-space: nowrap;
 }
@@ -282,7 +293,8 @@
 }
 .glyph-topic,
 .glyph-progress,
-.glyph-done {
+.glyph-done,
+.glyph-attention {
   width: 12px;
   height: 12px;
   border-radius: 50%;
@@ -295,6 +307,9 @@
 .glyph-done {
   border-color: var(--graph-success);
   background: var(--graph-success);
+}
+.glyph-attention {
+  border: 2.5px solid var(--graph-warning);
 }
 .glyph-milestone {
   width: 10px;
@@ -354,12 +369,15 @@
   }
 }
 
+@media (max-width: 960px) {
+  .graph-legend-hint {
+    display: none;
+  }
+}
+
 @media (max-width: 640px) {
   .graph-canvas-container {
     height: 520px;
-  }
-  .graph-legend-hint {
-    display: none;
   }
   .graph-minimap {
     bottom: 72px;
