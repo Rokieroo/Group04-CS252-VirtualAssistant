@@ -357,16 +357,29 @@ async function backend(page: Page, courseNodes = nodes) {
       return route.fulfill({ json: { positions, saved: positions.length } });
     }
     if (path.endsWith("/graph")) {
-      const graphNodes = courseNodes.map(({ covers, ...n }, i) => ({
-        ...n,
-        status: i === 0 ? "completed" : "pending",
-        outcome_ids: [i < 2 ? "CLO1" : "CLO2"],
-        source_pages: [1],
-        source_count: i < 2 ? 2 : 0,
-        user_material_count: i === 1 ? 2 : 0,
-        sources_status: i < 2 ? "ready" : "insufficient",
-        layer: i + 1,
-      }));
+      const graphNodes = courseNodes.map(({ covers, ...n }, i) => {
+        const extra = n as Record<string, unknown>;
+        return {
+          ...n,
+          status:
+            typeof extra.status === "string"
+              ? extra.status
+              : i === 0
+                ? "completed"
+                : "pending",
+          outcome_ids: [i < 2 ? "CLO1" : "CLO2"],
+          source_pages: [1],
+          source_count: i < 2 ? 2 : 0,
+          user_material_count: i === 1 ? 2 : 0,
+          sources_status:
+            typeof extra.sources_status === "string"
+              ? extra.sources_status
+              : i < 2
+                ? "ready"
+                : "insufficient",
+          layer: i + 1,
+        };
+      });
       return route.fulfill({
         json: {
           nodes: graphNodes,
@@ -791,6 +804,23 @@ test("node panel remains accessible with source metadata and inactive gateways",
   await expect(page.getByRole("dialog")).toContainText(
     "Massachusetts Institute of Technology",
   );
+  const waitPanelAnimations = () =>
+    page.locator(".node-panel-container").evaluate(async (panel) => {
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve()),
+      );
+      const finite = panel
+        .getAnimations({ subtree: true })
+        .filter((animation) =>
+          Number.isFinite(
+            animation.effect?.getComputedTiming().endTime ?? Infinity,
+          ),
+        );
+      await Promise.all(
+        finite.map((animation) => animation.finished.catch(() => undefined)),
+      );
+    });
+  await waitPanelAnimations();
   const result = await new AxeBuilder({ page })
     .include(".node-panel-container")
     .analyze();
@@ -807,21 +837,7 @@ test("node panel remains accessible with source metadata and inactive gateways",
   ).toEqual([]);
   await page.emulateMedia({ colorScheme: "dark" });
   // Audit settled theme colors, not intermediate frames of the color transition.
-  await page.locator(".node-panel-container").evaluate(async (panel) => {
-    await new Promise<void>((resolve) =>
-      requestAnimationFrame(() => resolve()),
-    );
-    const finite = panel
-      .getAnimations({ subtree: true })
-      .filter((animation) =>
-        Number.isFinite(
-          animation.effect?.getComputedTiming().endTime ?? Infinity,
-        ),
-      );
-    await Promise.all(
-      finite.map((animation) => animation.finished.catch(() => undefined)),
-    );
-  });
+  await waitPanelAnimations();
   const dark = await new AxeBuilder({ page })
     .include(".node-panel-container")
     .analyze();
@@ -1093,18 +1109,59 @@ test("32-concept graph canvas passes axe accessibility in light and dark themes 
     "Desktop 1280x800 light/dark graph canvas accessibility and reduced-motion check.",
   );
   await page.setViewportSize({ width: 1280, height: 800 });
+  const cscTitles = [
+    "Framing ladder",
+    "Problem statement",
+    "Stakeholder mapping",
+    "Personas",
+    "Jobs-to-be-Done",
+    "Four layers of a need",
+    "FR vs NFR",
+    "Milestone 1",
+    "Solution ladder",
+    "Four product risks",
+    "Use case diagrams",
+    "User stories",
+    "Acceptance criteria",
+    "Prioritising MoSCoW",
+    "Decomposition",
+    "Midterm checkpoint",
+    "Pattern recognition",
+    "Abstraction layers",
+    "Algorithm design",
+    "Flowcharts",
+    "Trade-off analysis",
+    "Prototyping",
+    "Usability testing",
+    "Milestone 3",
+    "Measuring success",
+    "Data-driven decisions",
+    "Ethics in design",
+    "Team roles",
+    "Iteration planning",
+    "Risk register",
+    "Retrospective",
+    "Final exam",
+  ];
   const cscNodes = Array.from({ length: 32 }, (_, i) => ({
     id: `csc-${i + 1}`,
-    title: `Khái niệm ${i + 1}`,
+    title: cscTitles[i],
     type: i % 8 === 7 ? "milestone" : "topic",
     kind: i % 8 === 7 ? "milestone" : "topic",
-    status: i % 3 === 0 ? "mastered" : "in_progress",
-    sources_status: i % 4 === 0 ? "insufficient" : "sufficient",
+    status:
+      i % 4 === 0
+        ? "mastered"
+        : i % 4 === 1
+          ? "in_progress"
+          : i % 4 === 2
+            ? "review_due"
+            : "pending",
+    sources_status: i % 5 === 0 ? "insufficient" : "ready",
     est_minutes: 45,
     duration_minutes: 45,
     covers: [],
     roadmap_id: "rm",
-    week: (i % 10) + 1,
+    week: Math.floor((i * 10) / 32) + 1,
   }));
 
   await backend(page, cscNodes);
@@ -1115,6 +1172,7 @@ test("32-concept graph canvas passes axe accessibility in light and dark themes 
   await expect(container.locator("canvas.graph-canvas")).toBeVisible();
   await expect(container.locator(".graph-toolbar")).toBeVisible();
   await expect(container.locator(".graph-legend")).toBeVisible();
+  await expect(container.locator(".graph-legend")).toContainText("Cần chú ý");
   await expect(container.locator(".graph-minimap")).toContainText(
     "Tổng quan (32)",
   );

@@ -176,10 +176,9 @@ export function drawMinimap(
       ctx.fillStyle = c.accent;
     } else if (node.status === "mastered") {
       ctx.fillStyle = c.success;
-    } else if (
-      node.status === "in_progress" ||
-      node.status === "review_due"
-    ) {
+    } else if (node.status === "review_due") {
+      ctx.fillStyle = c.warning;
+    } else if (node.status === "in_progress") {
       ctx.fillStyle = c.accent;
     } else {
       ctx.fillStyle = node.type === "milestone" ? c.ink : c.muted;
