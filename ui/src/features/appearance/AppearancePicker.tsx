@@ -3,6 +3,7 @@ import { GRADIENTS } from "./gradients";
 import {
   ACCENTS,
   applyAppearance,
+  glowOf,
   localAppearanceStore,
   THEMES,
   type Appearance,
@@ -27,7 +28,12 @@ export function AppearancePicker({ store = localAppearanceStore }: Props) {
         <legend>Accent color</legend>
         <div className="swatches">
           {ACCENTS.map((a) => (
-            <label key={a.id} className="swatch" data-accent={a.id}>
+            <label
+              key={a.id}
+              className="swatch"
+              data-accent={a.id}
+              data-glow={glowOf(a.id)}
+            >
               <input
                 type="radio"
                 name="accent"

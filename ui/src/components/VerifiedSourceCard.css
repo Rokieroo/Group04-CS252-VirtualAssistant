@@ -63,7 +63,11 @@
 .vsc-title-link:hover,
 .vsc-title-link:focus {
   text-decoration: underline;
-  outline: none;
+}
+
+.vsc-title-link:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
 }
 
 .vsc-domain-chip {
@@ -140,9 +144,9 @@
 }
 
 .vsc-badge-user-material {
-  background-color: light-dark(#e0f2fe, #075985);
-  color: light-dark(#0369a1, #e0f2fe);
-  border-color: light-dark(#bae6fd, #0284c7);
+  background-color: var(--color-private-source-bg);
+  color: var(--color-private-source-ink);
+  border-color: var(--color-private-source-border);
 }
 
 .verified-source-card.pinned {

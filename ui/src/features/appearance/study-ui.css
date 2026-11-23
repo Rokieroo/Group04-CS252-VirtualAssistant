@@ -36,6 +36,7 @@
     --color-line: rgba(16, 24, 40, 0.16);
     --color-ink: #101828;
     --color-primary-ink: color-mix(in oklab, var(--accent-a) 62%, #0b1324);
+    --color-field-face: #f1f8fc;
     background: #acb6e5; /* fallback for old browsers */
     background: -webkit-linear-gradient(to right, #86fde8, #acb6e5); /* Chrome 10-25, Safari 5.1-6 */
     background: linear-gradient(to right, #86fde8, #acb6e5); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
@@ -61,6 +62,7 @@
     --color-line: rgba(68, 20, 8, 0.16);
     --color-ink: #180804;
     --color-primary-ink: color-mix(in oklab, var(--accent-a) 55%, #180804);
+    --color-field-face: #fff4e8;
     background: #ff0000; /* fallback for old browsers */
     background: -webkit-linear-gradient(to right, #fdcf58, #ff0000); /* Chrome 10-25, Safari 5.1-6 */
     background: linear-gradient(to right, #fdcf58, #ff0000); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
@@ -170,10 +172,37 @@
       input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
       select,
       textarea
-    ) {
+    ):not(:where(.study-field-control input, .study-syllabus-text)) {
     background-color: rgba(255, 255, 255, 0.94);
     border-color: rgba(16, 24, 40, 0.22);
     color: #101828;
+  }
+  /* Course fields and the pasted syllabus read on every theme and accent. */
+  .study-companion :is(.study-field-control, .study-syllabus-text) {
+    border: 1px solid var(--color-field-border);
+    border-radius: 8px;
+    background: var(--color-field-face);
+    color: var(--color-text);
+  }
+  .study-companion .core-panel .study-field-control input {
+    color: var(--color-text);
+    background: transparent;
+  }
+  .study-companion .study-syllabus-text::placeholder {
+    color: var(--color-muted);
+  }
+  .study-companion
+    :is(.study-syllabus-text:focus, .study-field-control:focus-within) {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+  .study-companion .demo-label {
+    color: var(--color-muted);
+  }
+  .study-companion .workspace-list summary {
+    color: var(--color-primary-ink);
+    text-decoration: underline;
+    text-underline-offset: 4px;
   }
   .study-companion main {
     padding: 28px clamp(20px, 3vw, 48px) 48px;
