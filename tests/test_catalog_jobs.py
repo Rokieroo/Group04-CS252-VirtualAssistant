@@ -251,8 +251,9 @@ def test_bundled_sample_gives_a_new_csc10014_roadmap_catalog_sources_at_once(
                 files={"file": (SYLLABUS.name, SYLLABUS.read_bytes(), "text/plain")})
     parsed = client.post(f"/api/v1/courses/{course}/syllabus:parse", headers=headers,
                          json={"file_name": SYLLABUS.name, "use_llm": False}).json()["parsed"]
+    # Confirmed as the review screen confirms it (ui confirmationPayload): the parsed draft.
     syllabus = client.post(f"/api/v1/courses/{course}/syllabus", headers=headers, json={
-        "raw_text": SYLLABUS.read_text(encoding="utf-8"),
+        "parsed": parsed,
         "outcomes": [{"code": o["code"], "description": o["text"]} for o in parsed["outcomes"]],
         "assessments": [{"name": a["title"], "weight": a["weight"],
                          "due_week": int(a["due"].split()[-1])} for a in parsed["assessments"]],
@@ -277,5 +278,5 @@ def test_seed_catalog_command_loads_the_sample_once(tmp_path, monkeypatch, capsy
 
     monkeypatch.setenv("DATABASE_URL", "sqlite:///" + (tmp_path / "dev.db").as_posix())
     args = build_parser().parse_args(["db", "seed-catalog", "--sample"])
-    assert args.func(args) == 0 and "'resources': 34" in capsys.readouterr().out
+    assert args.func(args) == 0 and "'resources': 69" in capsys.readouterr().out
     assert args.func(args) == 0 and "không có dòng mới" in capsys.readouterr().out

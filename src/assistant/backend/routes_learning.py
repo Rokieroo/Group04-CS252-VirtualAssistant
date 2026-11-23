@@ -12,7 +12,13 @@ from sqlalchemy import delete, select, update
 
 from app.planner.fsrs import compute_node_mastery
 from app.qa import answer_question, exercise_hint
-from app.roadmap import layers, local_graph, prerequisites, transitive_reduction
+from app.roadmap import (
+    layers,
+    link_outcomes,
+    local_graph,
+    prerequisites,
+    transitive_reduction,
+)
 
 from .catalog_models import Concept, ExerciseAttempt, GraphLayout, RoadmapEdge
 from .catalog_repository import node_sources
@@ -504,11 +510,9 @@ def _build_roadmap_graph(
     )
 
     syllabus = _latest_syllabus(db, course.id)
-    # A topic node is titled after its outcome (routes_core.generate_roadmap), so match
-    # the title exactly; a substring test would tie "CLO1" to "CLO10".
-    outcome_by_title = (
+    outcomes = (
         {
-            (o.description or o.code): o.id
+            o.id: o.description or o.code
             for o in db.scalars(
                 select(LearningOutcome).where(
                     LearningOutcome.syllabus_id == syllabus.id
@@ -518,6 +522,7 @@ def _build_roadmap_graph(
         if syllabus
         else {}
     )
+    outcomes_of = link_outcomes({n.title for n in nodes if n.type == "topic"}, outcomes)
 
     # One bulk read for every node, the same one GET sources:summary makes (#102).
     sources_by_node = node_sources(db, nodes, roadmap, course, now)
@@ -571,7 +576,6 @@ def _build_roadmap_graph(
     graph_nodes = []
     for node in nodes:
         summary = sources_by_node.get(node.id, {})
-        outcome_id = outcome_by_title.get(node.title)
         graph_nodes.append(
             {
                 "id": node.id,
@@ -580,7 +584,7 @@ def _build_roadmap_graph(
                 "week": node.week,
                 "est_minutes": node.duration_minutes,
                 "due_at": node.due_at,
-                "outcome_ids": [outcome_id] if outcome_id else [],
+                "outcome_ids": outcomes_of.get(node.title, []),
                 "source_pages": json.loads(concept_pages.get(node.concept_id) or "[]"),
                 "status": task_status.get(node.id, "pending"),
                 "source_count": summary.get("source_count", 0),

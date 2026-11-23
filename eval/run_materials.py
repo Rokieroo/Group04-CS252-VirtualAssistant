@@ -7,10 +7,11 @@ Usage::
 
 The CSC10014 week 1-3 decks are course material and are not committed; pass the
 folder that holds them. Nodes are what roadmap:generate derives from the CSC10014
-syllabus gold (one topic per learning outcome); milestones take no material.
+syllabus gold (one topic per week of its schedule); milestones take no material.
 
-A slide is attached correctly when its node is one the gold accepts for it
-(``eval/materials.json``); slides gold marks as teaching nothing are left out.
+A slide is attached correctly when its node serves an outcome the gold accepts for it
+(``eval/materials.json`` labels slides by outcome code); slides gold marks as teaching
+nothing are left out.
 Target: >= 85% of slides attached correctly. "Auto" counts the slides at or above
 review confidence, which need no confirmation from the learner.
 """
@@ -25,20 +26,26 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from app.catalog.demand import SyllabusDemand
 from app.ingest import extract_pages
 from app.materials import REVIEW, Node, map_pages
-from app.roadmap import derive_nodes, link
+from app.roadmap import link_outcomes
 
 GOLD = ROOT / "eval" / "materials.json"
 TARGET = 0.85
 
 
-def nodes_and_codes(gold: dict) -> tuple[list[Node], dict[str, str]]:
-    """Topic nodes of the CSC10014 roadmap and node id -> learning outcome code."""
+def nodes_and_codes(gold: dict) -> tuple[list[Node], dict[str, set[str]]]:
+    """Topic nodes of the CSC10014 roadmap and node id -> codes of the outcomes it serves.
+
+    The gold labels slides by outcome code, which holds whatever shape the roadmap takes;
+    a node serves the outcomes ``link_outcomes`` gives it, as the graph's CLO filter does.
+    """
     syllabus = json.loads((ROOT / "eval" / "syllabus" / gold["syllabus"]).read_text("utf-8"))
-    code = {row["description"]: row["code"] for row in syllabus["learning_outcomes"]}
-    specs = [s for s in link(derive_nodes(list(code), [], "")) if s.kind == "topic"]
-    return [Node(s.id, s.title) for s in specs], {s.id: code[s.title] for s in specs}
+    specs = [s for s in SyllabusDemand.from_gold(syllabus).nodes() if s.kind == "topic"]
+    outcomes = {row["code"]: row["description"] for row in syllabus["learning_outcomes"]}
+    served = link_outcomes([s.title for s in specs], outcomes)
+    return [Node(s.id, s.title) for s in specs], {s.id: set(served[s.title]) for s in specs}
 
 
 def score(matches, ranges, codes) -> tuple[int, int, int, int]:
@@ -46,7 +53,7 @@ def score(matches, ranges, codes) -> tuple[int, int, int, int]:
     accepted = {page: ok for start, end, ok in ranges for page in range(start, end + 1)}
     by_page = {m.page: m for m in matches}
     gradable = [page for page, ok in accepted.items() if ok]
-    right = [p for p in gradable if p in by_page and codes[by_page[p].node_id] in accepted[p]]
+    right = [p for p in gradable if p in by_page and codes[by_page[p].node_id] & set(accepted[p])]
     auto = [p for p in gradable if p in by_page and by_page[p].confidence >= REVIEW]
     return len(right), len(gradable), len(auto), len(set(auto) & set(right))
 

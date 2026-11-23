@@ -10,7 +10,7 @@
 # (ADR 004). Format: src/app/catalog/connectors/manual_yaml.py.
 resources:
   - title: "Problem framing and the solution ladder"
-    url: "https://ocw.mit.edu/courses/6-100l-introduction-to-cs-and-programming-in-python-fall-2022/"
+    url: "https://ocw.mit.edu/courses/6-100l-introduction-to-cs-and-programming-using-python-fall-2022/"
     license: CC-BY-NC-SA-4.0
     kind: article
     lang: en

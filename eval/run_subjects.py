@@ -8,7 +8,7 @@ Runs the offline path (rules, then the lexical vector) that tags nodes and
 resources when no embedding model is configured; no network, no quota.
 
 Nodes: every node roadmap:generate derives from an ``eval/syllabus/*.gold.json``
-(one per learning outcome and per assessment) needs at least one accepted topic
+(one per week of its schedule and per assessment) needs at least one accepted topic
 label: depth 3 and not ``needs_review``. Target: 100% for CSC10014.
 
 Resources: the URLs of ``eval/resources.jsonl`` both raters saw as on-topic (rated
@@ -32,8 +32,8 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from app.catalog.demand import SyllabusDemand
 from app.catalog.taxonomy import subjects, tag_node, tag_resource
-from app.roadmap import derive_nodes, link
 
 SYLLABI = ROOT / "eval" / "syllabus"
 RESOURCES = ROOT / "eval" / "resources.jsonl"
@@ -55,18 +55,14 @@ def ancestors(subject_id: str) -> set[str]:
 
 def node_coverage(gold: dict) -> tuple[int, int]:
     """(nodes with an accepted topic label, nodes) for the roadmap of one syllabus."""
-    outcomes = [row["description"] for row in gold["learning_outcomes"]]
-    specs = link(derive_nodes(
-        outcomes,
-        [(row["name"], row.get("due_week")) for row in gold["assessments"]],
-        "\n".join(f"Week {row['week']}: {row['topic']}" for row in gold["weeks"]),
-    ))
+    demand = SyllabusDemand.from_gold(gold)
+    specs = demand.nodes()
     depth = {row["id"]: row["depth"] for row in subjects()}
     titles = {spec.id: spec.title for spec in specs}
-    course = f"{gold['course_code']} {gold['course_name']}"
     labelled = sum(
         any(not tag.needs_review and depth[tag.subject_id] == 3
-            for tag in tag_node({"title": spec.title}, course=course, outcomes=outcomes,
+            for tag in tag_node({"title": spec.title}, course=demand.course,
+                                outcomes=demand.outcomes,
                                 covers=[titles[i] for i in spec.covers or () if i in titles]))
         for spec in specs
     )

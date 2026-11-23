@@ -103,6 +103,6 @@ def test_catalog_ingest_fills_csc10014_from_the_hand_lists_twice_without_new_row
     assert args.func(args) == 0
     second = capsys.readouterr().out
 
-    assert "== CSC10014: 7/7 chặng có >= 5 ứng viên pending/verified" in first
+    assert "== CSC10014: 13/13 chặng có >= 5 ứng viên pending/verified" in first
     assert "[ OK ] manual_yaml" in first and "tạo {'courses'" in first
-    assert "tạo {}" in second and "7/7" in second
+    assert "tạo {}" in second and "13/13" in second

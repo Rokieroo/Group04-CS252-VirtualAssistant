@@ -343,5 +343,5 @@ def test_every_csc10014_node_has_five_candidates_from_the_hand_lists(app, client
             report = ingest(db, connector(name, FakeFetcher({})), subjects, now=NOW)
             assert report.error is None and not report.skipped
         result = node_candidates(db, demand())
-    assert len(result) == 7
+    assert len(result) == 13  # a topic per week (10) and a milestone per assessment (3)
     assert [(title, n) for title, n in result if n < 5] == []
