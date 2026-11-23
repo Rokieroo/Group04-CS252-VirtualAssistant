@@ -337,3 +337,122 @@ it("fits 32 CSC10014 concepts across 10 weeks without label overlap and renders 
     }
   }
 });
+
+it("uses at most 3 semantic hues beyond background/neutral and explains each in the legend", () => {
+  const strokeColors: string[] = [];
+  let currentStroke = "";
+  Object.defineProperty(ctx, "strokeStyle", {
+    get: () => currentStroke,
+    set: (color: string) => {
+      currentStroke = color;
+      strokeColors.push(color);
+    },
+  });
+
+  const allStateNodes = [
+    { id: "n1", title: "Topic", type: "topic" as const, week: 1, status: "not_started" as const },
+    { id: "n2", title: "Locked", type: "topic" as const, week: 1, status: "locked" as const },
+    { id: "n3", title: "Available", type: "topic" as const, week: 2, status: "available" as const },
+    { id: "n4", title: "Active", type: "topic" as const, week: 2, status: "in_progress" as const },
+    { id: "n5", title: "Mastered", type: "topic" as const, week: 3, status: "mastered" as const },
+    {
+      id: "n6",
+      title: "Review Due",
+      type: "topic" as const,
+      week: 3,
+      status: "review_due" as const,
+      sources_status: "insufficient" as const,
+    },
+    { id: "n7", title: "Midterm", type: "milestone" as const, week: 4 },
+  ];
+  const allStateEdges = [
+    { parent_id: "n1", child_id: "n4", kind: "strict" as const },
+    { parent_id: "n4", child_id: "n7", kind: "soft" as const },
+  ];
+
+  const view = render(
+    <GraphCanvas nodes={allStateNodes} edges={allStateEdges} selectedId="n4" />,
+  );
+  frame();
+
+  const semanticHues = new Set<string>();
+  const semanticTokens = [
+    GRAPH_FALLBACK.accent,
+    GRAPH_FALLBACK.success,
+    GRAPH_FALLBACK.warning,
+    GRAPH_FALLBACK.danger,
+  ];
+  for (const color of [...fillColors, ...strokeColors]) {
+    if (semanticTokens.includes(color)) semanticHues.add(color);
+  }
+  expect(semanticHues.size).toBeLessThanOrEqual(3);
+  expect(semanticHues).toEqual(
+    new Set([GRAPH_FALLBACK.accent, GRAPH_FALLBACK.success, GRAPH_FALLBACK.warning]),
+  );
+
+  const legend = view.container.querySelector(".graph-legend")!;
+  expect(legend).not.toBeNull();
+  for (const label of [
+    "Chủ đề",
+    "Đang học",
+    "Đã vững",
+    "Cần chú ý",
+    "Mốc kiểm tra",
+    "Bắt buộc",
+    "Nên học trước",
+  ]) {
+    expect(legend.textContent).toContain(label);
+  }
+});
+
+it("reads centralized radius, stroke, and motion CSS tokens from the container", () => {
+  const realGetComputedStyle = window.getComputedStyle.bind(window);
+  vi.spyOn(window, "getComputedStyle").mockImplementation((el: Element) => {
+    const base = realGetComputedStyle(el);
+    if (!el.classList.contains("graph-canvas-container")) return base;
+    return {
+      ...base,
+      getPropertyValue: (name: string) =>
+        ({
+          "--graph-node-radius-min": "20px",
+          "--graph-node-radius-max": "32px",
+          "--graph-edge-width": "2px",
+          "--graph-ring-width": "2.2px",
+          "--graph-motion-duration": "0ms",
+        })[name] ?? base.getPropertyValue(name),
+    } as CSSStyleDeclaration;
+  });
+
+  const strokeWidths: number[] = [];
+  let currentWidth = 1;
+  Object.defineProperty(ctx, "lineWidth", {
+    get: () => currentWidth,
+    set: (w: number) => {
+      currentWidth = w;
+      strokeWidths.push(w);
+    },
+  });
+
+  const view = render(
+    <GraphCanvas
+      nodes={[{ id: "a", title: "A", type: "topic", week: 1, est_minutes: 30 }]}
+      edges={[]}
+    />,
+  );
+  frame();
+
+  // Minimum est_minutes (30) draws with --graph-node-radius-min (20px) and --graph-ring-width (2.2px).
+  expect(ctx.arc.mock.calls.some((call: number[]) => call[2] === 20)).toBe(true);
+  expect(strokeWidths).toContain(2.2);
+
+  // --graph-motion-duration: 0ms snaps wheel zoom in one step without multi-frame easing.
+  fireEvent.wheel(view.container.querySelector("canvas")!, {
+    deltaY: -100,
+    clientX: 100,
+    clientY: 100,
+  });
+  frame();
+  frame();
+  expect(ctx.scale.mock.lastCall[0]).toBeCloseTo(1.1);
+  expect(frames.size).toBe(0);
+});

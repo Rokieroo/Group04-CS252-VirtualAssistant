@@ -143,6 +143,71 @@ export const GRAPH_FALLBACK = {
 export type GraphPalette = typeof GRAPH_FALLBACK;
 const PALETTE_KEYS = Object.keys(GRAPH_FALLBACK) as (keyof GraphPalette)[];
 
+/** Canvas geometry and motion; mirrors the `--graph-*` tokens in GraphCanvas.css. */
+const GRAPH_METRICS_FALLBACK = {
+  nodeRadiusMin: 16,
+  nodeRadiusMax: 28,
+  edgeWidth: 1.2,
+  edgeWidthStrong: 1.8,
+  edgeWidthCycle: 2.5,
+  ringWidth: 1.5,
+  ringWidthActive: 2.5,
+  ringWidthSelected: 3,
+  motionDurationMs: 220, // --duration-base
+};
+type GraphMetrics = typeof GRAPH_METRICS_FALLBACK;
+type LengthMetric = Exclude<keyof GraphMetrics, "motionDurationMs">;
+const LENGTH_TOKENS: Record<LengthMetric, string> = {
+  nodeRadiusMin: "--graph-node-radius-min",
+  nodeRadiusMax: "--graph-node-radius-max",
+  edgeWidth: "--graph-edge-width",
+  edgeWidthStrong: "--graph-edge-width-strong",
+  edgeWidthCycle: "--graph-edge-width-cycle",
+  ringWidth: "--graph-ring-width",
+  ringWidthActive: "--graph-ring-width-active",
+  ringWidthSelected: "--graph-ring-width-selected",
+};
+
+function readGraphMetrics(container: HTMLElement | null): GraphMetrics {
+  const metrics = { ...GRAPH_METRICS_FALLBACK };
+  if (!container || typeof getComputedStyle !== "function") return metrics;
+  const style = getComputedStyle(container);
+  for (const [key, token] of Object.entries(LENGTH_TOKENS) as [
+    LengthMetric,
+    string,
+  ][]) {
+    const px = parseFloat(style.getPropertyValue(token));
+    if (px > 0) metrics[key] = px;
+  }
+  metrics.nodeRadiusMax = Math.max(
+    metrics.nodeRadiusMin,
+    metrics.nodeRadiusMax,
+  );
+  const duration = style.getPropertyValue("--graph-motion-duration").trim();
+  const value = parseFloat(duration);
+  if (value >= 0) {
+    const seconds = duration.endsWith("s") && !duration.endsWith("ms");
+    metrics.motionDurationMs = seconds ? value * 1000 : value;
+  }
+  return metrics;
+}
+
+function computeNodeRadius(node: GraphNode, m: GraphMetrics): number {
+  const clamped = Math.max(30, Math.min(node.est_minutes ?? 60, 240));
+  return (
+    m.nodeRadiusMin +
+    ((clamped - 30) / 210) * (m.nodeRadiusMax - m.nodeRadiusMin)
+  );
+}
+
+/** Per-frame lerp factor: the default duration keeps `baseFactor`, slower tokens ease gentler. */
+function motionEase(durationMs: number, baseFactor: number): number {
+  if (durationMs <= 0) return 1;
+  const scaled =
+    baseFactor * (GRAPH_METRICS_FALLBACK.motionDurationMs / durationMs);
+  return Math.min(0.95, Math.max(0.08, scaled));
+}
+
 function readPalette(swatches: HTMLElement | null): GraphPalette {
   const palette = { ...GRAPH_FALLBACK };
   if (!swatches || typeof getComputedStyle !== "function") return palette;
@@ -328,12 +393,17 @@ export function GraphCanvas({
     return () => query.removeEventListener?.("change", onChange);
   }, []);
 
-  // Theme colours, re-read when the app theme, accent or OS scheme changes.
+  // Theme colours and graph geometry/motion tokens, re-read when theme or style changes.
   const swatchesRef = useRef<HTMLDivElement | null>(null);
   const palette = useRef<GraphPalette>(GRAPH_FALLBACK);
+  const metrics = useRef<GraphMetrics>(GRAPH_METRICS_FALLBACK);
   useEffect(() => {
     const refresh = () => {
       palette.current = readPalette(swatchesRef.current);
+      metrics.current = readGraphMetrics(containerRef.current);
+      for (const node of internalNodesRef.current.values()) {
+        node.radius = computeNodeRadius(node, metrics.current);
+      }
       needsDraw.current = true;
       scheduleTickRef.current();
     };
@@ -346,6 +416,12 @@ export function GraphCanvas({
       attributes: true,
       attributeFilter: ["data-theme", "data-accent", "class", "style"],
     });
+    if (containerRef.current) {
+      observer?.observe(containerRef.current, {
+        attributes: true,
+        attributeFilter: ["class", "style"],
+      });
+    }
     const scheme =
       typeof matchMedia === "function"
         ? matchMedia("(prefers-color-scheme: dark)")
@@ -367,11 +443,9 @@ export function GraphCanvas({
     }
   }, [cyclePath]);
 
-  // Compute node size based on est_minutes
+  // Compute node size based on est_minutes using CSS radius tokens
   const getNodeRadius = useCallback((node: GraphNode): number => {
-    const mins = node.est_minutes ?? 60;
-    const clamped = Math.max(30, Math.min(mins, 240));
-    return 16 + ((clamped - 30) / 210) * 12; // 16px to 28px
+    return computeNodeRadius(node, metrics.current);
   }, []);
 
   const previousLayout = useRef(layout);
@@ -547,7 +621,9 @@ export function GraphCanvas({
         });
       }
 
-      const ease = reducedMotion.current ? 1 : 0.18;
+      const ease = reducedMotion.current
+        ? 1
+        : motionEase(metrics.current.motionDurationMs, 0.18);
       for (const n of nodeList) {
         if (n.targetX === undefined || n.targetY === undefined) continue;
         n.displayX += (n.targetX - n.displayX) * ease;
@@ -596,6 +672,7 @@ export function GraphCanvas({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const c = palette.current;
+    const m = metrics.current;
 
     const width = canvas.width;
     const height = canvas.height;
@@ -654,8 +731,8 @@ export function GraphCanvas({
         );
       }
     }
-    if (zoom >= 0.45) {
-      const step = 24;
+    if (zoom >= 0.35) {
+      const step = zoom < 0.6 ? 36 : 24;
       ctx.fillStyle = c.grid;
       const dot = 1.1 / zoom;
       for (let gx = Math.floor(left / step) * step; gx <= right; gx += step) {
@@ -693,7 +770,11 @@ export function GraphCanvas({
       ctx.save();
       ctx.strokeStyle = color;
       ctx.lineWidth =
-        (isCycleEdge ? 2.5 : strong ? 1.8 : 1.2) / Math.sqrt(zoom);
+        (isCycleEdge
+          ? m.edgeWidthCycle
+          : strong
+            ? m.edgeWidthStrong
+            : m.edgeWidth) / Math.sqrt(zoom);
       ctx.lineCap = "round";
       ctx.setLineDash(
         isCycleEdge
@@ -744,7 +825,7 @@ export function GraphCanvas({
         ctx.save();
         ctx.beginPath();
         ctx.strokeStyle = c.accent;
-        ctx.lineWidth = 1.8 / Math.sqrt(zoom);
+        ctx.lineWidth = m.edgeWidthStrong / Math.sqrt(zoom);
         ctx.setLineDash([5, 4]);
         ctx.moveTo(src.displayX, src.displayY);
         ctx.lineTo(edgeDragPos.current.x, edgeDragPos.current.y);
@@ -798,7 +879,7 @@ export function GraphCanvas({
 
       let fill = c.surface;
       let ring = withAlpha(c.edge, 0.9);
-      let ringWidth = 1.5;
+      let ringWidth = m.ringWidth;
       let dash: number[] = [];
       if (node.type === "milestone") {
         fill = c.ink;
@@ -808,12 +889,12 @@ export function GraphCanvas({
         ring = c.success;
       } else if (status === "in_progress") {
         ring = c.accent;
-        ringWidth = 2.5;
+        ringWidth = m.ringWidthActive;
       } else if (status === "available") {
         ring = c.accent;
       } else if (status === "review_due") {
         ring = c.warning;
-        ringWidth = 2.5;
+        ringWidth = m.ringWidthActive;
       } else if (status === "locked") {
         dash = [3, 3];
       }
@@ -823,7 +904,7 @@ export function GraphCanvas({
       }
       if (isSelected) {
         ring = isCycle ? c.danger : c.accent;
-        ringWidth = 3;
+        ringWidth = m.ringWidthSelected;
       }
 
       shape(r);
@@ -1058,7 +1139,9 @@ export function GraphCanvas({
         viewFrame.current = 0;
         return;
       }
-      const k = reducedMotion.current ? 1 : 0.25;
+      const k = reducedMotion.current
+        ? 1
+        : motionEase(metrics.current.motionDurationMs, 0.25);
       const { pan: p, zoom: z } = view.current;
       const next = {
         zoom: z + (target.zoom - z) * k,
@@ -1590,6 +1673,9 @@ export function GraphCanvas({
         </span>
         <span className="graph-legend-item">
           <i className="glyph glyph-done" /> Đã vững
+        </span>
+        <span className="graph-legend-item">
+          <i className="glyph glyph-attention" /> Cần chú ý
         </span>
         <span className="graph-legend-item">
           <i className="glyph glyph-milestone" /> Mốc kiểm tra
