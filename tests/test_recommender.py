@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import timedelta
 
 import httpx
 import pytest
@@ -14,7 +15,7 @@ from app.recommend import VERIFICATION, Feedback, needs_external, recommend
 from app.search import Candidate, FakeSearch, SearchService
 from app.vetting import Learner, Node, SafeFetcher, ScoredResource
 from assistant.backend import jobs, resources
-from assistant.backend.models import Job
+from assistant.backend.models import Job, SearchCacheEntry
 
 NODE = Node("Binary Search Trees", ("CLO1: implement ordered search structures",), 60)
 LEARNER = Learner(langs=("en", "vi"), level="university")
@@ -147,7 +148,8 @@ def fake_provider(monkeypatch):
             f"<p>Worked examples for students at {request.url}.</p></article></body></html>"))
 
     monkeypatch.setattr(resources, "make_search",
-                        lambda: SearchService([CountingSearch(candidates, name="web")]))
+                        lambda _db, quota: SearchService([CountingSearch(candidates, name="web")],
+                                                        quota=quota))
     monkeypatch.setattr(resources, "make_llm", Judge)
     monkeypatch.setattr(resources, "make_fetcher", lambda: SafeFetcher(
         resolver=lambda host, port: ["93.184.216.34"], transport=httpx.MockTransport(reply)))
@@ -207,3 +209,46 @@ def test_not_helpful_replaces_the_source_on_the_next_request(client, headers, ap
     assert disliked["resource_ref"] not in {r["resource_ref"] for r in after}
     assert len(after) == len(first)  # the next candidate came up, no new search
     assert search_jobs(app) == []
+
+
+# --- provider quota and the nightly refresh (issue #161) -----------------------------
+
+
+def test_over_quota_the_recommender_still_answers_from_the_database(
+    client, headers, app, clock, fake_provider, monkeypatch
+):
+    monkeypatch.setenv("PROVIDER_DAILY_QUOTA", "web=0")
+    _, node = roadmap_with_catalog(client, headers, app, clock[0],
+                                   ["Binary Search Trees lecture notes"])
+    shown = recommendations(client, headers, node)
+    assert [r["kind"] for r in shown] == ["catalog"]
+
+    assert jobs.run_once(app.state.database.sessions, clock[0]) is not None  # the search job
+    assert fake_provider.calls == 0
+    with app.state.database.sessions() as db:  # a cut-short search is not shared for 7 days
+        assert db.scalars(select(SearchCacheEntry)).all() == []
+    again = recommendations(client, headers, node)
+    assert [r["resource_ref"] for r in again] == [r["resource_ref"] for r in shown]
+
+
+def test_nightly_refresh_renews_studied_nodes_before_their_results_expire(
+    client, headers, app, clock, fake_provider
+):
+    sessions = app.state.database.sessions
+    _, node = roadmap_with_catalog(client, headers, app, clock[0], [])
+    recommendations(client, headers, node)
+    assert jobs.run_once(sessions, clock[0]) is not None  # the day's search fills the cache
+    assert recommendations(client, headers, node)  # the learner studies the node
+    searched = fake_provider.calls
+
+    late = clock[0] + timedelta(days=6, hours=12)
+    with sessions() as db:
+        assert resources.refresh_searches(db, {}, clock[0]) == {"queued": 0}  # still fresh
+        assert resources.refresh_searches(db, {}, late) == {"queued": 1}
+        assert resources.refresh_searches(db, {}, late) == {"queued": 0}  # once a night
+        db.commit()
+    assert jobs.run_once(sessions, late) is not None
+    assert fake_provider.calls > searched  # searched again while the cache was still valid
+    with sessions() as db:
+        [entry] = db.scalars(select(SearchCacheEntry)).all()
+        assert entry.expires_at > clock[0] + timedelta(days=7)

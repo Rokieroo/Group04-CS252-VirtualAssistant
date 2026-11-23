@@ -95,7 +95,7 @@ def e2e_mock_pipeline(monkeypatch):
     monkeypatch.setattr(
         resources,
         "make_search",
-        lambda: SearchService([FakeSearch(candidates, name="web")]),
+        lambda *_: SearchService([FakeSearch(candidates, name="web")]),
     )
     monkeypatch.setattr(resources, "make_llm", E2EJudgeLLM)
     monkeypatch.setattr(resources, "make_fetcher", make_e2e_safe_fetcher)

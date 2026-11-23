@@ -132,7 +132,7 @@ def make_safe_fetcher():
 
 @pytest.fixture
 def mock_pipeline(monkeypatch):
-    monkeypatch.setattr(resources, "make_search", make_test_search)
+    monkeypatch.setattr(resources, "make_search", lambda *_: make_test_search())
     monkeypatch.setattr(resources, "make_llm", MockJudgeLLM)
     monkeypatch.setattr(resources, "make_fetcher", make_safe_fetcher)
 
@@ -351,7 +351,7 @@ def test_get_resources_insufficient_when_few_found(
     client, headers, sessions, monkeypatch
 ):
     # Only 1 candidate available -> less than MIN_SOURCES (2)
-    single_search = lambda: SearchService(
+    single_search = lambda *_: SearchService(
         [
             FakeSearch(
                 [
@@ -431,7 +431,7 @@ def test_resource_feedback_unhelpful_returns_replacement(
     client, headers, sessions, monkeypatch
 ):
     pool_urls = [f"https://example{i}.org/recursion-{i}" for i in range(8)]
-    monkeypatch.setattr(resources, "make_search", lambda: make_test_search(pool_urls))
+    monkeypatch.setattr(resources, "make_search", lambda *_: make_test_search(pool_urls))
     monkeypatch.setattr(resources, "make_llm", ModerateJudgeLLM)
     monkeypatch.setattr(resources, "make_fetcher", make_safe_fetcher)
 
@@ -675,7 +675,7 @@ def test_feedback_does_not_return_reserve_with_stale_cached_provenance(
     from assistant.backend.models import Resource
 
     pool_urls = [f"https://example{i}.org/recursion-{i}" for i in range(8)]
-    monkeypatch.setattr(resources, "make_search", lambda: make_test_search(pool_urls))
+    monkeypatch.setattr(resources, "make_search", lambda *_: make_test_search(pool_urls))
     monkeypatch.setattr(resources, "make_llm", ModerateJudgeLLM)
     monkeypatch.setattr(resources, "make_fetcher", make_safe_fetcher)
     user_id = client.get("/api/v1/me", headers=headers).json()["id"]

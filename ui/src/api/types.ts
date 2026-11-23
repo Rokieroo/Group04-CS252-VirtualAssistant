@@ -145,10 +145,15 @@ export type ProviderUsage = {
   calls: number;
   errors: number;
   calls_today: number;
+  error_rate: number; // errors / calls, 0..1
   avg_latency_ms: number;
+  p95_latency_ms: number;
   max_latency_ms: number;
   cost_usd: number;
 };
+
+/** A provider failing more than 20% of its calls in the last hour (#161). */
+export type ProviderAlert = { provider: string; calls: number; errors: number; error_rate: number };
 
 export type DailyCost = { day: string; searches: number; cost_usd: number };
 
@@ -159,6 +164,7 @@ export type CostReport = {
   nodes: NodeCost[];
   providers: ProviderUsage[];
   daily: DailyCost[];
+  alerts: ProviderAlert[];
 };
 
 /** GET /admin/catalog/health (issue #105): where the shared catalog lacks sources. */

@@ -6,10 +6,14 @@ writes one ``resource_searches`` row plus one ``search_runs`` row per provider
 call, so the cost dashboard sees every search (issue #69, spec 11.8).
 
 Results are shared through the 7-day search cache keyed by node signature, so a
-second learner of the same node costs nothing and is logged as a cache hit.
+second learner of the same node costs nothing and is logged as a cache hit. Each
+external provider stays within its daily quota (``provider_quota``, issue #161);
+past it the search answers from the catalog alone, and ``refresh_searches`` renews
+studied nodes' results each night before they expire.
 """
 
-from collections.abc import Sequence
+import logging
+from collections.abc import Mapping, Sequence
 from dataclasses import asdict
 from datetime import datetime, timedelta
 
@@ -20,31 +24,55 @@ from app.curator import Curation
 from app.finder import SearchStats, find_resources
 from app.llm import get_client
 from app.recommend import STRONG, needs_external
-from app.search import SearchService, canonical_url, node_signature
+from app.search import (
+    CatalogSearch,
+    SearchService,
+    WebSearch,
+    YouTubeSearch,
+    canonical_url,
+    node_signature,
+)
 from app.vetting import Learner, Node, SafeFetcher
 
 from .cache import cached_search, store_search
+from .catalog_jobs import tonight
+from .costs import failing_providers
 from .jobs import enqueue, handler
 from .models import (
     Course,
     Job,
     LearningOutcome,
     NodeResource,
+    Recommendation,
     Resource,
     ResourceSearch,
     Roadmap,
     RoadmapNode,
+    SearchCacheEntry,
     SearchRun,
     Syllabus,
     User,
 )
+from .provider_quota import remaining_calls
+
+log = logging.getLogger(__name__)
+
+
+def default_search(db: Session, quota: Mapping[str, int]) -> SearchService:
+    """The production providers, catalog first; ``quota`` caps the external ones."""
+    return SearchService([CatalogSearch(session=db), YouTubeSearch(), WebSearch()], quota=quota)
+
 
 # Seams for tests and vendor swaps; production uses the configured providers.
-make_search = SearchService
+make_search = default_search
 make_llm = get_client
 make_fetcher = SafeFetcher
 
 SEARCHES_PER_HOUR = 20  # per learner: searches cost provider quota and judge calls
+REFRESH = "refresh_searches"
+REFRESH_BATCH = 50  # searches queued a night: bounds the quota one refresh can spend
+STUDIED = timedelta(days=7)  # a node recommended this week is still being studied
+REFRESH_AHEAD = timedelta(days=1)  # renew results that would expire before the next night
 
 
 def _outcomes(db: Session, course_id: str) -> tuple[str, ...]:
@@ -64,12 +92,9 @@ def _outcomes(db: Session, course_id: str) -> tuple[str, ...]:
     return tuple(rows)
 
 
-def _search(node: Node, learner: Learner, course: Course, *, db=None) -> tuple[Curation, SearchStats]:
-    from app.search.catalog import CatalogSearch
-    from app.search.web import WebSearch
-    from app.search.youtube import YouTubeSearch
-    search = (SearchService(providers=[CatalogSearch(session=db), YouTubeSearch(), WebSearch()])
-              if db is not None and make_search is SearchService else make_search())
+def _search(
+    node: Node, learner: Learner, course: Course, search: SearchService
+) -> tuple[Curation, SearchStats]:
     with make_fetcher() as fetcher:
         found = find_resources(
             node,
@@ -254,16 +279,23 @@ def search_resources(db: Session, payload: dict, now: datetime) -> dict:
     learner = learner_for(course, user)
 
     signature = search_signature(db, node, course, outcomes=outcomes)
-    cached = cached_search(db, signature, now)
+    # A nightly refresh searches again even while the results it renews are still valid.
+    cached = None if payload.get("refresh") else cached_search(db, signature, now)
     if cached is not None:
         curation, stats = Curation.from_dict(cached), None
     else:
-        curation, stats = (_search(target, learner, course, db=db) if make_search is SearchService
-                           else _search(target, learner, course))
-        store_search(db, signature, asdict(curation), now)
+        service = make_search(db, remaining_calls(db, roadmap.user_id, now))
+        curation, stats = _search(target, learner, course, service)
+        # Results a quota cut short would stand in for a full search for 7 days.
+        if not getattr(service, "last_skipped", None):
+            store_search(db, signature, asdict(curation), now)
 
     _link(db, node.id, curation)
     search = _log(db, node, roadmap.user_id, curation, stats, now)
+    if stats is not None:
+        for failing in failing_providers(db, now):
+            log.warning("provider=%(provider)s failed %(errors)d of %(calls)d calls "
+                        "in the last hour", failing)
     return {
         "search_id": search.id,
         "status": curation.status,
@@ -271,3 +303,47 @@ def search_resources(db: Session, payload: dict, now: datetime) -> dict:
         "cache_hit": stats is None,
         "cost_usd": round(search.llm_cost_usd + search.search_cost_usd, 6),
     }
+
+
+def schedule_nightly(db: Session, now: datetime) -> None:
+    """Queue tonight's refresh once; called daily, the dedupe key makes repeats no-ops."""
+    enqueue(db, REFRESH, now=now, dedupe_key=f"{REFRESH}:{now.date().isoformat()}",
+            run_after=tonight(now))
+
+
+@handler(REFRESH)
+def refresh_searches(db: Session, payload: dict, now: datetime) -> dict:
+    """Search again for studied nodes whose shared results expire before the next night.
+
+    Daytime requests then read fresh results from the cache instead of waiting for a
+    search. Nodes with the same signature share one search; the most recently
+    recommended nodes go first, and at most ``REFRESH_BATCH`` searches are queued.
+    """
+    studied = db.scalars(
+        select(RoadmapNode)
+        .join(Recommendation, Recommendation.node_id == RoadmapNode.id)
+        .where(Recommendation.created_at >= now - STUDIED)
+        .group_by(RoadmapNode.id)
+        .order_by(func.max(Recommendation.created_at).desc())
+    ).all()
+    outcomes: dict[str, tuple[str, ...]] = {}
+    queued = 0
+    for node in studied:
+        course = db.get(Course, db.get(Roadmap, node.roadmap_id).course_id)
+        if course.id not in outcomes:
+            outcomes[course.id] = _outcomes(db, course.id)
+        signature = search_signature(db, node, course, outcomes=outcomes[course.id])
+        entry = db.get(SearchCacheEntry, signature)
+        if entry is None or entry.expires_at > now + REFRESH_AHEAD:
+            continue  # never searched (the catalog sufficed), or still fresh tomorrow
+        job = enqueue(
+            db,
+            "search_resources",
+            {"node_id": node.id, "refresh": True},
+            now=now,
+            dedupe_key=f"{REFRESH}:{signature}:{now.date().isoformat()}",
+        )
+        queued += job is not None
+        if queued == REFRESH_BATCH:
+            break
+    return {"queued": queued}
