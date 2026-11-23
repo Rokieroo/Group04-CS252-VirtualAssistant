@@ -179,7 +179,10 @@ function readGraphMetrics(container: HTMLElement | null): GraphMetrics {
     const px = parseFloat(style.getPropertyValue(token));
     if (px > 0) metrics[key] = px;
   }
-  metrics.nodeRadiusMax = Math.max(metrics.nodeRadiusMin, metrics.nodeRadiusMax);
+  metrics.nodeRadiusMax = Math.max(
+    metrics.nodeRadiusMin,
+    metrics.nodeRadiusMax,
+  );
   const duration = style.getPropertyValue("--graph-motion-duration").trim();
   const value = parseFloat(duration);
   if (value >= 0) {
@@ -192,7 +195,8 @@ function readGraphMetrics(container: HTMLElement | null): GraphMetrics {
 function computeNodeRadius(node: GraphNode, m: GraphMetrics): number {
   const clamped = Math.max(30, Math.min(node.est_minutes ?? 60, 240));
   return (
-    m.nodeRadiusMin + ((clamped - 30) / 210) * (m.nodeRadiusMax - m.nodeRadiusMin)
+    m.nodeRadiusMin +
+    ((clamped - 30) / 210) * (m.nodeRadiusMax - m.nodeRadiusMin)
   );
 }
 
