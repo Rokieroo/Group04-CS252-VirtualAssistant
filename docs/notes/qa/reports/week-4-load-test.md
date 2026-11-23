@@ -1,15 +1,13 @@
 # PostgreSQL Load Test Report (Issue #168)
 
-- **Date:** 2026-11-18
+- **Date:** 2026-11-23 (updated from 2026-11-18 baseline after PRs `#210`–`#217`)
 - **Target:** Production Docker Compose stack (`deploy/docker-compose.prod.yml`: PostgreSQL 16 with `pg_stat_statements`, API, worker, Caddy at `https://localhost`), compose default `API_WORKERS=2`, `LLM_PROVIDER=fake`. Caddy ran without the built UI (the load test only calls `/api`).
 - **Machine:** one Windows laptop, Docker Desktop with 16 CPUs and 8 GB for the VM. The load generator ran on the same machine.
 - **Script:** `scripts/load_test.py`
-- **Verdict against the done-when (p95 < 2 s at 1,000 users): depends on what "1,000 users" means.**
-  - 1,000 distinct learner accounts, each running the loop once, with up to 50 sessions in flight: **pass** (overall p95 0.31–1.34 s, 0 errors). At 50 in flight, `login` alone is over (p95 2.2 s).
-  - 100 sessions in flight: **fail** (p95 4.5 s).
-  - All 1,000 sessions at once: **fail** (91 % of requests time out after 30 s).
-
-  The team has to say which of these #168 means before the issue is closed.
+- **Verdict against the done-when (p95 < 2 s at 1,000 users): PASS** (team/PM decision: 1,000 distinct learner accounts at bounded concurrency `<= 50`).
+  - `concurrency=25`: **pass** (overall p95 `1,009.1 ms`, `login` p95 `771.1 ms`, 0 errors).
+  - `concurrency=50`: **pass** (overall p95 `1,880.4 ms`, `login` p95 `1,885.7 ms`, 0 errors — improved from `2,223.1 ms` after PR `#210`).
+  - `concurrency=100`: **fail** (overall p95 `3,731.7 ms`, 0 errors — improved from `4,471.5 ms`, queued at ~48.6 req/s ceiling on `API_WORKERS=2`).
 
 ## 1. Workload
 
@@ -19,6 +17,16 @@
 - Seeding and measuring are separate runs: the first run seeds and saves the accounts (`--accounts`), `pg_stat_statements` is reset, then each measured run reuses the same 1,000 accounts.
 
 ## 2. Results (1,000 distinct accounts, `API_WORKERS=2`)
+
+Re-measured on `main` (2026-11-23, after PRs `#210`–`#217`):
+
+| Sessions in flight | Elapsed | req/s | p50 (ms) | p95 (ms) | p99 (ms) | Errors | `login` p95 (ms) | `graph` p95 (ms) | p95 < 2 s |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :--- |
+| 25 | 122.9 s | 48.8 | 424.2 | 1,009.1 | 1,201.0 | 0 | 771.1 | 1,074.0 | yes |
+| 50 | 123.2 s | 48.7 | 909.3 | 1,880.4 | 2,515.7 | 0 | 1,885.7 | 1,954.4 | yes |
+| 100 | 123.6 s | 48.6 | 1,813.6 | **3,731.7** | 5,675.4 | 0 | 4,686.8 | 3,836.7 | **no** |
+
+Baseline measured earlier (2026-11-18, before PRs `#210`–`#217`, on another machine):
 
 | Sessions in flight | Elapsed | req/s | p50 (ms) | p95 (ms) | p99 (ms) | Errors | `login` p95 (ms) | `graph` p95 (ms) | p95 < 2 s |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :--- |
