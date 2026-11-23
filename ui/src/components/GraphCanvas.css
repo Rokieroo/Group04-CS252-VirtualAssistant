@@ -29,7 +29,7 @@
   --graph-ring-width: 1.5px;
   --graph-ring-width-active: 2.5px;
   --graph-ring-width-selected: 3px;
-  --graph-motion-duration: var(--duration-base, 200ms);
+  --graph-motion-duration: var(--duration-base, 220ms);
   --graph-motion-ease: var(--ease-decelerate, ease-out);
 
   position: relative;

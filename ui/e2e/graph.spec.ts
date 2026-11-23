@@ -46,7 +46,12 @@ const nodes = [
     roadmap_id: "rm",
   },
 ];
-async function backend(page: Page, courseNodes = nodes) {
+/** Fixture nodes may pin the graph status and sources state the mock reports. */
+type CourseNode = (typeof nodes)[number] & {
+  status?: string;
+  sources_status?: string;
+};
+async function backend(page: Page, courseNodes: CourseNode[] = nodes) {
   page.on("pageerror", (e) => console.log("GRAPH PAGE ERROR", e.stack));
   let positions: { node_id: string; x: number; y: number; pinned: boolean }[] =
     [];
@@ -357,29 +362,16 @@ async function backend(page: Page, courseNodes = nodes) {
       return route.fulfill({ json: { positions, saved: positions.length } });
     }
     if (path.endsWith("/graph")) {
-      const graphNodes = courseNodes.map(({ covers, ...n }, i) => {
-        const extra = n as Record<string, unknown>;
-        return {
-          ...n,
-          status:
-            typeof extra.status === "string"
-              ? extra.status
-              : i === 0
-                ? "completed"
-                : "pending",
-          outcome_ids: [i < 2 ? "CLO1" : "CLO2"],
-          source_pages: [1],
-          source_count: i < 2 ? 2 : 0,
-          user_material_count: i === 1 ? 2 : 0,
-          sources_status:
-            typeof extra.sources_status === "string"
-              ? extra.sources_status
-              : i < 2
-                ? "ready"
-                : "insufficient",
-          layer: i + 1,
-        };
-      });
+      const graphNodes = courseNodes.map(({ covers, ...n }, i) => ({
+        ...n,
+        status: n.status ?? (i === 0 ? "completed" : "pending"),
+        outcome_ids: [i < 2 ? "CLO1" : "CLO2"],
+        source_pages: [1],
+        source_count: i < 2 ? 2 : 0,
+        user_material_count: i === 1 ? 2 : 0,
+        sources_status: n.sources_status ?? (i < 2 ? "ready" : "insufficient"),
+        layer: i + 1,
+      }));
       return route.fulfill({
         json: {
           nodes: graphNodes,

@@ -143,7 +143,8 @@ export const GRAPH_FALLBACK = {
 export type GraphPalette = typeof GRAPH_FALLBACK;
 const PALETTE_KEYS = Object.keys(GRAPH_FALLBACK) as (keyof GraphPalette)[];
 
-export const GRAPH_METRICS_FALLBACK = {
+/** Canvas geometry and motion; mirrors the `--graph-*` tokens in GraphCanvas.css. */
+const GRAPH_METRICS_FALLBACK = {
   nodeRadiusMin: 16,
   nodeRadiusMax: 28,
   edgeWidth: 1.2,
@@ -152,77 +153,50 @@ export const GRAPH_METRICS_FALLBACK = {
   ringWidth: 1.5,
   ringWidthActive: 2.5,
   ringWidthSelected: 3,
-  motionDurationMs: 200,
+  motionDurationMs: 220, // --duration-base
 };
-export type GraphMetrics = typeof GRAPH_METRICS_FALLBACK;
-
-function parseCssNumber(raw: string, fallback: number): number {
-  const trimmed = raw.trim();
-  if (!trimmed) return fallback;
-  const value = parseFloat(trimmed);
-  return Number.isFinite(value) && value > 0 ? value : fallback;
-}
-
-function parseCssDurationMs(raw: string, fallback: number): number {
-  const trimmed = raw.trim();
-  if (!trimmed) return fallback;
-  const value = parseFloat(trimmed);
-  if (!Number.isFinite(value) || value < 0) return fallback;
-  return trimmed.endsWith("ms") ? value : trimmed.endsWith("s") ? value * 1000 : value;
-}
+type GraphMetrics = typeof GRAPH_METRICS_FALLBACK;
+type LengthMetric = Exclude<keyof GraphMetrics, "motionDurationMs">;
+const LENGTH_TOKENS: Record<LengthMetric, string> = {
+  nodeRadiusMin: "--graph-node-radius-min",
+  nodeRadiusMax: "--graph-node-radius-max",
+  edgeWidth: "--graph-edge-width",
+  edgeWidthStrong: "--graph-edge-width-strong",
+  edgeWidthCycle: "--graph-edge-width-cycle",
+  ringWidth: "--graph-ring-width",
+  ringWidthActive: "--graph-ring-width-active",
+  ringWidthSelected: "--graph-ring-width-selected",
+};
 
 function readGraphMetrics(container: HTMLElement | null): GraphMetrics {
-  const m = { ...GRAPH_METRICS_FALLBACK };
-  if (!container || typeof getComputedStyle !== "function") return m;
+  const metrics = { ...GRAPH_METRICS_FALLBACK };
+  if (!container || typeof getComputedStyle !== "function") return metrics;
   const style = getComputedStyle(container);
-  m.nodeRadiusMin = parseCssNumber(
-    style.getPropertyValue("--graph-node-radius-min"),
-    m.nodeRadiusMin,
-  );
-  m.nodeRadiusMax = Math.max(
-    m.nodeRadiusMin,
-    parseCssNumber(
-      style.getPropertyValue("--graph-node-radius-max"),
-      m.nodeRadiusMax,
-    ),
-  );
-  m.edgeWidth = parseCssNumber(
-    style.getPropertyValue("--graph-edge-width"),
-    m.edgeWidth,
-  );
-  m.edgeWidthStrong = parseCssNumber(
-    style.getPropertyValue("--graph-edge-width-strong"),
-    m.edgeWidthStrong,
-  );
-  m.edgeWidthCycle = parseCssNumber(
-    style.getPropertyValue("--graph-edge-width-cycle"),
-    m.edgeWidthCycle,
-  );
-  m.ringWidth = parseCssNumber(
-    style.getPropertyValue("--graph-ring-width"),
-    m.ringWidth,
-  );
-  m.ringWidthActive = parseCssNumber(
-    style.getPropertyValue("--graph-ring-width-active"),
-    m.ringWidthActive,
-  );
-  m.ringWidthSelected = parseCssNumber(
-    style.getPropertyValue("--graph-ring-width-selected"),
-    m.ringWidthSelected,
-  );
-  m.motionDurationMs = parseCssDurationMs(
-    style.getPropertyValue("--graph-motion-duration"),
-    m.motionDurationMs,
-  );
-  return m;
+  for (const [key, token] of Object.entries(LENGTH_TOKENS) as [
+    LengthMetric,
+    string,
+  ][]) {
+    const px = parseFloat(style.getPropertyValue(token));
+    if (px > 0) metrics[key] = px;
+  }
+  metrics.nodeRadiusMax = Math.max(metrics.nodeRadiusMin, metrics.nodeRadiusMax);
+  const duration = style.getPropertyValue("--graph-motion-duration").trim();
+  const value = parseFloat(duration);
+  if (value >= 0) {
+    const seconds = duration.endsWith("s") && !duration.endsWith("ms");
+    metrics.motionDurationMs = seconds ? value * 1000 : value;
+  }
+  return metrics;
 }
 
 function computeNodeRadius(node: GraphNode, m: GraphMetrics): number {
-  const mins = node.est_minutes ?? 60;
-  const clamped = Math.max(30, Math.min(mins, 240));
-  return m.nodeRadiusMin + ((clamped - 30) / 210) * (m.nodeRadiusMax - m.nodeRadiusMin);
+  const clamped = Math.max(30, Math.min(node.est_minutes ?? 60, 240));
+  return (
+    m.nodeRadiusMin + ((clamped - 30) / 210) * (m.nodeRadiusMax - m.nodeRadiusMin)
+  );
 }
 
+/** Per-frame lerp factor: the default duration keeps `baseFactor`, slower tokens ease gentler. */
 function motionEase(durationMs: number, baseFactor: number): number {
   if (durationMs <= 0) return 1;
   const scaled =
