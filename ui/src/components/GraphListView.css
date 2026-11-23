@@ -122,11 +122,11 @@
 }
 
 .status-in-progress {
-  background: #dbeafe;
-  color: var(--color-primary-ink);
+  background: light-dark(#dbeafe, #203b59);
+  color: light-dark(#1e40af, #c6e3ff);
 }
 .status-in-progress .status-indicator {
-  background: var(--color-primary);
+  background: currentColor;
 }
 
 .status-review-due {

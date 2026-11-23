@@ -150,7 +150,19 @@ test("mock login, upload and concept edits work across navigation", async ({
 }, testInfo) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "pathly.appearance.v1",
+      JSON.stringify({
+        accent: "visible-spectrum",
+        theme: "dark",
+      }),
+    );
+  });
   await page.goto("/");
+  const mark = page.locator(".auth-brand > span");
+  await expect(mark).toHaveCSS("background-image", /^linear-gradient/);
+  await expect(mark).toHaveCSS("color", "rgb(16, 21, 30)");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByLabel("Email", { exact: true })).toHaveAttribute(
     "aria-invalid",

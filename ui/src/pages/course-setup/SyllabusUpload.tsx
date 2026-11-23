@@ -86,6 +86,7 @@ export function SyllabusUpload({ busy, mock, onUpload }: Props) {
             <label>
               Syllabus text
               <textarea
+                className="study-syllabus-text"
                 disabled={busy}
                 maxLength={120000}
                 rows={6}
