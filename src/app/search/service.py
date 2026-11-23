@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import parse_qs, urlsplit, urlunsplit
@@ -174,7 +174,10 @@ class SearchService:
         max_results: int = DEFAULT_MAX_RESULTS,
         session: Any | None = None,
         user_id: str | None = None,
+        quota: Mapping[str, int] | None = None,
     ):
+        """``quota`` maps a provider name to the calls it may still make; others are unlimited."""
+        self.quota = dict(quota or {})
         self.providers = list(
             providers
             if providers is not None
@@ -188,6 +191,7 @@ class SearchService:
         self.last_runs: list[SearchRunRecord] = []
         self.last_candidates: list[Candidate] = []
         self.last_record_error: str | None = None
+        self.last_skipped: set[str] = set()  # providers that ran out of quota
 
     def search(
         self,
@@ -223,6 +227,7 @@ class SearchService:
         self.last_errors = {}
         self.last_runs = []
         self.last_record_error = None
+        self.last_skipped = set()
         for raw in raw_queries:
             filtered = _clean(filter_pii(str(raw)))[:240].strip()
             if filtered and filtered not in self.last_queries:
@@ -243,6 +248,9 @@ class SearchService:
         for provider in providers:
             provider_name = getattr(provider, "name", "") or type(provider).__name__
             for search_query in self.last_queries:
+                if not self._spend(provider_name):
+                    self.last_skipped.add(provider_name)
+                    continue  # over quota: the catalog and database still answer
                 status = "empty"
                 error: str | None = None
                 results: list[Candidate] = []
@@ -295,6 +303,16 @@ class SearchService:
 
         self.last_candidates = collected[: self.max_results]
         return self.last_candidates
+
+    def _spend(self, provider: str) -> bool:
+        """Take one call from ``provider``'s quota; False when none is left."""
+        left = self.quota.get(provider)
+        if left is None:
+            return True
+        if left <= 0:
+            return False
+        self.quota[provider] = left - 1
+        return True
 
     def _persist(
         self,

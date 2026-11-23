@@ -113,6 +113,8 @@ def test_schedule_daily_enqueues_upkeep_once_per_day(sessions):
         "fill_gaps:2030-01-08",
         "prune:2030-01-07",
         "prune:2030-01-08",
+        "refresh_searches:2030-01-07",
+        "refresh_searches:2030-01-08",
         "verify_catalog:2030-01-07",
         "verify_catalog:2030-01-08",
     ]
@@ -307,6 +309,8 @@ def test_worker_schedules_upkeep_and_runs_jobs_until_stopped(app, client, monkey
     monkeypatch.setattr(vetting, "check_url", lambda url: 200)
     # The nightly catalog jobs read providers over the network; test_catalog_jobs.py.
     monkeypatch.setattr(maintenance.catalog_jobs, "schedule_nightly", lambda db, now: None)
+    # The nightly search refresh (#161) is tested in test_recommender.py.
+    monkeypatch.setattr(maintenance.resources, "schedule_nightly", lambda db, now: None)
     stop = threading.Event()
     ran = []
     real_run_once = jobs.run_once

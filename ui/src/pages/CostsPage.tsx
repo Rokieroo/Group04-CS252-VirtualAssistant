@@ -5,6 +5,7 @@ import type { CostReport } from "../api/types";
 
 const WINDOWS = [7, 30, 90];
 const usd = (value: number) => `$${value.toFixed(value && value < 0.01 ? 4 : 2)}`;
+const percent = (share: number) => `${Math.round(share * 100)}%`;
 
 /** Admin dashboard (issue #69): what resource searches cost, per roadmap step and provider. */
 export function CostsPage({ load = loadCosts }: { load?: (days: number) => Promise<CostReport> }) {
@@ -95,6 +96,12 @@ export function CostsPage({ load = loadCosts }: { load?: (days: number) => Promi
 
       <section className="card">
         <h3>Search providers</h3>
+        {report.alerts.map((alert) => (
+          <p key={alert.provider} role="alert" className="warning">
+            {alert.provider} failed {alert.errors} of {alert.calls} calls (
+            {percent(alert.error_rate)}) in the last hour.
+          </p>
+        ))}
         <table className="cost-table">
           <thead>
             <tr>
@@ -102,7 +109,7 @@ export function CostsPage({ load = loadCosts }: { load?: (days: number) => Promi
               <th scope="col">Calls</th>
               <th scope="col">Today</th>
               <th scope="col">Errors</th>
-              <th scope="col">Avg latency</th>
+              <th scope="col">p95 latency</th>
               <th scope="col">Max latency</th>
               <th scope="col">Cost</th>
             </tr>
@@ -113,8 +120,10 @@ export function CostsPage({ load = loadCosts }: { load?: (days: number) => Promi
                 <th scope="row">{provider.provider}</th>
                 <td>{provider.calls}</td>
                 <td>{provider.calls_today}</td>
-                <td>{provider.errors}</td>
-                <td>{Math.round(provider.avg_latency_ms)} ms</td>
+                <td>
+                  {provider.errors} ({percent(provider.error_rate)})
+                </td>
+                <td>{provider.p95_latency_ms} ms</td>
                 <td>{provider.max_latency_ms} ms</td>
                 <td>{usd(provider.cost_usd)}</td>
               </tr>

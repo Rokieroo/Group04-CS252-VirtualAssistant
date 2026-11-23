@@ -135,6 +135,7 @@ In accordance with **ADR 002**, the staging infrastructure decouples frontend ho
    - `LLM_API_KEY`: Google Gemini API Key.
    - `YOUTUBE_API_KEY`: YouTube Data API key for the resource finder (optional; empty disables the provider).
    - `SEARCH_API_KEY`: Web search provider key for the resource finder (optional; empty disables the provider).
+   - `PROVIDER_DAILY_QUOTA` / `PROVIDER_LEARNER_DAILY_QUOTA`: daily calls per provider across all learners / per learner, e.g. `youtube=90,web=2000` (optional; unset is unlimited). Past a quota the worker answers from the catalog only; the admin cost dashboard shows each provider's calls, error rate and p95 latency, and warns when one fails more than 20% of its calls in an hour.
 5. Set **Health Check Path**: `/api/v1/health`.
 6. Click **Create Web Service**. Render builds the image, executes database migrations, and exposes an endpoint such as `https://study-companion-api.onrender.com`.
 
@@ -144,7 +145,7 @@ Slow work (syllabus parsing, resource search) and the daily link check run in th
 
 1. On Render Dashboard: **New +** -> **Background Worker**, same repository and branch, **Runtime: Docker**.
 2. **Docker Command**: `python -m assistant.backend.worker`.
-3. **Environment Variables**: the same values as the API (at least `DATABASE_URL`, plus `LLM_*`, `YOUTUBE_API_KEY`, `SEARCH_API_KEY`). An Environment Group shared by both services keeps them in one place.
+3. **Environment Variables**: the same values as the API (at least `DATABASE_URL`, plus `LLM_*`, `YOUTUBE_API_KEY`, `SEARCH_API_KEY`, `PROVIDER_*_QUOTA`). An Environment Group shared by both services keeps them in one place.
 4. Deploy the API first: it applies migrations, the worker does not.
 5. Scale by adding instances; workers claim jobs atomically, and the daily link check is enqueued once per day however many run.
 

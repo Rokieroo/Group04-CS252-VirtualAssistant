@@ -681,9 +681,20 @@ class ProviderUsage(Output):
     calls: int
     errors: int
     calls_today: int  # against the provider's daily quota
+    error_rate: float  # errors / calls, 0..1
     avg_latency_ms: float
+    p95_latency_ms: int
     max_latency_ms: int
     cost_usd: float
+
+
+class ProviderAlert(Output):
+    """A provider failing more than 20% of its calls in the last hour (#161)."""
+
+    provider: str
+    calls: int
+    errors: int
+    error_rate: float
 
 
 class DailyCost(Output):
@@ -699,6 +710,7 @@ class CostReport(Output):
     nodes: list[NodeCost]  # most expensive first
     providers: list[ProviderUsage]
     daily: list[DailyCost]
+    alerts: list[ProviderAlert]
 
 
 # --- Catalog health (issue #105) ---------------------------------------------

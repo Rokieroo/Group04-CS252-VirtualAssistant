@@ -107,7 +107,7 @@ def sessions(app, client):
 
 @pytest.fixture
 def pipeline(monkeypatch):
-    monkeypatch.setattr(resources, "make_search", lambda: SearchService([web(URLS)]))
+    monkeypatch.setattr(resources, "make_search", lambda *_: SearchService([web(URLS)]))
     monkeypatch.setattr(resources, "make_llm", PricedLLM)
     monkeypatch.setattr(resources, "make_fetcher", fetcher)
 
@@ -208,6 +208,8 @@ def test_dashboard_shows_cost_per_node_and_provider_latency(sessions, client, he
     [provider] = report["providers"]
     assert provider["provider"] == "web" and provider["calls"] == provider["calls_today"] == 5
     assert provider["cost_usd"] == pytest.approx(0.005)
+    assert provider["error_rate"] == 0 and report["alerts"] == []
+    assert provider["p95_latency_ms"] == provider["max_latency_ms"]  # 5 calls: rank 5
     [day] = report["daily"]
     assert day["day"] == "2030-01-07" and day["searches"] == 2
 

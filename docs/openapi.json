@@ -5418,6 +5418,13 @@
             },
             "type": "array",
             "title": "Daily"
+          },
+          "alerts": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderAlert"
+            },
+            "type": "array",
+            "title": "Alerts"
           }
         },
         "type": "object",
@@ -5427,7 +5434,8 @@
           "totals",
           "nodes",
           "providers",
-          "daily"
+          "daily",
+          "alerts"
         ],
         "title": "CostReport"
       },
@@ -7569,6 +7577,35 @@
         ],
         "title": "ProposedEntry"
       },
+      "ProviderAlert": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "errors": {
+            "type": "integer",
+            "title": "Errors"
+          },
+          "error_rate": {
+            "type": "number",
+            "title": "Error Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "calls",
+          "errors",
+          "error_rate"
+        ],
+        "title": "ProviderAlert",
+        "description": "A provider failing more than 20% of its calls in the last hour (#161)."
+      },
       "ProviderUsage": {
         "properties": {
           "provider": {
@@ -7587,9 +7624,17 @@
             "type": "integer",
             "title": "Calls Today"
           },
+          "error_rate": {
+            "type": "number",
+            "title": "Error Rate"
+          },
           "avg_latency_ms": {
             "type": "number",
             "title": "Avg Latency Ms"
+          },
+          "p95_latency_ms": {
+            "type": "integer",
+            "title": "P95 Latency Ms"
           },
           "max_latency_ms": {
             "type": "integer",
@@ -7606,7 +7651,9 @@
           "calls",
           "errors",
           "calls_today",
+          "error_rate",
           "avg_latency_ms",
+          "p95_latency_ms",
           "max_latency_ms",
           "cost_usd"
         ],

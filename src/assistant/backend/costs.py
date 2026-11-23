@@ -1,10 +1,12 @@
-"""Cost and quota report behind the admin dashboard (issue #69).
+"""Cost and quota report behind the admin dashboard (issues #69 and #161).
 
 Every figure is aggregated by the database over an indexed ``created_at`` window,
-so the report costs four queries however many searches are logged.
+so the report costs a fixed number of queries plus one per provider, however many
+searches are logged.
 """
 
 from datetime import datetime, timedelta
+from math import ceil
 
 from sqlalchemy import case, desc, func, select
 from sqlalchemy.orm import Session
@@ -12,10 +14,43 @@ from sqlalchemy.orm import Session
 from .models import ResourceSearch, SearchRun
 
 TOP_NODES = 50
+ALERT_WINDOW = timedelta(hours=1)
+ALERT_ERROR_RATE = 0.2  # a provider failing more than this share of its calls is flagged
+ALERT_MIN_CALLS = 5  # fewer calls than this are too few to call a provider failing
 
 
 def _total(column):
     return func.coalesce(func.sum(column), 0)
+
+
+def _errors():
+    return _total(case((SearchRun.status == "error", 1), else_=0))
+
+
+def _p95_latency(db: Session, provider: str, since: datetime, calls: int) -> int:
+    """Nearest-rank 95th percentile; portable where ``percentile_cont`` is not (SQLite)."""
+    return db.scalar(
+        select(SearchRun.latency_ms)
+        .where(SearchRun.provider == provider, SearchRun.created_at >= since)
+        .order_by(SearchRun.latency_ms)
+        .offset(ceil(0.95 * calls) - 1)
+        .limit(1)
+    ) or 0
+
+
+def failing_providers(db: Session, now: datetime) -> list[dict]:
+    """Providers whose calls failed more than ``ALERT_ERROR_RATE`` in the last hour."""
+    rows = db.execute(
+        select(SearchRun.provider, func.count().label("calls"), _errors().label("errors"))
+        .where(SearchRun.created_at >= now - ALERT_WINDOW)
+        .group_by(SearchRun.provider)
+        .order_by(SearchRun.provider)
+    ).mappings()
+    return [
+        {**row, "error_rate": row["errors"] / row["calls"]}
+        for row in rows
+        if row["calls"] >= ALERT_MIN_CALLS and row["errors"] > ALERT_ERROR_RATE * row["calls"]
+    ]
 
 
 def cost_report(db: Session, *, now: datetime, days: int) -> dict:
@@ -60,7 +95,7 @@ def cost_report(db: Session, *, now: datetime, days: int) -> dict:
         select(
             runs.provider,
             func.count().label("calls"),
-            _total(case((runs.status == "error", 1), else_=0)).label("errors"),
+            _errors().label("errors"),
             _total(case((runs.created_at >= today, 1), else_=0)).label("calls_today"),
             func.coalesce(func.avg(runs.latency_ms), 0).label("avg_latency_ms"),
             func.coalesce(func.max(runs.latency_ms), 0).label("max_latency_ms"),
@@ -94,6 +129,14 @@ def cost_report(db: Session, *, now: datetime, days: int) -> dict:
             "cost_per_search_usd": total_cost / count if count else 0.0,
         },
         "nodes": [dict(row) for row in nodes],
-        "providers": [dict(row) for row in providers],
+        "providers": [
+            {
+                **row,
+                "error_rate": row["errors"] / row["calls"],
+                "p95_latency_ms": _p95_latency(db, row["provider"], since, row["calls"]),
+            }
+            for row in providers
+        ],
         "daily": [dict(row) for row in daily],
+        "alerts": failing_providers(db, now),
     }
