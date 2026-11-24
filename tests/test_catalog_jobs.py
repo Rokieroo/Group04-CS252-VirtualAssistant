@@ -278,5 +278,5 @@ def test_seed_catalog_command_loads_the_sample_once(tmp_path, monkeypatch, capsy
 
     monkeypatch.setenv("DATABASE_URL", "sqlite:///" + (tmp_path / "dev.db").as_posix())
     args = build_parser().parse_args(["db", "seed-catalog", "--sample"])
-    assert args.func(args) == 0 and "'resources': 69" in capsys.readouterr().out
+    assert args.func(args) == 0 and "'resources': 78" in capsys.readouterr().out
     assert args.func(args) == 0 and "không có dòng mới" in capsys.readouterr().out

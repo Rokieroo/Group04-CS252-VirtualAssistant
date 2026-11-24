@@ -205,6 +205,16 @@ def test_one_shared_word_is_not_a_topic_but_a_named_concept_is():
     assert [r["id"] for r in match_sources(framing, rows)] == ["nfr"]
 
 
+def test_a_week_node_shows_a_source_that_teaches_one_of_its_concepts():
+    """#92: a weekly node tags several subjects; a page on one of them is fully on topic."""
+    from app.catalog.matching import match_sources
+
+    rows = [catalog_row("moscow", "MoSCoW method", subjects={"ct.requirements"})]
+    week = {**HEAPS, "title": "Task Decomposition, Use Case Diagram, MoSCoW Prioritisation",
+            "subjects": {"ct.decomposition", "ct.use-cases", "ct.requirements"}}
+    assert [r["id"] for r in match_sources(week, rows)] == ["moscow"]
+
+
 def test_catalog_index_never_chooses_an_excluded_source():
     from app.catalog.matching import CatalogIndex
 

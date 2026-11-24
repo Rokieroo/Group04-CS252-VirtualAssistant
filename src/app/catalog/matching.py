@@ -105,7 +105,7 @@ class CatalogIndex:
             if lexical[at] < MIN_COVERAGE and similarity[at] < MIN_SIMILARITY:
                 continue  # shares the node's subject but not its topic
             resource = self.rows[pool[at]]
-            overlap = len(subjects.intersection(resource["subjects"])) / max(1, len(subjects))
+            overlap = _overlap(subjects, resource["subjects"])
             breakdown = {
                 "relevance": min(
                     1.0, 0.6 * overlap + 0.2 * float(lexical[at]) + 0.2 * float(similarity[at])
@@ -255,6 +255,16 @@ class CatalogIndex:
             ],
             dtype=bool,
         )
+
+
+def _overlap(node_subjects, source_subjects):
+    """How fully a source and a node share subjects, from whichever side is narrower.
+
+    A weekly node names several concepts (#94): a source that teaches one of them is
+    wholly on topic, though it covers only part of the node.
+    """
+    shared = len(node_subjects.intersection(source_subjects))
+    return shared / max(1, min(len(node_subjects), len(source_subjects)))
 
 
 def _similar(left, right):

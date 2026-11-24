@@ -10,10 +10,13 @@ Usage::
         # p95 of an existing roadmap on staging; read only
     python eval/run_node_sources.py --record     # re-fetch the labelled pages (network)
 
-Coverage. The CSC10014 reference graph (``eval/graphs``) is matched against the bundled
-catalog sample the way roadmap generation does it (``refresh_node_sources``). A node
-passes when it is covered (the learner's own material, or >= 3 verified sources) or says
-``insufficient``; a node that says ``ready`` without being covered fails.
+Coverage (epic #92). The topic nodes ``roadmap:generate`` builds from the CSC10014
+syllabus (one per week of its schedule, ``SyllabusDemand.nodes``) are matched against
+the bundled catalog sample the way generation does it (``refresh_node_sources``). At
+least 90% must be covered (the learner's own material, or >= 3 verified sources) and
+every other node must say ``insufficient``; a node that says ``ready`` without being
+covered fails. Milestones are tests: their checkpoint questions are measured by #115.
+The week 1-3 slides only add own material to nodes, so catalog coverage is the floor.
 
 Precision@5. The #106 labelled nodes of the 5 benchmark syllabi (``eval/resources.jsonl``)
 are matched against the sample plus the labelled pages. A labelled page joins the catalog
@@ -48,6 +51,7 @@ from run_recommendations import BENCHMARK_SYLLABI
 from sqlalchemy import select
 
 from app.catalog import verification
+from app.catalog.demand import SyllabusDemand
 from app.catalog.institutions import domain_of
 from app.catalog.taxonomy import tag_records
 from app.search import canonical_url
@@ -65,7 +69,7 @@ from assistant.backend.models import (
     User,
 )
 
-GRAPH = ROOT / "eval" / "graphs" / "01_csc10014_problem_framing.gold.json"
+CSC10014 = "01_csc10014_problem_framing"
 SYLLABUS_DIR = ROOT / "eval" / "syllabus"
 LABELS = ROOT / "eval" / "resources.jsonl"
 PAGES = ROOT / "eval" / "fixtures" / "node_sources" / "labelled_pages.json"
@@ -81,8 +85,13 @@ class Coverage:
     insufficient: int
     misleading: int  # "ready" without being covered
     unverified_shown: int
-    passing_rate: float  # (covered + insufficient) / nodes, the done-when
     covered_rate: float
+
+    @property
+    def passed(self) -> bool:
+        """The done-when: enough covered, and every other node says it is short."""
+        return (self.covered_rate >= COVERAGE_TARGET and not self.misleading
+                and not self.unverified_shown)
 
 
 @dataclass(frozen=True)
@@ -169,13 +178,13 @@ def _course(db, owner: User, stem: str, nodes: list[tuple[str, int]]):
 
 def evaluate_coverage(now: datetime | None = None) -> Coverage:
     now = now or datetime.now(UTC)
-    graph = json.loads(GRAPH.read_text(encoding="utf-8"))
+    gold = json.loads((SYLLABUS_DIR / f"{CSC10014}.gold.json").read_text(encoding="utf-8"))
+    topics = [(s.title, s.week) for s in SyllabusDemand.from_gold(gold).nodes()
+              if s.kind == "topic"]
     database = _sample_catalog(now)
     try:
         with database.sessions() as db:
-            course, roadmap, nodes = _course(
-                db, _owner(db), GRAPH.name.removesuffix(".gold.json"),
-                [(c["title"], c["week"]) for c in graph["concepts"]])
+            course, roadmap, nodes = _course(db, _owner(db), CSC10014, topics)
             selected = list(refresh_node_sources(db, nodes, roadmap, course, now).values())
     finally:
         database.engine.dispose()
@@ -189,7 +198,6 @@ def evaluate_coverage(now: datetime | None = None) -> Coverage:
         misleading=len(selected) - insufficient - covered,
         unverified_shown=sum(1 for s in selected for r in s["sources"]
                              if r["verification_status"] not in {"verified", "private"}),
-        passing_rate=round((covered + insufficient) / len(selected), 3),
         covered_rate=round(covered / len(selected), 3),
     )
 
@@ -364,7 +372,7 @@ def main() -> int:
     latency = (latency_remote(args.base_url, args.token, args.roadmap) if args.base_url
                else latency_in_process(args.database_url))
     checks = {
-        "coverage": coverage.passing_rate >= COVERAGE_TARGET and not coverage.unverified_shown,
+        "coverage": coverage.passed,
         "precision_at_5": precision.strict >= PRECISION_TARGET,
         "summary_p95": latency.p95_ms < P95_BUDGET_MS,
     }
@@ -372,8 +380,8 @@ def main() -> int:
         print(json.dumps({"coverage": asdict(coverage), "precision": asdict(precision),
                           "latency": asdict(latency), "checks": checks}, indent=2))
     else:
-        print(f"Coverage CSC10014 ({coverage.nodes} nodes): {coverage.passing_rate:.1%} pass "
-              f"(target {COVERAGE_TARGET:.0%}); covered {coverage.covered}, insufficient "
+        print(f"Coverage CSC10014 ({coverage.nodes} topic nodes): {coverage.covered_rate:.1%} "
+              f"covered (target {COVERAGE_TARGET:.0%}); covered {coverage.covered}, insufficient "
               f"{coverage.insufficient}, ready-but-uncovered {coverage.misleading}, "
               f"unverified shown {coverage.unverified_shown}")
         print(f"Precision@5 ({precision.shown_nodes}/{precision.nodes} nodes showed sources): "

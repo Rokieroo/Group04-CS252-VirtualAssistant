@@ -9,14 +9,14 @@
 # catalog resource; it needs `license`, an id of data/policy/catalog_sources.yaml
 # (ADR 004). Format: src/app/catalog/connectors/manual_yaml.py.
 resources:
-  - title: "Problem framing and the solution ladder"
+  - title: "Introduction to CS and Programming using Python"
     url: "https://ocw.mit.edu/courses/6-100l-introduction-to-cs-and-programming-using-python-fall-2022/"
     license: CC-BY-NC-SA-4.0
-    kind: article
+    kind: course
     lang: en
     provider: catalog
-    snippet: "Lecture notes and worked examples for breaking a problem into steps and choosing a solution approach."
-    tags: [problem framing, solution ladder, computational thinking, CSC10014, lecture notes]
+    snippet: "Lecture notes, videos and problem sets on computational thinking and programming in Python."
+    tags: [python, programming, computational thinking, lecture notes, problem sets]
 
   - title: "Introduction to Computer Science and Programming in Python"
     url: "https://ocw.mit.edu/courses/6-0001-introduction-to-computer-science-and-programming-in-python-fall-2016/"

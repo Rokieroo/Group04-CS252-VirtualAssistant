@@ -179,6 +179,18 @@ resources:
     license: ALL-RIGHTS-RESERVED
     subjects: [ct.pipelines]
 
+  # Added 2026-11-24 (each answered 200 with this title): a week node names several
+  # concepts, so each label needs pages beyond Wikipedia's two per node.
+  - title: "Pipes and Filters pattern"
+    url: https://learn.microsoft.com/en-us/azure/architecture/patterns/pipes-and-filters
+    license: ALL-RIGHTS-RESERVED
+    subjects: [ct.pipelines]
+
+  - title: "What Is Human In The Loop (HITL)?"
+    url: https://www.ibm.com/think/topics/human-in-the-loop
+    license: ALL-RIGHTS-RESERVED
+    subjects: [ct.pipelines]
+
   # --- ct.project: milestone report, capstone, project defense -----------------
   - title: "Capstone course"
     url: https://en.wikipedia.org/wiki/Capstone_course
@@ -215,6 +227,21 @@ resources:
     code: "22.033"
     year: 2011
     course: Nuclear Science and Engineering
+    subjects: [ct.project]
+
+  - title: "Technical report"
+    url: https://en.wikipedia.org/wiki/Technical_report
+    license: CC-BY-SA-4.0
+    subjects: [ct.project]
+
+  - title: "Presentation"
+    url: https://en.wikipedia.org/wiki/Presentation
+    license: CC-BY-SA-4.0
+    subjects: [ct.project]
+
+  - title: "Milestone (project management)"
+    url: https://en.wikipedia.org/wiki/Milestone_(project_management)
+    license: CC-BY-SA-4.0
     subjects: [ct.project]
 
   # Weeks 4-9 of CSC10014 became their own roadmap nodes (#94); each URL below
@@ -295,6 +322,16 @@ resources:
     license: ALL-RIGHTS-RESERVED
     subjects: [ct.evaluation]
 
+  - title: "What is Red Teaming?"
+    url: https://www.ibm.com/think/topics/red-teaming
+    license: ALL-RIGHTS-RESERVED
+    subjects: [ct.evaluation]
+
+  - title: "LLM Evaluation"
+    url: https://www.ibm.com/think/insights/llm-evaluation
+    license: ALL-RIGHTS-RESERVED
+    subjects: [ct.evaluation]
+
   # --- ct.retrieval: retrieval integration, LLM interface, citations ------
 
   - title: "Information retrieval"
@@ -324,6 +361,16 @@ resources:
 
   - title: "What is Retrieval Augmented Generation (RAG)?"
     url: https://www.elastic.co/what-is/retrieval-augmented-generation
+    license: ALL-RIGHTS-RESERVED
+    subjects: [ct.retrieval]
+
+  - title: "Citations"
+    url: https://platform.claude.com/docs/en/build-with-claude/citations
+    license: ALL-RIGHTS-RESERVED
+    subjects: [ct.retrieval]
+
+  - title: "What is RAG (Retrieval Augmented Generation)?"
+    url: https://www.ibm.com/think/topics/retrieval-augmented-generation
     license: ALL-RIGHTS-RESERVED
     subjects: [ct.retrieval]
 

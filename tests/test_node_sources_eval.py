@@ -25,12 +25,14 @@ from run_node_sources import (
 )
 
 
-def test_every_csc10014_node_is_covered_or_says_insufficient():
+def test_csc10014_roadmap_is_covered_and_the_rest_says_insufficient():
+    """Epic #92: >= 90% of the real roadmap's topics covered, the others honest."""
     coverage = evaluate_coverage()
-    assert coverage.nodes == 30  # concepts of the reference graph
-    assert coverage.passing_rate >= COVERAGE_TARGET
+    assert coverage.nodes == 10  # one topic per week of the CSC10014 schedule
+    assert coverage.covered_rate >= COVERAGE_TARGET
     assert coverage.misleading == 0  # never "ready" under the three-source bar
     assert coverage.unverified_shown == 0
+    assert coverage.passed
 
 
 def test_selection_never_reads_the_labels():
@@ -53,12 +55,13 @@ def test_precision_at_5_on_the_labelled_benchmark_nodes():
     are other weeks' labelled pages, so strict stays under the target until #106 labels
     what the matcher shows. The floor stops a regression without hiding the gap; it was
     0.6 until the sample gained CSC10014's week 4-9 sources (#94), which #106 never
-    labelled (11 unjudged shown, strict 0.594, judged still 1.0).
+    labelled (11 unjudged shown, strict 0.594, judged still 1.0). Scoring subject
+    overlap from the narrower side lifted strict to 0.676 (14 unjudged shown).
     """
     precision = evaluate_precision()
     assert precision.nodes == 25  # 5 benchmark syllabi x 5 labelled weeks
     assert precision.judged >= PRECISION_TARGET
-    assert precision.strict >= 0.55
+    assert precision.strict >= 0.65
 
 
 def test_percentile_is_nearest_rank():
