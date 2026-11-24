@@ -17,6 +17,7 @@ from app.roadmap import (
     derive_nodes,
     find_cycles,
     link,
+    link_outcomes,
     node_spec,
     topological_sort,
     topological_sort_or_raise,
@@ -59,6 +60,53 @@ def test_nodes_derive_from_outcomes_and_assessments_else_week_lines():
     assert derive_nodes([], [], "Week 2: Search; BM25.\nnoise") == [
         NodeSpec("topic", "Search", week=2), NodeSpec("topic", "BM25", week=2)]
 
+
+
+def test_confirmed_weekly_schedule_gives_a_topic_per_reviewed_week_topic():
+    confirmed = json.dumps({"weeks": [
+        {"week": 2, "topics": ["Use Case Diagram"]},
+        {"week": 1, "topics": ["Problem Framing, Solution Ladder", " "]},
+        {"week": 3, "topics": ["Success Pipelines"]},
+    ]})
+    nodes = link(derive_nodes(["Frame problems"], [("Midterm", 2), ("Project", None)], confirmed))
+    assert [(n.kind, n.title, n.week) for n in nodes] == [
+        ("topic", "Problem Framing, Solution Ladder", 1),  # kept as reviewed, not split
+        ("topic", "Use Case Diagram", 2),
+        ("milestone", "Midterm", 2),
+        ("topic", "Success Pipelines", 3),
+        ("milestone", "Project", None),
+    ]
+    week1, week2, midterm, week3, project = nodes
+    assert midterm.covers == [week1.id, week2.id]  # what was taught by its week
+    assert project.covers == [week1.id, week2.id, week3.id]
+
+
+@pytest.mark.parametrize("raw", [
+    "{not json", "[1, 2]", json.dumps({"weeks": "1-10"}),
+    json.dumps({"weeks": [{"week": 0, "topics": ["Zero"]}, {"week": "x", "topics": ["Bad"]},
+                          {"week": 2, "topics": "Not a list"}, "row"]}),
+])
+def test_malformed_schedule_falls_back_to_outcomes(raw):
+    assert derive_nodes(["Frame problems"], [], raw) == [NodeSpec("topic", "Frame problems")]
+
+
+def test_topics_serve_the_outcome_they_are_named_after_or_share_two_terms_with():
+    outcomes = {
+        "o1": "Distinguish Functional vs Non-Functional Requirements",
+        "o2": "Select tiers on the Solution Ladder",
+        "o10": "CLO10",
+    }
+    linked = link_outcomes(
+        ["Problem Framing, Solution Ladder, Functional Requirements", "Use Case Diagram",
+         "Select tiers on the Solution Ladder", "CLO1"],
+        outcomes,
+    )
+    assert linked == {
+        "Problem Framing, Solution Ladder, Functional Requirements": ["o1", "o2"],
+        "Use Case Diagram": [],
+        "Select tiers on the Solution Ladder": ["o2"],
+        "CLO1": [],  # exact names only: "CLO1" never ties to "CLO10"
+    }
 
 def test_link_assigns_new_ids_and_milestones_cover_earlier_topics():
     first, second, exam, late = link([

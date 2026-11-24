@@ -7,11 +7,14 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
+from app.catalog.matching import FUNCTION_WORDS, stem
+from app.catalog.taxonomy import normalize
 from app.syllabus.parse import integer, text
 
 KINDS = ("topic", "milestone")
@@ -19,6 +22,8 @@ DEFAULT_MINUTES = {"topic": 60, "milestone": 30}
 # Covered topics finish this many days before their milestone (spec 10.3.2).
 MILESTONE_BUFFER_DAYS = 3
 WEEK = timedelta(days=7)
+MIN_SHARED_TERMS = 2  # one shared word ("design", "data") is too weak to tie a topic to an outcome
+MIN_TERM_LETTERS = 4  # shorter words ("set", "use") tie unrelated topics together
 _WEEK_LINE = re.compile(r"(?:week|tuần)\s*(\d+)\s*[:\-–—]\s*(.+)", re.IGNORECASE)
 
 
@@ -61,16 +66,28 @@ def node_spec(raw: dict[str, Any]) -> NodeSpec:
 
 def derive_nodes(outcomes: list[str], assessments: list[tuple[str, int | None]],
                  raw_text: str) -> list[NodeSpec]:
-    """A topic per learning outcome and a milestone per (name, due_week) assessment.
+    """Topics from the syllabus's weekly schedule, else one per learning outcome, and a
+    milestone per (name, due_week) assessment.
 
-    A syllabus with neither falls back to its "Week N: topic, topic" lines.
+    Scheduled nodes are ordered by week, so a milestone covers the topics taught by its
+    week (``link``); a milestone without a week comes last and covers every topic.
     """
-    nodes = [NodeSpec("topic", title) for title in outcomes]
-    nodes += [NodeSpec("milestone", name, week=week) for name, week in assessments]
-    return nodes or week_topics(raw_text)
+    milestones = [NodeSpec("milestone", name, week=week) for name, week in assessments]
+    scheduled = week_topics(raw_text)
+    if not scheduled:
+        return [NodeSpec("topic", title) for title in outcomes] + milestones
+    return sorted(
+        scheduled + milestones,
+        key=lambda node: (node.week is None, node.week or 0, node.kind == "milestone"),
+    )
 
 
 def week_topics(raw_text: str) -> list[NodeSpec]:
+    """The weekly schedule as topics: the reviewed ``weeks`` of a confirmed syllabus,
+    whose text is its parsed JSON, else the "Week N: topic, topic" lines of plain text."""
+    reviewed = _reviewed_weeks(raw_text)
+    if reviewed is not None:
+        return reviewed
     nodes = []
     for line in raw_text.splitlines():
         match = _WEEK_LINE.search(line.strip())
@@ -82,6 +99,62 @@ def week_topics(raw_text: str) -> list[NodeSpec]:
             if title:
                 nodes.append(NodeSpec("topic", title, week=week))
     return nodes
+
+
+def _reviewed_weeks(raw_text: str) -> list[NodeSpec] | None:
+    """One topic per reviewed topic, as the learner approved it; None for plain text.
+
+    Confirming a syllabus stores its parsed JSON as the text (``parse_syllabus``), with
+    ``weeks`` as ``[{"week": 1, "topics": ["..."]}, ...]``. The text is learner input, so
+    malformed entries are skipped rather than trusted.
+    """
+    if not raw_text.lstrip().startswith("{"):
+        return None
+    try:
+        parsed = json.loads(raw_text)
+    except ValueError:
+        return None
+    weeks = parsed.get("weeks") if isinstance(parsed, dict) else None
+    if not isinstance(weeks, list):
+        return None
+    nodes = []
+    for row in weeks:
+        week = integer(row.get("week")) if isinstance(row, dict) else None
+        topics = row.get("topics") if week and week > 0 else None
+        for title in topics if isinstance(topics, list) else ():
+            if isinstance(title, str) and title.strip():
+                nodes.append(NodeSpec("topic", title.strip(), week=week))
+    return nodes
+
+
+def link_outcomes(titles: Iterable[str], outcomes: Mapping[str, str]) -> dict[str, list[str]]:
+    """Topic title -> ids of the learning outcomes (id -> text) it serves.
+
+    A topic named after an outcome (a syllabus without a weekly schedule) serves that
+    one. A weekly schedule does not say which outcome each week serves, so a scheduled
+    topic serves the outcomes it shares at least ``MIN_SHARED_TERMS`` terms with
+    ("Solution Ladder" in both the week and the outcome).
+    """
+    outcome_terms = {outcome_id: _terms(text) for outcome_id, text in outcomes.items()}
+    linked = {}
+    for title in titles:
+        named = [outcome_id for outcome_id, text in outcomes.items() if text == title]
+        terms = _terms(title)
+        linked[title] = named or [
+            outcome_id
+            for outcome_id, shared in outcome_terms.items()
+            if len(terms & shared) >= MIN_SHARED_TERMS
+        ]
+    return linked
+
+
+def _terms(text: str) -> set[str]:
+    """Content words as catalog matching sees them: normalized, plurals folded."""
+    return {
+        stem(word)
+        for word in normalize(text).split()
+        if word.isalpha() and len(word) >= MIN_TERM_LETTERS and word not in FUNCTION_WORDS
+    }
 
 
 def link(specs: list[NodeSpec]) -> list[NodeSpec]:

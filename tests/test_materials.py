@@ -102,4 +102,5 @@ def test_semantic_vectors_add_evidence_but_still_ask_the_learner():
 def test_eval_scores_only_gradable_pages():
     matches = [PageMatch(1, "a", 0.9, "llm"), PageMatch(2, "b", 0.3, "lexical")]
     ranges = [[1, 2, ["A"]], [3, 3, []]]
-    assert score(matches, ranges, {"a": "A", "b": "B"}) == (1, 2, 1, 1)
+    # A node serves every outcome it names: "a" is right for a page that accepts "A".
+    assert score(matches, ranges, {"a": {"A", "C"}, "b": {"B"}}) == (1, 2, 1, 1)

@@ -10,7 +10,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from app.catalog.taxonomy import tag_node
-from app.roadmap import derive_nodes, link
+from app.roadmap import NodeSpec, derive_nodes, link
+from app.syllabus import parse_syllabus
 
 
 @dataclass(frozen=True)
@@ -22,18 +23,24 @@ class SyllabusDemand:
 
     @classmethod
     def from_gold(cls, gold: dict) -> "SyllabusDemand":
-        """A benchmark syllabus of ``eval/syllabus/*.gold.json`` (#66)."""
+        """A benchmark syllabus of ``eval/syllabus/*.gold.json`` (#66), stored the way
+        confirming it in the app stores it, weekly schedule included."""
+        weeks = [{"week": row["week"], "topics": [row["topic"]]} for row in gold["weeks"]]
         return cls(
             course=f"{gold['course_code']} {gold['course_name']}",
             outcomes=tuple(row["description"] for row in gold["learning_outcomes"]),
             assessments=tuple((row["name"], row.get("due_week")) for row in gold["assessments"]),
-            raw_text="\n".join(f"Week {row['week']}: {row['topic']}" for row in gold["weeks"]),
+            raw_text=parse_syllabus({"parsed": {"weeks": weeks}}, {"parsed"}).raw_text or "",
         )
+
+    def nodes(self) -> list[NodeSpec]:
+        """The roadmap nodes ``roadmap:generate`` derives from this syllabus, linked."""
+        return link(derive_nodes(list(self.outcomes), list(self.assessments), self.raw_text))
 
 
 def node_subjects(demand: SyllabusDemand) -> list[tuple[str, frozenset[str]]]:
     """(title, accepted subject labels) of each roadmap node, in roadmap order."""
-    specs = link(derive_nodes(list(demand.outcomes), list(demand.assessments), demand.raw_text))
+    specs = demand.nodes()
     titles = {spec.id: spec.title for spec in specs}
     return [
         (

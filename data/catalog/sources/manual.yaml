@@ -216,3 +216,196 @@ resources:
     year: 2011
     course: Nuclear Science and Engineering
     subjects: [ct.project]
+
+  # Weeks 4-9 of CSC10014 became their own roadmap nodes (#94); each URL below
+  # answered 200 with the given title on 2026-11-23. Matching shows at most two
+  # sources per domain, so every label also lists pages beyond Wikipedia.
+
+  # --- ct.architecture: system architecture, API design, data modeling, safeguards ---
+
+  - title: "Software architecture"
+    url: https://en.wikipedia.org/wiki/Software_architecture
+    license: CC-BY-SA-4.0
+    subjects: [ct.architecture]
+
+  - title: "API"
+    url: https://en.wikipedia.org/wiki/API
+    license: CC-BY-SA-4.0
+    subjects: [ct.architecture]
+
+  - title: "Data modeling"
+    url: https://en.wikipedia.org/wiki/Data_modeling
+    license: CC-BY-SA-4.0
+    subjects: [ct.architecture]
+
+  - title: "Defensive programming"
+    url: https://en.wikipedia.org/wiki/Defensive_programming
+    license: CC-BY-SA-4.0
+    subjects: [ct.architecture]
+
+  - title: "Multitier architecture"
+    url: https://en.wikipedia.org/wiki/Multitier_architecture
+    license: CC-BY-SA-4.0
+    subjects: [ct.architecture]
+
+  - title: "REST"
+    url: https://en.wikipedia.org/wiki/REST
+    license: CC-BY-SA-4.0
+    subjects: [ct.architecture]
+
+  - title: "API"
+    url: https://developer.mozilla.org/en-US/docs/Glossary/API
+    license: ALL-RIGHTS-RESERVED
+    subjects: [ct.architecture]
+
+  # --- ct.evaluation: engineering quality, red-teaming, benchmark datasets ---
+
+  - title: "Software quality"
+    url: https://en.wikipedia.org/wiki/Software_quality
+    license: CC-BY-SA-4.0
+    subjects: [ct.evaluation]
+
+  - title: "Red team"
+    url: https://en.wikipedia.org/wiki/Red_team
+    license: CC-BY-SA-4.0
+    subjects: [ct.evaluation]
+
+  - title: "Benchmark (computing)"
+    url: https://en.wikipedia.org/wiki/Benchmark_(computing)
+    license: CC-BY-SA-4.0
+    subjects: [ct.evaluation]
+
+  - title: "Training, validation, and test data sets"
+    url: https://en.wikipedia.org/wiki/Training,_validation,_and_test_data_sets
+    license: CC-BY-SA-4.0
+    subjects: [ct.evaluation]
+
+  - title: "Adversarial machine learning"
+    url: https://en.wikipedia.org/wiki/Adversarial_machine_learning
+    license: CC-BY-SA-4.0
+    subjects: [ct.evaluation]
+
+  - title: "Precision and recall"
+    url: https://en.wikipedia.org/wiki/Precision_and_recall
+    license: CC-BY-SA-4.0
+    subjects: [ct.evaluation]
+
+  - title: "Planning red teaming for large language models (LLMs) and their applications"
+    url: https://learn.microsoft.com/en-us/azure/foundry/openai/concepts/red-teaming
+    license: ALL-RIGHTS-RESERVED
+    subjects: [ct.evaluation]
+
+  # --- ct.retrieval: retrieval integration, LLM interface, citations ------
+
+  - title: "Information retrieval"
+    url: https://en.wikipedia.org/wiki/Information_retrieval
+    license: CC-BY-SA-4.0
+    subjects: [ct.retrieval]
+
+  - title: "Retrieval-augmented generation"
+    url: https://en.wikipedia.org/wiki/Retrieval-augmented_generation
+    license: CC-BY-SA-4.0
+    subjects: [ct.retrieval]
+
+  - title: "Okapi BM25"
+    url: https://en.wikipedia.org/wiki/Okapi_BM25
+    license: CC-BY-SA-4.0
+    subjects: [ct.retrieval]
+
+  - title: "Evaluation measures (information retrieval)"
+    url: https://en.wikipedia.org/wiki/Evaluation_measures_(information_retrieval)
+    license: CC-BY-SA-4.0
+    subjects: [ct.retrieval]
+
+  - title: "Citation"
+    url: https://en.wikipedia.org/wiki/Citation
+    license: CC-BY-SA-4.0
+    subjects: [ct.retrieval]
+
+  - title: "What is Retrieval Augmented Generation (RAG)?"
+    url: https://www.elastic.co/what-is/retrieval-augmented-generation
+    license: ALL-RIGHTS-RESERVED
+    subjects: [ct.retrieval]
+
+  # --- ct.performance: optimization, caching, asynchronous job queues -----
+
+  - title: "Program optimization"
+    url: https://en.wikipedia.org/wiki/Program_optimization
+    license: CC-BY-SA-4.0
+    subjects: [ct.performance]
+
+  - title: "Profiling (computer programming)"
+    url: https://en.wikipedia.org/wiki/Profiling_(computer_programming)
+    license: CC-BY-SA-4.0
+    subjects: [ct.performance]
+
+  - title: "Cache (computing)"
+    url: https://en.wikipedia.org/wiki/Cache_(computing)
+    license: CC-BY-SA-4.0
+    subjects: [ct.performance]
+
+  - title: "Message queue"
+    url: https://en.wikipedia.org/wiki/Message_queue
+    license: CC-BY-SA-4.0
+    subjects: [ct.performance]
+
+  - title: "Job queue"
+    url: https://en.wikipedia.org/wiki/Job_queue
+    license: CC-BY-SA-4.0
+    subjects: [ct.performance]
+
+  - title: "Asynchronous I/O"
+    url: https://en.wikipedia.org/wiki/Asynchronous_I/O
+    license: CC-BY-SA-4.0
+    subjects: [ct.performance]
+
+  - title: "HTTP caching"
+    url: https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching
+    license: ALL-RIGHTS-RESERVED
+    subjects: [ct.performance]
+
+  - title: "Performance Engineering of Software Systems"
+    url: https://ocw.mit.edu/courses/6-172-performance-engineering-of-software-systems-fall-2018/
+    license: CC-BY-NC-SA-4.0
+    kind: course
+    code: "6.172"
+    year: 2018
+    course: Electrical Engineering and Computer Science
+    subjects: [ct.performance]
+
+  # --- ct.deployment: staging, CI/CD, containers --------------------------
+
+  - title: "Software deployment"
+    url: https://en.wikipedia.org/wiki/Software_deployment
+    license: CC-BY-SA-4.0
+    subjects: [ct.deployment]
+
+  - title: "Deployment environment"
+    url: https://en.wikipedia.org/wiki/Deployment_environment
+    license: CC-BY-SA-4.0
+    subjects: [ct.deployment]
+
+  - title: "Continuous integration"
+    url: https://en.wikipedia.org/wiki/Continuous_integration
+    license: CC-BY-SA-4.0
+    subjects: [ct.deployment]
+
+  - title: "Continuous delivery"
+    url: https://en.wikipedia.org/wiki/Continuous_delivery
+    license: CC-BY-SA-4.0
+    subjects: [ct.deployment]
+
+  - title: "CI/CD"
+    url: https://en.wikipedia.org/wiki/CI/CD
+    license: CC-BY-SA-4.0
+    subjects: [ct.deployment]
+
+  - title: "Docker (software)"
+    url: https://en.wikipedia.org/wiki/Docker_(software)
+    license: CC-BY-SA-4.0
+    subjects: [ct.deployment]
+
+  - title: "Docker Compose"
+    url: https://docs.docker.com/compose/
+    license: ALL-RIGHTS-RESERVED
+    subjects: [ct.deployment]
