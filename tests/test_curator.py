@@ -46,7 +46,7 @@ def test_curate_or_abstain_never_fills_with_weak_or_ungrounded_resources():
     result = curate(pool)
     assert result.status == "insufficient"
     assert names(result) == ["good"]
-    assert result.gaps[0].startswith("Chưa tìm được đủ nguồn")
+    assert result.gaps[0].startswith("Not enough quality sources found yet")
 
 
 def test_teacher_pins_lead_and_skip_the_domain_limit():

@@ -22,10 +22,10 @@ evidence_quote: copy one sentence or short passage (20 to 300 characters) from
 without changing, translating, joining or shortening anything. If no passage shows
 coverage, return "" and set relevance to 0.
 
-reason: one short sentence in Vietnamese saying which learning outcome the page covers
-and how, for example "Bao phủ CLO1: giải thích từng bước cách phát biểu bài toán".
+reason: one short sentence in English saying which learning outcome the page covers
+and how, for example "Covers CLO1: explains step-by-step how to frame a problem".
 
 Output shape:
 {"relevance": 3, "level_fit": 4, "pedagogy": 2,
  "evidence_quote": "Before choosing a model, state the decision the system supports.",
- "reason": "Bao phủ CLO1: cách phát biểu bài toán trước khi chọn mô hình."}
+ "reason": "Covers CLO1: frames the problem before choosing a model."}

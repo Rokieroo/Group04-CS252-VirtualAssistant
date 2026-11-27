@@ -51,7 +51,7 @@ describe("core syllabus and roadmap", () => {
     const big = new File(["x"], "syllabus.pdf");
     Object.defineProperty(big, "size", { value: 21 * 1024 * 1024 });
     expect(message(big)).toMatch(/20 MB/);
-    expect(message(" ")).toMatch(/120\.000/);
+    expect(message(" ")).toMatch(/120,000/);
     expect(message(new File(["x"], "syllabus.docx"))).toBeNull();
   });
   it("rejects a prerequisite cycle", () => {

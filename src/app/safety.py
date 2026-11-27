@@ -19,23 +19,23 @@ __all__ = [
     "redact_crisis_content",
 ]
 
-SAFE_REDACTION_MESSAGE = "[Nội dung đã được lọc vì lý do an toàn / Content filtered for safety]"
+SAFE_REDACTION_MESSAGE = "[Content filtered for safety]"
 
 HOTLINES = (
     {
-        "name": "Tổng đài Quốc gia Bảo vệ Trẻ em",
+        "name": "Vietnam National Child Protection Hotline",
         "number": "111",
-        "description": "Tư vấn tâm lý, bảo vệ trẻ em và thanh thiếu niên (Miễn phí 24/7)",
+        "description": "Psychological counseling and child/youth protection (Toll-free 24/7)",
     },
     {
-        "name": "Đường dây nóng Ngày Mai",
+        "name": "Ngay Mai Mental Health Crisis Helpline",
         "number": "096 306 1414",
-        "description": "Hỗ trợ người trầm cảm và khủng hoảng tâm lý (13:00 - 20:30)",
+        "description": "Support for depression and psychological crisis (13:00 - 20:30)",
     },
     {
-        "name": "Cấp cứu Y tế Khẩn cấp",
+        "name": "Emergency Medical Services",
         "number": "115",
-        "description": "Cấp cứu y tế và can thiệp khẩn cấp (24/7)",
+        "description": "Emergency medical care and urgent intervention (24/7)",
     },
 )
 
@@ -124,27 +124,17 @@ def is_crisis_message(text: str | None) -> bool:
     return False
 
 
-def build_crisis_reply(lang: str = "vi") -> str:
-    """Return a supportive, empathetic safety reply with official Vietnamese crisis hotlines."""
-    if lang.startswith("en"):
-        return (
-            "I'm really concerned about you and want you to be safe. "
-            "You don't have to carry this alone. Please pause and reach out immediately "
-            "to someone you trust or contact free crisis support in Vietnam:\n\n"
-            "- Vietnam National Child Protection Hotline: 111 (toll-free 24/7)\n"
-            "- Ngay Mai Mental Health Crisis Helpline: 096 306 1414\n"
-            "- Emergency Medical Services: 115\n\n"
-            "There are people who care and want to help you through this. Please reach out to them right now."
-        )
-
+def build_crisis_reply(lang: str = "en") -> str:
+    """Return a supportive, empathetic English safety reply with verified crisis hotlines."""
+    del lang
     return (
-        "Mình rất lo lắng cho bạn và muốn bạn được an toàn. "
-        "Bạn không phải trải qua những cảm xúc này một mình. "
-        "Hãy dừng lại một chút và liên hệ ngay với người thân hoặc các tổng đài hỗ trợ tâm lý hoàn toàn miễn phí:\n\n"
-        "- Tổng đài Quốc gia Bảo vệ Trẻ em: 111 (miễn phí 24/7)\n"
-        "- Đường dây nóng hỗ trợ tâm lý Ngày Mai: 096 306 1414\n"
-        "- Cấp cứu y tế khẩn cấp: 115\n\n"
-        "Luôn có những người sẵn sàng lắng nghe và đồng hành cùng bạn. Bạn rất quý giá, hãy giữ an toàn cho bản thân nhé."
+        "I'm really concerned about you and want you to be safe. "
+        "You don't have to carry this alone. Please pause and reach out immediately "
+        "to someone you trust or contact free crisis support:\n\n"
+        "- Vietnam National Child Protection Hotline: 111 (toll-free 24/7)\n"
+        "- Ngay Mai Mental Health Crisis Helpline: 096 306 1414\n"
+        "- Emergency Medical Services: 115\n\n"
+        "There are people who care and want to help you through this. Please reach out to them right now."
     )
 
 

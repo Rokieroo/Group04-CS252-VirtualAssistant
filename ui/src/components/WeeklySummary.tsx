@@ -17,31 +17,31 @@ export function WeeklySummary({
       className="card core-panel weekly-summary"
       aria-labelledby="weekly-summary"
     >
-      <h2 id="weekly-summary">Tổng kết tuần</h2>
+      <h2 id="weekly-summary">Weekly summary</h2>
       <p>
         {report.start_date} – {report.end_date}
       </p>
       {report.reminder_due && (
-        <p role="status">Bạn có thể xem lại tuần học khi thuận tiện.</p>
+        <p role="status">You can review your study week whenever it suits you.</p>
       )}
       {!report.total_tasks &&
         !report.planned_minutes &&
         !report.review_count && (
-          <p>Tuần này chưa có hoạt động học được ghi nhận.</p>
+          <p>No study activity recorded this week yet.</p>
         )}
       <p>
-        {report.completed_nodes ?? 0} chặng hoàn thành ·{" "}
-        {report.overdue_nodes ?? 0} chặng quá hạn · {report.review_count ?? 0}{" "}
-        lượt ôn.
+        {report.completed_nodes ?? 0} stages completed ·{" "}
+        {report.overdue_nodes ?? 0} stages overdue · {report.review_count ?? 0}{" "}
+        reviews.
       </p>
       <p>
-        Thời gian đã học: {report.completed_minutes} / {report.planned_minutes}{" "}
-        phút theo kế hoạch.
+        Study time logged: {report.completed_minutes} / {report.planned_minutes}{" "}
+        planned minutes.
       </p>
       {(
         [
-          ["Mốc trong 7 ngày tới", report.upcoming_milestones],
-          ["Chặng cần ôn", report.review_nodes],
+          ["Milestones in the next 7 days", report.upcoming_milestones],
+          ["Stages needing review", report.review_nodes],
         ] as const
       ).map(([label, nodes]) => (
         <div key={label}>
@@ -59,7 +59,7 @@ export function WeeklySummary({
               ))}
             </ul>
           ) : (
-            <p>Chưa có chặng.</p>
+            <p>No stages yet.</p>
           )}
         </div>
       ))}
@@ -77,7 +77,7 @@ export function WeeklySummary({
           }}
         >
           <label>
-            Mục tiêu tuần sau
+            Next week's goal
             <select
               name="goal_id"
               onChange={(event) => {
@@ -89,7 +89,7 @@ export function WeeklySummary({
                       ?.title ?? "";
               }}
             >
-              <option value="">Thêm mục tiêu</option>
+              <option value="">Add a goal</option>
               {goals
                 .filter(
                   (g) =>
@@ -108,19 +108,19 @@ export function WeeklySummary({
             </select>
           </label>
           <label>
-            Tên mục tiêu
+            Goal name
             <input name="title" required maxLength={200} />
           </label>
-          <button>Lưu mục tiêu</button>
+          <button>Save goal</button>
         </form>
       )}
-      <button onClick={onAvailability}>Chỉnh giờ rảnh</button>
+      <button onClick={onAvailability}>Adjust availability</button>
       <button
         aria-pressed={!!report.reminder_enabled}
         onClick={() => onReminder(!report.reminder_enabled)}
       >
-        {report.reminder_enabled ? "Tắt" : "Bật"} nhắc tổng kết Chủ nhật lúc 19
-        giờ
+        {report.reminder_enabled ? "Turn off" : "Turn on"} Sunday 7:00 PM
+        summary reminder
       </button>
     </section>
   );

@@ -33,10 +33,10 @@ def _client(model_variable: str, default_models: tuple[str, ...],
         return FakeLLM()
     api_key = os.environ.get("LLM_API_KEY", "").strip()
     if not api_key:
-        raise RuntimeError(f"Thiếu LLM_API_KEY (LLM_PROVIDER={provider}). Điền key vào .env.")
+        raise RuntimeError(f"Missing LLM_API_KEY (LLM_PROVIDER={provider}). Add the key to .env.")
     if provider == "gemini":
         from app.llm.gemini import GeminiClient
 
         models = [m.strip() for m in os.environ.get(model_variable, "").split(",") if m.strip()]
         return GeminiClient(api_key, models or list(default_models), thinking)
-    raise ValueError(f"LLM_PROVIDER không hỗ trợ: '{provider}'. Dùng: fake, gemini.")
+    raise ValueError(f"Unsupported LLM_PROVIDER: '{provider}'. Use: fake, gemini.")

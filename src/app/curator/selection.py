@@ -34,7 +34,7 @@ LAMBDA = 0.7  # MMR: weight of quality against novelty
 MAX_PER_DOMAIN = 2
 DURATION_SLACK = 1.5  # shown resources may add up to 1.5 x the node's estimate
 MIN_SOURCES = 2  # fewer than this and the node is "insufficient" (curate or abstain)
-FORMAT_NAMES = {"reading": "bài đọc", "video": "video", "exercise": "bài tập"}
+FORMAT_NAMES = {"reading": "reading", "video": "video", "exercise": "exercise"}
 
 Similarity = Callable[[ScoredResource, ScoredResource], float]
 
@@ -57,7 +57,7 @@ class Curation:
     status: str  # ready | insufficient
     resources: list[ScoredResource]  # shown, teacher pins first
     reserve: list[ScoredResource] = field(default_factory=list)  # replacements, best first
-    gaps: list[str] = field(default_factory=list)  # why the set is short, in Vietnamese
+    gaps: list[str] = field(default_factory=list)  # why the set is short, in English
     budget_minutes: float | None = None
 
     @classmethod
@@ -114,11 +114,11 @@ def _finish(
     gaps = []
     if len(shown) < MIN_SOURCES:
         gaps.append(
-            f"Chưa tìm được đủ nguồn đạt chất lượng: cần ít nhất {MIN_SOURCES}, "
-            f"mới có {len(shown)}."
+            f"Not enough quality sources found yet: at least {MIN_SOURCES} needed, "
+            f"only {len(shown)} available."
         )
     present = {resource.format for resource in shown}
-    gaps += [f"Chưa có {name} đạt ngưỡng." for fmt, name in FORMAT_NAMES.items()
+    gaps += [f"No {name} source met the quality bar yet." for fmt, name in FORMAT_NAMES.items()
              if fmt not in present]
     status = "ready" if len(shown) >= MIN_SOURCES else "insufficient"
     return Curation(status, shown, reserve, gaps, budget)

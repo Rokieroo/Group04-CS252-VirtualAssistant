@@ -135,7 +135,7 @@ def get_node_resources(
         gaps = (
             curation.gaps
             if (curation and curation.gaps)
-            else ["Chưa tìm được nguồn đủ tốt"]
+            else ["No suitable sources found yet"]
         )
         return NodeResourcesOut(status="insufficient", resources=[], gaps=gaps)
 
@@ -205,7 +205,7 @@ def get_node_resources(
     gaps = (
         curation.gaps
         if (curation and curation.gaps)
-        else (["Chưa tìm được nguồn đủ tốt"] if status == "insufficient" else [])
+        else (["No suitable sources found yet"] if status == "insufficient" else [])
     )
     return NodeResourcesOut(status=status, resources=items, gaps=gaps)
 

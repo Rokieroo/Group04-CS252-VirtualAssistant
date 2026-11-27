@@ -99,10 +99,10 @@ def test_catalog_reads_yaml_and_matches_both_languages(catalog_dir: Path):
     assert vietnamese, "accent-insensitive Vietnamese matching should still work"
 
 
-def test_generate_queries_has_vietnamese_english_and_format():
+def test_generate_queries_has_english_templates_and_format():
     queries = generate_queries("Problem framing", "CSC10014")
     assert 3 <= len(queries) <= 5
-    assert any(VIETNAMESE.search(query) for query in queries)
+    assert all(not VIETNAMESE.search(query) for query in queries)
     assert any(ENGLISH.search(query) for query in queries)
     assert any(FORMAT.search(query) for query in queries)
 

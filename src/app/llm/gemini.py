@@ -72,7 +72,7 @@ class GeminiClient(LLMClient):
             try:
                 json.loads(text)
             except json.JSONDecodeError as e:
-                raise ValueError(f"Gemini trả về JSON không hợp lệ: {e}") from e
+                raise ValueError(f"Gemini returned invalid JSON: {e}") from e
 
         in_price, out_price = PRICES.get(model, (0.0, 0.0))
         result = LLMResult(text, input_tokens, output_tokens,

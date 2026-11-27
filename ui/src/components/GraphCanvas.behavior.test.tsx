@@ -92,7 +92,7 @@ function frame() {
 it("draws with the latest zoom and pan rather than stale render state", () => {
   render(<GraphCanvas nodes={nodes} edges={[]} />);
   frame();
-  fireEvent.click(screen.getByLabelText("Phóng to"));
+  fireEvent.click(screen.getByLabelText("Zoom in"));
   frame();
   expect(ctx.scale).toHaveBeenLastCalledWith(1.2, 1.2);
   fireEvent.keyDown(screen.getByRole("region"), { key: "ArrowRight" });
@@ -282,7 +282,7 @@ it("fits 32 CSC10014 concepts across 10 weeks without label overlap and renders 
     state = { ...state, sx: state.sx * sx, sy: state.sy * sy };
   });
   ctx.fillText.mockImplementation((text: string, x: number, y: number) => {
-    if (!text || /^TUẦN\s/i.test(text)) return;
+    if (!text || /^WEEK\s/i.test(text)) return;
     const match = /(\d+(?:\.\d+)?)px/.exec(String(ctx.font || "12px"));
     const fontPx = match ? Number(match[1]) : 12;
     const w = ctx.measureText(text).width * state.sx;
@@ -320,7 +320,7 @@ it("fits 32 CSC10014 concepts across 10 weeks without label overlap and renders 
   frame();
   frame();
 
-  expect(view.container.textContent).toContain("Tổng quan (32)");
+  expect(view.container.textContent).toContain("Overview (32)");
   // Labels that would collide are skipped by design, so "no overlap" alone is free:
   // the graph is only readable at fit zoom if every concept keeps its label.
   expect(drawnLabels.map((l) => l.text).sort()).toEqual(
@@ -393,13 +393,13 @@ it("uses at most 3 semantic hues beyond background/neutral and explains each in 
   const legend = view.container.querySelector(".graph-legend")!;
   expect(legend).not.toBeNull();
   for (const label of [
-    "Chủ đề",
-    "Đang học",
-    "Đã vững",
-    "Cần chú ý",
-    "Mốc kiểm tra",
-    "Bắt buộc",
-    "Nên học trước",
+    "Topic",
+    "In progress",
+    "Mastered",
+    "Needs attention",
+    "Milestone",
+    "Required",
+    "Recommended",
   ]) {
     expect(legend.textContent).toContain(label);
   }

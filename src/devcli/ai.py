@@ -34,24 +34,24 @@ def _read_jsonl(path: Path) -> tuple[list[tuple[int, dict]], list[str]]:
         try:
             rows.append((n, json.loads(line)))
         except json.JSONDecodeError as exc:
-            errors.append(f"dòng {n}: JSON lỗi ({exc.msg})")
+            errors.append(f"line {n}: invalid JSON ({exc.msg})")
     return rows, errors
 
 
 def load_resources(path: Path) -> tuple[list[dict], list[str]]:
     """Parse the labelled resource set, one roadmap node per line, as eval/run_resources.py reads it."""
     if not path.exists():
-        return [], [f"Không tìm thấy {path}"]
+        return [], [f"File not found: {path}"]
     rows, errors = _read_jsonl(path)
     seen: set[str] = set()
     for n, case in rows:
         if not case.get("id") or not case.get("node", {}).get("title"):
-            errors.append(f"dòng {n}: thiếu id hoặc node.title")
+            errors.append(f"line {n}: missing id or node.title")
         if case.get("id") in seen:
-            errors.append(f"dòng {n}: id '{case['id']}' bị trùng")
+            errors.append(f"line {n}: duplicate id '{case['id']}'")
         seen.add(case.get("id"))
         if not case.get("resources"):
-            errors.append(f"dòng {n}: thiếu danh sách resources")
+            errors.append(f"line {n}: missing resources list")
         for i, res in enumerate(case.get("resources") or [], start=1):
             if (
                 not res.get("url")
@@ -59,7 +59,7 @@ def load_resources(path: Path) -> tuple[list[dict], list[str]]:
                 or res.get("label") not in LABELS
             ):
                 errors.append(
-                    f"dòng {n}, nguồn {i}: cần url, reason và label thuộc {sorted(LABELS)}"
+                    f"line {n}, resource {i}: requires url, reason, and label in {sorted(LABELS)}"
                 )
     return [case for _, case in rows], [f"{path.name} {err}" for err in errors]
 
@@ -68,10 +68,10 @@ def validate_syllabus_benchmark(syl_dir: Path) -> list[str]:
     """Validate that syllabus samples have corresponding valid gold files."""
     errors: list[str] = []
     if not syl_dir.exists():
-        return [f"Không tìm thấy thư mục {syl_dir}"]
+        return [f"Directory not found: {syl_dir}"]
     gold_files = list(syl_dir.glob("*.gold.json"))
     if not gold_files:
-        errors.append(f"{syl_dir}: không tìm thấy file .gold.json nào")
+        errors.append(f"{syl_dir}: no .gold.json files found")
     for gf in gold_files:
         try:
             data = json.loads(gf.read_text(encoding="utf-8"))
@@ -84,36 +84,36 @@ def validate_syllabus_benchmark(syl_dir: Path) -> list[str]:
                 "assessments",
             ):
                 if req not in data:
-                    errors.append(f"{gf.name}: thiếu trường '{req}'")
+                    errors.append(f"{gf.name}: missing field '{req}'")
         except json.JSONDecodeError as exc:
-            errors.append(f"{gf.name}: JSON lỗi ({exc.msg})")
+            errors.append(f"{gf.name}: invalid JSON ({exc.msg})")
     return errors
 
 
 def validate_exercises_benchmark(path: Path) -> list[str]:
     """Validate the 60-case exercise benchmark with verbatim citations."""
     if not path.exists():
-        return [f"Không tìm thấy file {path}"]
+        return [f"File not found: {path}"]
     rows, parse_errors = _read_jsonl(path)
     errors = [f"exercises {err}" for err in parse_errors]
     if len(rows) < 60:
         errors.append(
-            f"Cần tối thiểu 60 case bài tập benchmark (tìm thấy {len(rows)})"
+            f"At least 60 exercise benchmark cases required (found {len(rows)})"
         )
     seen_ids: set[str] = set()
     for n, item in rows:
         for req in ("id", "course_code", "concept", "prompt", "source", "type"):
             if not item.get(req):
-                errors.append(f"exercises dòng {n}: thiếu trường '{req}'")
+                errors.append(f"exercises line {n}: missing field '{req}'")
         item_id = item.get("id")
         if item_id:
             if item_id in seen_ids:
-                errors.append(f"exercises dòng {n}: id '{item_id}' bị trùng")
+                errors.append(f"exercises line {n}: duplicate id '{item_id}'")
             seen_ids.add(item_id)
         source = item.get("source") or {}
         if not source.get("source_text") or not source.get("location"):
             errors.append(
-                f"exercises dòng {n}: source cần có 'source_text' và 'location'"
+                f"exercises line {n}: source must include 'source_text' and 'location'"
             )
         else:
             prompt = item.get("prompt", "")
@@ -122,16 +122,16 @@ def validate_exercises_benchmark(path: Path) -> list[str]:
             source_text = source.get("source_text", "")
             if prompt and prompt not in source_text:
                 errors.append(
-                    f"exercises dòng {n} ({item_id}): prompt không khớp nguyên văn trong source_text"
+                    f"exercises line {n} ({item_id}): prompt does not appear verbatim in source_text"
                 )
             for choice in choices:
                 if choice not in source_text:
                     errors.append(
-                        f"exercises dòng {n} ({item_id}): choice '{choice}' không khớp nguyên văn"
+                        f"exercises line {n} ({item_id}): choice '{choice}' does not appear verbatim"
                     )
             if answer and answer not in source_text:
                 errors.append(
-                    f"exercises dòng {n} ({item_id}): answer '{answer}' không khớp nguyên văn"
+                    f"exercises line {n} ({item_id}): answer '{answer}' does not appear verbatim"
                 )
     return errors
 
@@ -150,11 +150,11 @@ def validate_graph_benchmark(graphs_dir: Path) -> list[str]:
 
     errors: list[str] = []
     if not graphs_dir.exists():
-        return [f"Không tìm thấy thư mục {graphs_dir}"]
+        return [f"Directory not found: {graphs_dir}"]
     gold_files = sorted(graphs_dir.glob("*.gold.json"))
     if len(gold_files) < 5:
         errors.append(
-            f"{graphs_dir}: cần tối thiểu 5 file .gold.json (tìm thấy {len(gold_files)})"
+            f"{graphs_dir}: at least 5 .gold.json files required (found {len(gold_files)})"
         )
     for gf in gold_files:
         try:
@@ -170,68 +170,68 @@ def validate_graph_benchmark(graphs_dir: Path) -> list[str]:
                 "edges",
             ):
                 if req not in data:
-                    errors.append(f"{gf.name}: thiếu trường '{req}'")
+                    errors.append(f"{gf.name}: missing field '{req}'")
             if float(data.get("cohens_kappa", 0.0)) < 0.7:
-                errors.append(f"{gf.name}: cohens_kappa phải >= 0.7")
+                errors.append(f"{gf.name}: cohens_kappa must be >= 0.7")
             concepts = data.get("concepts") or []
             if data.get("course_code") == "CSC10014" and len(concepts) < 30:
-                errors.append(f"{gf.name}: CSC10014 cần >= 30 concepts")
+                errors.append(f"{gf.name}: CSC10014 requires >= 30 concepts")
             slugs = {c.get("slug") for c in concepts if c.get("slug")}
             for c in concepts:
                 if not c.get("source_page"):
-                    errors.append(f"{gf.name}: concept '{c.get('slug')}' thiếu source_page")
+                    errors.append(f"{gf.name}: concept '{c.get('slug')}' missing source_page")
             for edge in data.get("edges") or []:
                 if edge.get("parent") not in slugs or edge.get("child") not in slugs:
                     errors.append(
-                        f"{gf.name}: cạnh {edge.get('parent')}->{edge.get('child')} trỏ ngoài concepts"
+                        f"{gf.name}: edge {edge.get('parent')}->{edge.get('child')} points outside concepts"
                     )
                 if edge.get("kind") not in ("strict", "soft"):
-                    errors.append(f"{gf.name}: kind '{edge.get('kind')}' không hợp lệ")
+                    errors.append(f"{gf.name}: invalid kind '{edge.get('kind')}'")
             if find_cycles(list(slugs), data.get("edges") or []):
-                errors.append(f"{gf.name}: đồ thị chứa chu trình (cycle)")
+                errors.append(f"{gf.name}: graph contains a cycle")
         except json.JSONDecodeError as exc:
-            errors.append(f"{gf.name}: JSON lỗi ({exc.msg})")
+            errors.append(f"{gf.name}: invalid JSON ({exc.msg})")
     return errors
 
 
 def validate_redteam_fixtures(fix_dir: Path) -> list[str]:
     """Validate redteam prompt injection, pirated URLs, PII samples, and answer leak fixtures."""
     if not fix_dir.exists():
-        return [f"Không tìm thấy thư mục {fix_dir}"]
+        return [f"Directory not found: {fix_dir}"]
     errors: list[str] = []
     pirated_file = fix_dir / "pirated_urls.jsonl"
     if not pirated_file.exists():
-        errors.append(f"Không tìm thấy {pirated_file}")
+        errors.append(f"File not found: {pirated_file}")
     else:
         rows, parse_errors = _read_jsonl(pirated_file)
         errors += [f"pirated_urls {err}" for err in parse_errors]
         errors += [
-            f"pirated_urls dòng {n}: thiếu url" for n, row in rows if not row.get("url")
+            f"pirated_urls line {n}: missing url" for n, row in rows if not row.get("url")
         ]
     leaks_file = fix_dir / "answer_leaks.jsonl"
     if not leaks_file.exists():
-        errors.append(f"Không tìm thấy {leaks_file}")
+        errors.append(f"File not found: {leaks_file}")
     else:
         rows, parse_errors = _read_jsonl(leaks_file)
         errors += [f"answer_leaks {err}" for err in parse_errors]
         if len(rows) < 30:
             errors.append(
-                f"Cần tối thiểu 30 case red-team lộ đáp án (tìm thấy {len(rows)})"
+                f"At least 30 answer-leak red-team cases required (found {len(rows)})"
             )
         for n, row in rows:
             if not row.get("id") or not row.get("prompt"):
                 errors.append(
-                    f"answer_leaks dòng {n}: thiếu id hoặc prompt thử thách lộ đáp án"
+                    f"answer_leaks line {n}: missing id or answer-leak challenge prompt"
                 )
     inj_files = list((fix_dir / "injections").glob("*.html"))
     if len(inj_files) < 15:
         errors.append(
-            f"Cần tối thiểu 15 file injection HTML (tìm thấy {len(inj_files)})"
+            f"At least 15 injection HTML files required (found {len(inj_files)})"
         )
     pii_files = list((fix_dir / "pii_syllabi").glob("*.txt"))
     if len(pii_files) < 10:
         errors.append(
-            f"Cần tối thiểu 10 file PII syllabus sample (tìm thấy {len(pii_files)})"
+            f"At least 10 PII syllabus sample files required (found {len(pii_files)})"
         )
     return errors
 
@@ -243,15 +243,15 @@ def load_cases(path: Path) -> tuple[list[dict], list[str]]:
     for n, case in rows:
         missing = [k for k in REQUIRED if not case.get(k)]
         if missing:
-            errors.append(f"dòng {n}: thiếu trường {', '.join(missing)}")
+            errors.append(f"line {n}: missing fields {', '.join(missing)}")
         if case.get("kind") and case["kind"] not in KINDS:
             errors.append(
-                f"dòng {n}: kind '{case['kind']}' không thuộc {sorted(KINDS)}"
+                f"line {n}: kind '{case['kind']}' not in {sorted(KINDS)}"
             )
         if case.get("use_case") and not USE_CASE_RE.match(case["use_case"]):
-            errors.append(f"dòng {n}: use_case '{case['use_case']}' phải có dạng UC-01")
+            errors.append(f"line {n}: use_case '{case['use_case']}' must match UC-01")
         if case.get("id") in seen:
-            errors.append(f"dòng {n}: id '{case['id']}' bị trùng")
+            errors.append(f"line {n}: duplicate id '{case['id']}'")
         seen.add(case.get("id"))
     return [case for _, case in rows], errors
 
@@ -268,16 +268,16 @@ def _report(errors: list[str], ok_message: str) -> bool:
 def _benchmark(args: argparse.Namespace) -> int:
     path = Path(args.file)
     if not path.exists():
-        print(f"Không tìm thấy {path}.")
+        print(f"File not found: {path}.")
         return 1
 
     cases, errors = load_cases(path)
     if args.action == "stats":
-        print(f"Tổng số case: {len(cases)}")
+        print(f"Total cases: {len(cases)}")
         for key in ("kind", "use_case"):
             counts = Counter(c.get(key, "?") for c in cases)
             print(
-                f"Theo {key}: "
+                f"By {key}: "
                 + ", ".join(f"{k}={v}" for k, v in sorted(counts.items()))
             )
         nodes, _ = load_resources(RESOURCES)
@@ -286,11 +286,11 @@ def _benchmark(args: argparse.Namespace) -> int:
         )
         if labels:
             print(
-                f"Nguồn gắn nhãn: {labels.total()} trên {len(nodes)} chặng, "
+                f"Labelled resources: {labels.total()} across {len(nodes)} stages, "
                 f"good={labels['good']}, bad={labels['bad']}"
             )
 
-    ok = _report(errors, f"{len(cases)} case hợp lệ trong {path.name}")
+    ok = _report(errors, f"{len(cases)} valid cases in {path.name}")
     if args.action == "validate" and path == BENCHMARK:
         # The default run also checks the other #66 and #112 suites, so CI covers them too.
         nodes, resource_errors = load_resources(RESOURCES)
@@ -301,23 +301,23 @@ def _benchmark(args: argparse.Namespace) -> int:
                 ok,
                 _report(
                     resource_errors,
-                    f"{len(nodes)} chặng có nguồn gắn nhãn trong {RESOURCES.name}",
+                    f"{len(nodes)} stages with labelled resources in {RESOURCES.name}",
                 ),
                 _report(
                     validate_syllabus_benchmark(SYLLABUS_DIR),
-                    f"{gold_count} syllabus benchmark + gold hợp lệ trong {SYLLABUS_DIR.name}/",
+                    f"{gold_count} valid syllabus benchmark + gold files in {SYLLABUS_DIR.name}/",
                 ),
                 _report(
                     validate_exercises_benchmark(EXERCISES),
-                    f"60 case bài tập benchmark hợp lệ trong {EXERCISES.name}",
+                    f"60 valid exercise benchmark cases in {EXERCISES.name}",
                 ),
                 _report(
                     validate_graph_benchmark(GRAPHS_DIR),
-                    f"{graph_gold_count} knowledge graph gold hợp lệ trong {GRAPHS_DIR.name}/",
+                    f"{graph_gold_count} valid knowledge graph gold files in {GRAPHS_DIR.name}/",
                 ),
                 _report(
                     validate_redteam_fixtures(FIXTURES_DIR),
-                    "Red-team fixtures (injections, pirated URLs, PII, answer_leaks) hợp lệ",
+                    "Valid red-team fixtures (injections, pirated URLs, PII, answer_leaks)",
                 ),
             ]
         )
@@ -344,7 +344,7 @@ def _concepts(args: argparse.Namespace) -> int:
         data = path.read_bytes()
         pages = extract_pages(data)
     except (OSError, InvalidPdf) as exc:
-        print(f"Không đọc được {path}: {exc}")
+        print(f"Could not read {path}: {exc}")
         return 1
     visuals = read_visuals(get_vision_client(), data, len(pages))
     concepts = extract_concepts(get_client(), pages, visuals)
@@ -353,10 +353,10 @@ def _concepts(args: argparse.Namespace) -> int:
         return 0
     for c in concepts:
         print(
-            f"- {c['title']} [{c['slug']}, {c['bloom_level']}, trang {c['source_pages']}]"
+            f"- {c['title']} [{c['slug']}, {c['bloom_level']}, pages {c['source_pages']}]"
         )
         print(f"  {c['summary']}")
-    print(f"{path.name}: {len(pages)} trang, {len(concepts)} concept")
+    print(f"{path.name}: {len(pages)} pages, {len(concepts)} concepts")
     return 0
 
 
@@ -380,7 +380,7 @@ def _syllabus(args: argparse.Namespace) -> int:
         data = path.read_bytes()
         pages = extract_pages(data, detect_media_type(path.name, data))
     except (OSError, InvalidDocument, UnsupportedType) as exc:
-        print(f"Không đọc được {path}: {exc}")
+        print(f"Could not read {path}: {exc}")
         return 1
     try:
         draft = extract_syllabus(get_client(), pages)
@@ -388,7 +388,7 @@ def _syllabus(args: argparse.Namespace) -> int:
         print(f"{path.name}: not_a_syllabus ({exc})")
         return 1
     except (ValueError, RetryableError) as exc:
-        print(f"{path.name}: LLM không trả được kết quả dùng được ({exc})")
+        print(f"{path.name}: LLM did not return a usable result ({exc})")
         return 1
     if args.json:
         result = {
@@ -400,31 +400,31 @@ def _syllabus(args: argparse.Namespace) -> int:
     parsed = draft.parsed
     course = parsed["course"]
     print(
-        f"# {course['code']} {course['title']} ({course['credits']} tín chỉ, "
+        f"# {course['code']} {course['title']} ({course['credits']} credits, "
         f"{course['term_start']} – {course['term_end']})"
     )
     for outcome in parsed["outcomes"]:
         print(
-            f"- {outcome['code']} [{outcome['bloom_level']}, trang {outcome['source_page']}] "
+            f"- {outcome['code']} [{outcome['bloom_level']}, page {outcome['source_page']}] "
             f"{outcome['text']}"
         )
     for week in parsed["weeks"]:
         print(
-            f"- Tuần {week['week']} [trang {week['source_page']}]: {'; '.join(week['topics'])}"
+            f"- Week {week['week']} [page {week['source_page']}]: {'; '.join(week['topics'])}"
         )
     for item in parsed["assessments"]:
         due = (
-            item["due_date"] or (item["due_week"] and f"tuần {item['due_week']}") or "?"
+            item["due_date"] or (item["due_week"] and f"week {item['due_week']}") or "?"
         )
         print(
-            f"- {item['title']} ({item['kind']}): {item['weight']}%, hạn {due} "
-            f"[trang {item['source_page']}]"
+            f"- {item['title']} ({item['kind']}): {item['weight']}%, due {due} "
+            f"[page {item['source_page']}]"
         )
     for warning in draft.warnings:
         print(
-            f"[{'CHẶN' if warning.blocking else 'WARN'}] {warning.code}: {warning.message}"
+            f"[{'BLOCK' if warning.blocking else 'WARN'}] {warning.code}: {warning.message}"
         )
-    print(f"{path.name}: {len(pages)} trang, {len(draft.warnings)} cảnh báo")
+    print(f"{path.name}: {len(pages)} pages, {len(draft.warnings)} warnings")
     return 0
 
 
@@ -440,7 +440,7 @@ def _items(args: argparse.Namespace) -> int:
         pages = extract_pages(path.read_bytes())
         concepts = json.loads(Path(args.concepts).read_text(encoding="utf-8"))
     except (OSError, InvalidPdf, ValueError) as exc:
-        print(f"Không đọc được đầu vào: {exc}")
+        print(f"Could not read input: {exc}")
         return 1
     sources = [
         {"id": f"p{n}", "page": n, "text": t}
@@ -456,14 +456,14 @@ def _items(args: argparse.Namespace) -> int:
     for c in result:
         print(f"## {c['title']}")
         for item in c["items"]:
-            print(f"- [{item['type']}, trang {item['source_id'][1:]}] {item['prompt']}")
+            print(f"- [{item['type']}, page {item['source_id'][1:]}] {item['prompt']}")
             for choice in item["choices"]:
                 print(f"    {'*' if choice == item['answer'] else ' '} {choice}")
             if item["rubric"]:
-                print(f"    Đáp án: {item['answer']}")
+                print(f"    Answer: {item['answer']}")
                 print(f"    Rubric: {'; '.join(item['rubric'])}")
     print(
-        f"{path.name}: {sum(len(c['items']) for c in result)} item cho {len(result)} concept"
+        f"{path.name}: {sum(len(c['items']) for c in result)} items across {len(result)} concepts"
     )
     return 0
 
@@ -485,10 +485,10 @@ def _syllabus_preview(args: argparse.Namespace) -> int:
             load_dotenv(ROOT / ".env")
         draft = preview_syllabus(pages, get_client() if args.llm else None)
     except RetryableError:
-        print("Nhà cung cấp LLM tạm thời không khả dụng; hãy thử lại sau.")
+        print("LLM provider is temporarily unavailable; please try again later.")
         return 1
     except (OSError, ValueError, RuntimeError) as exc:
-        print(f"Không phân tích được syllabus: {exc}")
+        print(f"Could not parse syllabus: {exc}")
         return 1
     print(json.dumps(draft.to_dict(), ensure_ascii=False, indent=2))
     return 0
@@ -560,10 +560,10 @@ def _catalog_ingest(args: argparse.Namespace) -> int:
         try:
             demands = _demands(db, args.syllabus or [], args.benchmark)
         except LookupError as exc:
-            print(f"[FAIL] Không tìm thấy syllabus {exc}")
+            print(f"[FAIL] Syllabus not found: {exc}")
             return 2
     if not demands:
-        print("[FAIL] Cần --syllabus <id hoặc file .gold.json> hoặc --benchmark")
+        print("[FAIL] Provide --syllabus <id or .gold.json file> or --benchmark")
         return 2
     since = datetime.fromisoformat(args.since).replace(tzinfo=UTC) if args.since else None
     sources = load_sources()
@@ -576,7 +576,7 @@ def _catalog_ingest(args: argparse.Namespace) -> int:
             print(f"[FAIL] {exc.reason}")
             return 2
         for (label, _), (_, subjects) in zip(demands, priority_batches(d for _, d in demands)):
-            print(f"== {label}: {len(subjects)} nhãn môn mới {subjects}")
+            print(f"== {label}: {len(subjects)} new subject tags {subjects}")
             for connector in connectors if subjects else []:
                 # One transaction per connector: a later failure keeps earlier work.
                 with database.sessions() as db:
@@ -585,99 +585,99 @@ def _catalog_ingest(args: argparse.Namespace) -> int:
                 failed |= report.error is not None
                 status = f"[FAIL] {report.error}" if report.error else "[ OK ]"
                 print(
-                    f"  {status} {report.connector}: {report.records} bản ghi, "
-                    f"tạo {dict(report.created)}, cập nhật {report.updated}, "
-                    f"bỏ qua {dict(report.skipped)}"
+                    f"  {status} {report.connector}: {report.records} records, "
+                    f"created {dict(report.created)}, updated {report.updated}, "
+                    f"skipped {dict(report.skipped)}"
                 )
     with database.sessions() as db:
         for label, demand in demands:
             counts = node_candidates(db, demand)
             ready = sum(count >= args.min for _, count in counts)
-            print(f"== {label}: {ready}/{len(counts)} chặng có >= {args.min} ứng viên pending/verified")
+            print(f"== {label}: {ready}/{len(counts)} stages have >= {args.min} pending/verified candidates")
             for title, count in counts:
-                print(f"  {'[ OK ]' if count >= args.min else '[THIẾU]'} {count:>3}  {title[:70]}")
+                print(f"  {'[ OK ]' if count >= args.min else '[MISSING]'} {count:>3}  {title[:70]}")
     return 1 if failed else 0
 
 
 def register(sub: argparse._SubParsersAction) -> None:
-    p = sub.add_parser("ai", help="AI implementation: benchmark và trợ lý")
+    p = sub.add_parser("ai", help="AI implementation: benchmarks and assistant")
     ai_sub = p.add_subparsers(dest="ai_command", required=True)
 
     ai_sub.add_parser(
-        "tag-catalog", help="gắn taxonomy và vector cho nguồn catalog đã nhập"
+        "tag-catalog", help="assign taxonomy labels and embeddings to ingested catalog resources"
     ).set_defaults(func=_tag_catalog)
 
     ingest = ai_sub.add_parser(
         "catalog-ingest",
-        help="nạp nguồn catalog (MIT OCW, OpenStax, Open Yale, YAML thêm tay) cho môn của syllabus",
+        help="ingest catalog resources (MIT OCW, OpenStax, Open Yale, manual YAML) for syllabus subjects",
     )
     ingest.add_argument(
         "--syllabus",
         action="append",
-        help="id syllabus trong DB hoặc file eval/syllabus/*.gold.json; lặp được, theo thứ tự ưu tiên",
+        help="syllabus id in DB or eval/syllabus/*.gold.json file; repeatable in priority order",
     )
     ingest.add_argument(
-        "--benchmark", action="store_true", help="thêm mọi syllabus benchmark (#66) sau --syllabus"
+        "--benchmark", action="store_true", help="append all benchmark syllabi (#66) after --syllabus"
     )
     ingest.add_argument(
         "--connector",
         action="append",
-        help="chỉ chạy connector này (mit_ocw, openstax, open_yale, manual_yaml); lặp được",
+        help="run only this connector (mit_ocw, openstax, open_yale, manual_yaml); repeatable",
     )
-    ingest.add_argument("--since", help="ngày ISO; connector có ngày sửa đổi bỏ qua bản cũ hơn")
+    ingest.add_argument("--since", help="ISO date; connectors with modification dates skip older entries")
     ingest.add_argument(
-        "--min", type=int, default=5, help="số ứng viên tối thiểu mỗi chặng để báo [ OK ] (mặc định 5)"
+        "--min", type=int, default=5, help="minimum candidates per stage to report [ OK ] (default 5)"
     )
     ingest.set_defaults(func=_catalog_ingest)
 
     bench = ai_sub.add_parser(
-        "benchmark", help="kiểm tra hoặc thống kê eval/benchmark.jsonl"
+        "benchmark", help="validate or summarize eval/benchmark.jsonl"
     )
     bench.add_argument("action", choices=["validate", "stats"])
     bench.add_argument("--file", default=str(BENCHMARK))
     bench.set_defaults(func=_benchmark)
 
     chat = ai_sub.add_parser(
-        "chat", help="chạy trợ lý (hỏi một câu, hoặc chế độ tương tác)"
+        "chat", help="run the assistant (single question or interactive mode)"
     )
     chat.add_argument("question", nargs="*")
     chat.set_defaults(func=_chat)
 
     concepts = ai_sub.add_parser(
-        "concepts", help="đề xuất concept từ một file PDF (dùng LLM_PROVIDER)"
+        "concepts", help="extract concepts from a PDF file (uses LLM_PROVIDER)"
     )
     concepts.add_argument("file")
-    concepts.add_argument("--json", action="store_true", help="in kết quả dạng JSON")
+    concepts.add_argument("--json", action="store_true", help="print output as JSON")
     concepts.set_defaults(func=_concepts)
 
     syllabus = ai_sub.add_parser(
-        "syllabus", help="phân tích syllabus PDF/DOCX/TXT (dùng LLM_PROVIDER)"
+        "syllabus", help="parse a PDF/DOCX/TXT syllabus (uses LLM_PROVIDER)"
     )
     syllabus.add_argument("file")
-    syllabus.add_argument("--json", action="store_true", help="in kết quả dạng JSON")
+    syllabus.add_argument("--json", action="store_true", help="print output as JSON")
     syllabus.set_defaults(func=_syllabus)
 
     preview = ai_sub.add_parser(
         "syllabus-preview",
-        help="xem trước syllabus có kiểm tra nguồn; mặc định offline",
+        help="preview a syllabus with source verification; offline by default",
     )
     preview.add_argument("file")
     preview.add_argument(
         "--llm",
         action="store_true",
-        help="dùng parser LLM của nhóm thay cho đọc offline",
+        help="use the team's LLM parser instead of offline parsing",
     )
     preview.set_defaults(func=_syllabus_preview)
 
     items = ai_sub.add_parser(
-        "items", help="trích bài tập đã có trong PDF, không soạn câu hỏi bằng AI"
+        "items", help="extract existing exercises from a PDF without AI question authoring"
     )
     items.add_argument("file")
     items.add_argument(
-        "--concepts", required=True, help="JSON từ `ai concepts <file> --json`"
+        "--concepts", required=True, help="JSON from `ai concepts <file> --json`"
     )
     items.add_argument(
-        "--limit", type=int, default=5, help="số concept tối đa (mặc định 5)"
+        "--limit", type=int, default=5, help="maximum number of concepts (default 5)"
     )
-    items.add_argument("--json", action="store_true", help="in kết quả dạng JSON")
+    items.add_argument("--json", action="store_true", help="print output as JSON")
     items.set_defaults(func=_items)

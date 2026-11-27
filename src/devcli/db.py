@@ -54,7 +54,7 @@ def _init(args: argparse.Namespace) -> int:
         label = database_url
 
     tables = init_database(reset=args.reset, database_url=database_url)
-    print(f"[ OK ] {label}: {len(tables)} bảng ({', '.join(tables)})")
+    print(f"[ OK ] {label}: {len(tables)} tables ({', '.join(tables)})")
     return 0
 
 
@@ -81,51 +81,51 @@ def _scan(args: argparse.Namespace) -> int:
             hits += 1
             print(f"[FAIL] {file.relative_to(ROOT)}: {name}")
     print(
-        "[ OK ] Không thấy secret trong các file git đang theo dõi."
+        "[ OK ] No secrets found in git-tracked files."
         if not hits
-        else f"{hits} vấn đề."
+        else f"{hits} issue(s) found."
     )
     return 1 if hits else 0
 
 
 def register(sub: argparse._SubParsersAction) -> None:
-    p = sub.add_parser("db", help="Database & Security: schema cục bộ và quét secret")
+    p = sub.add_parser("db", help="Database & Security: local schema and secret scan")
     db_sub = p.add_subparsers(dest="db_command", required=True)
 
-    seed = db_sub.add_parser("seed-institutions", help="nạp registry ROR/OpenAlex vào DB (idempotent)")
+    seed = db_sub.add_parser("seed-institutions", help="load ROR/OpenAlex registry into DB (idempotent)")
     seed.add_argument("--file", default=str(ROOT / "data/catalog/institutions.csv"))
     seed.set_defaults(func=_seed_institutions)
 
     snapshot = db_sub.add_parser(
         "snapshot-catalog",
-        help="xuất catalog dùng chung (không có dữ liệu người dùng) ra một file JSON",
+        help="export shared catalog (no user data) to a JSON file",
     )
-    snapshot.add_argument("--out", required=True, help="file JSON sẽ ghi")
+    snapshot.add_argument("--out", required=True, help="output JSON file path")
     snapshot.set_defaults(func=_snapshot_catalog)
 
     catalog = db_sub.add_parser(
-        "seed-catalog", help="nạp một snapshot catalog vào DB (idempotent, gộp theo khóa tự nhiên)"
+        "seed-catalog", help="load a catalog snapshot into DB (idempotent, merge by natural key)"
     )
     source = catalog.add_mutually_exclusive_group(required=True)
-    source.add_argument("--file", help="snapshot do `db snapshot-catalog` xuất")
+    source.add_argument("--file", help="snapshot exported by `db snapshot-catalog`")
     source.add_argument(
         "--sample",
         action="store_true",
-        help="mẫu đi kèm repo, đủ nguồn cho roadmap CSC10014; chỉ dùng cho máy dev và CI",
+        help="bundled sample snapshot with sources for the CSC10014 roadmap; dev and CI only",
     )
     catalog.set_defaults(func=_seed_catalog)
 
     init = db_sub.add_parser(
-        "init", help="tạo database từ db/schema.sql (mặc định theo DATABASE_URL)"
+        "init", help="create database from db/schema.sql (defaults to DATABASE_URL)"
     )
-    init.add_argument("--db", help="ghi đè bằng một file SQLite cục bộ (tùy chọn)")
+    init.add_argument("--db", help="override with a local SQLite file (optional)")
     init.add_argument(
-        "--reset", action="store_true", help="xóa database cũ trước khi tạo"
+        "--reset", action="store_true", help="reset existing database before creating tables"
     )
     init.set_defaults(func=_init)
 
     scan = db_sub.add_parser(
-        "scan-secrets", help="tìm API key, token, private key trong repo"
+        "scan-secrets", help="scan tracked files for API keys, tokens, and private keys"
     )
     scan.set_defaults(func=_scan)
 
@@ -171,7 +171,7 @@ def _seed_catalog(args: argparse.Namespace) -> int:
             print(f"[FAIL] {path}: {exc}")
             return 2
         db.commit()
-    print(f"[ OK ] {path.name}: thêm {dict(added) or 'không có dòng mới'}")
+    print(f"[ OK ] {path.name}: added {dict(added) or 'no new rows'}")
     return 0
 
 

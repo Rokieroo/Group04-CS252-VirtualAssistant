@@ -131,7 +131,7 @@ export function NodePanel({
       setLoadError(
         sourceResult.reason instanceof Error
           ? sourceResult.reason.message
-          : "Không tải được nguồn học.",
+          : "Could not load learning sources.",
       );
     if (exerciseResult.status === "fulfilled") {
       setExercises(exerciseResult.value.exercises);
@@ -249,7 +249,7 @@ export function NodePanel({
     } catch (err) {
       if (searchVersion !== loadVersion.current) return;
       setLoadError(
-        err instanceof Error ? err.message : "Không bắt đầu tìm lại được.",
+        err instanceof Error ? err.message : "Could not restart search.",
       );
     } finally {
       if (searchVersion === loadVersion.current) {
@@ -342,7 +342,7 @@ export function NodePanel({
         className="node-panel-container"
         role="dialog"
         aria-modal="true"
-        aria-label={`Chi tiết chặng: ${node.title}`}
+        aria-label={`Stage details: ${node.title}`}
         tabIndex={-1}
         onKeyDown={trapFocus}
       >
@@ -359,23 +359,23 @@ export function NodePanel({
               type="button"
               className="np-close-btn"
               onClick={onClose}
-              aria-label="Đóng bảng thông tin chặng (Esc)"
-              title="Đóng (Esc)"
+              aria-label="Close stage details panel (Esc)"
+              title="Close (Esc)"
             >
               ✕
             </button>
           </div>
 
           <div className="np-meta-chips">
-            {node.week && <span className="np-chip">Tuần {node.week}</span>}
+            {node.week && <span className="np-chip">Week {node.week}</span>}
             {(node.est_minutes || node.duration_minutes) && (
               <span className="np-chip">
-                ⏱ {node.est_minutes || node.duration_minutes} phút
+                ⏱ {node.est_minutes || node.duration_minutes} min
               </span>
             )}
             {node.status && (
               <span className={`np-chip status-${node.status}`}>
-                Trạng thái: {node.status}
+                Status: {node.status}
               </span>
             )}
             {node.outcome_ids &&
@@ -383,7 +383,7 @@ export function NodePanel({
                 <span
                   key={clo}
                   className="np-chip"
-                  title="Chuẩn đầu ra môn học"
+                  title="Course learning outcome"
                 >
                   🎯 {clo}
                 </span>
@@ -394,9 +394,9 @@ export function NodePanel({
                 className="np-chip np-chip-clickable"
                 disabled={!onOpenSyllabusPage}
                 onClick={() => onOpenSyllabusPage?.(node.syllabus_page!)}
-                title="Mở giáo trình tại trang này"
+                title="Open syllabus at this page"
               >
-                📄 Trang syllabus: {node.syllabus_page} ↗
+                📄 Syllabus page: {node.syllabus_page} ↗
               </button>
             )}
           </div>
@@ -410,13 +410,13 @@ export function NodePanel({
                 color: "var(--color-primary-ink)",
               }}
             >
-              {node.due_at && <span>📅 Hạn chót: {node.due_at}</span>}
+              {node.due_at && <span>📅 Due: {node.due_at}</span>}
               {node.weight !== undefined && (
-                <span>⚖ Trọng số: {node.weight}%</span>
+                <span>⚖ Weight: {node.weight}%</span>
               )}
               {coveredNodes.length > 0 && (
                 <span>
-                  Bao phủ {coveredNodes.length} chặng (
+                  Covers {coveredNodes.length} stages (
                   {coveredNodes.map((c: RoadmapNode) => c.title).join(", ")})
                 </span>
               )}
@@ -430,20 +430,20 @@ export function NodePanel({
             className="np-path-btn"
             onClick={() => onLocalGraph(node.id)}
           >
-            Xem đồ thị cục bộ
+            View local graph
           </button>
         )}
         {onToggleKnown && node.type !== "milestone" && (
           <div className="np-known">
             {known && (
               <span className="sm">
-                Đã biết (
+                Known (
                 {known === "tested"
-                  ? "qua bài kiểm tra"
+                  ? "via placement test"
                   : known === "inferred"
-                    ? "suy ra từ câu trả lời"
-                    : "bạn đánh dấu"}
-                ) — không xếp vào lịch.
+                    ? "inferred from answers"
+                    : "marked by you"}
+                ) — excluded from schedule.
               </span>
             )}
             <button
@@ -452,24 +452,24 @@ export function NodePanel({
               aria-pressed={Boolean(known)}
               onClick={() => onToggleKnown(node.id, !known)}
             >
-              {known ? "Bỏ đánh dấu đã biết" : "Tôi đã biết chặng này"}
+              {known ? "Unmark as known" : "I already know this stage"}
             </button>
           </div>
         )}
         {/* 2. Scrollable Body Content */}
         <div className="np-body" aria-live="polite">
           {/* Prerequisite & Unlocked Nodes */}
-          <section className="np-section" aria-label="Quan hệ tiên quyết">
+          <section className="np-section" aria-label="Prerequisites">
             <div className="np-section-header">
-              <h4 className="np-section-title">Liên kết học tập</h4>
+              <h4 className="np-section-title">Learning connections</h4>
               <button
                 type="button"
                 className="np-path-btn"
                 disabled={!onHighlightPath}
                 onClick={handleHighlightPath}
-                title="Tô sáng đường dẫn học tập từ đầu đến chặng này"
+                title="Highlight the learning path from the start to this stage"
               >
-                🛣 Đường học tới đây
+                🛣 Path to here
               </button>
             </div>
 
@@ -477,7 +477,7 @@ export function NodePanel({
               <span
                 style={{ fontSize: "0.85rem", color: "var(--color-muted)" }}
               >
-                Cần học trước ({prereqNodes.length}):
+                Prerequisites ({prereqNodes.length}):
               </span>
               <div className="np-node-links" style={{ marginTop: "0.25rem" }}>
                 {prereqNodes.length > 0 ? (
@@ -495,7 +495,7 @@ export function NodePanel({
                   <span
                     style={{ fontSize: "0.82rem", color: "var(--color-muted)" }}
                   >
-                    Không có tiên quyết
+                    No prerequisites
                   </span>
                 )}
               </div>
@@ -505,7 +505,7 @@ export function NodePanel({
               <span
                 style={{ fontSize: "0.85rem", color: "var(--color-muted)" }}
               >
-                Mở khóa ({unlockNodes.length}):
+                Unlocks ({unlockNodes.length}):
               </span>
               <div className="np-node-links" style={{ marginTop: "0.25rem" }}>
                 {unlockNodes.length > 0 ? (
@@ -523,7 +523,7 @@ export function NodePanel({
                   <span
                     style={{ fontSize: "0.82rem", color: "var(--color-muted)" }}
                   >
-                    Không mở khóa thêm
+                    Unlocks no further stages
                   </span>
                 )}
               </div>
@@ -533,14 +533,14 @@ export function NodePanel({
           {/* 3. Learning Sources (Spec 114 User Materials First, then Catalog, then External) */}
           <section
             className="np-section"
-            aria-label="Gợi ý nguồn học tập theo ba nhóm"
+            aria-label="Recommended learning sources in three groups"
           >
-            <h4 className="np-section-title">Gợi ý nguồn học tập</h4>
+            <h4 className="np-section-title">Recommended learning sources</h4>
 
             {/* Loading State */}
             {sourcesData === null && !loadError && (
               <div className="np-loading-sources" role="status">
-                <span>⏳ Đang tải gợi ý nguồn học…</span>
+                <span>⏳ Loading recommended sources…</span>
               </div>
             )}
 
@@ -555,7 +555,7 @@ export function NodePanel({
                   type="button"
                   onClick={() => void loadData(node.id)}
                 >
-                  Thử lại thông tin chặng
+                  Retry stage details
                 </button>
               </div>
             )}
@@ -564,9 +564,9 @@ export function NodePanel({
             {ownMaterials.length > 0 && (
               <div
                 className="np-source-group np-group-user-material"
-                aria-label="Tài liệu riêng của bạn"
+                aria-label="Your personal materials"
               >
-                <h5 className="np-group-title">📂 Tài liệu của bạn</h5>
+                <h5 className="np-group-title">📂 Your materials</h5>
                 <div className="np-user-materials-list">
                   {ownMaterials.map((s) => (
                     <div
@@ -576,7 +576,7 @@ export function NodePanel({
                       <div className="np-user-material-header">
                         <span className="np-user-material-title">📂 {s.title}</span>
                         {s.duration_min ? (
-                          <span className="vsc-badge vsc-badge-duration">⏱ {s.duration_min} phút</span>
+                          <span className="vsc-badge vsc-badge-duration">⏱ {s.duration_min} min</span>
                         ) : null}
                       </div>
                       <span
@@ -598,9 +598,9 @@ export function NodePanel({
                               onClick={() =>
                                 onOpenMaterialPage?.(s.source_id || s.id, p)
                               }
-                              title={`Mở tài liệu tại trang ${p}`}
+                              title={`Open material at page ${p}`}
                             >
-                              Trang {p} ↗
+                              Page {p} ↗
                             </button>
                           ))}
                         </div>
@@ -610,25 +610,25 @@ export function NodePanel({
                           type="button"
                           className="vsc-feedback-btn"
                           onClick={() => handleFeedback(s.id, true)}
-                          title="Đánh giá hữu ích"
+                          title="Mark as helpful"
                         >
-                          👍 Hữu ích
+                          👍 Helpful
                         </button>
                         <button
                           type="button"
                           className="vsc-feedback-btn"
                           onClick={() => handleFeedback(s.id, false)}
-                          title="Không hữu ích"
+                          title="Not helpful"
                         >
-                          👎 Không hữu ích
+                          👎 Not helpful
                         </button>
                         <button
                           type="button"
                           className={`vsc-pin-btn ${s.pinned ? "pinned" : ""}`}
                           onClick={() => handlePin(s.id, !s.pinned)}
-                          title={s.pinned ? "Bỏ ghim" : "Ghim lên đầu"}
+                          title={s.pinned ? "Unpin" : "Pin to top"}
                         >
-                          {s.pinned ? "📌 Đã ghim" : "📌 Ghim"}
+                          {s.pinned ? "📌 Pinned" : "📌 Pin"}
                         </button>
                       </div>
                     </div>
@@ -645,11 +645,11 @@ export function NodePanel({
                   busy={searching}
                 />
                 <div className="np-insufficient-alternatives" role="note">
-                  <p><strong>Gợi ý tài liệu tham khảo thay thế:</strong></p>
+                  <p><strong>Suggested alternative references:</strong></p>
                   <ul>
-                    <li>Đọc đề cương và giáo trình chính của môn học (Syllabus)</li>
-                    <li>Xem lại bài giảng và ghi chú cá nhân đã tải lên</li>
-                    <li>Tìm kiếm thêm từ các nguồn mở uy tín trên web</li>
+                    <li>Read the course syllabus and primary textbook</li>
+                    <li>Review your uploaded lecture slides and personal notes</li>
+                    <li>Search additional trusted open educational resources online</li>
                   </ul>
                 </div>
               </>
@@ -659,9 +659,9 @@ export function NodePanel({
             {catalogSources.length > 0 && (
               <div
                 className="np-source-group np-group-catalog"
-                aria-label="Nguồn đã xác minh từ Catalog"
+                aria-label="Verified catalog sources"
               >
-                <h5 className="np-group-title">✓ Nguồn đã xác minh từ Catalog</h5>
+                <h5 className="np-group-title">✓ Verified catalog sources</h5>
                 <div
                   style={{
                     display: "flex",
@@ -691,11 +691,11 @@ export function NodePanel({
             {externalSources.length > 0 && (
               <div
                 className="np-source-group np-group-external"
-                aria-label="Gợi ý từ nguồn ngoài"
+                aria-label="External source suggestions"
               >
-                <h5 className="np-group-title">🌐 Gợi ý từ nguồn ngoài</h5>
+                <h5 className="np-group-title">🌐 External source suggestions</h5>
                 <p className="np-group-caption">
-                  Tài liệu tham khảo tìm từ web/Internet (chưa qua kiểm định chất lượng)
+                  Web references found online (not yet verified for quality)
                 </p>
                 <div
                   style={{
@@ -725,7 +725,7 @@ export function NodePanel({
             {/* Empty state when no sources in any group */}
             {sourcesData !== null && !loadError && visibleSources.length === 0 && !isInsufficient && (
               <p className="np-empty-sources" role="status">
-                Chưa có gợi ý nguồn học cho chặng này.
+                No recommended sources for this stage yet.
               </p>
             )}
           </section>
@@ -733,11 +733,11 @@ export function NodePanel({
           {/* 4. Practice Exercises Preview (#115) */}
           <section
             className="np-section"
-            aria-label="Bài luyện tập có trích dẫn"
+            aria-label="Cited practice exercises"
           >
             <div className="np-section-header">
               <h4 className="np-section-title">
-                Bài tập (
+                Exercises (
                 {exercisesCount > 0 ? exercisesCount : exercises.length})
               </h4>
               {exercises.length > 0 && (
@@ -752,7 +752,7 @@ export function NodePanel({
                     )
                   }
                 >
-                  Luyện tập chặng này
+                  Practice this stage
                 </button>
               )}
             </div>
@@ -765,10 +765,10 @@ export function NodePanel({
                       {idx + 1}. {ex.prompt}
                     </p>
                     <span className="np-citation-chip">
-                      📖 Trích dẫn:{" "}
+                      📖 Citation:{" "}
                       <strong>
                         {ex.citation.institution || ex.citation.title}
-                        {ex.citation.page ? ` · Trang ${ex.citation.page}` : ""}
+                        {ex.citation.page ? ` · Page ${ex.citation.page}` : ""}
                       </strong>
                     </span>
                   </div>
@@ -777,7 +777,7 @@ export function NodePanel({
                 <span
                   style={{ fontSize: "0.85rem", color: "var(--color-muted)" }}
                 >
-                  Chưa tìm thấy bài luyện tập có trích dẫn cho chặng này.
+                  No cited practice exercises found for this stage yet.
                 </span>
               )}
             </div>
@@ -788,7 +788,7 @@ export function NodePanel({
         <footer className="np-footer">
           {(!onAskQuestion || !onOpenPractice) && (
             <p className="sm">
-              Hỏi đáp và luyện tập theo chặng hiện chưa khả dụng.
+              Stage Q&amp;A and practice are not available yet.
             </p>
           )}
           <div className="np-footer-buttons">
@@ -798,7 +798,7 @@ export function NodePanel({
               disabled={!onOpenFullStage}
               onClick={() => onOpenFullStage?.(node.id)}
             >
-              Trang chặng (S6)
+              Stage page (S6)
             </button>
             <button
               type="button"
@@ -806,7 +806,7 @@ export function NodePanel({
               disabled={!onAskQuestion}
               onClick={() => onAskQuestion?.(node.id)}
             >
-              Hỏi đáp AI (S10)
+              Ask AI (S10)
             </button>
             <button
               type="button"
@@ -815,8 +815,8 @@ export function NodePanel({
               onClick={() => onScheduleNode?.(node.id)}
             >
               {scheduleScope === "course"
-                ? "Xếp lịch lộ trình (S7)"
-                : "Xếp vào lịch (S7)"}
+                ? "Schedule roadmap (S7)"
+                : "Add to schedule (S7)"}
             </button>
           </div>
         </footer>

@@ -30,13 +30,13 @@ export function SourcePageDialog({
           rows.find((r) => r.file_name === source.file_name && r.page === page);
         if (active) {
           if (found) setResult(found);
-          else setError("Không tìm thấy trang tài liệu này.");
+          else setError("This source page could not be found.");
         }
       })
       .catch((e) => {
         if (active)
           setError(
-            e instanceof Error ? e.message : "Không tải được trang tài liệu.",
+            e instanceof Error ? e.message : "Could not load source page.",
           );
       });
     return () => {
@@ -47,8 +47,8 @@ export function SourcePageDialog({
     <Modal
       title={
         result
-          ? `${result.file_name} · tr. ${page}`
-          : `Trang tài liệu · tr. ${page}`
+          ? `${result.file_name} · p. ${page}`
+          : `Source page · p. ${page}`
       }
       onClose={onClose}
     >
@@ -57,15 +57,15 @@ export function SourcePageDialog({
           <div>
             <p role="alert">{error}</p>
             <Button onClick={() => setRetry((n) => n + 1)}>
-              Thử lại trang tài liệu
+              Retry source page
             </Button>
           </div>
         ) : result ? (
           <p style={{ whiteSpace: "pre-wrap" }}>
-            {result.text || "Trang này chưa có văn bản trích xuất."}
+            {result.text || "No extracted text is available for this page yet."}
           </p>
         ) : (
-          <p role="status">Đang tải trang tài liệu…</p>
+          <p role="status">Loading source page…</p>
         )}
       </div>
     </Modal>

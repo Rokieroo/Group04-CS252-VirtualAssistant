@@ -74,7 +74,7 @@ export function TodayPage({
     return { dueTopics: topics, milestones: checks };
   }, [nodes]);
 
-  const formattedDate = today().toLocaleDateString("vi-VN", {
+  const formattedDate = today().toLocaleDateString("en-US", {
     weekday: "long",
     year: "numeric",
     month: "long",
@@ -82,21 +82,21 @@ export function TodayPage({
   });
 
   return (
-    <div className="today-page" aria-label="Màn hình Hôm nay">
+    <div className="today-page" aria-label="Today view">
       <header className="today-header">
         <div className="today-header-content">
-          <h2 className="today-title">Hôm nay</h2>
+          <h2 className="today-title">Today</h2>
           <p className="today-date">📅 {formattedDate}</p>
         </div>
       </header>
 
       {/* Quick Summary Metrics */}
-      <section className="today-metrics-grid" aria-label="Tổng quan hôm nay">
+      <section className="today-metrics-grid" aria-label="Today overview">
         <div className="today-metric-card">
           <span className="today-metric-icon">📍</span>
           <div className="today-metric-text">
             <strong>{dueTopics.length}</strong>
-            <span>Chặng cần học</span>
+            <span>Stages to study</span>
           </div>
         </div>
 
@@ -104,7 +104,7 @@ export function TodayPage({
           <span className="today-metric-icon">🔄</span>
           <div className="today-metric-text">
             <strong>{reviews.length}</strong>
-            <span>Bài ôn FSRS</span>
+            <span>FSRS reviews</span>
           </div>
         </div>
 
@@ -112,14 +112,14 @@ export function TodayPage({
           <span className="today-metric-icon">💎</span>
           <div className="today-metric-text">
             <strong>{milestones.length}</strong>
-            <span>Mốc kiểm tra</span>
+            <span>Milestones</span>
           </div>
         </div>
       </section>
 
       {loading && (
         <div className="today-loading" role="status">
-          <span>⏳ Đang tải dữ liệu học tập hôm nay…</span>
+          <span>⏳ Loading today's study plan…</span>
         </div>
       )}
 
@@ -127,22 +127,22 @@ export function TodayPage({
         <div className="row-error" role="alert">
           <p>{error}</p>
           <button type="button" className="button" onClick={() => void loadReviews()}>
-            Thử lại
+            Retry
           </button>
         </div>
       )}
 
       {/* Section 1: Due Learning Steps */}
-      <section className="today-section" aria-label="Chặng đến hạn hôm nay">
+      <section className="today-section" aria-label="Stages due today">
         <div className="today-section-header">
-          <h3 className="today-section-title">📍 Chặng đến hạn hôm nay</h3>
-          <span className="today-section-badge">{dueTopics.length} chặng</span>
+          <h3 className="today-section-title">📍 Stages due today</h3>
+          <span className="today-section-badge">{dueTopics.length} stages</span>
         </div>
 
         {dueTopics.length === 0 ? (
           <div className="today-empty-card" role="status">
             <span aria-hidden="true">🎉</span>
-            <p>Tuyệt vời! Bạn không có chặng học tập nào bị trễ hạn hôm nay.</p>
+            <p>Great work! You have no overdue learning stages today.</p>
           </div>
         ) : (
           <div className="today-cards-list">
@@ -152,23 +152,23 @@ export function TodayPage({
                   <h4 className="today-card-title">{node.title}</h4>
                   <div className="today-card-meta">
                     {node.week && (
-                      <span className="today-chip">Tuần {node.week}</span>
+                      <span className="today-chip">Week {node.week}</span>
                     )}
                     {(node.est_minutes || node.duration_minutes) && (
                       <span className="today-chip">
-                        ⏱ {node.est_minutes || node.duration_minutes} phút
+                        ⏱ {node.est_minutes || node.duration_minutes} min
                       </span>
                     )}
-                    <span className="today-chip today-chip-status">Đến hạn</span>
+                    <span className="today-chip today-chip-status">Due</span>
                   </div>
                 </div>
                 <button
                   type="button"
                   className="today-action-btn"
                   onClick={() => openNode(node.id)}
-                  aria-label={`Mở chặng ${node.title} trên Knowledge Graph`}
+                  aria-label={`Open stage ${node.title} on Knowledge Graph`}
                 >
-                  Mở trên Graph →
+                  Open on Graph →
                 </button>
               </article>
             ))}
@@ -177,16 +177,16 @@ export function TodayPage({
       </section>
 
       {/* Section 2: Spaced Repetition Reviews */}
-      <section className="today-section" aria-label="Bài ôn tập FSRS đến hạn">
+      <section className="today-section" aria-label="Due FSRS reviews">
         <div className="today-section-header">
-          <h3 className="today-section-title">🔄 Bài ôn tập FSRS</h3>
-          <span className="today-section-badge">{reviews.length} bài ôn</span>
+          <h3 className="today-section-title">🔄 FSRS reviews</h3>
+          <span className="today-section-badge">{reviews.length} reviews</span>
         </div>
 
         {reviews.length === 0 ? (
           <div className="today-empty-card" role="status">
             <span aria-hidden="true">✓</span>
-            <p>Bạn đã hoàn thành tất cả thẻ ôn tập FSRS đến hạn hôm nay.</p>
+            <p>You have completed all FSRS review cards due today.</p>
           </div>
         ) : (
           <div className="today-cards-list">
@@ -196,9 +196,9 @@ export function TodayPage({
                   <h4 className="today-card-title">{rev.prompt}</h4>
                   <div className="today-card-meta">
                     <span className="today-chip">
-                      {rev.type === "mcq" ? "Trắc nghiệm" : "Tự luận"}
+                      {rev.type === "mcq" ? "Multiple choice" : "Short answer"}
                     </span>
-                    <span className="today-chip today-chip-review">Cần ôn lại</span>
+                    <span className="today-chip today-chip-review">Review due</span>
                   </div>
                 </div>
                 <button
@@ -208,9 +208,9 @@ export function TodayPage({
                     if (rev.node_id) openNode(rev.node_id);
                     else go("Roadmap");
                   }}
-                  aria-label={`Mở bài ôn ${rev.prompt} trên Knowledge Graph`}
+                  aria-label={`Open review ${rev.prompt} on Knowledge Graph`}
                 >
-                  Ôn chặng này →
+                  Review stage →
                 </button>
               </article>
             ))}
@@ -219,15 +219,15 @@ export function TodayPage({
       </section>
 
       {/* Section 3: Upcoming Milestones & Exams */}
-      <section className="today-section" aria-label="Mốc kiểm tra sắp tới">
+      <section className="today-section" aria-label="Upcoming milestones">
         <div className="today-section-header">
-          <h3 className="today-section-title">💎 Mốc kiểm tra sắp tới</h3>
-          <span className="today-section-badge">{milestones.length} mốc</span>
+          <h3 className="today-section-title">💎 Upcoming milestones</h3>
+          <span className="today-section-badge">{milestones.length} milestones</span>
         </div>
 
         {milestones.length === 0 ? (
           <div className="today-empty-card" role="status">
-            <p>Không có kỳ thi hoặc mốc kiểm tra nào sắp tới.</p>
+            <p>No upcoming exams or milestones.</p>
           </div>
         ) : (
           <div className="today-cards-list">
@@ -237,11 +237,11 @@ export function TodayPage({
                   <h4 className="today-card-title">💎 {node.title}</h4>
                   <div className="today-card-meta">
                     {node.week && (
-                      <span className="today-chip">Tuần {node.week}</span>
+                      <span className="today-chip">Week {node.week}</span>
                     )}
                     {node.covers && node.covers.length > 0 && (
                       <span className="today-chip">
-                        Bao phủ {node.covers.length} chặng
+                        Covers {node.covers.length} stages
                       </span>
                     )}
                   </div>
@@ -250,9 +250,9 @@ export function TodayPage({
                   type="button"
                   className="today-action-btn"
                   onClick={() => openNode(node.id)}
-                  aria-label={`Xem mốc kiểm tra ${node.title} trên Knowledge Graph`}
+                  aria-label={`View milestone ${node.title} on Knowledge Graph`}
                 >
-                  Xem mốc trên Graph →
+                  View on Graph →
                 </button>
               </article>
             ))}

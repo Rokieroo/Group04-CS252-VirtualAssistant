@@ -37,14 +37,14 @@ def _weights(assessments: list[dict]) -> list[SyllabusWarning]:
     total = sum(a["weight"] or 0 for a in assessments)
     if not assessments or abs(total - 100) <= WEIGHT_TOLERANCE:
         return []
-    return [SyllabusWarning("weights_sum", f"Tổng trọng số là {total:g}%", blocking=True)]
+    return [SyllabusWarning("weights_sum", f"Total assessment weight is {total:g}%", blocking=True)]
 
 
 def _week_order(weeks: list[dict]) -> list[SyllabusWarning]:
     numbers = [w["week"] for w in weeks]
     if numbers == sorted(set(numbers)):
         return []
-    return [SyllabusWarning("weeks_order", "Số tuần phải tăng dần và không trùng: "
+    return [SyllabusWarning("weeks_order", "Week numbers must increase without duplicates: "
                             + ", ".join(map(str, numbers)))]
 
 
@@ -54,7 +54,7 @@ def _dates_in_term(course: dict, assessments: list[dict]) -> list[SyllabusWarnin
         return []
     return [
         SyllabusWarning("date_outside_term",
-                        f"{a['title']}: hạn {a['due_date']} nằm ngoài học kỳ "
+                        f"{a['title']}: due date {a['due_date']} is outside the term "
                         f"{start.isoformat()} – {end.isoformat()}", blocking=True)
         for a in assessments
         if (due := parse_date(a["due_date"])) is not None and not start <= due <= end
@@ -72,7 +72,7 @@ def _repeated_topics(weeks: list[dict]) -> list[SyllabusWarning]:
             if week["week"] not in seen[key]:
                 seen[key].append(week["week"])
     return [
-        SyllabusWarning("topic_repeated", f"Chủ đề '{names[key]}' nằm ở nhiều tuần: "
+        SyllabusWarning("topic_repeated", f"Topic '{names[key]}' appears in multiple weeks: "
                         + ", ".join(map(str, in_weeks)))
         for key, in_weeks in seen.items() if len(in_weeks) > 1
     ]
@@ -80,6 +80,6 @@ def _repeated_topics(weeks: list[dict]) -> list[SyllabusWarning]:
 
 def _undated_assessments(assessments: list[dict]) -> list[SyllabusWarning]:
     return [
-        SyllabusWarning("assessment_without_due", f"{a['title']}: chưa có tuần hoặc ngày hạn")
+        SyllabusWarning("assessment_without_due", f"{a['title']}: missing due week or due date")
         for a in assessments if a["due_week"] is None and not a["due_date"]
     ]

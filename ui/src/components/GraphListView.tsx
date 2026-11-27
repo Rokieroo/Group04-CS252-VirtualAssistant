@@ -28,14 +28,14 @@ export interface GraphListViewProps {
 }
 
 const STATUS_LABELS: Record<string, { text: string; className: string }> = {
-  locked: { text: "Đang khóa", className: "status-not-started" },
-  available: { text: "Có thể học", className: "status-in-progress" },
-  unknown: { text: "Chưa có trạng thái", className: "status-not-started" },
-  mastered: { text: "Đã vững", className: "status-mastered" },
-  known: { text: "Đã biết", className: "status-mastered" },
-  in_progress: { text: "Đang học", className: "status-in-progress" },
-  review_due: { text: "Cần ôn tập", className: "status-review-due" },
-  not_started: { text: "Chưa học", className: "status-not-started" },
+  locked: { text: "Locked", className: "status-not-started" },
+  available: { text: "Available", className: "status-in-progress" },
+  unknown: { text: "No status", className: "status-not-started" },
+  mastered: { text: "Mastered", className: "status-mastered" },
+  known: { text: "Known", className: "status-mastered" },
+  in_progress: { text: "In progress", className: "status-in-progress" },
+  review_due: { text: "Review due", className: "status-review-due" },
+  not_started: { text: "Not started", className: "status-not-started" },
 };
 
 export function GraphListView({
@@ -56,34 +56,34 @@ export function GraphListView({
     <div
       className={`kg-list-view-container ${className}`}
       role="region"
-      aria-label="Danh sách chặng học tiếp cận"
+      aria-label="Accessible stage list"
     >
       <table className="kg-accessible-table">
         <caption className="sr-only">
-          Danh sách toàn bộ chặng học theo thứ tự tuần và trạng thái tiến độ
+          Complete list of learning stages ordered by week and progress status
         </caption>
         <thead>
           <tr>
             <th scope="col" className="col-week">
-              Tuần
+              Week
             </th>
             <th scope="col" className="col-title">
-              Chặng học
+              Stage
             </th>
             <th scope="col" className="col-type">
-              Phân loại
+              Type
             </th>
             <th scope="col" className="col-status">
-              Trạng thái
+              Status
             </th>
             <th scope="col" className="col-sources">
-              Nguồn kiểm chứng
+              Verified sources
             </th>
             <th scope="col" className="col-clo">
-              Chuẩn đầu ra
+              Learning outcomes
             </th>
             <th scope="col" className="col-action">
-              Thao tác
+              Action
             </th>
           </tr>
         </thead>
@@ -91,7 +91,7 @@ export function GraphListView({
           {sortedNodes.length === 0 ? (
             <tr>
               <td colSpan={7} className="empty-message">
-                Không tìm thấy chặng học phù hợp với bộ lọc hiện tại.
+                No stages match the current filters.
               </td>
             </tr>
           ) : (
@@ -109,7 +109,7 @@ export function GraphListView({
                   onClick={() => onSelect(node.id)}
                 >
                   <td className="cell-week">
-                    {node.week ? `Tuần ${node.week}` : "—"}
+                    {node.week ? `Week ${node.week}` : "—"}
                   </td>
                   <td className="cell-title">
                     <button
@@ -119,13 +119,13 @@ export function GraphListView({
                         e.stopPropagation();
                         onSelect(node.id);
                       }}
-                      aria-label={`Chọn chặng ${node.title}`}
+                      aria-label={`Select stage ${node.title}`}
                     >
                       {node.title}
                     </button>
                     {node.est_minutes && (
                       <span className="duration-hint">
-                        ({node.est_minutes} phút)
+                        ({node.est_minutes} min)
                       </span>
                     )}
                   </td>
@@ -135,7 +135,7 @@ export function GraphListView({
                         node.type === "milestone" ? "milestone" : "topic"
                       }`}
                     >
-                      {node.type === "milestone" ? "💎 Mốc thi" : "📘 Chủ đề"}
+                      {node.type === "milestone" ? "💎 Milestone" : "📘 Topic"}
                     </span>
                   </td>
                   <td className="cell-status">
@@ -147,23 +147,23 @@ export function GraphListView({
                   <td className="cell-sources">
                     {node.sources_status === "pending" ||
                     !node.sources_status ? (
-                      <span className="sources-badge">Đang kiểm tra</span>
+                      <span className="sources-badge">Checking</span>
                     ) : node.sources_status === "insufficient" ||
                       node.verified_sources_count === 0 ? (
                       <span
                         className="sources-badge insufficient"
-                        title="Cần bổ sung nguồn kiểm chứng"
+                        title="Needs more verified sources"
                       >
-                        ⚠️ Chưa đủ
+                        ⚠️ Insufficient
                         {node.verified_sources_count !== undefined
-                          ? ` · ${node.verified_sources_count} nguồn đã xác minh`
+                          ? ` · ${node.verified_sources_count} verified sources`
                           : ""}
                       </span>
                     ) : (
                       <span className="sources-badge sufficient">
                         {node.sources_status === "pending"
-                          ? "Đang kiểm tra"
-                          : `✓ ${node.verified_sources_count ?? node.sources_count ?? 0} nguồn`}
+                          ? "Checking"
+                          : `✓ ${node.verified_sources_count ?? node.sources_count ?? 0} sources`}
                       </span>
                     )}
                   </td>
@@ -189,7 +189,7 @@ export function GraphListView({
                         onSelect(node.id);
                       }}
                     >
-                      {isSelected ? "Đang chọn" : "Chi tiết"}
+                      {isSelected ? "Selected" : "Details"}
                     </button>
                   </td>
                 </tr>

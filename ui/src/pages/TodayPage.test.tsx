@@ -72,16 +72,16 @@ describe("TodayPage component (Issue #159, UC-11, Spec 8)", () => {
     );
 
     // Title & date
-    expect(await screen.findByRole("heading", { name: "Hôm nay" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Today" })).toBeTruthy();
 
     // Metrics summary
-    expect(screen.getByText("Chặng cần học")).toBeTruthy();
-    expect(screen.getByText("Bài ôn FSRS")).toBeTruthy();
-    expect(screen.getByText("Mốc kiểm tra")).toBeTruthy();
+    expect(screen.getByText("Stages to study")).toBeTruthy();
+    expect(screen.getByText("FSRS reviews")).toBeTruthy();
+    expect(screen.getByText("Milestones")).toBeTruthy();
 
     // Due topic
     expect(screen.getByText("Binary Search Trees")).toBeTruthy();
-    expect(screen.getByText("Tuần 2")).toBeTruthy();
+    expect(screen.getByText("Week 2")).toBeTruthy();
 
     // Due FSRS review
     expect(screen.getByText(/worst-case lookup time/)).toBeTruthy();
@@ -89,9 +89,9 @@ describe("TodayPage component (Issue #159, UC-11, Spec 8)", () => {
     // Upcoming Milestone
     expect(screen.getByText(/Midterm Exam/)).toBeTruthy();
 
-    // Test clicking "Mở trên Graph →" opens the node on the graph
+    // Test clicking "Open on Graph →" opens the node on the graph
     const openTopicBtn = screen.getByRole("button", {
-      name: /Mở chặng Binary Search Trees trên Knowledge Graph/i,
+      name: /Open stage Binary Search Trees on Knowledge Graph/i,
     });
     fireEvent.click(openTopicBtn);
     expect(openNodeSpy).toHaveBeenCalledWith("node-topic-1", "rm-1");
@@ -109,13 +109,13 @@ describe("TodayPage component (Issue #159, UC-11, Spec 8)", () => {
     );
 
     expect(
-      await screen.findByText(/Bạn không có chặng học tập nào bị trễ hạn hôm nay/),
+      await screen.findByText(/You have no overdue learning stages today/),
     ).toBeTruthy();
     expect(
-      screen.getByText(/Bạn đã hoàn thành tất cả thẻ ôn tập FSRS đến hạn hôm nay/),
+      screen.getByText(/You have completed all FSRS review cards due today/),
     ).toBeTruthy();
     expect(
-      screen.getByText(/Không có kỳ thi hoặc mốc kiểm tra nào sắp tới/),
+      screen.getByText(/No upcoming exams or milestones/),
     ).toBeTruthy();
   });
 
@@ -131,7 +131,7 @@ describe("TodayPage component (Issue #159, UC-11, Spec 8)", () => {
     );
 
     // Header and topics still render fine
-    expect(await screen.findByRole("heading", { name: "Hôm nay" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Today" })).toBeTruthy();
     expect(screen.getByText("Binary Search Trees")).toBeTruthy();
   });
 

@@ -9,7 +9,7 @@ type SavedRoadmap = {
   nodes: { id: string }[];
 };
 const message = (e: unknown) =>
-  e instanceof Error ? e.message : "Không thể tải dữ liệu.";
+  e instanceof Error ? e.message : "Could not load data.";
 
 function CourseCard({
   course,
@@ -49,35 +49,35 @@ function CourseCard({
     >
       <h2>{course.title}</h2>
       <p>
-        Môn học cá nhân ·{" "}
+        Personal course ·{" "}
         {course.level === "university"
-          ? "Đại học"
+          ? "University"
           : course.level === "k12"
-            ? "Phổ thông"
-            : "Chưa xác định bậc học"}
+            ? "K-12"
+            : "Level unspecified"}
       </p>
       <div className="core-actions">
         <button onClick={() => onOpen(course, undefined, true)}>
-          Mở đề cương
+          Open syllabus
         </button>
         <button onClick={() => onOpen(course, undefined, false)}>
-          Thêm đề cương
+          Add syllabus
         </button>
         <button aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>
-          Lộ trình đã lưu
+          Saved roadmaps
         </button>
       </div>
       {expanded && (
         <div aria-busy={loading}>
-          {loading && <p role="status">Đang tải lộ trình…</p>}
+          {loading && <p role="status">Loading roadmaps…</p>}
           {error && (
             <div role="alert">
               <p>{error}</p>
-              <button onClick={() => setRevision(revision + 1)}>Thử lại</button>
+              <button onClick={() => setRevision(revision + 1)}>Retry</button>
             </div>
           )}
           {!loading && !error && roadmaps?.length === 0 && (
-            <p>Chưa có lộ trình đã lưu. Mở đề cương để tiếp tục thiết lập.</p>
+            <p>No saved roadmaps yet. Open the syllabus to continue setup.</p>
           )}
           {!loading && !error && !!roadmaps?.length && (
             <ul className="course-roadmap-list">
@@ -86,14 +86,14 @@ function CourseCard({
                   <div>
                     <strong>{r.title}</strong>
                     <p>
-                      {r.nodes.length} chặng ·{" "}
+                      {r.nodes.length} stages ·{" "}
                       <time dateTime={r.created_at}>
-                        {new Date(r.created_at).toLocaleString("vi-VN")}
+                        {new Date(r.created_at).toLocaleString("en-US")}
                       </time>
                     </p>
                   </div>
                   <button onClick={() => onOpen(course, r.id)}>
-                    Mở lộ trình
+                    Open roadmap
                   </button>
                 </li>
               ))}
@@ -142,9 +142,9 @@ export function CourseLibrary({
       aria-labelledby="my-courses-title"
     >
       <div>
-        <span className="core-kicker">MÔN HỌC CỦA BẠN</span>
-        <h1 id="my-courses-title">Tiếp tục hành trình học</h1>
-        <p>Mở đề cương hoặc lộ trình đã lưu trong tài khoản của bạn.</p>
+        <span className="core-kicker">YOUR COURSES</span>
+        <h1 id="my-courses-title">Continue your learning journey</h1>
+        <p>Open a saved syllabus or roadmap in your account.</p>
       </div>
       <form
         className="card core-panel"
@@ -169,7 +169,7 @@ export function CourseLibrary({
         }}
       >
         <label>
-          Tên môn học
+          New course name
           <input
             required
             maxLength={200}
@@ -183,22 +183,22 @@ export function CourseLibrary({
             className="primary-action"
             disabled={creating || !title.trim()}
           >
-            {creating ? "Đang tạo…" : "Tạo môn học"}
+            {creating ? "Creating…" : "Create course"}
           </button>
         </div>
         {createError && <p role="alert">{createError}</p>}
       </form>
-      {loading && <p role="status">Đang tải môn học…</p>}
+      {loading && <p role="status">Loading courses…</p>}
       {error && (
         <div role="alert">
           <p>{error}</p>
-          <button onClick={() => setRevision(revision + 1)}>Thử lại</button>
+          <button onClick={() => setRevision(revision + 1)}>Retry</button>
         </div>
       )}
       {!loading && !error && !courses.length && (
         <p>
-          Chưa có môn học. Tạo môn đầu tiên rồi thêm đề cương hoặc mục tiêu học
-          tập.
+          No courses yet. Create your first course, then add a syllabus or
+          learning goals.
         </p>
       )}
       {!loading && !error && (
@@ -213,7 +213,7 @@ export function CourseLibrary({
         </div>
       )}
       <button onClick={() => setRevision(revision + 1)} disabled={loading}>
-        Làm mới danh sách
+        Refresh list
       </button>
     </section>
   );

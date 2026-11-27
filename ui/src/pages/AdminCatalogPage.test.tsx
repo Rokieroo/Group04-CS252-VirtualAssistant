@@ -62,9 +62,9 @@ describe("AdminCatalogPage (Issue #104, Spec 8.6, ADR 004)", () => {
   it("loads and displays the review queue with 4-check breakdown", async () => {
     render(<AdminCatalogPage />);
 
-    expect(await screen.findByText(/Hàng chờ duyệt nguồn Catalog/i)).toBeTruthy();
+    expect(await screen.findByText(/Catalog Review Queue/i)).toBeTruthy();
     expect((await screen.findAllByText(/Verified Course Item 1 - MIT OCW/)).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Kết quả kiểm tra tự động \(4 checks\)/)).toBeTruthy();
+    expect(screen.getByText(/Automated check results \(4 checks\)/)).toBeTruthy();
     expect(screen.getByText(/robots_and_domain:/)).toBeTruthy();
     expect(screen.getByText(/open_license:/)).toBeTruthy();
   });
@@ -83,7 +83,7 @@ describe("AdminCatalogPage (Issue #104, Spec 8.6, ADR 004)", () => {
     expect(screen.getAllByText(/Verified Course Item 2 - MIT OCW/).length).toBeGreaterThan(0);
 
     // Search filter
-    const searchInput = screen.getByLabelText(/Tìm kiếm:/i);
+    const searchInput = screen.getByLabelText(/Search:/i);
     fireEvent.change(searchInput, { target: { value: "Item 2" } });
     expect(screen.getAllByText(/Verified Course Item 2 - MIT OCW/).length).toBeGreaterThan(0);
   });
@@ -93,10 +93,10 @@ describe("AdminCatalogPage (Issue #104, Spec 8.6, ADR 004)", () => {
     render(<AdminCatalogPage />);
     await screen.findAllByText(/Verified Course Item 1 - MIT OCW/);
 
-    fireEvent.click(screen.getByRole("button", { name: /Xác nhận duyệt nguồn này/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Confirm verifying this source/i }));
 
     expect(await screen.findByRole("alert")).toHaveProperty("textContent", "license_required");
-    expect(screen.queryByText(/✓ Đã duyệt/)).toBeNull();
+    expect(screen.queryByText(/✓ Verified/)).toBeNull();
     expect(screen.getAllByText(/Verified Course Item 1 - MIT OCW/).length).toBeGreaterThan(0);
   });
 
@@ -112,7 +112,7 @@ describe("AdminCatalogPage (Issue #104, Spec 8.6, ADR 004)", () => {
 
     await screen.findAllByText(/Verified Course Item 1 - MIT OCW/);
 
-    const verifyBtn = screen.getByRole("button", { name: /Xác nhận duyệt nguồn này/i });
+    const verifyBtn = screen.getByRole("button", { name: /Confirm verifying this source/i });
     fireEvent.click(verifyBtn);
 
     await waitFor(() => {
@@ -124,7 +124,7 @@ describe("AdminCatalogPage (Issue #104, Spec 8.6, ADR 004)", () => {
     });
 
     // Toast appears
-    expect(await screen.findByText(/✓ Đã duyệt/)).toBeTruthy();
+    expect(await screen.findByText(/✓ Verified/)).toBeTruthy();
   });
 
   it("supports keyboard shortcuts: J/K for navigation and V/R for decisions", async () => {
@@ -144,7 +144,7 @@ describe("AdminCatalogPage (Issue #104, Spec 8.6, ADR 004)", () => {
       expect(verifySpy).toHaveBeenCalledWith("res-2", expect.any(String), null);
     });
 
-    await screen.findByText(/✓ Đã duyệt/);
+    await screen.findByText(/✓ Verified/);
 
     // Press 'R' to reject next item
     fireEvent.keyDown(window, { key: "r" });
@@ -169,6 +169,6 @@ describe("AdminCatalogPage (Issue #104, Spec 8.6, ADR 004)", () => {
 
     // Verified 20 items successfully
     expect(screen.getByText("20")).toBeTruthy();
-    expect(screen.getByText(/Đã duyệt phiên này/i)).toBeTruthy();
+    expect(screen.getByText(/Reviewed this session/i)).toBeTruthy();
   });
 });

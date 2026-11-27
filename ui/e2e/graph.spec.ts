@@ -414,33 +414,33 @@ test("CLO/source filters and URL selection restore after reload, with local grap
 }) => {
   const api = await backend(page);
   await page.goto("/?kg_roadmap=rm#roadmap");
-  await expect(page.getByRole("button", { name: /^Bộ lọc/ })).toBeVisible();
-  await page.getByRole("button", { name: "Danh sách" }).click();
-  await page.getByRole("button", { name: /^Bộ lọc/ }).click();
+  await expect(page.getByRole("button", { name: /^Filters/ })).toBeVisible();
+  await page.getByRole("button", { name: "List" }).click();
+  await page.getByRole("button", { name: /^Filters/ }).click();
   await page.getByRole("combobox", { name: "CLO:" }).selectOption("CLO1");
-  await page.getByLabel(/Nguồn đã kiểm chứng/).check();
+  await page.getByLabel(/Verified sources/).check();
   await expect(
-    page.getByRole("button", { name: "Chọn chặng Z Foundations" }),
+    page.getByRole("button", { name: "Select stage Z Foundations" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Chọn chặng A Retrieval" }),
+    page.getByRole("button", { name: "Select stage A Retrieval" }),
   ).toHaveCount(0);
   await page.reload();
   await expect(
     page.getByRole("status").filter({ hasText: "CLO1" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: /^Bộ lọc/ }).click();
-  await expect(page.getByLabel(/Nguồn đã kiểm chứng/)).toBeChecked();
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  await expect(page.getByLabel(/Verified sources/)).toBeChecked();
   await expect(page.getByRole("combobox", { name: "CLO:" })).toHaveValue(
     "CLO1",
   );
   await expect(
-    page.getByRole("button", { name: "Chọn chặng Z Foundations" }),
+    page.getByRole("button", { name: "Select stage Z Foundations" }),
   ).toBeVisible();
   expect(new URL(page.url()).hash).toBe("#roadmap");
-  await page.getByLabel(/Nguồn đã kiểm chứng/).uncheck();
+  await page.getByLabel(/Verified sources/).uncheck();
   await page.getByLabel(/Local graph/).check();
-  await page.getByRole("button", { name: "Chọn chặng A Retrieval" }).click();
+  await page.getByRole("button", { name: "Select stage A Retrieval" }).click();
   await expect(page.getByRole("dialog")).toContainText("A Retrieval");
   // Views are derived from the one full-graph fetch, not a second request.
   expect(api.requested.some((p) => p.includes("/roadmap-nodes/b/graph"))).toBe(
@@ -457,10 +457,10 @@ test("drag saves layout and survives reload without opening a panel mid-drag", a
   const api = await backend(page);
   await page.goto("/?kg_roadmap=rm#roadmap");
   const canvas = page.locator("canvas.graph-canvas");
-  await expect(page.getByRole("button", { name: /^Bộ lọc/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Filters/ })).toBeVisible();
   await canvas.scrollIntoViewIfNeeded();
   // The graph opens framed to fit; reset to 100% so positions map 1:1 to pixels.
-  await page.getByRole("button", { name: "Đặt lại góc nhìn" }).click();
+  await page.getByRole("button", { name: "Reset view" }).click();
   let rect = (await canvas.boundingBox())!;
   await page.mouse.move(rect.x + 140, rect.y + 140);
   await page.mouse.down();
@@ -472,9 +472,9 @@ test("drag saves layout and survives reload without opening a panel mid-drag", a
     .toBe(true);
   const saved = api.positions.find((p) => p.node_id === "a")!;
   await page.reload();
-  await expect(page.getByRole("button", { name: /^Bộ lọc/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Filters/ })).toBeVisible();
   await canvas.scrollIntoViewIfNeeded();
-  await page.getByRole("button", { name: "Đặt lại góc nhìn" }).click();
+  await page.getByRole("button", { name: "Reset view" }).click();
   rect = (await canvas.boundingBox())!;
   await page.mouse.click(rect.x + 60 + saved.x, rect.y + 60 + saved.y);
   await expect(page.getByRole("dialog")).toContainText("Z Foundations");
@@ -485,29 +485,29 @@ test("search opens the matching panel and milestone scope includes covered prere
 }) => {
   await backend(page);
   await page.goto("/?kg_roadmap=rm&kg_viewMode=list#roadmap");
-  const search = page.getByRole("combobox", { name: /Tìm chặng học/ });
+  const search = page.getByRole("combobox", { name: /Search stages/ });
   await expect(search).toBeVisible();
   await search.fill("Retrieval");
   await search.press("Enter");
   await expect(page.getByRole("dialog")).toContainText("A Retrieval");
-  await page.getByRole("button", { name: "Xem đồ thị cục bộ" }).click();
+  await page.getByRole("button", { name: "View local graph" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.getByRole("button", { name: /^Bộ lọc/ }).click();
+  await page.getByRole("button", { name: /^Filters/ }).click();
   await expect(page.getByLabel(/Local graph/)).toBeChecked();
   await page.getByLabel(/Local graph/).uncheck();
   await search.fill("");
-  await page.getByLabel("Tới mốc kiểm tra:").selectOption("exam");
+  await page.getByLabel("Up to milestone:").selectOption("exam");
   await expect(
-    page.getByRole("button", { name: "Chọn chặng Z Foundations" }),
+    page.getByRole("button", { name: "Select stage Z Foundations" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Chọn chặng A Retrieval" }),
+    page.getByRole("button", { name: "Select stage A Retrieval" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Chọn chặng Midterm" }),
+    page.getByRole("button", { name: "Select stage Midterm" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Chọn chặng Other topic" }),
+    page.getByRole("button", { name: "Select stage Other topic" }),
   ).toHaveCount(0);
 });
 test("saved source survives navigation, note editing and reload", async ({
@@ -535,28 +535,28 @@ test("saved source survives navigation, note editing and reload", async ({
     route.fulfill({ json: item.state === "none" && !item.note ? [] : [item] }),
   );
   await page.goto("/?kg_roadmap=rm&kg_viewMode=list#roadmap");
-  await page.getByRole("button", { name: "Chọn chặng A Retrieval" }).click();
+  await page.getByRole("button", { name: "Select stage A Retrieval" }).click();
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: /Ghim/ })
+    .getByRole("button", { name: /Pin/ })
     .first()
     .click();
   await expect.poll(() => item.state).toBe("pinned");
   await page.goto("/#sources");
-  await page.getByLabel("Tìm theo môn").fill("Graph");
-  await page.getByLabel("Ghi chú cho nguồn ở chặng này").fill("Ôn tuần hai");
-  await page.getByRole("button", { name: "Lưu ghi chú" }).click();
-  await expect.poll(() => item.note).toBe("Ôn tuần hai");
+  await page.getByLabel("Search by course").fill("Graph");
+  await page.getByLabel("Notes for this source in this stage").fill("Review week two");
+  await page.getByRole("button", { name: "Save note" }).click();
+  await expect.poll(() => item.note).toBe("Review week two");
   await page.reload();
-  await expect(page.getByLabel("Ghi chú cho nguồn ở chặng này")).toHaveValue(
-    "Ôn tuần hai",
+  await expect(page.getByLabel("Notes for this source in this stage")).toHaveValue(
+    "Review week two",
   );
-  await page.getByRole("button", { name: "Ẩn nguồn" }).click();
-  await expect(page.getByRole("button", { name: "Hiện lại" })).toBeVisible();
+  await page.getByRole("button", { name: "Hide source" }).click();
+  await expect(page.getByRole("button", { name: "Show again" })).toBeVisible();
   expect(
     (
       await new AxeBuilder({ page })
-        .include('section[aria-label="Thư viện cá nhân"]')
+        .include('section[aria-label="Personal library"]')
         .analyze()
     ).violations,
   ).toEqual([]);
@@ -575,7 +575,7 @@ test("native touch pinch changes canvas zoom", async ({
   const canvas = page.locator("canvas.graph-canvas");
   await expect(canvas).toBeVisible();
   await canvas.scrollIntoViewIfNeeded();
-  await page.getByRole("button", { name: "Đặt lại góc nhìn" }).click();
+  await page.getByRole("button", { name: "Reset view" }).click();
   await expect(page.locator(".graph-zoom-level")).toHaveText("100%");
   const r = (await canvas.boundingBox())!;
   const cdp = await context.newCDPSession(page);
@@ -620,7 +620,7 @@ for (const layout of ["week", "force"] as const) {
     await page.goto(`/?kg_roadmap=rm&kg_layout=${layout}#roadmap`);
     const canvas = page.locator("canvas.graph-canvas");
     await expect(canvas).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Bộ lọc/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Filters/ })).toBeVisible();
     await canvas.scrollIntoViewIfNeeded();
     const r = (await canvas.boundingBox())!;
     const sample = page.evaluate(
@@ -665,7 +665,7 @@ test("graph list and filters have no serious or critical axe violations", async 
   await backend(page);
   await page.goto("/?kg_roadmap=rm&kg_viewMode=list#roadmap");
   await expect(
-    page.getByRole("button", { name: "Chọn chặng Z Foundations" }),
+    page.getByRole("button", { name: "Select stage Z Foundations" }),
   ).toBeVisible();
   const result = await new AxeBuilder({ page })
     .include(".kg-filter-bar")
@@ -684,12 +684,12 @@ test("approved roadmap edge form adds and removes through the API across reload"
   const api = await backend(page);
   await page.goto("/?kg_roadmap=rm#roadmap");
   await page
-    .getByRole("combobox", { name: "Học trước", exact: true })
+    .getByRole("combobox", { name: "Learn first", exact: true })
     .selectOption("c");
   await page
-    .getByRole("combobox", { name: "Học sau", exact: true })
+    .getByRole("combobox", { name: "Learn next", exact: true })
     .selectOption("a");
-  await page.getByRole("button", { name: "Thêm cạnh", exact: true }).click();
+  await page.getByRole("button", { name: "Add edge", exact: true }).click();
   await expect
     .poll(() => api.requested.some((p) => p.endsWith("/graph/edges")))
     .toBe(true);
@@ -698,10 +698,10 @@ test("approved roadmap edge form adds and removes through the API across reload"
     .locator(".core-edge")
     .filter({ hasText: /Other topic.*Z Foundations/ });
   await expect(edge).toBeVisible();
-  await edge.getByRole("button", { name: "Bỏ cạnh" }).click();
+  await edge.getByRole("button", { name: "Remove edge" }).click();
   await expect(edge).toHaveCount(0);
   await page.reload();
-  await expect(page.getByRole("button", { name: /^Bộ lọc/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Filters/ })).toBeVisible();
   await expect(edge).toHaveCount(0);
 });
 
@@ -710,14 +710,14 @@ test("reopened graph restores the syllabus editor and saves to the original cour
 }) => {
   const api = await backend(page);
   await page.goto("/?kg_roadmap=rm#roadmap");
-  await expect(page.getByRole("button", { name: /^Bộ lọc/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Filters/ })).toBeVisible();
   await page.reload();
   await page.getByRole("button", { name: "Edit course syllabus" }).click();
   const description = page.locator('input[value="Understand the foundations"]');
   await expect(description).toBeVisible();
   await description.fill("Updated foundations outcome");
   await page
-    .getByRole("button", { name: "Xác nhận đề cương", exact: true })
+    .getByRole("button", { name: "Confirm syllabus", exact: true })
     .click();
   await expect
     .poll(() =>
@@ -747,33 +747,33 @@ test("node gateways open real source details, a private page, and course schedul
   });
   await backend(page);
   await page.goto("/?kg_roadmap=rm&kg_viewMode=list#roadmap");
-  await page.getByRole("button", { name: "Chọn chặng A Retrieval" }).click();
-  await expect(page.getByRole("button", { name: /Hỏi đáp AI/ })).toBeDisabled();
-  await page.getByRole("button", { name: "Trang 2 ↗", exact: true }).click();
+  await page.getByRole("button", { name: "Select stage A Retrieval" }).click();
+  await expect(page.getByRole("button", { name: /Ask AI/ })).toBeDisabled();
+  await page.getByRole("button", { name: "Page 2 ↗", exact: true }).click();
   await expect(page.getByRole("dialog")).toContainText(
     "Private lecture page two",
   );
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Chọn chặng A Retrieval" }).click();
+  await page.getByRole("button", { name: "Select stage A Retrieval" }).click();
   await page
-    .getByRole("button", { name: "Trang chặng (S6)", exact: true })
+    .getByRole("button", { name: "Stage page (S6)", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toContainText("One verified reading");
   const privateBadge = page.locator(".core-own-badge");
   await expect(privateBadge).toHaveCSS("color", "rgb(224, 242, 254)");
   await expect(privateBadge).toHaveCSS("background-color", "rgb(7, 89, 133)");
   await expect(page.getByRole("dialog")).toContainText(
-    "Chưa tìm được nguồn đủ tốt",
+    "No suitable sources found yet",
   );
-  await page.getByRole("button", { name: "Mở trang 2", exact: true }).click();
+  await page.getByRole("button", { name: "Open page 2", exact: true }).click();
   await expect(page.getByRole("dialog").last()).toContainText(
     "Private lecture page two",
   );
   await page.keyboard.press("Escape");
   await page
-    .getByRole("button", { name: "Xếp lịch lộ trình (S7)", exact: true })
+    .getByRole("button", { name: "Schedule roadmap (S7)", exact: true })
     .click();
-  await expect(page.getByRole("dialog")).toContainText("toàn bộ lộ trình");
+  await expect(page.getByRole("dialog")).toContainText("entire roadmap");
   await expect(page.getByRole("dialog")).toContainText("A Retrieval");
 });
 test("source labels distinguish private uploads and node path highlight can be cleared", async ({
@@ -782,19 +782,19 @@ test("source labels distinguish private uploads and node path highlight can be c
   await backend(page);
   await page.goto("/?kg_roadmap=rm&kg_viewMode=list#roadmap");
   const privateRow = page.getByRole("row").filter({
-    has: page.getByRole("button", { name: "Chọn chặng A Retrieval" }),
+    has: page.getByRole("button", { name: "Select stage A Retrieval" }),
   });
-  await expect(privateRow).toContainText("0 nguồn đã xác minh");
-  await page.getByRole("button", { name: "Chọn chặng A Retrieval" }).click();
-  await page.getByRole("button", { name: /Đường học tới đây/ }).click();
+  await expect(privateRow).toContainText("0 verified sources");
+  await page.getByRole("button", { name: "Select stage A Retrieval" }).click();
+  await page.getByRole("button", { name: /Path to here/ }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
-    page.getByRole("button", { name: "Bỏ tô sáng đường học" }),
+    page.getByRole("button", { name: "Clear path highlight" }),
   ).toBeVisible();
   await expect(page.locator("canvas.graph-canvas")).toBeVisible();
-  await page.getByRole("button", { name: "Bỏ tô sáng đường học" }).click();
+  await page.getByRole("button", { name: "Clear path highlight" }).click();
   await expect(
-    page.getByRole("button", { name: "Bỏ tô sáng đường học" }),
+    page.getByRole("button", { name: "Clear path highlight" }),
   ).toHaveCount(0);
 });
 
@@ -805,7 +805,7 @@ test("node panel remains accessible with source metadata and inactive gateways",
     await page.setViewportSize({ width: 360, height: 844 });
   await backend(page);
   await page.goto("/?kg_roadmap=rm&kg_viewMode=list#roadmap");
-  await page.getByRole("button", { name: "Chọn chặng Z Foundations" }).click();
+  await page.getByRole("button", { name: "Select stage Z Foundations" }).click();
   await expect(page.getByRole("dialog")).toContainText(
     "Massachusetts Institute of Technology",
   );
@@ -858,7 +858,7 @@ test("node panel remains accessible with source metadata and inactive gateways",
       })),
   ).toEqual([]);
   await page
-    .getByRole("button", { name: "Trang chặng (S6)", exact: true })
+    .getByRole("button", { name: "Stage page (S6)", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toContainText("One verified reading");
   await page.locator("dialog[open]").evaluate(async (dialog) => {
@@ -902,7 +902,7 @@ test("upload syllabus -> open graph -> click node shows syllabus page; cycle edg
 
   // 1. Upload syllabus and confirm (the account already has a course, so open its upload)
   await page
-    .getByRole("button", { name: "Thêm đề cương", exact: true })
+    .getByRole("button", { name: "Add syllabus", exact: true })
     .click();
   await page.getByLabel("Syllabus file", { exact: true }).setInputFiles({
     name: "CSC10014.pdf",
@@ -914,21 +914,21 @@ test("upload syllabus -> open graph -> click node shows syllabus page; cycle edg
     page.getByRole("heading", { name: "Review your syllabus", exact: true }),
   ).toBeVisible();
   await page
-    .getByRole("button", { name: "Xác nhận đề cương", exact: true })
+    .getByRole("button", { name: "Confirm syllabus", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Tạo roadmap →", exact: true }),
+    page.getByRole("button", { name: "Generate roadmap →", exact: true }),
   ).toBeEnabled();
   await page
-    .getByRole("button", { name: "Tạo roadmap →", exact: true })
+    .getByRole("button", { name: "Generate roadmap →", exact: true })
     .click();
 
   // 2. Open Knowledge Graph tab
-  await page.getByRole("tab", { name: "Graph tiên quyết" }).click();
+  await page.getByRole("tab", { name: "Prerequisite graph" }).click();
   const canvas = page.locator("canvas.graph-canvas");
   await expect(canvas).toBeVisible();
   await canvas.scrollIntoViewIfNeeded();
-  await page.getByRole("button", { name: "Đặt lại góc nhìn" }).click();
+  await page.getByRole("button", { name: "Reset view" }).click();
 
   // 3. Click node 'a' (Z Foundations at canvas 80,80 -> screen +140,+140) -> see syllabus page
   const rect = (await canvas.boundingBox())!;
@@ -936,15 +936,15 @@ test("upload syllabus -> open graph -> click node shows syllabus page; cycle edg
   const dialog = page.getByRole("dialog");
   await expect(dialog).toContainText("Z Foundations");
   const syllabusBtn = dialog.getByRole("button", {
-    name: /Trang syllabus: 1/,
+    name: /Syllabus page: 1/,
   });
   await expect(syllabusBtn).toBeVisible();
   await syllabusBtn.click();
   await expect(page.getByRole("dialog")).toContainText(
     "Syllabus page one: Foundations and Retrieval",
   );
-  await page.getByRole("button", { name: "Đóng", exact: true }).click();
-  await page.getByRole("button", { name: "Đặt lại góc nhìn" }).click();
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("button", { name: "Reset view" }).click();
 
   // 4. Add edge that creates a cycle (b -> a when a -> b exists) via Shift+drag on canvas
   await page.keyboard.down("Shift");
@@ -957,7 +957,7 @@ test("upload syllabus -> open graph -> click node shows syllabus page; cycle edg
   // Cycle alert banner is shown and cycle path is highlighted in red
   const cycleAlert = page.locator(".graph-cycle-alert[role='alert']");
   await expect(cycleAlert).toBeVisible();
-  await expect(cycleAlert).toContainText("Chu trình tiên quyết bị chặn");
+  await expect(cycleAlert).toContainText("Prerequisite cycle blocked");
   await expect(cycleAlert).toContainText("b → a → b");
 });
 
@@ -979,7 +979,7 @@ for (const count of [30, 100] as const) {
     await page.goto("/?kg_roadmap=rm#roadmap");
     const canvas = page.locator("canvas.graph-canvas");
     await expect(canvas).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Bộ lọc/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Filters/ })).toBeVisible();
     await canvas.scrollIntoViewIfNeeded();
     const r = (await canvas.boundingBox())!;
 
@@ -1024,11 +1024,11 @@ test("compact filters keep their summary and clear without losing view, layout o
     "/?kg_roadmap=rm&kg_viewMode=list&kg_layout=force&kg_clo=CLO1&kg_verifiedOnly=1#roadmap",
   );
   const disclosure = page.getByRole("button", {
-    name: "Bộ lọc (2)",
+    name: "Filters (2)",
     exact: true,
   });
   await expect(disclosure).toHaveAttribute("aria-expanded", "false");
-  await expect(page.getByLabel("Tới mốc kiểm tra:")).toBeVisible();
+  await expect(page.getByLabel("Up to milestone:")).toBeVisible();
   await expect(page.getByRole("combobox", { name: "CLO:" })).toBeHidden();
   await expect(page.locator(".filter-summary")).toContainText("CLO1");
   const toolbar = await page.locator(".kg-filter-bar").boundingBox();
@@ -1038,20 +1038,20 @@ test("compact filters keep their summary and clear without losing view, layout o
   await expect(page.getByRole("combobox", { name: "CLO:" })).toBeVisible();
   await disclosure.click();
   await expect(page.locator(".filter-summary")).toContainText(
-    "Nguồn đã kiểm chứng",
+    "Verified sources",
   );
-  await page.getByRole("button", { name: "Xóa bộ lọc", exact: true }).click();
+  await page.getByRole("button", { name: "Clear filters", exact: true }).click();
   await expect(
-    page.getByRole("button", { name: "Danh sách", exact: true }),
+    page.getByRole("button", { name: "List", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   expect(new URL(page.url()).searchParams.get("kg_layout")).toBe("force");
   expect(new URL(page.url()).searchParams.has("kg_clo")).toBe(false);
-  await page.getByRole("button", { name: "Chọn chặng Z Foundations" }).click();
-  await page.getByRole("button", { name: "Đóng bảng thông tin" }).click();
+  await page.getByRole("button", { name: "Select stage Z Foundations" }).click();
+  await page.getByRole("button", { name: "Close stage details" }).click();
   const node = new URL(page.url()).searchParams.get("kg_node");
-  await page.getByRole("button", { name: /^Bộ lọc/ }).click();
-  await page.getByLabel(/Nguồn đã kiểm chứng/).check();
-  await page.getByRole("button", { name: "Xóa bộ lọc", exact: true }).click();
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  await page.getByLabel(/Verified sources/).check();
+  await page.getByRole("button", { name: "Clear filters", exact: true }).click();
   expect(new URL(page.url()).searchParams.get("kg_node")).toBe(node);
 });
 
@@ -1066,10 +1066,10 @@ test("dark graph controls and list remain readable at enlarged text size", async
     ),
   );
   await page.goto("/?kg_roadmap=rm&kg_viewMode=list#roadmap");
-  await expect(page.getByRole("button", { name: /^Bộ lọc/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Filters/ })).toBeVisible();
   await page.addStyleTag({ content: "html { font-size: 200%; }" });
-  await page.getByRole("button", { name: /^Bộ lọc/ }).click();
-  await expect(page.getByLabel("Trạng thái:")).toBeVisible();
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  await expect(page.getByLabel("Status:")).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -1177,9 +1177,9 @@ test("32-concept graph canvas passes axe accessibility in light and dark themes 
   await expect(container.locator("canvas.graph-canvas")).toBeVisible();
   await expect(container.locator(".graph-toolbar")).toBeVisible();
   await expect(container.locator(".graph-legend")).toBeVisible();
-  await expect(container.locator(".graph-legend")).toContainText("Cần chú ý");
+  await expect(container.locator(".graph-legend")).toContainText("Needs attention");
   await expect(container.locator(".graph-minimap")).toContainText(
-    "Tổng quan (32)",
+    "Overview (32)",
   );
 
   // #108 asks for no axe errors in either theme, so every impact level counts.

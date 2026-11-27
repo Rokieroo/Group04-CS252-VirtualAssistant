@@ -33,10 +33,10 @@ export function WeeklyReminder({ open }: { open: () => void }) {
   }, []);
   if (!due) return null;
   return (
-    <aside className="card core-panel" aria-label="Nhắc tổng kết tuần">
-      <p>Bạn muốn xem lại tuần học?</p>
+    <aside className="card core-panel" aria-label="Weekly summary reminder">
+      <p>Ready to review your study week?</p>
       <div className="core-actions">
-        <button onClick={open}>Xem tổng kết</button>
+        <button onClick={open}>View summary</button>
         <button
           disabled={busy}
           onClick={async () => {
@@ -54,7 +54,7 @@ export function WeeklyReminder({ open }: { open: () => void }) {
             }
           }}
         >
-          Tắt nhắc tổng kết
+          Turn off summary reminder
         </button>
       </div>
       {error && <p role="alert">{error}</p>}

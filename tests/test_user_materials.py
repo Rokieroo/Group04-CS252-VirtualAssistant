@@ -89,7 +89,7 @@ def test_uploaded_slides_are_mapped_and_shown_before_catalog_sources(
     sources = client.get(f"/api/v1/concepts/{framing}/sources", headers=headers).json()
     first = sources["sources"][0]
     assert (first["kind"], first["title"], first["pages"]) == ("user_material", "week1.pptx", [2, 3])
-    assert first["reason"] == "Tài liệu của bạn" and sources["user_material_count"] == 1
+    assert first["reason"] == "Your material" and sources["user_material_count"] == 1
     # The quoted exercise of page 5 reaches the node its page is attached to.
     exercises = client.get(f"/api/v1/roadmap-nodes/{use_cases}/exercises", headers=headers)
     assert [e["citation"]["page"] for e in exercises.json()["exercises"]] == [5]

@@ -27,9 +27,9 @@ class Hint:
 
 
 def _where(citation: dict[str, Any], location: str | None) -> str:
-    parts = [citation.get("title") or "nguồn của bài"]
+    parts = [citation.get("title") or "the exercise source"]
     if citation.get("page"):
-        parts.append(f"trang {citation['page']}")
+        parts.append(f"page {citation['page']}")
     if location:
         parts.append(location.rstrip(":"))
     return ", ".join(parts)
@@ -54,42 +54,42 @@ def exercise_hint(
     if level >= 3 and graded:
         return Hint(
             1,
-            "Đây là bài tính điểm nên chỉ có gợi ý bậc 1-2, không có lời giải. "
-            f"Bạn thử xem lại khái niệm '{concept}' rồi làm tiếp nhé?",
+            "This is a graded exercise, so only levels 1-2 hints are available — no solutions. "
+            f"Try reviewing the concept '{concept}' and continue from there?",
             refused=True,
             reason="graded",
         )
     if level >= 3 and len(attempts) < ATTEMPTS_BEFORE_SOLUTION:
         return Hint(
             1,
-            "Lời giải của nguồn chỉ mở sau khi bạn đã thử trả lời. "
-            "Theo bạn, bước đầu tiên để giải bài này là gì?",
+            "The source solution unlocks only after you attempt an answer first. "
+            "What do you think the first step to solve this problem is?",
             refused=True,
             reason="attempt_first",
         )
     where = _where(citation, exercise.location)
     if level == 1:
-        see = f" Nguồn liên quan nhất của chặng: {reading}." if reading else ""
+        see = f" Most relevant source for this stage: {reading}." if reading else ""
         return Hint(
             1,
-            f"Gợi ý bậc 1: bài này dùng khái niệm '{concept}'.{see} "
-            "Dữ kiện nào trong đề liên quan nhất tới khái niệm đó?",
+            f"Hint level 1: this exercise uses the concept '{concept}'.{see} "
+            "Which detail in the prompt relates most closely to that concept?",
         )
     if level == 2:
         last = attempts[-1].response if attempts else None
         tried = (
-            f" Lần trước bạn trả lời '{last}': hãy kiểm tra tiền đề đầu tiên bạn dùng."
+            f" Last time you answered '{last}': check the first assumption you used."
             if last
             else ""
         )
         return Hint(
             2,
-            f"Gợi ý bậc 2: đối chiếu với {where}.{tried} "
-            "Quy tắc nào ở đó áp dụng được cho đề này?",
+            f"Hint level 2: check {where}.{tried} "
+            "Which rule or definition there applies to this prompt?",
         )
-    shown = [f"Đáp án của nguồn: {exercise.answer}"] if exercise.answer else []
+    shown = [f"Source answer: {exercise.answer}"] if exercise.answer else []
     if exercise.solution_ref:
-        shown.append(f"Lời giải của nguồn: {exercise.solution_ref}")
+        shown.append(f"Source solution: {exercise.solution_ref}")
     if not shown:
-        return Hint(3, f"Nguồn không in lời giải; hãy tự đối chiếu bài làm với {where}.")
+        return Hint(3, f"The source does not include a solution; check your work against {where}.")
     return Hint(3, f"{'. '.join(shown)} ({where}).")

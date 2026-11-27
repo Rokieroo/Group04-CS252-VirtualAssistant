@@ -28,7 +28,7 @@ const schedule: [string, string] = [
 const headings: Partial<Record<Page, [string, string]>> = {
   Home: [
     pageLabels.Home,
-    "Chặng đến hạn, bài ôn và mốc kiểm tra sắp tới trong ngày.",
+    "Due stages, FSRS reviews, and upcoming exams for today.",
   ],
   Library: ["", ""],
   Roadmap: ["", ""],
@@ -46,7 +46,7 @@ const headings: Partial<Record<Page, [string, string]>> = {
   // Admin catalog review queue (Issue #104)
   Catalog: [
     pageLabels.Catalog,
-    "Hàng chờ duyệt nguồn catalog và nhãn chủ đề cho quản trị viên.",
+    "Catalog source and topic-tag review queue for administrators.",
   ],
 };
 const available = Object.keys(headings) as Page[];
@@ -59,7 +59,7 @@ export default function CoreApp({ mock = false }: { mock?: boolean }) {
   const [selectedCourse, setSelectedCourse] = useState<OwnedCourse | null>(
     () => {
       const id = new URLSearchParams(location.search).get("course");
-      return id ? { id, title: "Môn học đang chọn", level: "" } : null;
+      return id ? { id, title: "Selected course", level: "" } : null;
     },
   );
   const [showCourses, setShowCourses] = useState(
@@ -96,7 +96,7 @@ export default function CoreApp({ mock = false }: { mock?: boolean }) {
       if (id === selectedId.current) return;
       selectedId.current = id;
       setSelectedCourse(
-        id ? { id, title: "Môn học đang chọn", level: "" } : null,
+        id ? { id, title: "Selected course", level: "" } : null,
       );
       setShowCourses(!id && !query.has("kg_roadmap"));
       setResumeSyllabus(true);
@@ -157,13 +157,13 @@ export default function CoreApp({ mock = false }: { mock?: boolean }) {
                 aria-expanded={showCourses}
                 onClick={() => setShowCourses(!showCourses)}
               >
-                {showCourses ? "Ẩn danh sách môn học" : "Đổi môn học"}
+                {showCourses ? "Hide course list" : "Switch course"}
               </button>
             </div>
           )}
           {!selectedCourse && !showCourses && (
             <button onClick={() => setShowCourses(true)}>
-              Danh sách môn học
+              Course list
             </button>
           )}
           {!selectedCourse && <LearningGuide step={1} />}

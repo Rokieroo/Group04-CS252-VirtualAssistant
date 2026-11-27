@@ -113,7 +113,7 @@ def test_a_checkpoint_pulls_its_path_forward_with_a_real_reason():
     plan = today(learner, DAY)
     # "b" opens next week but the midterm needs it; "c" still waits for "b".
     assert [(item.node_id, item.reason) for item in plan.items] == [
-        ("b", "Giữa kỳ còn 6 ngày, còn 2 chặng phải học trước")
+        ("b", "Giữa kỳ in 6 day(s), 2 prerequisite stage(s) left")
     ]
     assert plan.deferred == []
 
@@ -128,7 +128,7 @@ def test_a_milestone_is_reviewed_once_everything_it_covers_is_done():
     )
     (item,) = today(learner, DAY).items
     assert item.node_id == "m"
-    assert item.reason.startswith("Giữa kỳ hôm nay: các chặng cần thiết đã xong")
+    assert item.reason.startswith("Giữa kỳ today: prerequisites done, review before the assessment")
 
 
 def test_reviews_come_first_and_the_rest_is_packed_or_deferred():
@@ -142,10 +142,10 @@ def test_reviews_come_first_and_the_rest_is_packed_or_deferred():
     )
     plan = today(learner, DAY)
     review, study = plan.items
-    assert (review.kind, review.title, review.minutes) == ("review", "Ôn tập: Mảng", 5 * REVIEW_MINUTES)
-    assert review.reason == "5 thẻ ôn tập đến hạn theo FSRS, thẻ cũ nhất quá hạn 2 ngày"
+    assert (review.kind, review.title, review.minutes) == ("review", "Review: Mảng", 5 * REVIEW_MINUTES)
+    assert review.reason == "5 FSRS review card(s) due, oldest overdue by 2 day(s)"
     assert (study.node_id, study.minutes) == ("a", 50)
-    assert study.reason == "Hạn còn 2 ngày · hôm nay học 50/120 phút"
+    assert study.reason == "Due in 2 day(s) · study 50/120 min today"
     assert [item.node_id for item in plan.deferred] == ["b"]
     assert plan.total_minutes == plan.free_minutes == 60
 
@@ -157,8 +157,8 @@ def test_only_the_reviews_that_fit_are_kept():
         free=[(DAY, DAY + timedelta(minutes=7))],
     )
     (item,) = today(learner, DAY).items
-    assert (item.title, item.minutes, item.item_ids) == ("Ôn tập thẻ đến hạn", 6, ("c0", "c1", "c2"))
-    assert item.reason.endswith("hôm nay đủ thời gian cho 3/10 thẻ")
+    assert (item.title, item.minutes, item.item_ids) == ("Review due cards", 6, ("c0", "c1", "c2"))
+    assert item.reason.endswith("enough time today for 3/10 cards")
 
 
 def test_a_sliver_of_time_is_not_worth_starting_a_node():
@@ -180,8 +180,8 @@ def test_planned_sessions_lead_and_a_week_not_started_waits():
     )
     plan = today(learner, DAY)
     assert [item.node_id for item in plan.items] == ["planned", "open"]
-    assert plan.items[0].reason == "Lịch học đã xếp chặng này vào hôm nay"
-    assert plan.items[1].reason == "Hạn còn 1 ngày"
+    assert plan.items[0].reason == "Scheduled on your study plan for today"
+    assert plan.items[1].reason == "Due in 1 day(s)"
 
 
 def test_nodes_on_a_prerequisite_cycle_are_never_suggested():
@@ -283,7 +283,7 @@ def test_university_student_prepares_for_the_midterm(app, client, clock):
     assert plan["day"] == "2030-01-07" and plan["free_minutes"] == 120
     assert _studied(plan) == [ids["Mảng"], ids["Cây"]]
     assert {item["reason"] for item in plan["items"]} == {
-        "Giữa kỳ còn 6 ngày, còn 3 chặng phải học trước"
+        "Giữa kỳ in 6 day(s), 3 prerequisite stage(s) left"
     }
     locked = ids["Danh sách liên kết"]
     assert locked not in _studied(plan) + _studied(plan, "deferred")
@@ -308,11 +308,11 @@ def test_k12_learner_gets_due_reviews_and_part_of_a_lesson(app, client, clock):
     plan = _today(client, headers)
     review, study = plan["items"]
     assert review["kind"] == "review" and review["minutes"] == REVIEW_MINUTES
-    assert review["reason"] == "1 thẻ ôn tập đến hạn theo FSRS, thẻ cũ nhất quá hạn 1 ngày"
+    assert review["reason"] == "1 FSRS review card(s) due, oldest overdue by 1 day(s)"
     assert study["node_id"] == ids["Phân số"] and study["minutes"] == 45 - REVIEW_MINUTES
     assert study["reason"] == (
-        f"Kiểm tra 15 phút còn 14 ngày, còn 2 chặng phải học trước"
-        f" · hôm nay học {45 - REVIEW_MINUTES}/60 phút"
+        f"Kiểm tra 15 phút in 14 day(s), 2 prerequisite stage(s) left"
+        f" · study {45 - REVIEW_MINUTES}/60 min today"
     )
     assert _studied(plan, "deferred") == [ids["Số thập phân"]]
     assert plan["total_minutes"] == plan["free_minutes"] == 45
@@ -335,7 +335,7 @@ def test_self_learner_follows_the_goal_path_around_busy_time(client, clock):
     plan = _today(client, headers)
     assert plan["free_minutes"] == 90
     assert _studied(plan) == [ids["Python cơ bản"]]
-    assert plan["items"][0]["reason"] == "Chặng tiếp theo trong lộ trình"
+    assert plan["items"][0]["reason"] == "Next stage on the roadmap"
     assert plan["deferred"] == []  # "Hàm" and "Lớp" are locked, not merely out of time
 
 

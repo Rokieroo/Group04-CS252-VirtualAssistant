@@ -131,11 +131,11 @@ describe("GraphMinimap (#108)", () => {
     const { rerender } = render(
       <GraphCanvas nodes={makeNodes(MINIMAP_THRESHOLD - 1)} edges={[]} />,
     );
-    expect(screen.queryByRole("group", { name: "Bản đồ tổng quan đồ thị" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Graph overview minimap" })).toBeNull();
 
     rerender(<GraphCanvas nodes={makeNodes(MINIMAP_THRESHOLD)} edges={[]} />);
     const minimapGroup = screen.getByRole("group", {
-      name: "Bản đồ tổng quan đồ thị",
+      name: "Graph overview minimap",
     });
     expect(minimapGroup).toBeTruthy();
     expect(minimapGroup.textContent).toContain(`(${MINIMAP_THRESHOLD})`);
@@ -145,7 +145,7 @@ describe("GraphMinimap (#108)", () => {
     render(<GraphCanvas nodes={makeNodes(32)} edges={[]} />);
     flushFrame();
 
-    const miniCanvas = screen.getByTitle("Nhấn hoặc kéo để di chuyển góc nhìn");
+    const miniCanvas = screen.getByTitle("Click or drag to pan viewport");
 
     translateCalls = [];
     fireEvent.pointerDown(miniCanvas, {

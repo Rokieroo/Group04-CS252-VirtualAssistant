@@ -152,7 +152,7 @@ def test_missing_knowledge_query_returns_empty_list():
     hits = retrieve_top_k("Công thức nấu phở bò Nam Định là gì?", SOURCES)
 
     assert hits == []
-    assert NOT_FOUND_MESSAGE == "Không tìm thấy trong tài liệu của bạn"
+    assert NOT_FOUND_MESSAGE == "Not found in your materials"
 
 
 def test_empty_sources_or_blank_query_is_safe():

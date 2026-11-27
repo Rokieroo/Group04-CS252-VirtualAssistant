@@ -69,11 +69,11 @@ it("asks a cited question, marks it and reports what the roadmap skips", async (
 
   expect(await screen.findByText("Compute 1 + 10.")).toBeTruthy();
   // Every question shows where it comes from: its number in the source and the page.
-  expect(screen.getByText(/Exercise 1: · sets\.txt · Trang 2/)).toBeTruthy();
-  await user.type(screen.getByLabelText("Câu trả lời"), "11");
-  await user.click(screen.getByRole("button", { name: "Trả lời" }));
+  expect(screen.getByText(/Exercise 1: · sets\.txt · Page 2/)).toBeTruthy();
+  await user.type(screen.getByLabelText("Your answer"), "11");
+  await user.click(screen.getByRole("button", { name: "Submit answer" }));
 
   expect(answer).toHaveBeenCalledWith("p1", "e1", "11");
-  expect(await screen.findByText(/lộ trình bớt 60 \/ 120 phút/)).toBeTruthy();
+  expect(await screen.findByText(/roadmap shortened by 60 \/ 120 min/)).toBeTruthy();
   expect(onFinished).toHaveBeenCalledTimes(1);
 });

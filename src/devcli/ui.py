@@ -30,8 +30,7 @@ def _pkg_manager() -> list[str]:
 def _npm(args: argparse.Namespace) -> int:
     if not (UI_DIR / "package.json").exists():
         print(
-            "ui/ chưa có package.json. Frontend React + Vite nằm ở nhánh "
-            "codex/pathly-ui, hãy merge nhánh đó trước."
+            "ui/ does not have package.json yet. Merge the frontend React + Vite branch first."
         )
         return 1
     cmd = _pkg_manager()
@@ -39,6 +38,6 @@ def _npm(args: argparse.Namespace) -> int:
 
 
 def register(sub: argparse._SubParsersAction) -> None:
-    p = sub.add_parser("ui", help="UI/UX: cài đặt, chạy, build và test frontend")
+    p = sub.add_parser("ui", help="UI/UX: install, run, build, and test frontend")
     p.add_argument("action", choices=sorted(SCRIPTS), help="install | dev | build | test | e2e")
     p.set_defaults(func=_npm)

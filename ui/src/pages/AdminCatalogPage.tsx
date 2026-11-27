@@ -147,7 +147,7 @@ export function AdminCatalogPage() {
     await decide(
       item,
       () => verifyCatalogResource(item.id, customReasonRef.current, chosen),
-      `✓ Đã duyệt: "${item.title}"${chosen ? ` (${chosen})` : ""}`,
+      `✓ Verified: "${item.title}"${chosen ? ` (${chosen})` : ""}`,
     );
   };
 
@@ -157,7 +157,7 @@ export function AdminCatalogPage() {
     await decide(
       item,
       () => rejectCatalogResource(item.id, reason),
-      `✗ Đã loại: "${item.title}" (Lý do: ${reason})`,
+      `✗ Rejected: "${item.title}" (Reason: ${reason})`,
     );
   };
 
@@ -207,18 +207,18 @@ export function AdminCatalogPage() {
       {/* Header */}
       <header className="acp-header">
         <div className="acp-title-area">
-          <h2>Hàng chờ duyệt nguồn Catalog (Catalog Review Queue)</h2>
-          <p>Thẩm định nguồn mở theo ADR 004 & Spec 8.6, 12.1. Đạt chuẩn WCAG AA và phím tắt.</p>
+          <h2>Catalog Review Queue</h2>
+          <p>Review open educational resources per ADR 004 and Spec 8.6, 12.1. WCAG AA compliant with keyboard shortcuts.</p>
         </div>
 
         <div className="acp-metrics-bar">
           <div className="acp-metric-card">
             <strong>{items.length}</strong>
-            <span>Chờ duyệt</span>
+            <span>Pending</span>
           </div>
           <div className="acp-metric-card">
             <strong>{reviewedCount}</strong>
-            <span>Đã duyệt phiên này</span>
+            <span>Reviewed this session</span>
           </div>
           <div className="acp-metric-card">
             <strong>
@@ -226,18 +226,18 @@ export function AdminCatalogPage() {
                 ? `${(elapsedSecs / reviewedCount).toFixed(1)}s`
                 : "0s"}
             </strong>
-            <span>Tốc độ trung bình / nguồn</span>
+            <span>Avg speed / source</span>
           </div>
         </div>
       </header>
 
       {/* Shortcuts Guide Bar */}
-      <div className="acp-shortcuts-pill" role="note" aria-label="Hướng dẫn phím tắt">
-        <span>⚡ <strong>Phím tắt:</strong></span>
-        <span><kbd className="acp-key">J</kbd> / <kbd className="acp-key">↓</kbd> Nguồn tiếp theo</span>
-        <span><kbd className="acp-key">K</kbd> / <kbd className="acp-key">↑</kbd> Nguồn trước</span>
-        <span><kbd className="acp-key">V</kbd> Duyệt (Verify)</span>
-        <span><kbd className="acp-key">R</kbd> Loại (Reject)</span>
+      <div className="acp-shortcuts-pill" role="note" aria-label="Keyboard shortcuts guide">
+        <span>⚡ <strong>Shortcuts:</strong></span>
+        <span><kbd className="acp-key">J</kbd> / <kbd className="acp-key">↓</kbd> Next source</span>
+        <span><kbd className="acp-key">K</kbd> / <kbd className="acp-key">↑</kbd> Previous source</span>
+        <span><kbd className="acp-key">V</kbd> Verify</span>
+        <span><kbd className="acp-key">R</kbd> Reject</span>
       </div>
 
       {toast && (
@@ -247,7 +247,7 @@ export function AdminCatalogPage() {
       )}
 
       {/* Filters Bar */}
-      <div className="acp-filters-bar" role="search" aria-label="Bộ lọc nguồn">
+      <div className="acp-filters-bar" role="search" aria-label="Source filters">
         <div className="acp-filter-group">
           <label htmlFor="filter-provider">Provider:</label>
           <select
@@ -259,7 +259,7 @@ export function AdminCatalogPage() {
               setSelectedIndex(0);
             }}
           >
-            <option value="all">Tất cả ({items.length})</option>
+            <option value="all">All ({items.length})</option>
             {providers.map((p) => (
               <option key={p} value={p}>
                 {p}
@@ -269,7 +269,7 @@ export function AdminCatalogPage() {
         </div>
 
         <div className="acp-filter-group">
-          <label htmlFor="filter-reason">Lý do duyệt:</label>
+          <label htmlFor="filter-reason">Review reason:</label>
           <select
             id="filter-reason"
             className="acp-select"
@@ -279,20 +279,20 @@ export function AdminCatalogPage() {
               setSelectedIndex(0);
             }}
           >
-            <option value="all">Tất cả lý do</option>
-            <option value="license_unknown">Chưa rõ bản quyền (license_unknown)</option>
-            <option value="unsure_labels">Nhãn chủ đề chưa chắc (unsure_labels)</option>
-            <option value="robots">Quy định robots / domain</option>
+            <option value="all">All reasons</option>
+            <option value="license_unknown">Unknown license (license_unknown)</option>
+            <option value="unsure_labels">Uncertain topic tags (unsure_labels)</option>
+            <option value="robots">Robots / domain rules</option>
           </select>
         </div>
 
         <div className="acp-filter-group" style={{ flex: 1 }}>
-          <label htmlFor="filter-search">Tìm kiếm:</label>
+          <label htmlFor="filter-search">Search:</label>
           <input
             id="filter-search"
             type="search"
             className="acp-input"
-            placeholder="Tìm theo tiêu đề, URL, provider…"
+            placeholder="Search by title, URL, provider…"
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
@@ -303,14 +303,14 @@ export function AdminCatalogPage() {
         </div>
       </div>
 
-      {loading && <p aria-busy="true">Đang tải danh sách chờ duyệt…</p>}
+      {loading && <p aria-busy="true">Loading review queue…</p>}
       {error && <p role="alert" className="row-error">{error}</p>}
 
       {/* Main Review Workspace */}
       {!loading && !error && filteredItems.length === 0 && (
         <div className="card" style={{ padding: "2rem", textAlign: "center" }}>
-          <h3>🎉 Hàng chờ rỗng</h3>
-          <p>Tất cả tài nguyên catalog đã được thẩm định xong!</p>
+          <h3>🎉 Queue is empty</h3>
+          <p>All catalog resources have been reviewed!</p>
         </div>
       )}
 
@@ -320,7 +320,7 @@ export function AdminCatalogPage() {
           <div
             className="acp-queue-column"
             role="list"
-            aria-label="Danh sách tài nguyên chờ duyệt"
+            aria-label="Resources awaiting review"
           >
             {filteredItems.map((item, idx) => {
               const reviewChecks = item.checks.filter(
@@ -348,14 +348,14 @@ export function AdminCatalogPage() {
                     {item.license ? (
                       <span>📜 {item.license}</span>
                     ) : (
-                      <span style={{ color: "var(--color-warning)" }}>⚠️ Chưa có license</span>
+                      <span style={{ color: "var(--color-warning)" }}>⚠️ No license</span>
                     )}
                     {reviewChecks.length > 0 ? (
                       <span className="acp-check-pill review">
-                        {reviewChecks.length} cần xem
+                        {reviewChecks.length} to review
                       </span>
                     ) : (
-                      <span className="acp-check-pill pass">Đủ điều kiện</span>
+                      <span className="acp-check-pill pass">Eligible</span>
                     )}
                   </div>
                 </div>
@@ -366,11 +366,11 @@ export function AdminCatalogPage() {
           {/* Right Column: Detailed Inspector & Action Box */}
           <section
             className="acp-inspector-column"
-            aria-label="Chi tiết kiểm tra & quyết định"
+            aria-label="Inspection details and decision"
           >
             <div className="acp-inspector-header">
               <span className="acp-check-pill review" style={{ width: "fit-content" }}>
-                Nguồn {selectedIndex + 1} / {filteredItems.length}
+                Source {selectedIndex + 1} / {filteredItems.length}
               </span>
               <h3 className="acp-inspector-title">{selectedItem.title}</h3>
               <div className="acp-inspector-url">
@@ -379,7 +379,7 @@ export function AdminCatalogPage() {
                   href={selectedItem.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  title="Mở liên kết gốc trong tab mới"
+                  title="Open original link in a new tab"
                 >
                   {selectedItem.url} ↗
                 </a>
@@ -388,7 +388,7 @@ export function AdminCatalogPage() {
 
             {/* Verification Checks Breakdown */}
             <div>
-              <h4 className="acp-section-title">Kết quả kiểm tra tự động (4 checks)</h4>
+              <h4 className="acp-section-title">Automated check results (4 checks)</h4>
               <div className="acp-checks-list">
                 {selectedItem.checks.map((chk) => (
                   <div key={chk.check} className="acp-check-row">
@@ -407,14 +407,14 @@ export function AdminCatalogPage() {
             {/* License the admin confirms */}
             <div className="acp-edit-grid">
               <div className="acp-form-field">
-                <label htmlFor="edit-license">Giấy phép (License):</label>
+                <label htmlFor="edit-license">License:</label>
                 <select
                   id="edit-license"
                   className="acp-select"
                   value={license}
                   onChange={(e) => setLicenseChoice((prev) => ({ ...prev, [selectedItem.id]: e.target.value }))}
                 >
-                  <option value="">— Giữ giấy phép đã nhận diện —</option>
+                  <option value="">— Keep detected license —</option>
                   {LICENSES.map((lic) => (
                     <option key={lic} value={lic}>
                       {lic}
@@ -428,11 +428,11 @@ export function AdminCatalogPage() {
             {/* Decision Controls */}
             <div className="acp-decision-box">
               <h4 className="acp-section-title" style={{ margin: 0 }}>
-                Quyết định duyệt / loại nguồn
+                Verify / reject decision
               </h4>
 
               <div className="acp-form-field">
-                <label htmlFor="verify-reason">Lý do duyệt:</label>
+                <label htmlFor="verify-reason">Verification reason:</label>
                 <input
                   id="verify-reason"
                   type="text"
@@ -455,7 +455,7 @@ export function AdminCatalogPage() {
               </div>
 
               <div className="acp-form-field">
-                <label htmlFor="reject-reason">Lý do từ chối (nếu loại):</label>
+                <label htmlFor="reject-reason">Rejection reason (if rejecting):</label>
                 <input
                   id="reject-reason"
                   type="text"
@@ -483,18 +483,18 @@ export function AdminCatalogPage() {
                   className="acp-btn-verify"
                   onClick={() => void handleVerify()}
                   disabled={busy}
-                  aria-label="Xác nhận duyệt nguồn này (phím tắt V)"
+                  aria-label="Confirm verifying this source (shortcut V)"
                 >
-                  ✓ [V] Duyệt nguồn (Verify)
+                  ✓ [V] Verify source
                 </button>
                 <button
                   type="button"
                   className="acp-btn-reject"
                   onClick={() => void handleReject()}
                   disabled={busy}
-                  aria-label="Từ chối loại bỏ nguồn này (phím tắt R)"
+                  aria-label="Reject and remove this source (shortcut R)"
                 >
-                  ✕ [R] Loại nguồn (Reject)
+                  ✕ [R] Reject source
                 </button>
               </div>
 
@@ -505,7 +505,7 @@ export function AdminCatalogPage() {
                   onClick={() => setSelectedIndex((prev) => Math.max(0, prev - 1))}
                   disabled={selectedIndex === 0}
                 >
-                  ← [K] Nguồn trước
+                  ← [K] Previous source
                 </button>
                 <span>
                   {selectedIndex + 1} / {filteredItems.length}
@@ -520,7 +520,7 @@ export function AdminCatalogPage() {
                   }
                   disabled={selectedIndex >= filteredItems.length - 1}
                 >
-                  [J] Nguồn sau →
+                  [J] Next source →
                 </button>
               </div>
             </div>

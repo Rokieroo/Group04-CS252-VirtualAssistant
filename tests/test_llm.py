@@ -21,7 +21,7 @@ def test_get_client_fake(monkeypatch):
 def test_get_client_missing_key(monkeypatch):
     monkeypatch.setenv("LLM_PROVIDER", "gemini")
     monkeypatch.delenv("LLM_API_KEY", raising=False)
-    with pytest.raises(RuntimeError, match="Thiếu LLM_API_KEY"):
+    with pytest.raises(RuntimeError, match="Missing LLM_API_KEY"):
         get_client()
 
 

@@ -57,19 +57,19 @@ export function GraphFilterBar({
   const activeFilters = [
     filters.status !== "all" &&
       {
-        mastered: "Đã vững",
-        in_progress: "Đang học",
-        review_due: "Cần ôn",
-        not_started: "Chưa học",
-        locked: "Đang khóa",
-        available: "Có thể học",
+        mastered: "Mastered",
+        in_progress: "In progress",
+        review_due: "Review due",
+        not_started: "Not started",
+        locked: "Locked",
+        available: "Available",
       }[filters.status],
     filters.clo,
     (filters.weekMin !== 1 || filters.weekMax !== 52) &&
-      `Tuần ${filters.weekMin}–${filters.weekMax}`,
-    filters.verifiedOnly && "Nguồn đã kiểm chứng",
-    filters.hideSoftEdges && "Ẩn cạnh tuần (soft)",
-    filters.transitiveReduction && "Thu gọn bắc cầu",
+      `Weeks ${filters.weekMin}–${filters.weekMax}`,
+    filters.verifiedOnly && "Verified sources",
+    filters.hideSoftEdges && "Hide soft week edges",
+    filters.transitiveReduction && "Transitive reduction",
     filters.isLocalGraph && `Local graph · ${filters.localDepth}`,
   ].filter(Boolean);
   const hasFilters =
@@ -130,13 +130,13 @@ export function GraphFilterBar({
     <div
       className={`kg-filter-bar ${className}`}
       role="search"
-      aria-label="Bộ lọc Knowledge Graph"
+      aria-label="Knowledge Graph filters"
     >
       <div className="filter-row-primary">
         {/* Search input with '/' shortcut badge */}
         <div className="search-box-wrapper">
           <label htmlFor="kg-topic-search" className="sr-only">
-            Tìm chặng học (nhấn phím /)
+            Search stages (press /)
           </label>
           <div className="search-input-container">
             <span className="search-icon" aria-hidden="true">
@@ -177,7 +177,7 @@ export function GraphFilterBar({
                 } else if (e.key === "Escape") setSuggestionsOpen(false);
               }}
               className="kg-search-input"
-              placeholder="Tìm chủ đề chặng học..."
+              placeholder="Search stage topics..."
               value={filters.search}
               onChange={(e) => {
                 setActiveSuggestion(0);
@@ -190,7 +190,7 @@ export function GraphFilterBar({
             />
             <kbd
               className="search-shortcut"
-              title="Phím tắt: /"
+              title="Shortcut: /"
               aria-hidden="true"
             >
               /
@@ -219,11 +219,11 @@ export function GraphFilterBar({
                   }}
                 >
                   <span className="suggestion-type">
-                    {item.type === "milestone" ? "Mốc" : "Chủ đề"}
+                    {item.type === "milestone" ? "Milestone" : "Topic"}
                   </span>
                   <span className="suggestion-title">{item.title}</span>
                   {item.week && (
-                    <span className="suggestion-week">Tuần {item.week}</span>
+                    <span className="suggestion-week">Week {item.week}</span>
                   )}
                 </li>
               ))}
@@ -231,9 +231,9 @@ export function GraphFilterBar({
           )}
         </div>
 
-        {/* Milestone selector: Tới mốc kiểm tra (Exam prep) */}
+        {/* Milestone selector: Up to milestone (Exam prep) */}
         <div className="filter-item milestone-filter">
-          <label htmlFor="kg-milestone-select">Tới mốc kiểm tra:</label>
+          <label htmlFor="kg-milestone-select">Up to milestone:</label>
           <select
             id="kg-milestone-select"
             value={filters.selectedMilestone}
@@ -241,38 +241,38 @@ export function GraphFilterBar({
               handleUpdate({ selectedMilestone: e.target.value })
             }
           >
-            <option value="">Toàn bộ môn học</option>
+            <option value="">Entire course</option>
             {milestones.map((m) => (
               <option value={m.id} key={m.id}>
-                {m.title} {m.week ? `(Tuần ${m.week})` : ""}
+                {m.title} {m.week ? `(Week ${m.week})` : ""}
               </option>
             ))}
           </select>
         </div>
 
         {/* View mode toggle (Graph vs List) */}
-        <div className="view-mode-toggle" role="group" aria-label="Chế độ xem">
+        <div className="view-mode-toggle" role="group" aria-label="View mode">
           <button
             type="button"
             className={filters.viewMode === "graph" ? "active" : ""}
             onClick={() => handleUpdate({ viewMode: "graph" })}
-            title="Xem dạng Canvas đồ thị"
+            title="View as Graph Canvas"
             aria-pressed={filters.viewMode === "graph"}
           >
-            Đồ thị
+            Graph
           </button>
           <button
             type="button"
             className={filters.viewMode === "list" ? "active" : ""}
             onClick={() => handleUpdate({ viewMode: "list" })}
-            title="Xem dạng bảng danh sách tiếp cận (WCAG)"
+            title="View as accessible list table (WCAG)"
             aria-pressed={filters.viewMode === "list"}
           >
-            Danh sách
+            List
           </button>
         </div>
         <Button
-          label={`Bộ lọc${activeFilters.length ? ` (${activeFilters.length})` : ""}`}
+          label={`Filters${activeFilters.length ? ` (${activeFilters.length})` : ""}`}
           icon={<Icon icon="funnel" size="sm" />}
           size="lg"
           className="study-button filter-disclosure"
@@ -285,7 +285,7 @@ export function GraphFilterBar({
         <div className="filter-summary">
           <span role="status">{activeFilters.join(" · ")}</span>
           <Button
-            label="Xóa bộ lọc"
+            label="Clear filters"
             variant="ghost"
             className="study-button"
             onClick={() =>
@@ -302,7 +302,7 @@ export function GraphFilterBar({
       >
         {/* Status filter */}
         <div className="filter-item">
-          <label htmlFor="kg-status-filter">Trạng thái:</label>
+          <label htmlFor="kg-status-filter">Status:</label>
           <select
             id="kg-status-filter"
             value={filters.status}
@@ -312,13 +312,13 @@ export function GraphFilterBar({
               })
             }
           >
-            <option value="all">Tất cả</option>
-            <option value="mastered">Đã vững</option>
-            <option value="in_progress">Đang học</option>
-            <option value="review_due">Cần ôn</option>
-            <option value="locked">Đang khóa</option>
-            <option value="available">Có thể học</option>
-            <option value="not_started">Chưa học</option>
+            <option value="all">All</option>
+            <option value="mastered">Mastered</option>
+            <option value="in_progress">In progress</option>
+            <option value="review_due">Review due</option>
+            <option value="locked">Locked</option>
+            <option value="available">Available</option>
+            <option value="not_started">Not started</option>
           </select>
         </div>
 
@@ -331,7 +331,7 @@ export function GraphFilterBar({
               value={filters.clo}
               onChange={(e) => handleUpdate({ clo: e.target.value })}
             >
-              <option value="">Mọi CLO</option>
+              <option value="">All CLOs</option>
               {availableClos.map((c) => (
                 <option value={c} key={c}>
                   {c}
@@ -343,7 +343,7 @@ export function GraphFilterBar({
 
         {/* Week range */}
         <div className="filter-item week-range-filter">
-          <label htmlFor="kg-week-min">Tuần:</label>
+          <label htmlFor="kg-week-min">Week:</label>
           <input
             id="kg-week-min"
             type="number"
@@ -361,7 +361,7 @@ export function GraphFilterBar({
                 ),
               })
             }
-            aria-label="Tuần bắt đầu"
+            aria-label="Start week"
           />
           <span>–</span>
           <input
@@ -381,35 +381,35 @@ export function GraphFilterBar({
                 ),
               })
             }
-            aria-label="Tuần kết thúc"
+            aria-label="End week"
           />
         </div>
 
-        {/* Checkbox: Chỉ chặng có nguồn đã kiểm chứng */}
+        {/* Checkbox: Verified sources only */}
         <label className="checkbox-item">
           <input
             type="checkbox"
             checked={filters.verifiedOnly}
             onChange={(e) => handleUpdate({ verifiedOnly: e.target.checked })}
           />
-          <span>Nguồn đã kiểm chứng</span>
+          <span>Verified sources</span>
         </label>
 
-        <h3 className="filter-advanced-heading">Nâng cao</h3>
-        {/* Checkbox: Ẩn cạnh soft */}
+        <h3 className="filter-advanced-heading">Advanced</h3>
+        {/* Checkbox: Hide soft edges */}
         <label className="checkbox-item">
           <input
             type="checkbox"
             checked={filters.hideSoftEdges}
             onChange={(e) => handleUpdate({ hideSoftEdges: e.target.checked })}
           />
-          <span>Ẩn cạnh tuần (soft)</span>
+          <span>Hide soft week edges</span>
         </label>
 
         {/* Checkbox: Transitive reduction */}
         <label
           className="checkbox-item"
-          title="Ẩn các cạnh bắc cầu suy ra được (a→b→c thì ẩn a→c)"
+          title="Hide implied transitive edges (if a→b→c, hide a→c)"
         >
           <input
             type="checkbox"
@@ -418,7 +418,7 @@ export function GraphFilterBar({
               handleUpdate({ transitiveReduction: e.target.checked })
             }
           />
-          <span>Thu gọn bắc cầu</span>
+          <span>Transitive reduction</span>
         </label>
 
         {/* Local graph controls */}
@@ -434,7 +434,7 @@ export function GraphFilterBar({
           {filters.isLocalGraph && (
             <div className="depth-slider-container">
               <label htmlFor="kg-depth-slider">
-                Độ sâu: <strong>{filters.localDepth}</strong>
+                Depth: <strong>{filters.localDepth}</strong>
               </label>
               <input
                 id="kg-depth-slider"

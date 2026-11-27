@@ -267,9 +267,9 @@ function withAlpha(color: string, alpha: number): string {
 }
 
 const EDGE_LABEL: Record<string, string> = {
-  strict: "Bắt buộc học trước",
-  soft: "Nên học trước",
-  covers: "Thuộc mốc kiểm tra",
+  strict: "Required prerequisite",
+  soft: "Recommended prerequisite",
+  covers: "Covered by milestone",
 };
 const COLUMN_WIDTH = 180;
 const ROW_HEIGHT = 85;
@@ -437,7 +437,7 @@ export function GraphCanvas({
   useEffect(() => {
     setActiveCycle(cyclePath);
     if (cyclePath && cyclePath.length > 1) {
-      setCycleAlert(`Chu trình tiên quyết bị chặn: ${cyclePath.join(" → ")}`);
+      setCycleAlert(`Prerequisite cycle blocked: ${cyclePath.join(" → ")}`);
     } else {
       setCycleAlert(null);
     }
@@ -1049,7 +1049,7 @@ export function GraphCanvas({
       for (let w = 1; w <= maxWeek; w++) {
         const sx = pan.x + ((w - 1) * COLUMN_WIDTH + 80) * zoom;
         if (sx < -40 || sx > viewW + 40) continue;
-        ctx.fillText(`TUẦN ${w}`, sx, 17);
+        ctx.fillText(`WEEK ${w}`, sx, 17);
       }
       ctx.restore();
     }
@@ -1429,7 +1429,7 @@ export function GraphCanvas({
         if (detectedCycle) {
           setActiveCycle(detectedCycle);
           setCycleAlert(
-            `Chu trình tiên quyết bị chặn: ${detectedCycle.join(" → ")}`,
+            `Prerequisite cycle blocked: ${detectedCycle.join(" → ")}`,
           );
         } else {
           setActiveCycle(null);
@@ -1442,7 +1442,7 @@ export function GraphCanvas({
             if (errorObj?.detail?.path) {
               setActiveCycle(errorObj.detail.path);
               setCycleAlert(
-                `API từ chối: chu trình ${errorObj.detail.path.join(" → ")}`,
+                `API rejected cycle: ${errorObj.detail.path.join(" → ")}`,
               );
             } else {
               setCycleAlert(
@@ -1571,33 +1571,33 @@ export function GraphCanvas({
       </div>
 
       <div className="graph-toolbar">
-        <div className="graph-segmented" role="group" aria-label="Cách sắp xếp">
+        <div className="graph-segmented" role="group" aria-label="Layout mode">
           <button
             type="button"
             className={layout === "week" ? "active" : ""}
             aria-pressed={layout === "week"}
             onClick={() => onLayoutModeChange?.("week")}
-            title="Sắp xếp theo tuần syllabus"
+            title="Arrange by syllabus week"
           >
-            Theo tuần
+            By week
           </button>
           <button
             type="button"
             className={layout === "force" ? "active" : ""}
             aria-pressed={layout === "force"}
             onClick={() => onLayoutModeChange?.("force")}
-            title="Sắp xếp lực đồ thị kiểu Obsidian"
+            title="Obsidian-style force layout"
           >
-            Lực (Obsidian)
+            Force (Obsidian)
           </button>
         </div>
 
-        <div className="graph-zoom" role="group" aria-label="Thu phóng">
+        <div className="graph-zoom" role="group" aria-label="Zoom">
           <button
             type="button"
             onClick={() => setZoom((z) => Math.max(0.2, z * 0.8))}
-            title="Thu nhỏ (-)"
-            aria-label="Thu nhỏ"
+            title="Zoom out (-)"
+            aria-label="Zoom out"
           >
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M3.5 8h9" />
@@ -1607,8 +1607,8 @@ export function GraphCanvas({
           <button
             type="button"
             onClick={() => setZoom((z) => Math.min(3.0, z * 1.2))}
-            title="Phóng to (+)"
-            aria-label="Phóng to"
+            title="Zoom in (+)"
+            aria-label="Zoom in"
           >
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M3.5 8h9M8 3.5v9" />
@@ -1618,8 +1618,8 @@ export function GraphCanvas({
           <button
             type="button"
             onClick={() => fitView()}
-            title="Vừa khung: thấy cả môn"
-            aria-label="Vừa khung"
+            title="Fit view: show entire course"
+            aria-label="Fit view"
           >
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10" />
@@ -1636,10 +1636,10 @@ export function GraphCanvas({
               setZoom(1);
               setPan({ x: 60, y: 60 });
             }}
-            title="Về 100% (0)"
-            aria-label="Đặt lại góc nhìn"
+            title="Reset to 100% (0)"
+            aria-label="Reset view"
           >
-            Đặt lại
+            Reset
           </button>
         </div>
       </div>
@@ -1657,37 +1657,37 @@ export function GraphCanvas({
               setCycleAlert(null);
               setActiveCycle(null);
             }}
-            aria-label="Đóng cảnh báo"
+            aria-label="Dismiss alert"
           >
             ×
           </button>
         </div>
       )}
 
-      <div className="graph-legend" aria-label="Chú thích">
+      <div className="graph-legend" aria-label="Legend">
         <span className="graph-legend-item">
-          <i className="glyph glyph-topic" /> Chủ đề
+          <i className="glyph glyph-topic" /> Topic
         </span>
         <span className="graph-legend-item">
-          <i className="glyph glyph-progress" /> Đang học
+          <i className="glyph glyph-progress" /> In progress
         </span>
         <span className="graph-legend-item">
-          <i className="glyph glyph-done" /> Đã vững
+          <i className="glyph glyph-done" /> Mastered
         </span>
         <span className="graph-legend-item">
-          <i className="glyph glyph-attention" /> Cần chú ý
+          <i className="glyph glyph-attention" /> Needs attention
         </span>
         <span className="graph-legend-item">
-          <i className="glyph glyph-milestone" /> Mốc kiểm tra
+          <i className="glyph glyph-milestone" /> Milestone
         </span>
         <span className="graph-legend-item">
-          <i className="glyph glyph-strict" /> Bắt buộc
+          <i className="glyph glyph-strict" /> Required
         </span>
         <span className="graph-legend-item">
-          <i className="glyph glyph-soft" /> Nên học trước
+          <i className="glyph glyph-soft" /> Recommended
         </span>
         <span className="graph-legend-hint">
-          <kbd>Shift</kbd> + kéo để nối hai chặng
+          <kbd>Shift</kbd> + drag to connect two stages
         </span>
       </div>
 

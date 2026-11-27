@@ -63,10 +63,10 @@ describe("GraphFilterBar Component", () => {
       />,
     );
 
-    expect(screen.getByPlaceholderText("Tìm chủ đề chặng học...")).toBeTruthy();
-    expect(screen.getByLabelText("Tới mốc kiểm tra:")).toBeTruthy();
-    expect(screen.getByText("Đồ thị")).toBeTruthy();
-    expect(screen.getByText("Danh sách")).toBeTruthy();
+    expect(screen.getByPlaceholderText("Search stage topics...")).toBeTruthy();
+    expect(screen.getByLabelText("Up to milestone:")).toBeTruthy();
+    expect(screen.getByText("Graph")).toBeTruthy();
+    expect(screen.getByText("List")).toBeTruthy();
   });
 
   it("triggers suggestions when typing in search input", () => {
@@ -80,7 +80,7 @@ describe("GraphFilterBar Component", () => {
       />,
     );
 
-    const input = screen.getByPlaceholderText("Tìm chủ đề chặng học...");
+    const input = screen.getByPlaceholderText("Search stage topics...");
     fireEvent.focus(input);
 
     expect(screen.getByText("Cấu trúc dữ liệu và Giải thuật")).toBeTruthy();
@@ -98,7 +98,7 @@ describe("GraphFilterBar Component", () => {
       />,
     );
 
-    const input = screen.getByPlaceholderText("Tìm chủ đề chặng học...");
+    const input = screen.getByPlaceholderText("Search stage topics...");
     fireEvent.focus(input);
 
     const suggestion = screen.getByText("Độ phức tạp tính toán Big-O");
@@ -121,7 +121,7 @@ describe("GraphFilterBar Component", () => {
       />,
     );
 
-    const listBtn = screen.getByText("Danh sách");
+    const listBtn = screen.getByText("List");
     fireEvent.click(listBtn);
 
     expect(onChange).toHaveBeenCalledWith(
@@ -139,7 +139,7 @@ describe("GraphFilterBar Component", () => {
       />,
     );
 
-    const searchInput = screen.getByPlaceholderText("Tìm chủ đề chặng học...");
+    const searchInput = screen.getByPlaceholderText("Search stage topics...");
     expect(document.activeElement).not.toBe(searchInput);
 
     fireEvent.keyDown(window, { key: "/" });
@@ -155,23 +155,23 @@ describe("GraphFilterBar Component", () => {
         onSelectNode={vi.fn()}
       />,
     );
-    const toggle = screen.getByRole("button", { name: "Bộ lọc (1)" });
+    const toggle = screen.getByRole("button", { name: "Filters (1)" });
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.queryByRole("combobox", { name: "Trạng thái:" })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Status:" })).toBeNull();
     expect(
-      screen.getByRole("combobox", { name: "Tới mốc kiểm tra:" }),
+      screen.getByRole("combobox", { name: "Up to milestone:" }),
     ).toBeTruthy();
-    expect(screen.getByText("Tuần 1–15").textContent).toBe("Tuần 1–15");
+    expect(screen.getByText("Weeks 1–15").textContent).toBe("Weeks 1–15");
     fireEvent.click(toggle);
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
-    fireEvent.change(screen.getByRole("combobox", { name: "Trạng thái:" }), {
+    fireEvent.change(screen.getByRole("combobox", { name: "Status:" }), {
       target: { value: "mastered" },
     });
     expect(changed).toHaveBeenCalledWith(
       expect.objectContaining({ status: "mastered" }),
     );
     fireEvent.click(toggle);
-    expect(screen.queryByRole("combobox", { name: "Trạng thái:" })).toBeNull();
+    expect(screen.queryByRole("combobox", { name: "Status:" })).toBeNull();
   });
 
   it("counts a week range once and local depth only while enabled; clearing preserves the view", () => {
@@ -192,7 +192,7 @@ describe("GraphFilterBar Component", () => {
         onSelectNode={vi.fn()}
       />,
     );
-    expect(screen.getByRole("button", { name: "Bộ lọc (2)" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Filters (2)" })).toBeTruthy();
     rerender(
       <GraphFilterBar
         nodes={sampleNodes}
@@ -201,8 +201,8 @@ describe("GraphFilterBar Component", () => {
         onSelectNode={vi.fn()}
       />,
     );
-    expect(screen.getByRole("button", { name: "Bộ lọc (3)" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Xóa bộ lọc" }));
+    expect(screen.getByRole("button", { name: "Filters (3)" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(changed).toHaveBeenLastCalledWith({
       search: "",
       selectedMilestone: "",

@@ -16,5 +16,5 @@ def run(cmd: list[str], cwd: Path = ROOT) -> int:
         env = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(ROOT / "src"), os.environ.get("PYTHONPATH")]))}
         return subprocess.run(cmd, cwd=cwd, env=env, check=False).returncode
     except FileNotFoundError:
-        print(f"Không tìm thấy lệnh '{cmd[0]}'. Hãy cài đặt nó trước (xem README).", file=sys.stderr)
+        print(f"Command '{cmd[0]}' not found. Please install it first (see README).", file=sys.stderr)
         return 127

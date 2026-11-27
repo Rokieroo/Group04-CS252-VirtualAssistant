@@ -3,7 +3,7 @@ import { navigate } from "./helpers";
 
 // The UI in VITE_BACKEND_MODE=api; the backend is answered here, so no server or LLM runs.
 const concepts = [
-  { id: "c1", slug: "solution-ladder", title: "Solution ladder", summary: "Leo tới bậc thấp nhất đủ dùng.", bloom_level: "understand", source_pages: [2, 3], confirmed: false },
+  { id: "c1", slug: "solution-ladder", title: "Solution ladder", summary: "Use the lowest rung that solves the problem.", bloom_level: "understand", source_pages: [2, 3], confirmed: false },
   { id: "c2", slug: "framing-ladder", title: "Framing ladder", summary: "Need → Problem → Split → Options → Success.", bloom_level: "apply", source_pages: [5], confirmed: false },
 ];
 
@@ -37,8 +37,8 @@ async function registerAndUpload(page: Page) {
   await page.getByRole("button", { name: "Register", exact: true }).click();
   await expect(page.locator(".topbar")).toBeVisible();
   await navigate(page, "Courses");
-  await page.getByLabel("Tên môn học", { exact: true }).fill("Concept test course");
-  await page.getByRole("button", { name: "Tạo môn học", exact: true }).click();
+  await page.getByLabel("New course name", { exact: true }).fill("Concept test course");
+  await page.getByRole("button", { name: "Create course", exact: true }).click();
   await page.getByLabel("Choose files to upload").setInputFiles({
     name: "week01.pdf",
     mimeType: "application/pdf",

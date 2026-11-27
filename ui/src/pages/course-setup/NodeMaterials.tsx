@@ -20,20 +20,20 @@ import type { NodeResources, Resource } from "../../api/types";
 // Spec 8.6 format filters; "read" groups every text format.
 const FILTERS: { id: string; label: string; formats?: Resource["format"][] }[] =
   [
-    { id: "all", label: "Tất cả" },
+    { id: "all", label: "All" },
     { id: "video", label: "Video", formats: ["video"] },
     {
       id: "read",
-      label: "Bài viết / Đọc",
+      label: "Article / Reading",
       formats: ["article", "book", "paper"],
     },
-    { id: "exercise", label: "Bài tập", formats: ["exercise"] },
+    { id: "exercise", label: "Exercise", formats: ["exercise"] },
   ];
 const POLL_MS = 3000;
 
 /**
  * S6 sources of one roadmap node (spec 8.6, 8.7, 12.1; #58, #114): the learner's own
- * pages first, then verified resources with filters, one-tap feedback and "Tìm lại".
+ * pages first, then verified resources with filters, one-tap feedback and "Search again".
  * Each resource uses the VerifiedSourceCard the graph node panel shares (#104).
  */
 export function NodeMaterials({
@@ -139,9 +139,9 @@ export function NodeMaterials({
         </p>
         <Button
           disabled={busy}
-          onClick={() => void act(load, "Không tải được nguồn học.")}
+          onClick={() => void act(load, "Could not load learning sources.")}
         >
-          Thử lại nguồn học
+          Retry learning sources
         </Button>
       </div>
     );
@@ -158,20 +158,20 @@ export function NodeMaterials({
     <div className="core-node-sources" aria-label="Learning sources">
       {attached.length > 0 && (
         <div className="core-own-material-section">
-          <h4 className="core-sources-heading">Tài liệu cá nhân của bạn</h4>
+          <h4 className="core-sources-heading">Your personal materials</h4>
           <ul className="core-own-material">
             {attached.map((f) => (
               <li key={f.file_name}>
-                <span className="core-own-badge">Tài liệu của bạn</span>
+                <span className="core-own-badge">Your material</span>
                 <strong>{f.file_name}</strong>
-                <span> · trang {pageRanges(f.pages.map((p) => p.page))}</span>
+                <span> · page {pageRanges(f.pages.map((p) => p.page))}</span>
                 {onOpenMaterialPage &&
                   f.pages.map((p) => (
                     <Button
                       key={`${p.source_id}:${p.page}`}
                       onClick={() => onOpenMaterialPage(p.source_id, p.page)}
                     >
-                      Mở trang {p.page}
+                      Open page {p.page}
                     </Button>
                   ))}
               </li>
@@ -183,19 +183,18 @@ export function NodeMaterials({
       {suggested.map((file) => (
         <div className="core-material-suggestion" key={file.file_name}>
           <p>
-            Có phải <strong>{file.file_name}</strong> (trang{" "}
-            {pageRanges(file.pages.map((p) => p.page))}) thuộc nội dung chặng
-            này?
+            Does <strong>{file.file_name}</strong> (page{" "}
+            {pageRanges(file.pages.map((p) => p.page))}) belong to this stage?
           </p>
           <Button
             primary
             disabled={busy}
             onClick={() => void decide(file, true)}
           >
-            Đính kèm chặng này
+            Attach to this stage
           </Button>
           <Button disabled={busy} onClick={() => void decide(file, false)}>
-            Bỏ qua
+            Skip
           </Button>
         </div>
       ))}
@@ -204,7 +203,7 @@ export function NodeMaterials({
         <div
           className="core-format-filters"
           role="group"
-          aria-label="Lọc theo định dạng"
+          aria-label="Filter by format"
         >
           {FILTERS.map((f) => (
             <button
@@ -224,14 +223,14 @@ export function NodeMaterials({
           disabled={busy || found.status === "searching"}
           onClick={() => void searchAgain()}
         >
-          Tìm lại
+          Search again
         </Button>
       </div>
 
       {found.status === "searching" && (
         <div className="core-searching-box" role="status">
           <p className="core-field-label">
-            Đang tìm kiếm nguồn học chất lượng cao…
+            Searching for high-quality learning sources…
           </p>
         </div>
       )}
@@ -256,7 +255,7 @@ export function NodeMaterials({
                 actions={
                   s.id in feedback ? (
                     <span className="core-feedback-ack">
-                      ✓ Cảm ơn đánh giá!
+                      ✓ Thanks for your feedback!
                     </span>
                   ) : undefined
                 }
@@ -267,10 +266,10 @@ export function NodeMaterials({
       )}
 
       {found.resources.length > 0 && shown.length === 0 && (
-        <p role="status">Không có nguồn phù hợp với bộ lọc này.</p>
+        <p role="status">No sources match this filter.</p>
       )}
       {found.status === "ready" && found.resources.length === 0 && (
-        <p className="core-field-label">Chưa có nguồn cho chặng này.</p>
+        <p className="core-field-label">No sources for this stage yet.</p>
       )}
     </div>
   );

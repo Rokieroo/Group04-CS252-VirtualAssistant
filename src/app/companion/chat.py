@@ -21,9 +21,9 @@ MAX_REPLY_CHARS = 12000
 # Offline mood lines; their keys are the moods a context may carry.
 MOOD_NOTES = {
     "neutral": "",
-    "happy": "Thật vui khi bạn đang có tinh thần tốt. ",
-    "stressed": "Nghe có vẻ bạn đang chịu áp lực. Bạn có thể nghỉ một chút rồi chọn một việc nhỏ. ",
-    "tired": "Nếu đang mệt, bạn có thể nghỉ ngơi trước khi tiếp tục. ",
+    "happy": "Glad to hear you are in good spirits. ",
+    "stressed": "It sounds like you are under pressure. Take a short break and pick one small step. ",
+    "tired": "If you are tired, take a rest before continuing. ",
 }
 
 
@@ -175,24 +175,24 @@ class Companion:
     def _offline(context: CompanionContext, reason: str) -> CompanionReply:
         name = context.name
         opening = {
-            "warm": f"Mình ở đây hỗ trợ bạn, {name}.",
-            "direct": f"{name}, mình cùng xem tiến độ nhé.",
-            "playful": f"Tiến từng bước nhỏ thôi, {name} — cùng bắt đầu nhé!",
+            "warm": f"I'm here to support you, {name}.",
+            "direct": f"{name}, let's review your progress.",
+            "playful": f"One small step at a time, {name} — let's get started!",
         }[context.personality]
         mood = MOOD_NOTES[context.mood]
         session = context.next_session
         next_step = (
-            f"Buổi kế tiếp: {session.title}, lúc "
+            f"Next session: {session.title}, at "
             f"{session.starts_at.astimezone(ZoneInfo(context.timezone)):%H:%M %d/%m}."
             if session
-            else "Bạn có thể thêm giờ rảnh rồi xem trước một kế hoạch học phù hợp."
+            else "Add your available hours to preview a study plan that fits your schedule."
         )
         progress = context.weekly_progress
         return CompanionReply(
-            f"[Chế độ offline] {opening} {mood}Tuần này bạn đã hoàn thành "
-            f"{progress['completed_minutes']} phút và {progress['completed_tasks']}/"
-            f"{progress['total_tasks']} task đến hạn trong tuần. {next_step} "
-            "Mọi thay đổi lịch cần bạn xác nhận lưu kế hoạch.",
+            f"[Offline mode] {opening} {mood}This week you completed "
+            f"{progress['completed_minutes']} minutes and {progress['completed_tasks']}/"
+            f"{progress['total_tasks']} due tasks. {next_step} "
+            "Any schedule changes require your confirmation to save.",
             "offline",
             reason,
         )

@@ -70,7 +70,7 @@ def test_short_database_is_filled_with_vetted_external_pages_never_verified():
     external = [r for r in shown if r.kind == "external"]
     assert [r.url for r in external] == ["https://en.wikipedia.org/wiki/BST"]  # catalog copy wins
     assert all(r.verification_status == "unverified" for r in external)
-    assert "chưa xác minh" in external[0].reason
+    assert "unverified" in external[0].reason
 
 
 def test_every_recommendation_carries_kind_status_and_a_factual_reason():
@@ -84,9 +84,9 @@ def test_every_recommendation_carries_kind_status_and_a_factual_reason():
         assert r.kind in VERIFICATION and r.verification_status == VERIFICATION[r.kind]
         assert r.reason
     by_kind = {r.kind: r for r in shown}
-    assert shown[0].reason == "Tài liệu của bạn · trang 3, 4" and shown[0].url is None
+    assert shown[0].reason == "Your material · page 3, 4" and shown[0].url is None
     assert by_kind["catalog"].reason == (
-        "Khớp “binary”, “search”, “trees” · MIT · video 20 phút · đã xác minh")
+        "Matches “binary”, “search”, “trees” · MIT · video 20 min · verified")
 
 
 def test_external_page_without_grounded_quote_is_never_shown():
@@ -193,7 +193,7 @@ def test_api_searches_once_when_short_and_labels_external_unverified(
     shown = recommendations(client, headers, node)  # the new cache entry replaces the list
     assert {r["url"] for r in shown} == set(EXTERNAL_URLS)
     assert {(r["kind"], r["verification_status"]) for r in shown} == {("external", "unverified")}
-    assert all("chưa xác minh" in r["reason"] for r in shown)
+    assert all("unverified" in r["reason"] for r in shown)
 
 
 def test_not_helpful_replaces_the_source_on_the_next_request(client, headers, app, clock):

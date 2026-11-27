@@ -109,7 +109,7 @@ export function parseSyllabusText(
       const taken = [...weeks.values()].some(
         (w) => w.week !== week && w.topics.some((t) => t.toLowerCase() === topic.toLowerCase()),
       );
-      const t = taken ? `${topic} (tuần ${week})` : topic;
+      const t = taken ? `${topic} (week ${week})` : topic;
       if (!entry.topics.includes(t) && entry.topics.length < MAX_TOPICS_PER_WEEK)
         entry.topics.push(t);
     }
@@ -279,7 +279,7 @@ export function parseSyllabusText(
   // so the assessment falls inside the schedule the learner confirms.
   for (const a of assessments)
     if (a.due_week && !weeks.get(a.due_week)?.topics.length)
-      addTopics(a.due_week, [`Ôn tập: ${a.name}`], a.source_page ?? 1);
+      addTopics(a.due_week, [`Review: ${a.name}`], a.source_page ?? 1);
 
   const weekRows = [...weeks.values()]
     .filter((w) => w.topics.length)

@@ -107,7 +107,7 @@ def extract_syllabus(llm: LLMClient, pages: list[str]) -> SyllabusDraft:
     warnings = check_syllabus(parsed)
     if dropped:
         warnings.insert(0, SyllabusWarning(
-            "missing_source", f"Đã bỏ {dropped} giá trị không tìm thấy trên trang nguồn"))
+            "missing_source", f"Dropped {dropped} value(s) not found on the cited source page"))
     return SyllabusDraft(parsed, warnings)
 
 

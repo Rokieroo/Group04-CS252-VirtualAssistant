@@ -39,11 +39,11 @@ function SavedItem({
       <h3>{item.title}</h3>
       {item.url && /^https?:\/\//i.test(item.url) && (
         <a href={item.url} target="_blank" rel="noreferrer">
-          Đọc nguồn
+          Open source
         </a>
       )}
       {item.page != null && (
-        <button onClick={() => setReading(true)}>Đọc trang {item.page}</button>
+        <button onClick={() => setReading(true)}>Read page {item.page}</button>
       )}
       {reading && item.page != null && (
         <SourcePageDialog
@@ -60,13 +60,13 @@ function SavedItem({
       <fieldset disabled={busy}>
         <legend>
           {item.state === "hidden"
-            ? "Đã ẩn"
+            ? "Hidden"
             : item.state === "pinned"
-              ? "Đã ghim"
-              : "Ghi chú"}
+              ? "Pinned"
+              : "Notes"}
         </legend>
         <label>
-          Ghi chú cho nguồn ở chặng này
+          Notes for this source in this stage
           <textarea
             maxLength={2000}
             value={note}
@@ -78,21 +78,21 @@ function SavedItem({
             disabled={note.trim() === item.note}
             onClick={() => save({ note: note.trim() })}
           >
-            Lưu ghi chú
+            Save note
           </button>
           <button
             onClick={() =>
               save({ state: item.state === "pinned" ? "none" : "pinned" })
             }
           >
-            {item.state === "pinned" ? "Bỏ ghim" : "Ghim nguồn"}
+            {item.state === "pinned" ? "Unpin" : "Pin source"}
           </button>
           <button
             onClick={() =>
               save({ state: item.state === "hidden" ? "none" : "hidden" })
             }
           >
-            {item.state === "hidden" ? "Hiện lại" : "Ẩn nguồn"}
+            {item.state === "hidden" ? "Show again" : "Hide source"}
           </button>
         </div>
       </fieldset>
@@ -144,18 +144,18 @@ export function SourcesPage({
         .includes(search.trim().toLocaleLowerCase()),
   );
   return (
-    <section className="personal-library" aria-label="Thư viện cá nhân">
-      <h2>Thư viện cá nhân</h2>
+    <section className="personal-library" aria-label="Personal library">
+      <h2>Personal library</h2>
       {error ? (
         <p role="alert">
-          {error} <button onClick={() => refresh((r) => r + 1)}>Thử lại</button>
+          {error} <button onClick={() => refresh((r) => r + 1)}>Retry</button>
         </p>
       ) : items === null ? (
-        <p role="status">Đang tải nguồn…</p>
+        <p role="status">Loading sources…</p>
       ) : (
         <>
           <label>
-            Tìm theo môn{" "}
+            Search by course{" "}
             <input
               type="search"
               value={search}
@@ -163,18 +163,18 @@ export function SourcesPage({
             />
           </label>
           <label>
-            Trạng thái{" "}
+            Status{" "}
             <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-              <option value="">Tất cả</option>
-              <option value="pinned">Đã ghim</option>
-              <option value="hidden">Đã ẩn</option>
+              <option value="">All</option>
+              <option value="pinned">Pinned</option>
+              <option value="hidden">Hidden</option>
             </select>
           </label>
           {!visible?.length && (
             <p>
               {items.length
-                ? "Không có nguồn phù hợp."
-                : "Chưa có nguồn. Mở một chặng trên lộ trình để ghim nguồn."}
+                ? "No matching sources."
+                : "No saved sources yet. Open a stage on your roadmap to pin a source."}
             </p>
           )}
           {visible?.map((item) => (
@@ -196,7 +196,7 @@ export function SourcesPage({
               }
             />
           ))}
-          <Button onClick={() => go("Roadmap")}>Mở lộ trình</Button>
+          <Button onClick={() => go("Roadmap")}>Open roadmap</Button>
         </>
       )}
     </section>

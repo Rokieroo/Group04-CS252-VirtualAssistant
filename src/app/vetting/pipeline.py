@@ -84,7 +84,7 @@ class ScoredResource:
             minutes=None,
             score=1.0,
             breakdown={},
-            reason="Giáo viên đã ghim nguồn này",
+            reason="Instructor pinned this source",
             evidence_quote="",
             content_hash="",
             excerpt=candidate.snippet,

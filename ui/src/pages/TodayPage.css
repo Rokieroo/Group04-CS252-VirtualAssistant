@@ -1,5 +1,5 @@
 @layer study-legacy {
-/* Màn hình Hôm nay - Issue #159 */
+/* Today view - Issue #159 */
 .today-page {
   display: flex;
   flex-direction: column;

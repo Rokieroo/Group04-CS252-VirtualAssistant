@@ -20,7 +20,7 @@ from typing import Any
 from rank_bm25 import BM25Okapi
 
 MIN_SCORE: float = 1.5
-NOT_FOUND_MESSAGE: str = "Không tìm thấy trong tài liệu của bạn"
+NOT_FOUND_MESSAGE: str = "Not found in your materials"
 
 # Hư từ / từ để hỏi phổ biến. Removing them keeps BM25 scores focused on
 # content words, which matters for out-of-document (missing_knowledge) queries.

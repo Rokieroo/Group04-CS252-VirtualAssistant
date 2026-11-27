@@ -21,7 +21,7 @@ export const tutorial = {
     },
     {
       title: "Plan your study time",
-      text: "After approving a roadmap, choose Xếp vào lịch and enter weekly and daily study limits. Schedule shows sessions and any work that could not fit. The live planner needs your availability.",
+      text: "After approving a roadmap, choose Add to schedule and enter weekly and daily study limits. Schedule shows sessions and any work that could not fit. The live planner needs your availability.",
     },
   ],
 };

@@ -79,7 +79,7 @@ def test_recommender_meets_the_ranking_targets(three_config_results):
 
 def _judged(page: str) -> dict:
     prompt = (
-        "<learning_goal>Chặng: Binary Search Trees</learning_goal>\n"
+        "<learning_goal>Stage: Binary Search Trees</learning_goal>\n"
         f"<page_text>{page}</page_text>"
     )
     return json.loads(ContentJudge().generate(prompt))
