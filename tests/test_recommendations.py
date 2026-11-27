@@ -72,6 +72,36 @@ def test_pii_filter_redacts_all_10_redteam_fixtures():
         assert fixture.name not in safe_query
 
 
+def test_build_safe_external_query_filters_pii_in_subject_names():
+    """Subject names passed into external search queries must be PII-sanitized and deduplicated."""
+    safe_query = build_safe_external_query(
+        node_title="Dynamic Programming",
+        concept_names=["Memoization"],
+        subject_names=[
+            "Algorithms John Doe john.doe@university.edu +84 912 345 678",
+            "Data Structures secret_syllabus.pdf xoxb-998877-secret",
+            "data structures",
+            "Email: private@student.edu",
+            "079194001234",
+        ],
+        learner_name="John Doe",
+        learner_email="john.doe@university.edu",
+        filenames=["secret_syllabus.pdf"],
+    )
+    assert "Dynamic Programming" in safe_query
+    assert "Memoization" in safe_query
+    assert "Algorithms" in safe_query
+    assert "Data Structures" in safe_query
+    assert safe_query.lower().count("data structures") == 1
+    assert "John" not in safe_query
+    assert "Doe" not in safe_query
+    assert "@" not in safe_query
+    assert "912 345 678" not in safe_query
+    assert "secret_syllabus" not in safe_query
+    assert "xoxb-" not in safe_query
+    assert "079194001234" not in safe_query
+
+
 # --- Authorization & Ownership Tests (acceptance criterion: other user -> 404) ---
 
 
