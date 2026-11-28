@@ -96,7 +96,7 @@ export function GraphFilterBar({
   const showSummary =
     hasFilters ||
     Boolean(hiddenSelectedNode) ||
-    (hasCounts && visibleCount! < totalCount!);
+    (hasCounts && visibleCount < totalCount);
 
   // Global keydown listener for '/' shortcut to focus search
   useEffect(() => {
@@ -328,7 +328,8 @@ export function GraphFilterBar({
             {hiddenSelectedNode && (
               <span className="filter-hidden-selected">
                 {" "}
-                · Chặng đang chọn “{hiddenSelectedNode.title}” đang bị ẩn bởi bộ lọc.
+                · Chặng đang chọn “{hiddenSelectedNode.title}” đang bị ẩn bởi bộ
+                lọc.
               </span>
             )}
           </div>
@@ -347,7 +348,10 @@ export function GraphFilterBar({
                 variant="ghost"
                 className="study-button"
                 onClick={() =>
-                  onChange({ ...defaultGraphFilters, viewMode: filters.viewMode })
+                  onChange({
+                    ...defaultGraphFilters,
+                    viewMode: filters.viewMode,
+                  })
                 }
               />
             )}

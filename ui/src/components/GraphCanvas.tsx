@@ -76,6 +76,10 @@ interface InternalNode extends GraphNode {
   targetY?: number;
 }
 
+/** Drawn radius: a milestone diamond reaches past its nominal radius. */
+const glyphRadius = (n: InternalNode) =>
+  n.type === "milestone" ? n.radius * 1.15 : n.radius;
+
 /**
  * Checks if adding `parentId -> childId` introduces a cycle.
  * Returns the cycle path (e.g. `['B', 'A', 'B']`) if cycle detected, or `null` if DAG is preserved.
@@ -1177,24 +1181,49 @@ export function GraphCanvas({
     return { x, y };
   }, []);
 
-  const findNodeAt = useCallback((x: number, y: number): InternalNode | null => {
-    const nodeMap = internalNodesRef.current;
-    const extraPad = Math.min(18, 4 / Math.max(0.01, view.current.zoom));
-    let closest: InternalNode | null = null;
-    let closestDist = Infinity;
-    for (const node of nodeMap.values()) {
-      const rim = node.type === "milestone" ? node.radius * 1.15 : node.radius;
-      const dist = Math.hypot(node.displayX - x, node.displayY - y);
-      if (dist <= rim + extraPad && dist < closestDist) {
-        closest = node;
-        closestDist = dist;
+  const findNodeAt = useCallback(
+    (x: number, y: number): InternalNode | null => {
+      const nodeMap = internalNodesRef.current;
+      const extraPad = Math.min(18, 4 / Math.max(0.01, view.current.zoom));
+      let closest: InternalNode | null = null;
+      let closestDist = Infinity;
+      for (const node of nodeMap.values()) {
+        const rim = glyphRadius(node);
+        const dist = Math.hypot(node.displayX - x, node.displayY - y);
+        if (dist <= rim + extraPad && dist < closestDist) {
+          closest = node;
+          closestDist = dist;
+        }
       }
-    }
-    return closest;
-  }, []);
+      return closest;
+    },
+    [],
+  );
 
   const getEffectiveMinZoom = () =>
     Math.min(DEFAULT_MIN_ZOOM, fitMinZoomRef.current, view.current.zoom);
+
+  /** Clamp a zoom; leaving the fit-only range below DEFAULT_MIN_ZOOM restores the default floor. */
+  const clampZoom = (z: number) => {
+    const next = Math.max(getEffectiveMinZoom(), Math.min(MAX_ZOOM, z));
+    if (next >= DEFAULT_MIN_ZOOM) fitMinZoomRef.current = DEFAULT_MIN_ZOOM;
+    return next;
+  };
+
+  /** Stop a wheel or focus glide so a direct input takes over. */
+  const stopViewAnimation = () => {
+    cancelAnimationFrame(viewFrame.current);
+    viewFrame.current = 0;
+    viewGoal.current = null;
+  };
+
+  /** Handlers read the ref, so it is written before React state catches up. */
+  const commitView = (next: View) => {
+    view.current = next;
+    needsDraw.current = true;
+    setZoom(next.zoom);
+    setPan(next.pan);
+  };
 
   // Wheel zoom and focusing a node glide to their goal; buttons and keys stay one step.
   useEffect(() => () => cancelAnimationFrame(viewFrame.current), []);
@@ -1222,10 +1251,7 @@ export function GraphCanvas({
         Math.abs(target.zoom - next.zoom) < 0.002 &&
         Math.hypot(target.pan.x - next.pan.x, target.pan.y - next.pan.y) < 0.5;
       // Continue from this frame even before React re-renders with it.
-      view.current = done ? target : next;
-      needsDraw.current = true;
-      setZoom(view.current.zoom);
-      setPan(view.current.pan);
+      commitView(done ? target : next);
       if (done) viewGoal.current = null;
       viewFrame.current = done ? 0 : requestAnimationFrame(step);
     };
@@ -1234,49 +1260,23 @@ export function GraphCanvas({
 
   const applyImmediateZoom = (factor: number) => {
     userInteractedRef.current = true;
-    if (viewFrame.current) {
-      cancelAnimationFrame(viewFrame.current);
-      viewFrame.current = 0;
-    }
-    viewGoal.current = null;
+    stopViewAnimation();
     const cur = view.current;
-    const minZoom = getEffectiveMinZoom();
-    const nextZoom = Math.max(minZoom, Math.min(MAX_ZOOM, cur.zoom * factor));
-    if (nextZoom >= DEFAULT_MIN_ZOOM) {
-      fitMinZoomRef.current = DEFAULT_MIN_ZOOM;
-    }
-    view.current = { ...cur, zoom: nextZoom };
-    needsDraw.current = true;
-    setZoom(nextZoom);
+    commitView({ ...cur, zoom: clampZoom(cur.zoom * factor) });
   };
 
   const applyPanDelta = (dx: number, dy: number) => {
     userInteractedRef.current = true;
-    if (viewFrame.current) {
-      cancelAnimationFrame(viewFrame.current);
-      viewFrame.current = 0;
-    }
-    viewGoal.current = null;
+    stopViewAnimation();
     const cur = view.current;
-    const nextPan = { x: cur.pan.x + dx, y: cur.pan.y + dy };
-    view.current = { ...cur, pan: nextPan };
-    needsDraw.current = true;
-    setPan(nextPan);
+    commitView({ ...cur, pan: { x: cur.pan.x + dx, y: cur.pan.y + dy } });
   };
 
   const resetView = () => {
     userInteractedRef.current = true;
-    if (viewFrame.current) {
-      cancelAnimationFrame(viewFrame.current);
-      viewFrame.current = 0;
-    }
-    viewGoal.current = null;
+    stopViewAnimation();
     fitMinZoomRef.current = DEFAULT_MIN_ZOOM;
-    const nextView = { zoom: 1, pan: { x: 60, y: 60 } };
-    view.current = nextView;
-    needsDraw.current = true;
-    setZoom(nextView.zoom);
-    setPan(nextView.pan);
+    commitView({ zoom: 1, pan: { x: 60, y: 60 } });
   };
 
   const dragMoved = useRef(false);
@@ -1328,7 +1328,7 @@ export function GraphCanvas({
     for (const n of list) {
       const wx = n.targetX ?? n.displayX;
       const wy = n.targetY ?? n.displayY;
-      const rim = n.type === "milestone" ? n.radius * 1.15 : n.radius;
+      const rim = glyphRadius(n);
       const padSide = Math.max(30, rim + 8);
       const padBottom = Math.max(40, rim + 18);
       x0 = Math.min(x0, wx - padSide);
@@ -1349,7 +1349,11 @@ export function GraphCanvas({
     const usableH = Math.max(1, rect.height - above - below);
     const goalZoom = Math.max(
       FIT_MIN_ZOOM_FLOOR,
-      Math.min(1.4, usableW / Math.max(1, x1 - x0), usableH / Math.max(1, y1 - y0)),
+      Math.min(
+        1.4,
+        usableW / Math.max(1, x1 - x0),
+        usableH / Math.max(1, y1 - y0),
+      ),
     );
     fitMinZoomRef.current =
       goalZoom < DEFAULT_MIN_ZOOM
@@ -1365,15 +1369,8 @@ export function GraphCanvas({
     };
     if (animate) animateView(goal);
     else {
-      if (viewFrame.current) {
-        cancelAnimationFrame(viewFrame.current);
-        viewFrame.current = 0;
-      }
-      viewGoal.current = null;
-      view.current = goal;
-      needsDraw.current = true;
-      setZoom(goal.zoom);
-      setPan(goal.pan);
+      stopViewAnimation();
+      commitView(goal);
     }
     return true;
   };
@@ -1444,18 +1441,12 @@ export function GraphCanvas({
       );
       if (!world) return;
       userInteractedRef.current = true;
-      if (viewFrame.current) {
-        cancelAnimationFrame(viewFrame.current);
-        viewFrame.current = 0;
-        viewGoal.current = null;
-      }
-      const nextPan = {
-        x: viewW / 2 - world.x * view.current.zoom,
-        y: viewH / 2 - world.y * view.current.zoom,
-      };
-      view.current = { ...view.current, pan: nextPan };
-      needsDraw.current = true;
-      setPan(nextPan);
+      stopViewAnimation();
+      const { zoom: z } = view.current;
+      commitView({
+        zoom: z,
+        pan: { x: viewW / 2 - world.x * z, y: viewH / 2 - world.y * z },
+      });
     },
     [],
   );
@@ -1469,14 +1460,26 @@ export function GraphCanvas({
     pointerIds: [number, number];
   } | null>(null);
 
+  /** Drop any drag, pan, or Shift+drag edge in progress. */
+  const resetGesture = () => {
+    isDraggingNode.current = false;
+    draggedNodeId.current = null;
+    dragMoved.current = false;
+    isPanning.current = false;
+    isEdgeDragging.current = false;
+    edgeDragSource.current = null;
+    edgeDragPos.current = null;
+  };
+
+  const redraw = () => {
+    needsDraw.current = true;
+    scheduleTickRef.current();
+  };
+
   const startPinchIfReady = (canvas: HTMLCanvasElement) => {
     if (pointers.current.size < 2) return;
     const [[idA, a], [idB, b]] = [...pointers.current.entries()];
-    if (viewFrame.current) {
-      cancelAnimationFrame(viewFrame.current);
-      viewFrame.current = 0;
-    }
-    viewGoal.current = null;
+    stopViewAnimation();
     const rect = canvas.getBoundingClientRect();
     const cur = view.current;
     const midX = (a.x + b.x) / 2 - rect.left;
@@ -1490,16 +1493,9 @@ export function GraphCanvas({
       },
       pointerIds: [idA, idB],
     };
-    isDraggingNode.current = false;
-    draggedNodeId.current = null;
-    dragMoved.current = false;
-    isPanning.current = false;
-    isEdgeDragging.current = false;
-    edgeDragSource.current = null;
-    edgeDragPos.current = null;
+    resetGesture();
     userInteractedRef.current = true;
-    needsDraw.current = true;
-    scheduleTickRef.current();
+    redraw();
   };
 
   const releasePointerGesture = (
@@ -1515,44 +1511,24 @@ export function GraphCanvas({
     } catch {
       /* ignore if capture was already lost */
     }
-    if (pinch.current) {
-      pinch.current = null;
-      pinchEndedRef.current = true;
-      isDraggingNode.current = false;
-      draggedNodeId.current = null;
-      dragMoved.current = false;
-      isEdgeDragging.current = false;
-      edgeDragSource.current = null;
-      edgeDragPos.current = null;
-      if (mode !== "cancel" && pointers.current.size === 1) {
-        const [rem] = [...pointers.current.values()];
-        isPanning.current = true;
-        panStart.current = {
-          x: rem.x - view.current.pan.x,
-          y: rem.y - view.current.pan.y,
-        };
-      } else {
-        isPanning.current = false;
-        if (pointers.current.size === 0) pinchEndedRef.current = false;
-      }
-      needsDraw.current = true;
-      scheduleTickRef.current();
-      return true;
+    const endedPinch = pinch.current !== null;
+    if (!endedPinch && mode === "up") return false;
+    pinch.current = null;
+    resetGesture();
+    if (endedPinch) pinchEndedRef.current = true;
+    if (endedPinch && mode !== "cancel" && pointers.current.size === 1) {
+      // Lifting one finger turns the pinch into a pan, never a tap or an edge.
+      const [rem] = [...pointers.current.values()];
+      isPanning.current = true;
+      panStart.current = {
+        x: rem.x - view.current.pan.x,
+        y: rem.y - view.current.pan.y,
+      };
+    } else if (pointers.current.size === 0) {
+      pinchEndedRef.current = false;
     }
-    if (mode === "cancel" || mode === "lost") {
-      isDraggingNode.current = false;
-      draggedNodeId.current = null;
-      dragMoved.current = false;
-      isPanning.current = false;
-      isEdgeDragging.current = false;
-      edgeDragSource.current = null;
-      edgeDragPos.current = null;
-      if (pointers.current.size === 0) pinchEndedRef.current = false;
-      needsDraw.current = true;
-      scheduleTickRef.current();
-      return true;
-    }
-    return false;
+    redraw();
+    return true;
   };
 
   const handleMouseDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -1608,27 +1584,20 @@ export function GraphCanvas({
       const b = pointers.current.get(idB);
       if (a && b) {
         const dist = Math.hypot(b.x - a.x, b.y - a.y);
-        const minZoom = getEffectiveMinZoom();
-        const nextZoom = Math.max(
-          minZoom,
-          Math.min(
-            MAX_ZOOM,
-            (pinch.current.zoom * dist) / Math.max(1, pinch.current.distance),
-          ),
+        const nextZoom = clampZoom(
+          (pinch.current.zoom * dist) / Math.max(1, pinch.current.distance),
         );
-        if (nextZoom >= DEFAULT_MIN_ZOOM) {
-          fitMinZoomRef.current = DEFAULT_MIN_ZOOM;
-        }
+        // Keep the world point first under the fingers' midpoint under it.
         const rect = e.currentTarget.getBoundingClientRect();
         const midX = (a.x + b.x) / 2 - rect.left;
         const midY = (a.y + b.y) / 2 - rect.top;
-        const nextPan = {
-          x: midX - pinch.current.worldMid.x * nextZoom,
-          y: midY - pinch.current.worldMid.y * nextZoom,
-        };
-        view.current = { zoom: nextZoom, pan: nextPan };
-        setZoom(nextZoom);
-        setPan(nextPan);
+        commitView({
+          zoom: nextZoom,
+          pan: {
+            x: midX - pinch.current.worldMid.x * nextZoom,
+            y: midY - pinch.current.worldMid.y * nextZoom,
+          },
+        });
         return;
       }
     }
@@ -1677,12 +1646,13 @@ export function GraphCanvas({
 
     if (isPanning.current) {
       userInteractedRef.current = true;
-      const nextPan = {
-        x: e.clientX - panStart.current.x,
-        y: e.clientY - panStart.current.y,
-      };
-      view.current = { ...view.current, pan: nextPan };
-      setPan(nextPan);
+      commitView({
+        ...view.current,
+        pan: {
+          x: e.clientX - panStart.current.x,
+          y: e.clientY - panStart.current.y,
+        },
+      });
       return;
     }
 
@@ -1713,8 +1683,7 @@ export function GraphCanvas({
     if (pinchEndedRef.current) {
       if (pointers.current.size === 0) pinchEndedRef.current = false;
       isPanning.current = false;
-      needsDraw.current = true;
-      scheduleTickRef.current();
+      redraw();
       return;
     }
     if (isEdgeDragging.current && edgeDragSource.current) {
@@ -1797,7 +1766,8 @@ export function GraphCanvas({
     );
     if (normalized === 0) return;
 
-    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const now =
+      typeof performance !== "undefined" ? performance.now() : Date.now();
     const burst = wheelBurstRef.current;
     const dir = Math.sign(normalized);
     if (
@@ -1807,7 +1777,10 @@ export function GraphCanvas({
       burst.windowStart = now;
       burst.usedDelta = 0;
     }
-    const remaining = Math.max(0, WHEEL_BURST_CAP_PX - Math.abs(burst.usedDelta));
+    const remaining = Math.max(
+      0,
+      WHEEL_BURST_CAP_PX - Math.abs(burst.usedDelta),
+    );
     const effectiveDelta = dir * Math.min(Math.abs(normalized), remaining);
     if (effectiveDelta === 0) return;
     burst.usedDelta += effectiveDelta;
@@ -1819,17 +1792,9 @@ export function GraphCanvas({
     // under the cursor anchored throughout the gesture, even mid-animation.
     const current = view.current;
     const pending = viewGoal.current ?? current;
-    const minZoom = getEffectiveMinZoom();
-    const goalZoom = Math.max(
-      minZoom,
-      Math.min(
-        MAX_ZOOM,
-        pending.zoom * Math.exp(-effectiveDelta * WHEEL_SENSITIVITY),
-      ),
+    const goalZoom = clampZoom(
+      pending.zoom * Math.exp(-effectiveDelta * WHEEL_SENSITIVITY),
     );
-    if (goalZoom >= DEFAULT_MIN_ZOOM) {
-      fitMinZoomRef.current = DEFAULT_MIN_ZOOM;
-    }
     const wx = (ax - current.pan.x) / current.zoom;
     const wy = (ay - current.pan.y) / current.zoom;
     animateView({

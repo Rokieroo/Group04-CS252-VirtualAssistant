@@ -9,29 +9,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def _terminate_tree(proc: subprocess.Popen[bytes] | subprocess.Popen[str]) -> None:
-    """Terminate a child process and its descendants cleanly on interrupt."""
+def _terminate_tree(proc: subprocess.Popen) -> None:
+    """Stop a child and everything it started (e.g. pnpm -> vite) after Ctrl+C."""
     if proc.poll() is not None:
         return
     if os.name == "nt":
-        try:
-            subprocess.run(
-                ["taskkill", "/PID", str(proc.pid), "/T", "/F"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                check=False,
-            )
-        except OSError:
-            proc.kill()
+        # The child runs in its own process group, so Ctrl+C reached neither it nor its children.
+        subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"], capture_output=True, check=False)
     else:
+        # The terminal already sent SIGINT to the whole foreground group; this covers a child ignoring it.
         proc.terminate()
-        try:
-            proc.wait(timeout=3)
-        except subprocess.TimeoutExpired:
-            proc.kill()
     try:
         proc.wait(timeout=3)
-    except (OSError, subprocess.TimeoutExpired):
+    except subprocess.TimeoutExpired:
         proc.kill()
 
 

@@ -57,6 +57,8 @@ import {
 } from "../api/core";
 import "./core-journey.css";
 
+const SELF_EDGE_ERROR = "Không thể nối một chặng với chính nó.";
+
 const title = (node: RoadmapNode | undefined) =>
   node?.title || "Chặng chưa xác định";
 export function CoreJourney({
@@ -131,10 +133,6 @@ export function CoreJourney({
   const [graphReload, setGraphReload] = useState(0);
   const [layoutLoadRetry, setLayoutLoadRetry] = useState(0);
   const [placementOpen, setPlacementOpen] = useState(false);
-  const activeRoadmapIdRef = useRef<string | null>(roadmap?.id ?? null);
-  activeRoadmapIdRef.current = roadmap?.id ?? null;
-  const graphRequestIdRef = useRef(0);
-  const layoutRequestIdRef = useRef(0);
   const baseFallbackEdges = roadmap?.edges || [];
   const fallbackCoversEdges = (roadmap?.nodes || []).flatMap((n) =>
     n.type === "milestone" && Array.isArray(n.covers)
@@ -216,9 +214,8 @@ export function CoreJourney({
   const [failedLayout, setFailedLayout] = useState<NodePosition[] | null>(null);
   const [layoutError, setLayoutError] = useState("");
   useEffect(() => {
-    activeRoadmapIdRef.current = roadmap?.id ?? null;
-    ++graphRequestIdRef.current;
-    ++layoutRequestIdRef.current;
+    // Ignore save responses from a course that is no longer open; fetch
+    // effects below drop stale responses through their cleanup flag.
     ++layoutVersion.current;
     setFullGraph(null);
     setPositions([]);
@@ -232,72 +229,41 @@ export function CoreJourney({
   }, [roadmap?.id]);
   useEffect(() => {
     if (!roadmap || roadmapTab !== "graph" || mock) return;
-    const id = roadmap.id;
-    const reqId = ++graphRequestIdRef.current;
     let cancelled = false;
     setGraphLoading(true);
     setGraphLoadError("");
-    fetchRoadmapGraph(id)
+    fetchRoadmapGraph(roadmap.id)
       .then((data) => {
-        if (
-          !cancelled &&
-          reqId === graphRequestIdRef.current &&
-          activeRoadmapIdRef.current === id
-        ) {
-          setFullGraph(data);
-        }
+        if (!cancelled) setFullGraph(data);
       })
       .catch((e) => {
-        if (
-          !cancelled &&
-          reqId === graphRequestIdRef.current &&
-          activeRoadmapIdRef.current === id
-        ) {
+        if (!cancelled)
           setGraphLoadError(
             e instanceof Error ? e.message : "Could not load graph.",
           );
-        }
       })
       .finally(() => {
-        if (
-          !cancelled &&
-          reqId === graphRequestIdRef.current &&
-          activeRoadmapIdRef.current === id
-        ) {
-          setGraphLoading(false);
-        }
+        if (!cancelled) setGraphLoading(false);
       });
     return () => {
       cancelled = true;
     };
   }, [roadmap?.id, roadmapTab, mock, graphReload, roadmap?.edges]);
+  // Loaded apart from the graph so a layout failure still shows the graph.
   useEffect(() => {
     if (!roadmap || roadmapTab !== "graph" || mock) return;
-    const id = roadmap.id;
-    const reqId = ++layoutRequestIdRef.current;
     let cancelled = false;
     setLayoutLoadError("");
-    fetchGraphLayout(id)
+    fetchGraphLayout(roadmap.id)
       .then((layout) => {
-        if (
-          !cancelled &&
-          reqId === layoutRequestIdRef.current &&
-          activeRoadmapIdRef.current === id
-        ) {
-          setPositions(layout);
-        }
+        if (!cancelled) setPositions(layout);
       })
       .catch((e) => {
-        if (
-          !cancelled &&
-          reqId === layoutRequestIdRef.current &&
-          activeRoadmapIdRef.current === id
-        ) {
-          setPositions([]);
-          setLayoutLoadError(
-            e instanceof Error ? e.message : "Could not load saved layout.",
-          );
-        }
+        if (cancelled) return;
+        setPositions([]);
+        setLayoutLoadError(
+          e instanceof Error ? e.message : "Could not load saved layout.",
+        );
       });
     return () => {
       cancelled = true;
@@ -323,18 +289,12 @@ export function CoreJourney({
               JSON.stringify(mergedLayout),
             );
           else await saveGraphLayout(id, layout);
-          if (
-            version === layoutVersion.current &&
-            activeRoadmapIdRef.current === id
-          ) {
+          if (version === layoutVersion.current) {
             setFailedLayout(null);
             setLayoutError("");
           }
         } catch (e) {
-          if (
-            version === layoutVersion.current &&
-            activeRoadmapIdRef.current === id
-          ) {
+          if (version === layoutVersion.current) {
             setFailedLayout(layout);
             setLayoutError(
               e instanceof Error ? e.message : "Could not save layout.",
@@ -587,20 +547,17 @@ export function CoreJourney({
     roadmap?.nodes.find((n) => n.id === id)?.title || id;
   const formatCycleMessage = (path: string[]) =>
     `Tạo vòng lặp tiên quyết (${path.map(nodeLabel).join(" → ")}), hãy bỏ một cạnh.`;
-  const addEdge = (p?: string, c?: string) => {
-    const parentId = p ?? parent;
-    const childId = c ?? child;
-    if (!roadmap || !parentId || !childId) return false;
-    if (parentId === childId) {
-      setEdgeError("Không thể nối một chặng với chính nó.");
-      return false;
-    }
-    const detectedCycle = findCyclePath(graphData.edges, parentId, childId);
-    if (detectedCycle) {
-      setEdgeError(formatCycleMessage(detectedCycle));
-      return false;
-    }
-    setEdgeError("");
+  /** Why `parentId -> childId` is refused, checked against every edge including milestone covers. */
+  const edgeProblem = (parentId: string, childId: string) => {
+    if (parentId === childId) return SELF_EDGE_ERROR;
+    const cycle = findCyclePath(graphData.edges, parentId, childId);
+    return cycle ? formatCycleMessage(cycle) : "";
+  };
+  const addEdge = (parentId: string, childId: string) => {
+    if (!roadmap) return false;
+    const problem = edgeProblem(parentId, childId);
+    setEdgeError(problem);
+    if (problem) return false;
     if (
       !roadmap.edges.some(
         (e) => e.parent_id === parentId && e.child_id === childId,
@@ -623,19 +580,11 @@ export function CoreJourney({
   };
   const createGraphEdge = async (p: string, c: string) => {
     if (!roadmap || !p || !c) return false;
-    if (p === c) {
-      throw new Error("Không thể nối một chặng với chính nó.");
-    }
-    if (mock) {
-      return addEdge(p, c);
-    }
-    const detectedCycle = findCyclePath(graphData.edges, p, c);
-    if (detectedCycle) {
-      throw new BackendError(409, "cycle", {
-        code: "cycle",
-        path: detectedCycle,
-      });
-    }
+    if (p === c) throw new Error(SELF_EDGE_ERROR);
+    if (mock) return addEdge(p, c);
+    const path = findCyclePath(graphData.edges, p, c);
+    // Shaped like the server's 409 so the canvas highlights the refused cycle.
+    if (path) throw new BackendError(409, "cycle", { code: "cycle", path });
     const id = roadmap.id;
     const edge = await call<Edge>(
       `/roadmaps/${encodeURIComponent(id)}/graph/edges`,
@@ -661,34 +610,28 @@ export function CoreJourney({
   };
   const submitEdgeForm = () => {
     if (!roadmap || !parent || !child || busy) return;
-    if (parent === child) {
-      setEdgeError("Không thể nối một chặng với chính nó.");
+    if (!roadmapApproved || mock) {
+      addEdge(parent, child);
       return;
     }
-    const detectedCycle = findCyclePath(graphData.edges, parent, child);
-    if (detectedCycle) {
-      setEdgeError(formatCycleMessage(detectedCycle));
-      return;
-    }
-    if (roadmapApproved && !mock) {
-      void (async () => {
-        setBusy(true);
-        setEdgeError("");
-        try {
-          await createGraphEdge(parent, child);
-        } catch (err) {
-          if (err instanceof BackendError && err.detail?.path) {
-            setEdgeError(formatCycleMessage(err.detail.path));
-          } else {
-            setEdgeError(syllabusError(err));
-          }
-        } finally {
-          setBusy(false);
-        }
-      })();
-    } else {
-      addEdge();
-    }
+    const problem = edgeProblem(parent, child);
+    setEdgeError(problem);
+    if (problem) return;
+    void (async () => {
+      setBusy(true);
+      setEdgeError("");
+      try {
+        await createGraphEdge(parent, child);
+      } catch (err) {
+        setEdgeError(
+          err instanceof BackendError && err.detail?.path
+            ? formatCycleMessage(err.detail.path)
+            : syllabusError(err),
+        );
+      } finally {
+        setBusy(false);
+      }
+    })();
   };
   const removeEdge = (edge: Edge) => {
     if (!roadmap) return;
@@ -733,10 +676,15 @@ export function CoreJourney({
       go("Schedule");
     });
   };
-  const eligibleEdgeNodes =
-    roadmap?.nodes.filter(
-      (n) => n.type === "topic" || n.type === "milestone",
-    ) || [];
+  // Practice nodes take no prerequisites; topics and milestones do.
+  const edgeNodeOptions = (roadmap?.nodes || [])
+    .filter((n) => n.type === "topic" || n.type === "milestone")
+    .map((n) => (
+      <option value={n.id} key={n.id}>
+        {n.title} · {n.type === "milestone" ? "Mốc kiểm tra" : "Chủ đề"}
+        {n.week ? ` (Tuần ${n.week})` : ""}
+      </option>
+    ));
   const hiddenSelectedNode =
     selectedGraphNodeId &&
     !filteredGraphData.nodes.some((n) => n.id === selectedGraphNodeId)
@@ -746,7 +694,7 @@ export function CoreJourney({
     setFilters((f) => ({ ...defaultGraphFilters, viewMode: f.viewMode }));
   const revealSelectedNode = () => {
     if (!selectedGraphNodeId) return;
-    setFilters((f) => ({ ...defaultGraphFilters, viewMode: f.viewMode }));
+    clearGraphFilters();
     setNodePanelOpen(true);
   };
   const sourceChip = (page?: number) =>
@@ -1190,14 +1138,7 @@ export function CoreJourney({
                     onSelectNode={selectGraphNode}
                     visibleCount={filteredGraphData.nodes.length}
                     totalCount={graphData.nodes.length}
-                    hiddenSelectedNode={
-                      hiddenSelectedNode
-                        ? {
-                            id: hiddenSelectedNode.id,
-                            title: hiddenSelectedNode.title,
-                          }
-                        : null
-                    }
+                    hiddenSelectedNode={hiddenSelectedNode}
                     onRevealSelected={revealSelectedNode}
                   />
                   {!filteredGraphData.nodes.length &&
@@ -1374,22 +1315,12 @@ export function CoreJourney({
                           const next = e.target.value;
                           setParent(next);
                           setEdgeError(
-                            next && next === child
-                              ? "Không thể nối một chặng với chính nó."
-                              : "",
+                            next && next === child ? SELF_EDGE_ERROR : "",
                           );
                         }}
                       >
                         <option value="">Chọn chặng</option>
-                        {eligibleEdgeNodes.map((n) => (
-                          <option value={n.id} key={n.id}>
-                            {n.title} ·{" "}
-                            {n.type === "milestone"
-                              ? "Mốc kiểm tra"
-                              : "Chủ đề"}
-                            {n.week ? ` (Tuần ${n.week})` : ""}
-                          </option>
-                        ))}
+                        {edgeNodeOptions}
                       </select>
                     </label>
                     <label>
@@ -1401,22 +1332,12 @@ export function CoreJourney({
                           const next = e.target.value;
                           setChild(next);
                           setEdgeError(
-                            next && next === parent
-                              ? "Không thể nối một chặng với chính nó."
-                              : "",
+                            next && next === parent ? SELF_EDGE_ERROR : "",
                           );
                         }}
                       >
                         <option value="">Chọn chặng</option>
-                        {eligibleEdgeNodes.map((n) => (
-                          <option value={n.id} key={n.id}>
-                            {n.title} ·{" "}
-                            {n.type === "milestone"
-                              ? "Mốc kiểm tra"
-                              : "Chủ đề"}
-                            {n.week ? ` (Tuần ${n.week})` : ""}
-                          </option>
-                        ))}
+                        {edgeNodeOptions}
                       </select>
                     </label>
                     <button
