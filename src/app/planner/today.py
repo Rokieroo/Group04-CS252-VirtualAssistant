@@ -148,7 +148,7 @@ def _candidates(learner: LearnerDay) -> list[TodayItem]:
         for key in left:
             add(
                 by_id[key],
-                f"{milestone.title} {_when(days)}, {len(left)} prerequisite stage(s) left",
+                f"{milestone.title} {_when(days)}, {_count(len(left), 'prerequisite stage')} left",
             )
         add(
             milestone,
@@ -208,9 +208,9 @@ def _reviews(learner: LearnerDay, by_id: dict[str, StudyNode]) -> list[TodayItem
     for node_id, cards in sorted(groups.items(), key=lambda group: group[1][0].due_at):
         node = by_id.get(node_id)
         overdue = -_days(cards[0].due_at, learner)
-        reason = f"{len(cards)} FSRS review card(s) due"
+        reason = f"{_count(len(cards), 'FSRS review card')} due"
         if overdue > 0:
-            reason += f", oldest overdue by {overdue} day(s)"
+            reason += f", oldest overdue by {_count(overdue, 'day')}"
         items.append(
             TodayItem(
                 "review",
@@ -230,7 +230,7 @@ def _open_reason(node: StudyNode, has_prerequisites: bool, learner: LearnerDay) 
         parts.append("This stage's study week has started")
     if node.due_at is not None:
         days = _days(node.due_at, learner)
-        parts.append(f"overdue by {-days} day(s)" if days < 0 else f"due {_when(days)}")
+        parts.append(f"overdue by {_count(-days, 'day')}" if days < 0 else f"due {_when(days)}")
     if has_prerequisites:
         parts.append("prerequisites completed")
     if not parts:
@@ -245,4 +245,8 @@ def _days(moment: datetime, learner: LearnerDay) -> int:
 
 
 def _when(days: int) -> str:
-    return "today" if days == 0 else f"in {days} day(s)"
+    return "today" if days == 0 else f"in {_count(days, 'day')}"
+
+
+def _count(n: int, noun: str) -> str:
+    return f"{n} {noun}" if n == 1 else f"{n} {noun}s"

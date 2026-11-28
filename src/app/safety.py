@@ -124,9 +124,8 @@ def is_crisis_message(text: str | None) -> bool:
     return False
 
 
-def build_crisis_reply(lang: str = "en") -> str:
-    """Return a supportive, empathetic English safety reply with verified crisis hotlines."""
-    del lang
+def build_crisis_reply() -> str:
+    """Return a supportive, empathetic safety reply with verified Vietnamese crisis hotlines."""
     return (
         "I'm really concerned about you and want you to be safe. "
         "You don't have to carry this alone. Please pause and reach out immediately "

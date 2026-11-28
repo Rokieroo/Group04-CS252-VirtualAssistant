@@ -113,7 +113,7 @@ def test_a_checkpoint_pulls_its_path_forward_with_a_real_reason():
     plan = today(learner, DAY)
     # "b" opens next week but the midterm needs it; "c" still waits for "b".
     assert [(item.node_id, item.reason) for item in plan.items] == [
-        ("b", "Giữa kỳ in 6 day(s), 2 prerequisite stage(s) left")
+        ("b", "Giữa kỳ in 6 days, 2 prerequisite stages left")
     ]
     assert plan.deferred == []
 
@@ -143,9 +143,9 @@ def test_reviews_come_first_and_the_rest_is_packed_or_deferred():
     plan = today(learner, DAY)
     review, study = plan.items
     assert (review.kind, review.title, review.minutes) == ("review", "Review: Mảng", 5 * REVIEW_MINUTES)
-    assert review.reason == "5 FSRS review card(s) due, oldest overdue by 2 day(s)"
+    assert review.reason == "5 FSRS review cards due, oldest overdue by 2 days"
     assert (study.node_id, study.minutes) == ("a", 50)
-    assert study.reason == "Due in 2 day(s) · study 50/120 min today"
+    assert study.reason == "Due in 2 days · study 50/120 min today"
     assert [item.node_id for item in plan.deferred] == ["b"]
     assert plan.total_minutes == plan.free_minutes == 60
 
@@ -181,7 +181,7 @@ def test_planned_sessions_lead_and_a_week_not_started_waits():
     plan = today(learner, DAY)
     assert [item.node_id for item in plan.items] == ["planned", "open"]
     assert plan.items[0].reason == "Scheduled on your study plan for today"
-    assert plan.items[1].reason == "Due in 1 day(s)"
+    assert plan.items[1].reason == "Due in 1 day"
 
 
 def test_nodes_on_a_prerequisite_cycle_are_never_suggested():
@@ -283,7 +283,7 @@ def test_university_student_prepares_for_the_midterm(app, client, clock):
     assert plan["day"] == "2030-01-07" and plan["free_minutes"] == 120
     assert _studied(plan) == [ids["Mảng"], ids["Cây"]]
     assert {item["reason"] for item in plan["items"]} == {
-        "Giữa kỳ in 6 day(s), 3 prerequisite stage(s) left"
+        "Giữa kỳ in 6 days, 3 prerequisite stages left"
     }
     locked = ids["Danh sách liên kết"]
     assert locked not in _studied(plan) + _studied(plan, "deferred")
@@ -308,10 +308,10 @@ def test_k12_learner_gets_due_reviews_and_part_of_a_lesson(app, client, clock):
     plan = _today(client, headers)
     review, study = plan["items"]
     assert review["kind"] == "review" and review["minutes"] == REVIEW_MINUTES
-    assert review["reason"] == "1 FSRS review card(s) due, oldest overdue by 1 day(s)"
+    assert review["reason"] == "1 FSRS review card due, oldest overdue by 1 day"
     assert study["node_id"] == ids["Phân số"] and study["minutes"] == 45 - REVIEW_MINUTES
     assert study["reason"] == (
-        f"Kiểm tra 15 phút in 14 day(s), 2 prerequisite stage(s) left"
+        f"Kiểm tra 15 phút in 14 days, 2 prerequisite stages left"
         f" · study {45 - REVIEW_MINUTES}/60 min today"
     )
     assert _studied(plan, "deferred") == [ids["Số thập phân"]]
