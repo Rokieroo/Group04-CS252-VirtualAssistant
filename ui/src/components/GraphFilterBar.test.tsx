@@ -218,4 +218,40 @@ describe("GraphFilterBar Component", () => {
       viewMode: "list",
     });
   });
+
+  it("shows visible/total counts, search & milestone details, and reveals a hidden selected node", () => {
+    const reveal = vi.fn();
+    render(
+      <GraphFilterBar
+        nodes={sampleNodes}
+        filters={{
+          ...initialFilters,
+          weekMax: 52,
+          search: "Cấu trúc",
+          selectedMilestone: "node-m1",
+        }}
+        visibleCount={1}
+        totalCount={3}
+        hiddenSelectedNode={{ id: "node-2", title: "Độ phức tạp tính toán Big-O" }}
+        onRevealSelected={reveal}
+        onChange={vi.fn()}
+        onSelectNode={vi.fn()}
+      />,
+    );
+
+    const status = screen
+      .getAllByRole("status")
+      .find((el) => el.textContent?.includes("Hiển thị"))!;
+    expect(status).toBeTruthy();
+    expect(status.textContent).toContain("Hiển thị 1/3 chặng");
+    expect(status.textContent).toContain("Cấu trúc");
+    expect(status.textContent).toContain("Kiểm tra giữa kỳ");
+    expect(status.textContent).toContain("Độ phức tạp tính toán Big-O");
+
+    // Visible filters (search/milestone) stay excluded from the hidden filter count badge.
+    expect(screen.getByRole("button", { name: "Bộ lọc" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Hiện chặng đang chọn" }));
+    expect(reveal).toHaveBeenCalledTimes(1);
+  });
 });

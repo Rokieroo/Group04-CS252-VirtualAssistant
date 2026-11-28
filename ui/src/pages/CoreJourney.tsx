@@ -12,6 +12,7 @@ import {
   readGraphState,
   writeGraphState,
   filterGraphNodes,
+  defaultGraphFilters,
 } from "../api/graphState";
 import { RootRoadmap, type RootCourse } from "./course-setup/RootRoadmap";
 import { AccountRoadmap } from "./course-setup/AccountRoadmap";
@@ -31,7 +32,7 @@ import { RoadmapTimeline } from "./course-setup/RoadmapTimeline";
 import { SyllabusUpload } from "./course-setup/SyllabusUpload";
 import { SyllabusReview } from "./course-setup/SyllabusReview";
 import { Modal } from "../components/Modal";
-import { GraphCanvas } from "../components/GraphCanvas";
+import { GraphCanvas, findCyclePath } from "../components/GraphCanvas";
 import { GraphFilterBar, type FilterState } from "../components/GraphFilterBar";
 import { GraphListView } from "../components/GraphListView";
 import { NodePanel } from "../components/NodePanel";
@@ -47,7 +48,6 @@ import type { Page } from "../navigation";
 import type { RoadmapNode } from "../api/types";
 
 import {
-  createsRoadmapCycle,
   liveCoreService,
   type CoreService,
   type Edge,
@@ -56,6 +56,8 @@ import {
   type UploadOptions,
 } from "../api/core";
 import "./core-journey.css";
+
+const SELF_EDGE_ERROR = "Không thể nối một chặng với chính nó.";
 
 const title = (node: RoadmapNode | undefined) =>
   node?.title || "Chặng chưa xác định";
@@ -100,7 +102,9 @@ export function CoreJourney({
   const [error, setError] = useState("");
   const [parent, setParent] = useState("");
   const [child, setChild] = useState("");
-  const [graphError, setGraphError] = useState("");
+  const [edgeError, setEdgeError] = useState("");
+  const [graphLoadError, setGraphLoadError] = useState("");
+  const [layoutLoadError, setLayoutLoadError] = useState("");
   const [graphLayoutMode, setGraphLayoutMode] = useState<"week" | "force">(
     () => readGraphState().layout,
   );
@@ -127,13 +131,34 @@ export function CoreJourney({
   const [positions, setPositions] = useState<NodePosition[]>([]);
   const [graphLoading, setGraphLoading] = useState(false);
   const [graphReload, setGraphReload] = useState(0);
+  const [layoutLoadRetry, setLayoutLoadRetry] = useState(0);
   const [placementOpen, setPlacementOpen] = useState(false);
+  const baseFallbackEdges = roadmap?.edges || [];
+  const fallbackCoversEdges = (roadmap?.nodes || []).flatMap((n) =>
+    n.type === "milestone" && Array.isArray(n.covers)
+      ? n.covers
+          .filter(
+            (topicId) =>
+              topicId !== n.id &&
+              !baseFallbackEdges.some(
+                (e) => e.parent_id === topicId && e.child_id === n.id,
+              ),
+          )
+          .map((topicId) => ({
+            parent_id: topicId,
+            child_id: n.id,
+            kind: "covers" as const,
+            origin: "milestone_covers" as const,
+            confidence: 1,
+          }))
+      : [],
+  );
   const fallbackGraph = normalizeGraph({
     nodes: (roadmap?.nodes || []).map((n) => ({
       ...n,
       est_minutes: n.est_minutes ?? undefined,
     })),
-    edges: roadmap?.edges || [],
+    edges: [...baseFallbackEdges, ...fallbackCoversEdges],
   });
   const graphData = fullGraph || fallbackGraph;
   useEffect(() => {
@@ -184,25 +209,36 @@ export function CoreJourney({
       cancelled = true;
     };
   }, [mock]);
+  const layoutQueue = useRef<Promise<void>>(Promise.resolve());
+  const layoutVersion = useRef(0);
+  const [failedLayout, setFailedLayout] = useState<NodePosition[] | null>(null);
+  const [layoutError, setLayoutError] = useState("");
   useEffect(() => {
+    // Ignore save responses from a course that is no longer open; fetch
+    // effects below drop stale responses through their cleanup flag.
+    ++layoutVersion.current;
     setFullGraph(null);
     setPositions([]);
+    setGraphLoadError("");
+    setLayoutLoadError("");
+    setFailedLayout(null);
+    setLayoutError("");
+    setEdgeError("");
+    setParent("");
+    setChild("");
   }, [roadmap?.id]);
   useEffect(() => {
     if (!roadmap || roadmapTab !== "graph" || mock) return;
     let cancelled = false;
     setGraphLoading(true);
-    setGraphError("");
-    Promise.all([fetchRoadmapGraph(roadmap.id), fetchGraphLayout(roadmap.id)])
-      .then(([data, layout]) => {
-        if (!cancelled) {
-          setFullGraph(data);
-          setPositions(layout);
-        }
+    setGraphLoadError("");
+    fetchRoadmapGraph(roadmap.id)
+      .then((data) => {
+        if (!cancelled) setFullGraph(data);
       })
       .catch((e) => {
         if (!cancelled)
-          setGraphError(
+          setGraphLoadError(
             e instanceof Error ? e.message : "Could not load graph.",
           );
       })
@@ -213,16 +249,26 @@ export function CoreJourney({
       cancelled = true;
     };
   }, [roadmap?.id, roadmapTab, mock, graphReload, roadmap?.edges]);
-  const layoutQueue = useRef<Promise<void>>(Promise.resolve());
-  const layoutVersion = useRef(0);
-  const [failedLayout, setFailedLayout] = useState<NodePosition[] | null>(null);
-  const [layoutError, setLayoutError] = useState("");
+  // Loaded apart from the graph so a layout failure still shows the graph.
   useEffect(() => {
-    // Ignore save responses from a course that is no longer open.
-    ++layoutVersion.current;
-    setFailedLayout(null);
-    setLayoutError("");
-  }, [roadmap?.id]);
+    if (!roadmap || roadmapTab !== "graph" || mock) return;
+    let cancelled = false;
+    setLayoutLoadError("");
+    fetchGraphLayout(roadmap.id)
+      .then((layout) => {
+        if (!cancelled) setPositions(layout);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setPositions([]);
+        setLayoutLoadError(
+          e instanceof Error ? e.message : "Could not load saved layout.",
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [roadmap?.id, roadmapTab, mock, layoutLoadRetry]);
   const persistLayout = (layout: NodePosition[]) => {
     if (!roadmap) return;
     const id = roadmap.id,
@@ -497,15 +543,21 @@ export function CoreJourney({
       setStage("complete");
     });
   };
-  const addEdge = (p?: string, c?: string) => {
-    const parentId = p ?? parent;
-    const childId = c ?? child;
-    if (!roadmap || !parentId || !childId) return;
-    if (createsRoadmapCycle(roadmap.edges, parentId, childId)) {
-      setGraphError("Tạo vòng lặp, hãy bỏ một cạnh.");
-      return;
-    }
-    setGraphError("");
+  const nodeLabel = (id: string) =>
+    roadmap?.nodes.find((n) => n.id === id)?.title || id;
+  const formatCycleMessage = (path: string[]) =>
+    `Tạo vòng lặp tiên quyết (${path.map(nodeLabel).join(" → ")}), hãy bỏ một cạnh.`;
+  /** Why `parentId -> childId` is refused, checked against every edge including milestone covers. */
+  const edgeProblem = (parentId: string, childId: string) => {
+    if (parentId === childId) return SELF_EDGE_ERROR;
+    const cycle = findCyclePath(graphData.edges, parentId, childId);
+    return cycle ? formatCycleMessage(cycle) : "";
+  };
+  const addEdge = (parentId: string, childId: string) => {
+    if (!roadmap) return false;
+    const problem = edgeProblem(parentId, childId);
+    setEdgeError(problem);
+    if (problem) return false;
     if (
       !roadmap.edges.some(
         (e) => e.parent_id === parentId && e.child_id === childId,
@@ -524,22 +576,25 @@ export function CoreJourney({
           },
         ],
       });
+    return true;
   };
   const createGraphEdge = async (p: string, c: string) => {
-    if (!roadmap) return false;
-    if (mock) {
-      addEdge(p, c);
-      return true;
-    }
+    if (!roadmap || !p || !c) return false;
+    if (p === c) throw new Error(SELF_EDGE_ERROR);
+    if (mock) return addEdge(p, c);
+    const path = findCyclePath(graphData.edges, p, c);
+    // Shaped like the server's 409 so the canvas highlights the refused cycle.
+    if (path) throw new BackendError(409, "cycle", { code: "cycle", path });
+    const id = roadmap.id;
     const edge = await call<Edge>(
-      `/roadmaps/${encodeURIComponent(roadmap.id)}/graph/edges`,
+      `/roadmaps/${encodeURIComponent(id)}/graph/edges`,
       {
         method: "POST",
         body: JSON.stringify({ parent_id: p, child_id: c, kind: "strict" }),
       },
     );
     setRoadmap((current) =>
-      current && current.id === roadmap.id
+      current && current.id === id
         ? {
             ...current,
             edges: current.edges.some(
@@ -550,11 +605,38 @@ export function CoreJourney({
           }
         : current,
     );
+    setEdgeError("");
     return true;
+  };
+  const submitEdgeForm = () => {
+    if (!roadmap || !parent || !child || busy) return;
+    if (!roadmapApproved || mock) {
+      addEdge(parent, child);
+      return;
+    }
+    const problem = edgeProblem(parent, child);
+    setEdgeError(problem);
+    if (problem) return;
+    void (async () => {
+      setBusy(true);
+      setEdgeError("");
+      try {
+        await createGraphEdge(parent, child);
+      } catch (err) {
+        setEdgeError(
+          err instanceof BackendError && err.detail?.path
+            ? formatCycleMessage(err.detail.path)
+            : syllabusError(err),
+        );
+      } finally {
+        setBusy(false);
+      }
+    })();
   };
   const removeEdge = (edge: Edge) => {
     if (!roadmap) return;
     const id = roadmap.id;
+    setEdgeError("");
     void run(async () => {
       if (roadmapApproved && !mock)
         await call(
@@ -594,7 +676,27 @@ export function CoreJourney({
       go("Schedule");
     });
   };
-  const topicNodes = roadmap?.nodes.filter((n) => n.type === "topic") || [];
+  // Practice nodes take no prerequisites; topics and milestones do.
+  const edgeNodeOptions = (roadmap?.nodes || [])
+    .filter((n) => n.type === "topic" || n.type === "milestone")
+    .map((n) => (
+      <option value={n.id} key={n.id}>
+        {n.title} · {n.type === "milestone" ? "Mốc kiểm tra" : "Chủ đề"}
+        {n.week ? ` (Tuần ${n.week})` : ""}
+      </option>
+    ));
+  const hiddenSelectedNode =
+    selectedGraphNodeId &&
+    !filteredGraphData.nodes.some((n) => n.id === selectedGraphNodeId)
+      ? graphData.nodes.find((n) => n.id === selectedGraphNodeId) || null
+      : null;
+  const clearGraphFilters = () =>
+    setFilters((f) => ({ ...defaultGraphFilters, viewMode: f.viewMode }));
+  const revealSelectedNode = () => {
+    if (!selectedGraphNodeId) return;
+    clearGraphFilters();
+    setNodePanelOpen(true);
+  };
   const sourceChip = (page?: number) =>
     page ? (
       <button
@@ -991,18 +1093,77 @@ export function CoreJourney({
                       className="core-graph-loading"
                     />
                   )}
+                  {graphLoadError && (
+                    <div role="status" className="core-error core-graph-banner">
+                      <span>{graphLoadError}</span>
+                      <button
+                        type="button"
+                        onClick={() => setGraphReload((n) => n + 1)}
+                      >
+                        Retry graph loading
+                      </button>
+                    </div>
+                  )}
+                  {layoutLoadError && (
+                    <div role="status" className="core-warning core-graph-banner">
+                      <span>
+                        Không thể tải vị trí đã lưu ({layoutLoadError}). Đang
+                        hiển thị bố cục mặc định.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setLayoutLoadRetry((n) => n + 1)}
+                      >
+                        Thử tải lại vị trí
+                      </button>
+                    </div>
+                  )}
+                  {layoutError && (
+                    <div role="status" className="core-warning core-graph-banner">
+                      <span>Không thể lưu vị trí ({layoutError}).</span>
+                      {failedLayout && (
+                        <button
+                          type="button"
+                          onClick={() => void persistLayout(failedLayout)}
+                        >
+                          Thử lưu lại vị trí
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <GraphFilterBar
                     nodes={graphData.nodes}
                     filters={filters}
                     onChange={setFilters}
                     onSelectNode={selectGraphNode}
+                    visibleCount={filteredGraphData.nodes.length}
+                    totalCount={graphData.nodes.length}
+                    hiddenSelectedNode={hiddenSelectedNode}
+                    onRevealSelected={revealSelectedNode}
                   />
-                  {!filteredGraphData.nodes.length && (
-                    <p role="status">No topics match these filters.</p>
-                  )}
+                  {!filteredGraphData.nodes.length &&
+                    (graphData.nodes.length > 0 ? (
+                      <div role="status" className="core-graph-empty">
+                        <span>
+                          Không có chặng nào khớp bộ lọc (0/
+                          {graphData.nodes.length} chặng đang hiển thị).
+                        </span>{" "}
+                        <button type="button" onClick={clearGraphFilters}>
+                          Hiện tất cả chặng
+                        </button>
+                      </div>
+                    ) : (
+                      !graphLoading &&
+                      !graphLoadError && (
+                        <p role="status">
+                          Chưa có chặng nào trong đồ thị môn học này.
+                        </p>
+                      )
+                    ))}
                   {filters.viewMode === "graph" ? (
                     <GraphCanvas
                       key={roadmap.id}
+                      graphId={roadmap.id}
                       nodes={filteredGraphData.nodes}
                       edges={filteredGraphData.edges}
                       cycleEdges={graphData.edges}
@@ -1096,7 +1257,7 @@ export function CoreJourney({
                       node={selectedNodeObj}
                       allNodes={roadmap.nodes}
                       edges={roadmap.edges}
-                      isOpen={nodePanelOpen}
+                      isOpen={nodePanelOpen && !hiddenSelectedNode}
                       onLocalGraph={() => {
                         setFilters((f) => ({ ...f, isLocalGraph: true }));
                         setNodePanelOpen(false);
@@ -1114,17 +1275,12 @@ export function CoreJourney({
                               void setNodeKnown(id, known)
                                 .then(() => setGraphReload((n) => n + 1))
                                 .catch((e) =>
-                                  setGraphError(
+                                  setError(
                                     e instanceof Error ? e.message : String(e),
                                   ),
                                 )
                       }
                     />
-                  )}
-                  {graphError && (
-                    <button onClick={() => setGraphReload((n) => n + 1)}>
-                      Retry graph loading
-                    </button>
                   )}
                   <div className="core-edges">
                     {roadmap.edges.map((e, i) => (
@@ -1155,14 +1311,16 @@ export function CoreJourney({
                       <select
                         aria-label="Học trước"
                         value={parent}
-                        onChange={(e) => setParent(e.target.value)}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setParent(next);
+                          setEdgeError(
+                            next && next === child ? SELF_EDGE_ERROR : "",
+                          );
+                        }}
                       >
                         <option value="">Chọn chặng</option>
-                        {topicNodes.map((n) => (
-                          <option value={n.id} key={n.id}>
-                            {n.title}
-                          </option>
-                        ))}
+                        {edgeNodeOptions}
                       </select>
                     </label>
                     <label>
@@ -1170,32 +1328,28 @@ export function CoreJourney({
                       <select
                         aria-label="Học sau"
                         value={child}
-                        onChange={(e) => setChild(e.target.value)}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setChild(next);
+                          setEdgeError(
+                            next && next === parent ? SELF_EDGE_ERROR : "",
+                          );
+                        }}
                       >
                         <option value="">Chọn chặng</option>
-                        {topicNodes.map((n) => (
-                          <option value={n.id} key={n.id}>
-                            {n.title}
-                          </option>
-                        ))}
+                        {edgeNodeOptions}
                       </select>
                     </label>
                     <button
-                      disabled={busy || !parent || !child}
-                      onClick={() => {
-                        if (roadmapApproved && !mock)
-                          void run(async () => {
-                            await createGraphEdge(parent, child);
-                          });
-                        else addEdge();
-                      }}
+                      disabled={busy || !parent || !child || parent === child}
+                      onClick={submitEdgeForm}
                     >
                       Thêm cạnh
                     </button>
                   </div>
-                  {graphError && (
+                  {edgeError && (
                     <p role="alert" className="core-error">
-                      {graphError}
+                      {edgeError}
                     </p>
                   )}
                 </section>
