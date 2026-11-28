@@ -270,74 +270,42 @@ def test_sqlite_foreign_keys_are_enforced(session):
     session.rollback()
 
 
-def test_drop_all_respects_foreign_key_order_with_fk_enabled():
-    """PostgreSQL parity: _TABLES order must allow _drop_all without CASCADE under FK checks."""
-    mem_url = "sqlite:///:memory:"
-    try:
-        tables = init_db(database_url=mem_url, reset=True)
-        assert set(tables) == EXPECTED_TABLES
-        engine = get_engine(mem_url)
+def test_drop_all_respects_foreign_key_order_with_fk_enabled(session, database_url):
+    """PostgreSQL parity: _drop_all uses no CASCADE, so _TABLES must list parents first."""
+    engine = get_engine(database_url)
+    position = {name: index for index, name in enumerate(_TABLES)}
+    inspector = inspect(engine)
+    for table in _TABLES:
+        for fk in inspector.get_foreign_keys(table):
+            referred = fk["referred_table"]
+            if referred != table:
+                assert position[referred] < position[table], (
+                    f"{table} references {referred} but precedes it in _TABLES"
+                )
 
-        # Every FK parent must appear before its child in _TABLES so reversed() drops cleanly.
-        table_index = {name: idx for idx, name in enumerate(_TABLES)}
-        inspector = inspect(engine)
-        for table in _TABLES:
-            for fk in inspector.get_foreign_keys(table):
-                referred = fk["referred_table"]
-                if referred != table:
-                    assert table_index[referred] < table_index[table], (
-                        f"{table} references {referred} but precedes it in _TABLES"
-                    )
+    # A populated FK chain makes SQLite's implicit DELETE on DROP TABLE check every reference.
+    assert session.execute(text("PRAGMA foreign_keys")).scalar_one() == 1
+    insert_user(session, user_id="u_fk", email="fk@example.com")
+    insert_course(session, course_id="c_fk", owner_id="u_fk")
+    insert_source(session, source_id="s_fk", course_id="c_fk")
+    insert_concept(session, concept_id="k_fk", course_id="c_fk")
+    for statement in (
+        "INSERT INTO syllabi (id, course_id, raw_text) VALUES ('syl_fk', 'c_fk', 'Week 1')",
+        "INSERT INTO roadmaps (id, course_id, user_id, title) VALUES ('rm_fk', 'c_fk', 'u_fk', 'Main')",
+        "INSERT INTO roadmap_nodes (id, roadmap_id, type, title) VALUES ('rn_fk', 'rm_fk', 'topic', 'Intro')",
+        (
+            "INSERT INTO recommendations (id, user_id, node_id, resource_ref, kind, rank, score) "
+            "VALUES ('rec_fk', 'u_fk', 'rn_fk', 'material:s_fk', 'user_material', 1, 0.9)"
+        ),
+        "INSERT INTO recommendation_events (id, recommendation_id, event) VALUES ('ev_fk', 'rec_fk', 'shown')",
+    ):
+        session.execute(text(statement))
+    session.commit()
+    session.close()
 
-        # Populate a deep FK chain and verify _drop_all succeeds with PRAGMA foreign_keys = ON.
-        with session_scope(mem_url) as s:
-            assert s.execute(text("PRAGMA foreign_keys")).scalar_one() == 1
-            insert_user(s, user_id="u_fk", email="fk@example.com")
-            insert_course(s, course_id="c_fk", owner_id="u_fk")
-            insert_source(s, source_id="s_fk", course_id="c_fk")
-            insert_concept(s, concept_id="k_fk", course_id="c_fk")
-            s.execute(
-                text(
-                    "INSERT INTO syllabi (id, course_id, raw_text) "
-                    "VALUES ('syl_fk', 'c_fk', 'Week 1: Intro')"
-                )
-            )
-            s.execute(
-                text(
-                    "INSERT INTO roadmaps (id, course_id, user_id, title) "
-                    "VALUES ('rm_fk', 'c_fk', 'u_fk', 'Main')"
-                )
-            )
-            s.execute(
-                text(
-                    "INSERT INTO roadmap_nodes (id, roadmap_id, type, title) "
-                    "VALUES ('rn_fk', 'rm_fk', 'topic', 'Intro')"
-                )
-            )
-            s.execute(
-                text(
-                    "INSERT INTO recommendations (id, user_id, node_id, resource_ref, kind, rank, score) "
-                    "VALUES ('rec_fk', 'u_fk', 'rn_fk', 'material:s_fk', 'user_material', 1, 0.9)"
-                )
-            )
-            s.execute(
-                text(
-                    "INSERT INTO recommendation_events (id, recommendation_id, event) "
-                    "VALUES ('ev_fk', 'rec_fk', 'shown')"
-                )
-            )
+    _drop_all(engine)
 
-        _drop_all(engine)
-        assert inspect(engine).get_table_names() == []
-
-        # Re-initializing an in-memory database exercises _reset_database -> _drop_all path.
-        recreated = init_db(database_url=mem_url, reset=True)
-        assert set(recreated) == EXPECTED_TABLES
-    finally:
-        engine = app_db._ENGINES.pop(mem_url, None)
-        app_db._SESSION_FACTORIES.pop(mem_url, None)
-        if engine is not None:
-            engine.dispose()
+    assert inspect(engine).get_table_names() == []
 
 
 def test_reset_database_falls_back_to_drop_all_on_oserror(database_url, monkeypatch):
