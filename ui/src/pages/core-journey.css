@@ -12,6 +12,8 @@
 .core-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:var(--space-3); }
 .core-node { display:grid; gap:var(--space-2); text-align:left; background:var(--color-surface-alt); color:var(--color-text); border:1px solid var(--color-line); }
 .core-error { color:var(--color-danger); }
+.core-graph-banner,.core-graph-empty { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:var(--space-2); padding:var(--space-3); border-radius:var(--radius-sm); border:1px solid var(--color-line); }
+.core-graph-empty { background:var(--color-surface-alt); }
 .core-sessions { display:grid; gap:var(--space-3); padding:0; list-style:none; }
 .core-sessions li { display:flex; flex-wrap:wrap; align-items:center; gap:var(--space-4); border-bottom:1px solid var(--color-line); padding:var(--space-3); }
 @media (max-width:760px) { .core-panel { padding:var(--space-4); } }

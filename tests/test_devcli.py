@@ -106,3 +106,73 @@ def test_catalog_ingest_fills_csc10014_from_the_hand_lists_twice_without_new_row
     assert "== CSC10014: 13/13 stages have >= 5 pending/verified candidates" in first
     assert "[ OK ] manual_yaml" in first and "created {'courses'" in first
     assert "created {}" in second and "13/13" in second
+
+
+def test_run_returns_exit_code_and_handles_missing_command(monkeypatch, capsys):
+    import subprocess
+
+    import devcli
+
+    class DummyProc:
+        pid = 4242
+
+        def wait(self, timeout=None):
+            return 7
+
+        def poll(self):
+            return 7
+
+    monkeypatch.setattr(devcli.subprocess, "Popen", lambda *a, **kw: DummyProc())
+    assert devcli.run(["echo", "hi"]) == 7
+
+    def missing(*a, **kw):
+        raise FileNotFoundError("no such file")
+
+    monkeypatch.setattr(subprocess, "Popen", missing)
+    assert devcli.run(["missing-cmd"]) == 127
+    assert "Command 'missing-cmd' not found" in capsys.readouterr().err
+
+
+def test_run_handles_keyboard_interrupt_and_terminates_tree(monkeypatch):
+    import devcli
+
+    calls = []
+
+    class InterruptedProc:
+        pid = 9876
+        terminated = False
+        killed = False
+        exited = False
+
+        def poll(self):
+            return 0 if self.exited else None
+
+        def wait(self, timeout=None):
+            if not self.exited:
+                raise KeyboardInterrupt()
+            return 1
+
+        def terminate(self):
+            self.terminated = True
+            self.exited = True
+
+        def kill(self):
+            self.killed = True
+            self.exited = True
+
+    proc = InterruptedProc()
+    monkeypatch.setattr(devcli.subprocess, "Popen", lambda *a, **kw: proc)
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd)
+        proc.exited = True
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr(devcli.subprocess, "run", fake_run)
+
+    rc = devcli.run(["vite"])
+    assert rc == 130
+    if devcli.os.name == "nt":
+        assert calls == [["taskkill", "/PID", "9876", "/T", "/F"]]
+    else:
+        assert proc.terminated is True

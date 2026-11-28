@@ -1224,3 +1224,235 @@ test("32-concept graph canvas passes axe accessibility in light and dark themes 
   });
   expect(longestMotion).toBeLessThanOrEqual(0.001);
 });
+
+test("wide 15-week graph fits cleanly on desktop and mobile without post-fit zoom snapping", async ({
+  page,
+}, info) => {
+  const wideNodes = Array.from({ length: 15 }, (_, i) => ({
+    ...nodes[0],
+    id: `w${i + 1}`,
+    title: `Week Topic ${i + 1}`,
+    type: i === 14 ? ("milestone" as const) : ("topic" as const),
+    kind: i === 14 ? "milestone" : "topic",
+    week: i + 1,
+  }));
+  await backend(page, wideNodes);
+  await page.goto("/?kg_roadmap=rm#roadmap");
+
+  const canvas = page.locator("canvas.graph-canvas");
+  await expect(canvas).toBeVisible();
+  const zoomBadge = page.locator(".graph-zoom-level");
+  await expect(zoomBadge).not.toHaveText("100%");
+
+  const fitZoomPct = parseInt((await zoomBadge.textContent()) || "0", 10);
+  expect(fitZoomPct).toBeGreaterThan(0);
+  if (info.project.name.includes("mobile")) {
+    expect(fitZoomPct).toBeLessThan(30);
+    expect(fitZoomPct).toBeLessThan(20);
+  } else {
+    expect(fitZoomPct).toBeLessThan(65);
+  }
+
+  await page.locator(".graph-canvas-container").focus();
+  await page.keyboard.press("-");
+  const afterKeyPct = parseInt((await zoomBadge.textContent()) || "0", 10);
+  expect(afterKeyPct).toBeLessThanOrEqual(fitZoomPct);
+  if (info.project.name.includes("mobile")) {
+    expect(afterKeyPct).toBeLessThan(20);
+  }
+
+  await page.getByRole("button", { name: "Fit view", exact: true }).click();
+  await expect(zoomBadge).toHaveText(`${fitZoomPct}%`);
+});
+
+test("filter summary shows visible/total counts, reveals hidden selected node, and keeps list/canvas parity", async ({
+  page,
+}) => {
+  await backend(page);
+  await page.goto("/?kg_roadmap=rm&kg_clo=CLO1&kg_node=c#roadmap");
+
+  const summary = page.locator(".filter-summary");
+  await expect(summary).toContainText("Showing 2/4 stages");
+  await expect(summary).toContainText("CLO1");
+  await expect(summary).toContainText("Other topic");
+
+  const canvasCheckpoints = page.locator(".graph-keyboard-nodes button");
+  await expect(canvasCheckpoints).toHaveText(["Z Foundations", "A Retrieval"]);
+
+  await page.getByRole("button", { name: "List", exact: true }).click();
+  await expect(
+    page.locator('.kg-list-view-container button[aria-label^="Select stage "]'),
+  ).toHaveCount(2);
+  await expect(
+    page.getByRole("button", { name: "Select stage Z Foundations" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Select stage A Retrieval" }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Show selected stage" }).click();
+  await expect(page.getByRole("dialog")).toContainText("Other topic");
+  expect(new URL(page.url()).searchParams.has("kg_clo")).toBe(false);
+  await expect(
+    page.locator('.kg-list-view-container button[aria-label^="Select stage "]'),
+  ).toHaveCount(4);
+});
+
+test("switching between two roadmaps with equal node counts frames both cleanly", async ({
+  page,
+}) => {
+  const mkNodes = (prefix: string, weeks: number[]) =>
+    weeks.map((week, i) => ({
+      id: `${prefix}-${i + 1}`,
+      title: `${prefix} Node ${i + 1}`,
+      type: "topic",
+      kind: "topic",
+      week,
+      est_minutes: 60,
+      duration_minutes: 60,
+      covers: [],
+      roadmap_id: prefix,
+    }));
+  const wide4 = mkNodes("rm-wide", [1, 5, 10, 15]);
+  const compact4 = mkNodes("rm-compact", [1, 1, 2, 2]);
+  const byId = { "rm-wide": wide4, "rm-compact": compact4 } as const;
+
+  await page.addInitScript(() =>
+    sessionStorage.setItem("pathly.session", "test-token"),
+  );
+  await page.route("**/api/v1/**", async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith("/courses")) {
+      return route.fulfill({
+        json: [
+          { id: "c1", title: "Wide Course", level: "university" },
+          { id: "c2", title: "Compact Course", level: "university" },
+        ],
+      });
+    }
+    if (path.endsWith("/courses/c1/roadmaps")) {
+      return route.fulfill({
+        json: [{ id: "rm-wide", course_id: "c1", title: "Wide plan", created_at: "2026-11-11T00:00:00Z", nodes: wide4 }],
+      });
+    }
+    if (path.endsWith("/courses/c2/roadmaps")) {
+      return route.fulfill({
+        json: [{ id: "rm-compact", course_id: "c2", title: "Compact plan", created_at: "2026-11-11T00:00:00Z", nodes: compact4 }],
+      });
+    }
+    const rmMatch = path.match(/\/roadmaps\/(rm-wide|rm-compact)(?:\/(.+))?$/);
+    if (rmMatch) {
+      const rmId = rmMatch[1] as "rm-wide" | "rm-compact";
+      const sub = rmMatch[2];
+      const list = byId[rmId];
+      if (!sub) return route.fulfill({ json: { id: rmId, course_id: rmId === "rm-wide" ? "c1" : "c2", nodes: list, edges: [] } });
+      if (sub === "edges") return route.fulfill({ json: [] });
+      if (sub === "graph/layout") return route.fulfill({ json: { positions: [], saved: 0 } });
+      if (sub === "graph") return route.fulfill({ json: { nodes: list, edges: [] } });
+    }
+    return route.fulfill({ json: [] });
+  });
+
+  await page.goto("/?course=c1&kg_roadmap=rm-wide#roadmap");
+  const zoomBadge = page.locator(".graph-zoom-level");
+  await expect(page.locator("canvas.graph-canvas")).toBeVisible();
+  await expect(zoomBadge).not.toHaveText("100%");
+  const wideZoomPct = parseInt((await zoomBadge.textContent()) || "0", 10);
+
+  const mobileMenu = page.getByRole("button", { name: "Toggle navigation" });
+  if (await mobileMenu.isVisible()) await mobileMenu.click();
+  await page
+    .locator("#workspace-navigation button")
+    .filter({ hasText: "Courses" })
+    .first()
+    .click();
+  await page.getByRole("button", { name: "Switch course", exact: true }).click();
+  const compactCard = page.locator(".course-library-card").filter({ hasText: "Compact Course" });
+  await compactCard.getByRole("button", { name: "Saved roadmaps" }).click();
+  await compactCard.getByRole("button", { name: "Open roadmap" }).click();
+
+  await expect(page).toHaveURL(/kg_roadmap=rm-compact/);
+  await expect(page.locator(".graph-keyboard-nodes button")).toHaveCount(4);
+  const compactZoomPct = parseInt((await zoomBadge.textContent()) || "0", 10);
+  expect(compactZoomPct).toBeGreaterThan(wideZoomPct + 10);
+});
+
+test("milestone edges work in form across reload and reject cycles through milestone covers in form and canvas", async ({
+  page,
+}, info) => {
+  const api = await backend(page);
+  await page.goto("/?kg_roadmap=rm#roadmap");
+
+  const parentSelect = page.getByRole("combobox", { name: "Learn first", exact: true });
+  const childSelect = page.getByRole("combobox", { name: "Learn next", exact: true });
+  await expect(parentSelect).toContainText("Midterm · Milestone");
+
+  // Cycle via implicit b -> exam covers link must be rejected in form without POSTing.
+  const postsBefore = api.requested.filter((p) => p.endsWith("/graph/edges")).length;
+  await parentSelect.selectOption("exam");
+  await childSelect.selectOption("b");
+  await page.getByRole("button", { name: "Add edge", exact: true }).click();
+  await expect(page.locator(".core-panel p.core-error[role='alert']")).toContainText("cycle");
+  expect(api.requested.filter((p) => p.endsWith("/graph/edges")).length).toBe(postsBefore);
+
+  // Allowed milestone -> uncovered topic edge persists across reload.
+  await parentSelect.selectOption("exam");
+  await childSelect.selectOption("c");
+  await page.getByRole("button", { name: "Add edge", exact: true }).click();
+  await expect
+    .poll(() => api.requested.filter((p) => p.endsWith("/graph/edges")).length)
+    .toBe(postsBefore + 1);
+  await page.reload();
+  await expect(
+    page.locator(".core-edge").filter({ hasText: /Midterm.*Other topic/ }),
+  ).toBeVisible();
+
+  if (!info.project.name.includes("mobile")) {
+    const canvas = page.locator("canvas.graph-canvas");
+    await canvas.scrollIntoViewIfNeeded();
+    await page.getByRole("button", { name: "Reset view" }).click();
+    const rect = (await canvas.boundingBox())!;
+    // exam is week 4 => world (620, 80) + pan (60, 60) = (680, 140); b is week 2 => (260+60=320, 140).
+    await page.keyboard.down("Shift");
+    await page.mouse.move(rect.x + 680, rect.y + 140);
+    await page.mouse.down();
+    await page.mouse.move(rect.x + 320, rect.y + 140, { steps: 5 });
+    await page.mouse.up();
+    await page.keyboard.up("Shift");
+    const cycleAlert = page.locator(".graph-cycle-alert[role='alert']");
+    await expect(cycleAlert).toBeVisible();
+    await expect(cycleAlert).toContainText("exam → b");
+  }
+});
+
+test("renders authoritative graph when saved positions fail to load and recovers via retry", async ({
+  page,
+}) => {
+  await backend(page);
+  let layoutAttempts = 0;
+  await page.route("**/api/v1/roadmaps/rm/graph/layout", async (route) => {
+    if (route.request().method() === "GET") {
+      layoutAttempts += 1;
+      if (layoutAttempts === 1) {
+        return route.fulfill({ status: 500, json: { detail: "layout error" } });
+      }
+      return route.fulfill({
+        json: { positions: [{ node_id: "a", x: 300, y: 200, pinned: true }], saved: 1 },
+      });
+    }
+    return route.continue();
+  });
+
+  await page.goto("/?kg_roadmap=rm&kg_viewMode=list#roadmap");
+  await expect(
+    page.getByRole("button", { name: "Select stage Z Foundations" }),
+  ).toBeVisible();
+  const retryLayout = page.getByRole("button", { name: "Retry loading layout" });
+  await expect(retryLayout).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Retry graph loading" }),
+  ).toHaveCount(0);
+
+  await retryLayout.click();
+  await expect(retryLayout).toHaveCount(0);
+});

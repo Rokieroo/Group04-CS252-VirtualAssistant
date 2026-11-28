@@ -39,6 +39,10 @@ export interface GraphFilterBarProps {
   filters: FilterState;
   onChange: (updated: FilterState) => void;
   onSelectNode: (nodeId: string) => void;
+  visibleCount?: number;
+  totalCount?: number;
+  hiddenSelectedNode?: { id: string; title: string } | null;
+  onRevealSelected?: () => void;
   className?: string;
 }
 
@@ -47,6 +51,10 @@ export function GraphFilterBar({
   filters,
   onChange,
   onSelectNode,
+  visibleCount,
+  totalCount,
+  hiddenSelectedNode = null,
+  onRevealSelected,
   className = "",
 }: GraphFilterBarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -72,8 +80,23 @@ export function GraphFilterBar({
     filters.transitiveReduction && "Transitive reduction",
     filters.isLocalGraph && `Local graph · ${filters.localDepth}`,
   ].filter(Boolean);
+  const selectedMilestoneTitle = filters.selectedMilestone
+    ? nodes.find((n) => n.id === filters.selectedMilestone)?.title ||
+      filters.selectedMilestone
+    : "";
+  const summaryDetails = [
+    filters.search.trim() && `Search: “${filters.search.trim()}”`,
+    selectedMilestoneTitle && `Milestone: ${selectedMilestoneTitle}`,
+    ...activeFilters,
+  ].filter(Boolean);
   const hasFilters =
     activeFilters.length > 0 || !!filters.search || !!filters.selectedMilestone;
+  const hasCounts =
+    typeof visibleCount === "number" && typeof totalCount === "number";
+  const showSummary =
+    hasFilters ||
+    Boolean(hiddenSelectedNode) ||
+    (hasCounts && visibleCount < totalCount);
 
   // Global keydown listener for '/' shortcut to focus search
   useEffect(() => {
@@ -281,17 +304,58 @@ export function GraphFilterBar({
           onClick={() => setFiltersOpen(!filtersOpen)}
         />
       </div>
-      {hasFilters && (
-        <div className="filter-summary">
-          <span role="status">{activeFilters.join(" · ")}</span>
-          <Button
-            label="Clear filters"
-            variant="ghost"
-            className="study-button"
-            onClick={() =>
-              onChange({ ...defaultGraphFilters, viewMode: filters.viewMode })
-            }
-          />
+      {showSummary && (
+        <div
+          className={`filter-summary${hiddenSelectedNode ? " has-hidden-selected" : ""}`}
+        >
+          <div className="filter-summary-text" role="status">
+            {hasCounts && (
+              <span className="filter-count">
+                Showing {visibleCount}/{totalCount} stages
+              </span>
+            )}
+            {summaryDetails.length > 0 && (
+              <span className="filter-active-list">
+                {hasCounts ? " · " : ""}
+                {summaryDetails.map((item, idx) => (
+                  <React.Fragment key={String(item)}>
+                    {idx > 0 && " · "}
+                    <span>{item}</span>
+                  </React.Fragment>
+                ))}
+              </span>
+            )}
+            {hiddenSelectedNode && (
+              <span className="filter-hidden-selected">
+                {" "}
+                · Selected stage “{hiddenSelectedNode.title}” is hidden by
+                filters.
+              </span>
+            )}
+          </div>
+          <div className="filter-summary-actions">
+            {hiddenSelectedNode && onRevealSelected && (
+              <Button
+                label="Show selected stage"
+                variant="ghost"
+                className="study-button"
+                onClick={onRevealSelected}
+              />
+            )}
+            {hasFilters && (
+              <Button
+                label="Clear filters"
+                variant="ghost"
+                className="study-button"
+                onClick={() =>
+                  onChange({
+                    ...defaultGraphFilters,
+                    viewMode: filters.viewMode,
+                  })
+                }
+              />
+            )}
+          </div>
         </div>
       )}
 
