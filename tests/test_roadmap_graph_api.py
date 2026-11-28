@@ -248,6 +248,44 @@ def test_edge_from_milestone_back_to_a_covered_topic_is_a_cycle(
     )
 
 
+def test_allowed_milestone_edge_persists_and_blocks_indirect_covers_cycle(
+    client, headers, course_and_roadmap
+):
+    _, roadmap = course_and_roadmap
+    roadmap_id = roadmap["id"]
+    nodes_by_title = {n["title"]: n for n in roadmap["nodes"]}
+    req_id = nodes_by_title["Requirements Engineering"]["id"]
+    midterm_id = nodes_by_title["Midterm Exam"]["id"]
+    testing_id = nodes_by_title["Testing & CI/CD"]["id"]
+
+    # Milestone -> later uncovered topic is allowed and persists across graph reads.
+    create_res = client.post(
+        f"/api/v1/roadmaps/{roadmap_id}/graph/edges",
+        headers=headers,
+        json={"parent": midterm_id, "child": testing_id, "kind": "strict"},
+    )
+    assert create_res.status_code == 201, create_res.text
+
+    graph = client.get(f"/api/v1/roadmaps/{roadmap_id}/graph", headers=headers).json()
+    assert any(
+        e["parent"] == midterm_id and e["child"] == testing_id for e in graph["edges"]
+    )
+
+    # Indirect cycle: covered_topic -> midterm (implicit covers) -> testing -> covered_topic.
+    covered_topic = next(
+        e["parent"] for e in graph["edges"] if e["kind"] == "covers" and e["child"] == midterm_id
+    )
+    assert covered_topic != testing_id
+    cycle_res = client.post(
+        f"/api/v1/roadmaps/{roadmap_id}/graph/edges",
+        headers=headers,
+        json={"parent": testing_id, "child": covered_topic, "kind": "strict"},
+    )
+    assert cycle_res.status_code == 409, cycle_res.text
+    assert cycle_res.json()["detail"]["error"] == "cycle"
+    assert req_id != midterm_id
+
+
 def test_edge_modifications_trigger_replan_notification(app, client, headers, course_and_roadmap):
     _, roadmap = course_and_roadmap
     roadmap_id = roadmap["id"]

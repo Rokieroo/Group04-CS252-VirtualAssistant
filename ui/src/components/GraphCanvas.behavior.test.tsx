@@ -456,3 +456,326 @@ it("reads centralized radius, stroke, and motion CSS tokens from the container",
   expect(ctx.scale.mock.lastCall[0]).toBeCloseTo(1.1);
   expect(frames.size).toBe(0);
 });
+
+it("normalizes tiny trackpad deltas, zero deltas, deltaMode, bursts, reversals, and mid-animation cursor anchoring", () => {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: query === "(prefers-reduced-motion: reduce)",
+    media: query,
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
+
+  const view = render(<GraphCanvas nodes={nodes} edges={[]} />);
+  const canvas = view.container.querySelector("canvas")!;
+  frame();
+  expect(frames.size).toBe(0);
+
+  // Zero vertical delta is ignored and schedules no animation frame.
+  fireEvent.wheel(canvas, { deltaY: 0, deltaX: 40, clientX: 100, clientY: 100 });
+  expect(frames.size).toBe(0);
+  expect(view.container.querySelector(".graph-zoom-level")?.textContent).toBe("100%");
+
+  // 12 tiny trackpad ticks (-4px each) scale smoothly instead of compounding to 300%.
+  for (let i = 0; i < 12; i++) {
+    fireEvent.wheel(canvas, { deltaY: -4, deltaMode: 0, clientX: 100, clientY: 100 });
+  }
+  frame();
+  frame();
+  const tinyZoom = ctx.scale.mock.lastCall[0];
+  expect(tinyZoom).toBeGreaterThan(1.03);
+  expect(tinyZoom).toBeLessThan(1.1);
+
+  // Reset back to 100% (zoom=1, pan={60,60}).
+  fireEvent.click(screen.getByLabelText("Đặt lại góc nhìn"));
+  frame();
+  expect(ctx.scale.mock.lastCall[0]).toBeCloseTo(1);
+
+  // deltaMode=1 (line) scales by line height (~16px/line => -3 lines = -48px).
+  fireEvent.wheel(canvas, { deltaY: -3, deltaMode: 1, clientX: 100, clientY: 100 });
+  frame();
+  frame();
+  const lineZoom = ctx.scale.mock.lastCall[0];
+  expect(lineZoom).toBeCloseTo(Math.exp(48 * (Math.log(1.1) / 100)), 3);
+
+  // deltaMode=2 (page) normalizes relative to viewport height and stays capped per step.
+  fireEvent.click(screen.getByLabelText("Đặt lại góc nhìn"));
+  frame();
+  fireEvent.wheel(canvas, { deltaY: -1, deltaMode: 2, clientX: 100, clientY: 100 });
+  frame();
+  frame();
+  const pageZoom = ctx.scale.mock.lastCall[0];
+  expect(pageZoom).toBeGreaterThan(1.15);
+  expect(pageZoom).toBeLessThan(1.3);
+
+  // Unusually large deltas and rapid bursts are bounded below 300%.
+  let mockNow = 1000;
+  vi.spyOn(performance, "now").mockImplementation(() => mockNow);
+  fireEvent.click(screen.getByLabelText("Đặt lại góc nhìn"));
+  frame();
+  for (let i = 0; i < 10; i++) {
+    fireEvent.wheel(canvas, { deltaY: -5000, deltaMode: 0, clientX: 100, clientY: 100 });
+  }
+  frame();
+  frame();
+  const burstZoom = ctx.scale.mock.lastCall[0];
+  expect(burstZoom).toBeLessThan(2.0);
+
+  // Immediate direction reversal works without waiting for burst window expiry.
+  fireEvent.wheel(canvas, { deltaY: 100, deltaMode: 0, clientX: 100, clientY: 100 });
+  frame();
+  frame();
+  expect(ctx.scale.mock.lastCall[0]).toBeLessThan(burstZoom);
+  expect(ctx.scale.mock.lastCall[0]).toBeCloseTo(burstZoom / 1.1, 3);
+});
+
+it("keeps world point anchored under moving cursor during in-flight wheel animation", () => {
+  const view = render(<GraphCanvas nodes={nodes} edges={[]} />);
+  const canvas = view.container.querySelector("canvas")!;
+  frame();
+
+  fireEvent.wheel(canvas, { deltaY: -100, clientX: 100, clientY: 100 });
+  frame(); // 1st step updates viewGoal interpolation & queues redraw tick
+  frame(); // 2nd frame runs redraw tick with the in-flight pan & zoom on ctx
+  const midZoom = ctx.scale.mock.lastCall[0];
+  const midPanX = ctx.translate.mock.lastCall[0];
+  const midPanY = ctx.translate.mock.lastCall[1];
+  expect(midZoom).toBeGreaterThan(1);
+  const cursorX2 = 220;
+  const cursorY2 = 160;
+  const expectedWorldX2 = (cursorX2 - midPanX) / midZoom;
+  const expectedWorldY2 = (cursorY2 - midPanY) / midZoom;
+
+  fireEvent.wheel(canvas, { deltaY: -100, clientX: cursorX2, clientY: cursorY2 });
+  for (let i = 0; i < 80 && frames.size > 0; i++) frame();
+  const finalZoom = ctx.scale.mock.lastCall[0];
+  const finalPanX = ctx.translate.mock.lastCall[0];
+  const finalPanY = ctx.translate.mock.lastCall[1];
+  expect(finalZoom).toBeCloseTo(1.21, 2);
+  expect(finalPanX).toBeCloseTo(cursorX2 - expectedWorldX2 * finalZoom, 1);
+  expect(finalPanY).toBeCloseTo(cursorY2 - expectedWorldY2 * finalZoom, 1);
+});
+
+it("anchors off-center touch pinch midpoint, cleans up lost capture/cancel, and never accidentally selects or wires nodes", () => {
+  class PolyfillPointerEvent extends MouseEvent {
+    pointerId: number;
+    pointerType: string;
+    constructor(type: string, init: PointerEventInit = {}) {
+      super(type, init);
+      this.pointerId = init.pointerId ?? 0;
+      this.pointerType = init.pointerType ?? "mouse";
+    }
+  }
+  vi.stubGlobal("PointerEvent", PolyfillPointerEvent);
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+    width: 800,
+    height: 600,
+    left: 0,
+    top: 0,
+    right: 800,
+    bottom: 600,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  } as DOMRect);
+
+  const select = vi.fn();
+  const createEdge = vi.fn();
+  const view = render(
+    <GraphCanvas nodes={nodes} edges={[]} onSelect={select} onEdgeCreate={createEdge} />,
+  );
+  const canvas = view.container.querySelector("canvas")!;
+  frame();
+  fireEvent.click(screen.getByLabelText("Đặt lại góc nhìn"));
+  frame();
+
+  // Touch on background at (160, 120) and (260, 120): initial midpoint (210, 120), distance 100.
+  // At pan=(60,60), zoom=1 => worldMid = (150, 60).
+  fireEvent.pointerDown(canvas, { pointerId: 1, pointerType: "touch", clientX: 160, clientY: 120 });
+  select.mockClear();
+  fireEvent.pointerDown(canvas, { pointerId: 2, pointerType: "touch", clientX: 260, clientY: 120 });
+
+  // Double distance -> zoom=2 AND move midpoint to (310, 220) => pan should move to Keep worldMid=(150,60) at (310,220).
+  fireEvent.pointerMove(canvas, { pointerId: 1, pointerType: "touch", clientX: 210, clientY: 220 });
+  fireEvent.pointerMove(canvas, { pointerId: 2, pointerType: "touch", clientX: 410, clientY: 220 });
+  frame();
+  expect(ctx.scale.mock.lastCall[0]).toBeCloseTo(2);
+  expect(ctx.translate.mock.lastCall[0]).toBeCloseTo(310 - 150 * 2, 1);
+  expect(ctx.translate.mock.lastCall[1]).toBeCloseTo(220 - 60 * 2, 1);
+
+  // Release pointer 2 while pointer 1 remains, then lift pointer 1 over node "a" -> no accidental selection or edge creation.
+  fireEvent.pointerUp(canvas, { pointerId: 2, pointerType: "touch", clientX: 410, clientY: 220 });
+  fireEvent.pointerUp(canvas, { pointerId: 1, pointerType: "touch", clientX: 220, clientY: 220 });
+  expect(select).not.toHaveBeenCalled();
+  expect(createEdge).not.toHaveBeenCalled();
+
+  // Interrupt a pinch with lostpointercapture & pointercancel, then verify 1-finger drag pans normally.
+  fireEvent.pointerDown(canvas, { pointerId: 3, pointerType: "touch", clientX: 100, clientY: 300 });
+  fireEvent.pointerDown(canvas, { pointerId: 4, pointerType: "touch", clientX: 200, clientY: 300 });
+  fireEvent(canvas, Object.assign(new Event("lostpointercapture", { bubbles: true }), { pointerId: 4 }));
+  fireEvent(canvas, Object.assign(new Event("pointercancel", { bubbles: true }), { pointerId: 3 }));
+
+  const panBefore = {
+    x: ctx.translate.mock.lastCall[0],
+    y: ctx.translate.mock.lastCall[1],
+    z: ctx.scale.mock.lastCall[0],
+  };
+  fireEvent.pointerDown(canvas, { pointerId: 5, pointerType: "touch", clientX: 400, clientY: 400 });
+  fireEvent.pointerMove(canvas, { pointerId: 5, pointerType: "touch", clientX: 460, clientY: 430 });
+  fireEvent.pointerUp(canvas, { pointerId: 5, pointerType: "touch", clientX: 460, clientY: 430 });
+  frame();
+  expect(ctx.scale.mock.lastCall[0]).toBeCloseTo(panBefore.z);
+  expect(ctx.translate.mock.lastCall[0]).toBeCloseTo(panBefore.x + 60, 1);
+  expect(ctx.translate.mock.lastCall[1]).toBeCloseTo(panBefore.y + 30, 1);
+});
+
+it("fits wide 15-week mobile graphs below 30% without zoom snapping, re-frames disjoint/equal-count roadmaps, and highlights low-zoom focused nodes", () => {
+  class PolyfillPointerEvent extends MouseEvent {
+    pointerId: number;
+    pointerType: string;
+    constructor(type: string, init: PointerEventInit = {}) {
+      super(type, init);
+      this.pointerId = init.pointerId ?? 0;
+      this.pointerType = init.pointerType ?? "mouse";
+    }
+  }
+  vi.stubGlobal("PointerEvent", PolyfillPointerEvent);
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+    width: 360,
+    height: 520,
+    left: 0,
+    top: 0,
+    right: 360,
+    bottom: 520,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  } as DOMRect);
+
+  const wideNodes = Array.from({ length: 15 }, (_, i) => ({
+    id: `w1-${i + 1}`,
+    title: `Week Topic ${i + 1}`,
+    type: i === 14 ? ("milestone" as const) : ("topic" as const),
+    week: i + 1,
+    est_minutes: 60,
+  }));
+
+  const view = render(<GraphCanvas graphId="rm-1" nodes={wideNodes} edges={[]} />);
+  frame();
+  const fitZoom = ctx.scale.mock.lastCall[0];
+  const fitPanX = ctx.translate.mock.lastCall[0];
+  expect(fitZoom).toBeLessThan(0.2);
+
+  // Every visible glyph fits horizontally inside [0, 360].
+  const leftEdge = fitPanX + (80 - 30) * fitZoom;
+  const rightEdge = fitPanX + (14 * 180 + 80 + 30) * fitZoom;
+  expect(leftEdge).toBeGreaterThanOrEqual(0);
+  expect(rightEdge).toBeLessThanOrEqual(360);
+
+  // Next wheel zoom-out and '-' key do NOT snap zoom upward to 0.2.
+  fireEvent.wheel(view.container.querySelector("canvas")!, {
+    deltaY: 100,
+    clientX: 180,
+    clientY: 260,
+  });
+  for (let i = 0; i < 60 && frames.size > 0; i++) frame();
+  const afterWheelZoom = ctx.scale.mock.lastCall[0];
+  expect(afterWheelZoom).toBeLessThan(0.2);
+  expect(afterWheelZoom).toBeLessThanOrEqual(fitZoom);
+
+  fireEvent.keyDown(screen.getByRole("region"), { key: "-" });
+  frame();
+  expect(ctx.scale.mock.lastCall[0]).toBeLessThan(0.2);
+  expect(ctx.scale.mock.lastCall[0]).toBeLessThanOrEqual(afterWheelZoom);
+
+  // Subsequent touch pinch out and wheel zoom-out/in also stay below 0.2 without snapping upward.
+  fireEvent.pointerDown(view.container.querySelector("canvas")!, {
+    pointerId: 11,
+    pointerType: "touch",
+    clientX: 120,
+    clientY: 260,
+  });
+  fireEvent.pointerDown(view.container.querySelector("canvas")!, {
+    pointerId: 12,
+    pointerType: "touch",
+    clientX: 240,
+    clientY: 260,
+  });
+  fireEvent.pointerMove(view.container.querySelector("canvas")!, {
+    pointerId: 11,
+    pointerType: "touch",
+    clientX: 130,
+    clientY: 260,
+  });
+  fireEvent.pointerUp(view.container.querySelector("canvas")!, {
+    pointerId: 12,
+    pointerType: "touch",
+    clientX: 240,
+    clientY: 260,
+  });
+  fireEvent.pointerUp(view.container.querySelector("canvas")!, {
+    pointerId: 11,
+    pointerType: "touch",
+    clientX: 130,
+    clientY: 260,
+  });
+  frame();
+  expect(ctx.scale.mock.lastCall[0]).toBeLessThan(0.2);
+
+  // Deliberate user pan on same roadmap survives an ordinary node-status refresh.
+  fireEvent.keyDown(screen.getByRole("region"), { key: "ArrowRight" });
+  frame();
+  const userPanX = ctx.translate.mock.lastCall[0];
+  const userZoom = ctx.scale.mock.lastCall[0];
+  view.rerender(
+    <GraphCanvas
+      graphId="rm-1"
+      nodes={wideNodes.map((n, i) => (i === 0 ? { ...n, status: "mastered" as const } : n))}
+      edges={[]}
+    />,
+  );
+  frame();
+  expect(ctx.scale.mock.lastCall[0]).toBeCloseTo(userZoom);
+  expect(ctx.translate.mock.lastCall[0]).toBeCloseTo(userPanX);
+
+  // Switching to a different roadmap with the exact SAME node count (15) re-frames cleanly (with graphId and disjoint IDs).
+  const equalCountAlt = Array.from({ length: 15 }, (_, i) => ({
+    id: `rm2-${i + 1}`,
+    title: `Alt ${i + 1}`,
+    type: "topic" as const,
+    week: Math.floor(i / 3) + 1,
+    est_minutes: 60,
+  }));
+  expect(equalCountAlt.length).toBe(wideNodes.length);
+  view.rerender(<GraphCanvas graphId="rm-2" nodes={equalCountAlt} edges={[]} />);
+  frame();
+  expect(ctx.scale.mock.lastCall[0]).toBeGreaterThan(0.25);
+
+  const disjointEqualCount = Array.from({ length: 15 }, (_, i) => ({
+    id: `rm3-${i + 1}`,
+    title: `Third ${i + 1}`,
+    type: "topic" as const,
+    week: i + 1,
+    est_minutes: 60,
+  }));
+  view.rerender(<GraphCanvas nodes={disjointEqualCount} edges={[]} />);
+  frame();
+  expect(ctx.scale.mock.lastCall[0]).toBeLessThan(0.2);
+
+  // Selected node at low zoom keeps its focus ring and contrast label pill drawn.
+  ctx.fillText.mockClear();
+  ctx.fillRect.mockClear();
+  view.rerender(
+    <GraphCanvas
+      graphId="rm-1"
+      nodes={wideNodes}
+      edges={[]}
+      selectedId="w1-8"
+    />,
+  );
+  for (let i = 0; i < 60 && frames.size > 0; i++) frame();
+  frame();
+  expect(
+    ctx.fillText.mock.calls.some((args: unknown[]) => args[0] === "Week Topic 8"),
+  ).toBe(true);
+});
