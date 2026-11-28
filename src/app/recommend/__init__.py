@@ -218,17 +218,17 @@ def _reason(node_title: str, candidate: _Candidate) -> str:
     parts = []
     shared = _shared_words(node_title, resource.title)
     if shared:
-        parts.append("Khớp " + ", ".join(f"“{word}”" for word in shared[:3]))
+        parts.append("Matches " + ", ".join(f"“{word}”" for word in shared[:3]))
     if candidate.kind == "user_material":
-        parts.append("Tài liệu của bạn")
+        parts.append("Your material")
         if candidate.pages:
             pages = ", ".join(str(p) for p in candidate.pages[:3])
-            parts.append(f"trang {pages}{'…' if len(candidate.pages) > 3 else ''}")
+            parts.append(f"page {pages}{'…' if len(candidate.pages) > 3 else ''}")
         return " · ".join(parts)
     parts.append(candidate.origin)
-    length = f" {resource.minutes} phút" if resource.minutes else ""
+    length = f" {resource.minutes} min" if resource.minutes else ""
     parts.append(FORMAT_NAMES[resource.format] + length)
-    parts.append("đã xác minh" if candidate.kind == "catalog" else "chưa xác minh")
+    parts.append("verified" if candidate.kind == "catalog" else "unverified")
     return " · ".join(part for part in parts if part)
 
 

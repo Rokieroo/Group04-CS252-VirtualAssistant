@@ -282,11 +282,8 @@ def test_self_harm_detector_and_hotlines():
     assert not is_crisis_message("Cho tôi hỏi bài tập số 5")
     assert not is_crisis_message("Hôm nay trời đẹp quá")
 
-    reply_vi = build_crisis_reply("vi")
-    reply_en = build_crisis_reply("en")
-
-    assert "111" in reply_vi and "096 306 1414" in reply_vi and "115" in reply_vi
-    assert "111" in reply_en and "096 306 1414" in reply_en and "115" in reply_en
+    reply = build_crisis_reply()
+    assert "111" in reply and "096 306 1414" in reply and "115" in reply
 
     assert redact_crisis_content("muốn tự tử") == SAFE_REDACTION_MESSAGE
     assert redact_crisis_content("bình thường") == "bình thường"

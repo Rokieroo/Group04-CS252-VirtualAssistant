@@ -37,37 +37,37 @@ export function LearningGuide({ step }: { step: number }) {
     }
   }
   const steps = [
-    "Tạo hoặc chọn môn học.",
-    "Tải đề cương PDF hoặc dán nội dung.",
-    "Kiểm tra các tuần học rồi xác nhận.",
-    "Duyệt lộ trình và mở đồ thị.",
-    "Chọn một chặng để đọc và ghim nguồn.",
+    "Create or select a course.",
+    "Upload a PDF syllabus or paste its content.",
+    "Review the weekly plan, then confirm.",
+    "Approve the roadmap and open the graph.",
+    "Pick a stage to read and pin learning sources.",
   ];
   return (
-    <section aria-label="Hướng dẫn bắt đầu" className="core-panel card learning-guide">
+    <section aria-label="Getting started guide" className="core-panel card learning-guide">
       {error ? (
         <p role="status">
-          Không tải được hướng dẫn.{" "}
-          <button onClick={() => retry((v) => v + 1)}>Thử tải hướng dẫn</button>
+          Could not load the guide.{" "}
+          <button onClick={() => retry((v) => v + 1)}>Retry loading guide</button>
         </p>
       ) : enabled === null ? (
-        <p role="status">Đang tải hướng dẫn…</p>
+        <p role="status">Loading guide…</p>
       ) : (
         <>
           {enabled && (
             <>
-              <h2>Bắt đầu học</h2>
+              <h2>Getting started</h2>
               <progress
-                aria-label="Tiến trình bắt đầu"
+                aria-label="Getting started progress"
                 value={step}
                 max={5}
               />{" "}
-              <strong>Bước {step}/5</strong>
+              <strong>Step {step}/5</strong>
               <p>{steps[step - 1]}</p>
             </>
           )}
           <button disabled={busy} onClick={toggle}>
-            {enabled ? "Bỏ qua hướng dẫn" : "Xem hướng dẫn"}
+            {enabled ? "Dismiss guide" : "Show guide"}
           </button>
         </>
       )}

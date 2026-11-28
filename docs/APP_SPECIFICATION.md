@@ -5,7 +5,7 @@ Tài liệu này đặc tả toàn bộ ứng dụng của Group 04 đến từn
 - **Phiên bản tài liệu**: 3.1 (thay cho bản 3.0; bỏ phần thương mại hóa, mobile, giáo viên và phụ huynh; đặt trọng tâm vào trải nghiệm của người học)
 - **Người dùng**: chỉ người học (sinh viên, học sinh lớp 10–12, người tự học)
 - **Nền tảng**: Web (responsive: desktop, laptop, tablet và màn hình nhỏ trên trình duyệt)
-- **Ngôn ngữ giao diện**: Tiếng Việt (mặc định), tiếng Anh
+- **Ngôn ngữ giao diện**: Tiếng Anh cho mọi đầu ra lúc chạy (UI, thông báo API, phản hồi AI, CLI); vẫn đọc đề cương, tài liệu và câu hỏi tiếng Việt
 
 **Thay đổi so với 2.0**: bản 2.0 coi slide bài giảng là đầu vào chính và câu hỏi ôn tập là đầu ra chính. Bản 3.0 có **một chức năng chính**: tải syllabus lên → ứng dụng dựng roadmap học theo tuần → tìm nguồn học chất lượng cao cho từng chặng. Câu hỏi luyện tập, ôn tập FSRS, hỏi đáp có trích dẫn, gợi ý theo bậc và companion vẫn giữ nguyên độ sâu nhưng trở thành **tính năng bổ trợ**, luôn gắn vào một chặng của roadmap.
 
@@ -647,7 +647,7 @@ Thuật toán thuần ở `app/roadmap/placement.py`, không gọi LLM; lưu tr�
 | Độ bền | Mỗi provider lỗi không làm hỏng luồng; tối thiểu catalog nội bộ vẫn trả kết quả |
 | Sẵn sàng | Staging tự deploy mỗi lần merge; production có backup hằng đêm |
 | Truy cập | WCAG AA, bàn phím, screen reader; layout responsive dùng được từ màn hình 360 px; chạy mượt trên máy cấu hình thấp |
-| Ngôn ngữ | Tiếng Việt mặc định, tiếng Anh; nguồn gắn nhãn ngôn ngữ; giữ ký hiệu của syllabus |
+| Ngôn ngữ | Giao diện và đầu ra tiếng Anh; đầu vào tiếng Việt hoặc tiếng Anh; nguồn gắn nhãn ngôn ngữ; giữ ký hiệu của syllabus |
 | Độ tin cậy dữ liệu | Mất mạng giữa buổi ôn không mất câu trả lời (lưu tạm, gửi lại khi có mạng); thao tác ghi idempotent |
 | Graph | Graph ≥ 30 concept kéo/zoom mượt (≥ 50 fps trên laptop tầm trung); không đường nào (UI, API, import) lưu được cycle |
 

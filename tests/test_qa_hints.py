@@ -116,7 +116,7 @@ def test_levels_one_and_two_point_to_sources_and_hand_the_turn_back():
     first = _hint(1, reading="OpenStax ch. 2")
     assert "Solution ladder" in first.content and "OpenStax ch. 2" in first.content
     second = _hint(2, attempts=TRIED)
-    assert "problems.txt, trang 2, Exercise 3" in second.content and "'13'" in second.content
+    assert "problems.txt, page 2, Exercise 3" in second.content and "'13'" in second.content
     for hint in (first, second, _hint(1, graded=True), _hint(2, graded=True)):
         assert hint.content.endswith("?") and "12" not in hint.content
 
@@ -127,7 +127,7 @@ def test_the_source_solution_needs_an_attempt_and_never_reaches_a_graded_item():
         graded = _hint(3, graded=True, attempts=attempts)
         assert graded.refused and graded.reason == "graded" and "12" not in graded.content
     solved = _hint(3, attempts=TRIED)
-    assert not solved.refused and "Đáp án của nguồn: 12" in solved.content
+    assert not solved.refused and "Source answer: 12" in solved.content
     assert "3 bậc x 4 giờ = 12" in solved.content
 
 
@@ -206,7 +206,7 @@ def test_api_hint_ladder_on_practice_and_on_a_checkpoint(app, client, headers, m
         json={"response": "13"},
     )
     assert "'13'" in hint(topic, 2).json()["content"]
-    assert "Đáp án của nguồn: 12" in hint(topic, 3).json()["content"]
+    assert "Source answer: 12" in hint(topic, 3).json()["content"]
     graded = hint(checkpoint, 3).json()
     assert graded["refused"] and graded["reason"] == "graded" and "12" not in graded["content"]
 

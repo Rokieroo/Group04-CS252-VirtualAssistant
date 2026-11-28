@@ -69,7 +69,7 @@ export function validateDraft(d: SyllabusDraft): Warning[] {
   const add = (code: string, message: string, path = "", blocking = true) =>
     result.push({ code, message, path, blocking });
   if (!d.weeks.length)
-    add("weeks_empty", "Hãy thêm ít nhất một tuần học.", "weeks");
+    add("weeks_empty", "Add at least one study week.", "weeks");
   const weeks = d.weeks.map((w) => w.week);
   if (
     weeks.some(
@@ -79,7 +79,7 @@ export function validateDraft(d: SyllabusDraft): Warning[] {
   )
     add(
       "week_order",
-      "Tuần phải tăng dần, không trùng và từ 1 đến 52.",
+      "Weeks must be strictly increasing, unique, and between 1 and 52.",
       "weeks",
     );
   const maxWeek = Math.max(0, ...weeks.filter(Number.isFinite));
@@ -89,22 +89,22 @@ export function validateDraft(d: SyllabusDraft): Warning[] {
       (w) => !weeks.includes(w),
     )
   )
-    add("missing_weeks", "Có tuần trống trong lịch học.", "weeks", false);
+    add("missing_weeks", "There are missing weeks in the schedule.", "weeks", false);
   if (!d.assessments.length)
     add(
       "missing_assessments",
-      "Chưa có đánh giá; hãy kiểm tra đề cương.",
+      "No assessments found; please check the syllabus.",
       "assessments",
       false,
     );
   const seen = new Map<string, number>();
   d.weeks.forEach((w, i) => {
     if (!w.topics.some((t) => t.trim()))
-      add("empty_week", "Mỗi tuần cần ít nhất một chủ đề.", `weeks.${i}`);
+      add("empty_week", "Each week needs at least one topic.", `weeks.${i}`);
     for (const t of w.topics.filter((t) => t.trim())) {
       const k = t.trim().toLocaleLowerCase();
       if (seen.has(k) && seen.get(k) !== w.week)
-        add("duplicate_topic", `Chủ đề ${t} đang ở nhiều tuần.`, `weeks.${i}`);
+        add("duplicate_topic", `Topic ${t} appears in multiple weeks.`, `weeks.${i}`);
       seen.set(k, w.week);
     }
   });
@@ -112,13 +112,13 @@ export function validateDraft(d: SyllabusDraft): Warning[] {
     if (!o.code.trim() || !o.description.trim())
       add(
         "outcome_empty",
-        "Điền mã và nội dung chuẩn đầu ra.",
+        "Enter both code and description for the learning outcome.",
         `outcomes.${i}`,
       );
   });
   d.textbooks.forEach((b, i) => {
     if (!b.title.trim())
-      add("book_empty", "Điền tên giáo trình.", `textbooks.${i}`);
+      add("book_empty", "Enter the textbook title.", `textbooks.${i}`);
   });
   if (d.assessments.length) {
     const sum = d.assessments.reduce((n, a) => n + a.weight, 0);
@@ -129,14 +129,14 @@ export function validateDraft(d: SyllabusDraft): Warning[] {
     )
       add(
         "weights_sum",
-        `Tổng trọng số là ${sum}%; cần 100% ± 1.`,
+        `Total weight is ${sum}%; expected 100% ± 1.`,
         "assessments",
       );
   }
   const start = String(d.course?.term_start?.value || ""),
     end = String(d.course?.term_end?.value || "");
   if (start && end && start > end)
-    add("term_order", "Ngày bắt đầu phải trước ngày kết thúc.", "course");
+    add("term_order", "Start date must be before end date.", "course");
   d.weeks.forEach((w, i) => {
     if (
       w.estimated &&
@@ -150,15 +150,15 @@ export function validateDraft(d: SyllabusDraft): Warning[] {
     )
       add(
         "unverified_estimate",
-        "Chưa đủ học kỳ để xác minh tuần ước lượng.",
+        "Term dates are incomplete to verify estimated weeks.",
         "weeks." + i,
       );
   });
   d.assessments.forEach((a, i) => {
     const path = `assessments.${i}`;
-    if (!a.name.trim()) add("assessment_empty", "Điền tên đánh giá.", path);
+    if (!a.name.trim()) add("assessment_empty", "Enter the assessment name.", path);
     if (!a.due_week && !a.due_date)
-      add("missing_due", "Mốc kiểm tra cần tuần hoặc ngày hạn.", path);
+      add("missing_due", "Milestones need a due week or due date.", path);
     if (
       a.due_week !== null &&
       (!Number.isInteger(a.due_week) ||
@@ -168,18 +168,18 @@ export function validateDraft(d: SyllabusDraft): Warning[] {
     )
       add(
         "due_outside_weeks",
-        "Tuần đánh giá phải nằm trong lịch học (1–52).",
+        "Assessment week must fall within the course schedule (1–52).",
         path,
       );
     if (a.due_date && (!start || !end))
-      add("unknown_term", "Chưa đủ ngày học kỳ để kiểm tra hạn.", path, false);
+      add("unknown_term", "Term dates are incomplete to check the due date.", path, false);
     if (a.due_date && !normalizeDate(a.due_date))
-      add("invalid_due_date", "Ngày hạn không hợp lệ.", path);
+      add("invalid_due_date", "Invalid due date.", path);
     if (
       a.due_date &&
       ((start && a.due_date < start) || (end && a.due_date > end))
     )
-      add("date_outside_term", "Ngày kiểm tra nằm ngoài học kỳ.", path);
+      add("date_outside_term", "Assessment date falls outside the term.", path);
   });
   return result;
 }
@@ -224,7 +224,7 @@ export async function uploadSyllabus(
 ): Promise<SyllabusDraft> {
   checkSyllabusInput(input);
   const id = selectedCourseId || (await courseId(currentCourse.name));
-  let file_name = "Nội dung đã dán";
+  let file_name = "Pasted content";
   if (typeof input !== "string") {
     const body = new FormData();
     body.append("file", input);
@@ -319,34 +319,34 @@ export function syllabusError(error: unknown): string {
   if (!(error instanceof BackendError))
     return error instanceof Error
       ? error.message
-      : "Có lỗi xảy ra. Hãy thử lại.";
+      : "Something went wrong. Please try again.";
   const codes: Record<string, string> = {
     not_a_syllabus:
-      "Không nhận ra đề cương. Hãy chọn đúng tài liệu hoặc dán nội dung.",
-    invalid_text: "Nội dung phải có từ 1 đến 120.000 ký tự.",
-    has_blocking_warnings: "Hãy sửa cảnh báo chặn trước khi xác nhận.",
-    scanned_pdf: "PDF dạng ảnh chưa đọc được. Hãy dán nội dung đề cương.",
-    llm_unavailable: "Dịch vụ phân tích đang bận. Hãy thử lại.",
-    invalid_llm_response: "Kết quả phân tích không hợp lệ. Hãy thử lại.",
+      "This does not look like a syllabus. Choose the right document or paste syllabus text.",
+    invalid_text: "Text must be between 1 and 120,000 characters.",
+    has_blocking_warnings: "Resolve blocking warnings before confirming.",
+    scanned_pdf: "Scanned image PDFs are not supported yet. Paste the syllabus text instead.",
+    llm_unavailable: "The parsing service is busy. Please try again.",
+    invalid_llm_response: "The parsing result was invalid. Please try again.",
   };
   return (
     codes[error.code] ??
     (
       {
-        0: "Không kết nối được máy chủ. Kiểm tra kết nối rồi thử lại.",
-        400: "Tệp không hợp lệ hoặc bị hỏng. Hãy chọn lại tệp.",
-        401: "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.",
-        403: "Bạn không có quyền truy cập môn học này.",
-        404: "Không tìm thấy môn học hoặc trang nguồn. Hãy tải lại.",
-        409: "Tệp đang được xử lý. Chờ một lúc rồi thử lại.",
-        413: "Tệp lớn hơn 20 MB. Hãy nén hoặc chia nhỏ tệp.",
-        415: "Chỉ hỗ trợ PDF hoặc DOCX.",
-        422: "Nội dung không hợp lệ. Kiểm tra đề cương và thử lại.",
-        502: "Kết quả phân tích không hợp lệ. Hãy thử lại.",
-        503: "Dịch vụ đang bận. Hãy thử lại.",
+        0: "Could not connect to the server. Check your connection and try again.",
+        400: "The file is invalid or corrupted. Please choose another file.",
+        401: "Your session has expired. Please sign in again.",
+        403: "You do not have permission to access this course.",
+        404: "Course or source page not found. Please reload.",
+        409: "The file is currently being processed. Wait a moment and try again.",
+        413: "File exceeds 20 MB. Compress or split the file first.",
+        415: "Only PDF or DOCX files are supported.",
+        422: "Invalid content. Check your syllabus and try again.",
+        502: "The parsing result was invalid. Please try again.",
+        503: "The service is temporarily busy. Please try again.",
       } as Record<number, string>
     )[error.status] ??
-    "Không xử lý được yêu cầu. Hãy thử lại."
+    "Could not process your request. Please try again."
   );
 }
 
@@ -366,7 +366,7 @@ export function restoreSavedSyllabus(saved: Syllabus): SyllabusDraft {
     course_id: saved.course_id,
     status: "confirmed",
     raw_text: parsed.original_text ?? saved.raw_text,
-    file_name: parsed.file_name || "Đề cương đã lưu",
+    file_name: parsed.file_name || "Saved syllabus",
     pages: Math.max(
       0,
       ...Object.keys(source_pages).map(Number).filter(Number.isFinite),

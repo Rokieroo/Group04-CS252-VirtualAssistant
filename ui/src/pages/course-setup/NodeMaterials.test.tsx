@@ -31,7 +31,7 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
     vi.restoreAllMocks();
   });
 
-  it("displays exact spec text 'Chưa tìm được nguồn đủ tốt' when status is insufficient", async () => {
+  it("displays exact spec text 'No suitable sources found yet' when status is insufficient", async () => {
     vi.spyOn(resourcesApi, "fetchNodeResources").mockResolvedValue({
       status: "insufficient",
       resources: [],
@@ -40,9 +40,9 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
 
     render(<NodeMaterials nodeId="node-1" />);
 
-    expect(await screen.findByText("Chưa tìm được nguồn đủ tốt")).toBeTruthy();
-    expect(screen.getByText(/ngưỡng chất lượng thẩm định ≥ 0.65/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Tìm lại" })).toBeTruthy();
+    expect(await screen.findByText("No suitable sources found yet")).toBeTruthy();
+    expect(screen.getByText(/quality threshold \(≥ 0.65\)/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Search again" })).toBeTruthy();
   });
 
   it("renders verified catalog resource with real domain and safe external link", async () => {
@@ -78,7 +78,7 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
     expect(link.getAttribute("target")).toBe("_blank");
     expect(link.getAttribute("rel")).toBe("noopener noreferrer");
     expect(screen.getByText("ocw.mit.edu")).toBeTruthy();
-    expect(screen.getByText("✓ Đã xác minh")).toBeTruthy();
+    expect(screen.getByText("✓ Verified")).toBeTruthy();
     expect(screen.getByText(/★ 91%/)).toBeTruthy();
   });
 
@@ -133,7 +133,7 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
     expect(screen.queryByText(/Article Reading 1/)).toBeNull();
 
     // Click Article filter
-    fireEvent.click(screen.getByRole("button", { name: "Bài viết / Đọc" }));
+    fireEvent.click(screen.getByRole("button", { name: "Article / Reading" }));
     expect(screen.queryByText(/Video Lecture 1/)).toBeNull();
     expect(screen.getByText(/Article Reading 1/)).toBeTruthy();
   });
@@ -189,7 +189,7 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
     await screen.findByText(/Old Resource to Reject/);
 
     // Tap thumbs down
-    fireEvent.click(screen.getByRole("button", { name: /Không phù hợp/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Not relevant/ }));
 
     await waitFor(() => {
       expect(feedbackSpy).toHaveBeenCalledWith("r1", {
@@ -205,7 +205,7 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
     expect(screen.queryByText(/Old Resource to Reject/)).toBeNull();
   });
 
-  it("triggers searchNodeResources when 'Tìm lại' is clicked", async () => {
+  it("triggers searchNodeResources when 'Search again' is clicked", async () => {
     const searchSpy = vi
       .spyOn(resourcesApi, "searchNodeResources")
       .mockResolvedValue({
@@ -221,7 +221,7 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
     render(<NodeMaterials nodeId="node-1" />);
 
     const searchBtns = await screen.findAllByRole("button", {
-      name: /Tìm lại/,
+      name: /Search again/,
     });
     fireEvent.click(searchBtns[0]);
 
@@ -257,12 +257,12 @@ describe("S6 NodeMaterials Component (Issue #58, Spec 8.6, 8.7)", () => {
       "textContent",
       "offline",
     );
-    fireEvent.click(screen.getByRole("button", { name: "Thử lại nguồn học" }));
+    fireEvent.click(screen.getByRole("button", { name: "Retry learning sources" }));
     expect(
       await screen.findByRole("link", { name: /One verified source/ }),
     ).toBeTruthy();
-    expect(screen.getByText("Chưa tìm được nguồn đủ tốt")).toBeTruthy();
+    expect(screen.getByText("No suitable sources found yet")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Video" }));
-    expect(screen.getByText("Không có nguồn phù hợp với bộ lọc này.")).toBeTruthy();
+    expect(screen.getByText("No sources match this filter.")).toBeTruthy();
   });
 });

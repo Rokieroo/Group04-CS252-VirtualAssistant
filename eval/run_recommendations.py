@@ -76,7 +76,7 @@ BENCHMARK_SYLLABI = [
 PRECISION_TARGET = 0.80
 NDCG_TARGET = 0.75
 REDTEAM_NODE = "Algorithms: problem framing and binary search"
-_STOPWORDS = {"and", "the", "for", "with", "chang"}
+_STOPWORDS = {"and", "the", "for", "with", "chang", "stage"}
 
 
 @dataclass(frozen=True)
@@ -125,7 +125,7 @@ class ContentJudge(LLMClient):
 
     def generate(self, prompt: str, **kwargs: Any) -> str:
         goal = next((line for line in _block(prompt, "learning_goal").splitlines()
-                     if line.startswith("Chặng:")), "")
+                     if line.startswith(("Stage:", "Chặng:"))), "")
         page = _block(prompt, "page_text")
         wanted = _topic_words(goal)
         share = len(wanted & set(normalize(page).split())) / len(wanted) if wanted else 0.0

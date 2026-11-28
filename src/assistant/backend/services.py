@@ -435,8 +435,7 @@ def companion_reply(
 ) -> ChatOut:
     """One chat turn: gather read-only facts, ask the companion, store both messages."""
     if is_crisis_message(data.message):
-        lang = "en" if any(w in data.message.lower() for w in ("kill", "myself", "suicide", "die", "harm")) and not any(w in data.message.lower() for w in ("tự tử", "chết", "sống", "muốn")) else "vi"
-        crisis_text = build_crisis_reply(lang)
+        crisis_text = build_crisis_reply()
         db.add(
             ChatMessage(
                 user_id=user.id,

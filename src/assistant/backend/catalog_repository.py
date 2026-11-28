@@ -267,7 +267,7 @@ def node_sources(db, nodes, roadmap, course, now, *, limit=5, catalog=None):
                 "duration_min": None,
                 "verification_status": "private",
                 "score": 1.0,
-                "reason": "Tài liệu của bạn",
+                "reason": "Your material",
             },
         )
         item["pages"].append(page)

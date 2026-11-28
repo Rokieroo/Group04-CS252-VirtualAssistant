@@ -16,14 +16,14 @@ export function StageDetails({
   onSchedule?: () => void;
 }) {
   return (
-    <Modal title={`Trang chặng · ${node.title}`} onClose={onClose}>
+    <Modal title={`Stage page · ${node.title}`} onClose={onClose}>
       <div className="core-stage-details">
         <p>
-          Tuần {node.week ?? "—"} ·{" "}
-          {node.est_minutes ?? node.duration_minutes ?? "—"} phút
+          Week {node.week ?? "—"} ·{" "}
+          {node.est_minutes ?? node.duration_minutes ?? "—"} min
         </p>
         {node.outcome_ids?.length ? (
-          <p>Chuẩn đầu ra: {node.outcome_ids.join(", ")}</p>
+          <p>Learning outcomes: {node.outcome_ids.join(", ")}</p>
         ) : null}
         {live ? (
           <NodeMaterials
@@ -32,13 +32,13 @@ export function StageDetails({
           />
         ) : (
           <p>
-            Nguồn học thực cần kết nối backend. Bản xem trước không có nguồn
-            được xác minh.
+            Live learning sources require a backend connection. Preview mode
+            does not include verified sources.
           </p>
         )}
         {onSchedule && (
           <Button primary onClick={onSchedule}>
-            Xếp lịch lộ trình (S7)
+            Schedule roadmap (S7)
           </Button>
         )}
       </div>

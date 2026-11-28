@@ -92,7 +92,7 @@ function frame() {
 it("draws with the latest zoom and pan rather than stale render state", () => {
   render(<GraphCanvas nodes={nodes} edges={[]} />);
   frame();
-  fireEvent.click(screen.getByLabelText("Phóng to"));
+  fireEvent.click(screen.getByLabelText("Zoom in"));
   frame();
   expect(ctx.scale).toHaveBeenLastCalledWith(1.2, 1.2);
   fireEvent.keyDown(screen.getByRole("region"), { key: "ArrowRight" });
@@ -282,7 +282,7 @@ it("fits 32 CSC10014 concepts across 10 weeks without label overlap and renders 
     state = { ...state, sx: state.sx * sx, sy: state.sy * sy };
   });
   ctx.fillText.mockImplementation((text: string, x: number, y: number) => {
-    if (!text || /^TUẦN\s/i.test(text)) return;
+    if (!text || /^WEEK\s/i.test(text)) return;
     const match = /(\d+(?:\.\d+)?)px/.exec(String(ctx.font || "12px"));
     const fontPx = match ? Number(match[1]) : 12;
     const w = ctx.measureText(text).width * state.sx;
@@ -320,7 +320,7 @@ it("fits 32 CSC10014 concepts across 10 weeks without label overlap and renders 
   frame();
   frame();
 
-  expect(view.container.textContent).toContain("Tổng quan (32)");
+  expect(view.container.textContent).toContain("Overview (32)");
   // Labels that would collide are skipped by design, so "no overlap" alone is free:
   // the graph is only readable at fit zoom if every concept keeps its label.
   expect(drawnLabels.map((l) => l.text).sort()).toEqual(
@@ -393,13 +393,13 @@ it("uses at most 3 semantic hues beyond background/neutral and explains each in 
   const legend = view.container.querySelector(".graph-legend")!;
   expect(legend).not.toBeNull();
   for (const label of [
-    "Chủ đề",
-    "Đang học",
-    "Đã vững",
-    "Cần chú ý",
-    "Mốc kiểm tra",
-    "Bắt buộc",
-    "Nên học trước",
+    "Topic",
+    "In progress",
+    "Mastered",
+    "Needs attention",
+    "Milestone",
+    "Required",
+    "Recommended",
   ]) {
     expect(legend.textContent).toContain(label);
   }
@@ -487,7 +487,7 @@ it("normalizes tiny trackpad deltas, zero deltas, deltaMode, bursts, reversals, 
   expect(tinyZoom).toBeLessThan(1.1);
 
   // Reset back to 100% (zoom=1, pan={60,60}).
-  fireEvent.click(screen.getByLabelText("Đặt lại góc nhìn"));
+  fireEvent.click(screen.getByLabelText("Reset view"));
   frame();
   expect(ctx.scale.mock.lastCall[0]).toBeCloseTo(1);
 
@@ -499,7 +499,7 @@ it("normalizes tiny trackpad deltas, zero deltas, deltaMode, bursts, reversals, 
   expect(lineZoom).toBeCloseTo(Math.exp(48 * (Math.log(1.1) / 100)), 3);
 
   // deltaMode=2 (page) normalizes relative to viewport height and stays capped per step.
-  fireEvent.click(screen.getByLabelText("Đặt lại góc nhìn"));
+  fireEvent.click(screen.getByLabelText("Reset view"));
   frame();
   fireEvent.wheel(canvas, { deltaY: -1, deltaMode: 2, clientX: 100, clientY: 100 });
   frame();
@@ -511,7 +511,7 @@ it("normalizes tiny trackpad deltas, zero deltas, deltaMode, bursts, reversals, 
   // Unusually large deltas and rapid bursts are bounded below 300%.
   let mockNow = 1000;
   vi.spyOn(performance, "now").mockImplementation(() => mockNow);
-  fireEvent.click(screen.getByLabelText("Đặt lại góc nhìn"));
+  fireEvent.click(screen.getByLabelText("Reset view"));
   frame();
   for (let i = 0; i < 10; i++) {
     fireEvent.wheel(canvas, { deltaY: -5000, deltaMode: 0, clientX: 100, clientY: 100 });
@@ -586,7 +586,7 @@ it("anchors off-center touch pinch midpoint, cleans up lost capture/cancel, and 
   );
   const canvas = view.container.querySelector("canvas")!;
   frame();
-  fireEvent.click(screen.getByLabelText("Đặt lại góc nhìn"));
+  fireEvent.click(screen.getByLabelText("Reset view"));
   frame();
 
   // Touch on background at (160, 120) and (260, 120): initial midpoint (210, 120), distance 100.

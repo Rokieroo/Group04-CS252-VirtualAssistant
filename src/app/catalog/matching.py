@@ -21,7 +21,7 @@ NODE_KEYS = ("title", "language", "level")
 MIN_COVERAGE = 0.25  # term weight a title must share with the node, of either side's total
 MIN_SIMILARITY = 0.3  # a title below that coverage must be this close in meaning
 CANDIDATES = 25  # MMR reranks the most topical eligible sources, not the whole pool
-REASON = "Khớp chủ đề, trình độ và ngôn ngữ của chặng; nguồn đã được xác minh."
+REASON = "Matches the stage topic, level, and language; verified source."
 # English and (diacritic-free) Vietnamese function words, as ``normalize`` leaves them.
 FUNCTION_WORDS = frozenset({
     "a", "an", "and", "or", "of", "the", "in", "on", "to", "for", "with", "by", "at",

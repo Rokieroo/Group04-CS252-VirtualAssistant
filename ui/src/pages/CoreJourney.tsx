@@ -57,10 +57,10 @@ import {
 } from "../api/core";
 import "./core-journey.css";
 
-const SELF_EDGE_ERROR = "Không thể nối một chặng với chính nó.";
+const SELF_EDGE_ERROR = "A stage cannot be linked to itself.";
 
 const title = (node: RoadmapNode | undefined) =>
-  node?.title || "Chặng chưa xác định";
+  node?.title || "Untitled stage";
 export function CoreJourney({
   page,
   go,
@@ -326,7 +326,7 @@ export function CoreJourney({
     let candidateNodes = graphData.nodes;
     let candidateEdges = graphData.edges;
 
-    // 1. Milestone scope filter (Exam prep: "Tới mốc kiểm tra")
+    // 1. Milestone scope filter (Exam prep: "Up to milestone")
     if (filters.selectedMilestone) {
       const scope = computeMilestoneScope(
         filters.selectedMilestone,
@@ -526,7 +526,7 @@ export function CoreJourney({
       if (!draft) {
         if (!roadmap?.course_id)
           throw new Error(
-            "Lộ trình chưa có thông tin môn học để mở đề cương. Hãy mở lại môn học từ backend.",
+            "This roadmap does not have course information to open the syllabus. Reopen the course from the backend.",
           );
         setDraft(await fetchSavedSyllabus(roadmap.course_id));
       }
@@ -546,7 +546,7 @@ export function CoreJourney({
   const nodeLabel = (id: string) =>
     roadmap?.nodes.find((n) => n.id === id)?.title || id;
   const formatCycleMessage = (path: string[]) =>
-    `Tạo vòng lặp tiên quyết (${path.map(nodeLabel).join(" → ")}), hãy bỏ một cạnh.`;
+    `Creates a prerequisite cycle (${path.map(nodeLabel).join(" → ")}); remove an edge.`;
   /** Why `parentId -> childId` is refused, checked against every edge including milestone covers. */
   const edgeProblem = (parentId: string, childId: string) => {
     if (parentId === childId) return SELF_EDGE_ERROR;
@@ -681,8 +681,8 @@ export function CoreJourney({
     .filter((n) => n.type === "topic" || n.type === "milestone")
     .map((n) => (
       <option value={n.id} key={n.id}>
-        {n.title} · {n.type === "milestone" ? "Mốc kiểm tra" : "Chủ đề"}
-        {n.week ? ` (Tuần ${n.week})` : ""}
+        {n.title} · {n.type === "milestone" ? "Milestone" : "Topic"}
+        {n.week ? ` (Week ${n.week})` : ""}
       </option>
     ));
   const hiddenSelectedNode =
@@ -704,10 +704,10 @@ export function CoreJourney({
         className="core-citation"
         onClick={() => setSourcePage(page)}
       >
-        tr. {page}
+        p. {page}
       </button>
     ) : (
-      <span className="core-no-source">Không có trang nguồn</span>
+      <span className="core-no-source">No source page</span>
     );
   const courseName =
     draft?.course?.title?.value?.toString() ||
@@ -884,29 +884,29 @@ export function CoreJourney({
       )}
       {busy && (
         <div role="status" className="card">
-          Đang xử lý…
+          Processing…
         </div>
       )}
       {busy && page === "Library" && (
-        <progress aria-label="Tiến trình xử lý đề cương" max="100" />
+        <progress aria-label="Syllabus processing progress" max="100" />
       )}
       {sourcePage !== null && (
         <Modal
-          title={`${draft?.file_name} · tr. ${sourcePage}`}
+          title={`${draft?.file_name} · p. ${sourcePage}`}
           onClose={() => setSourcePage(null)}
         >
           <p style={{ whiteSpace: "pre-wrap" }}>
             {draft?.source_pages?.[sourcePage] ||
-              "Máy chủ chưa cung cấp nội dung trang nguồn cho đề cương này."}
+              "The server has not provided source page content for this syllabus."}
           </p>
-          <button onClick={() => setSourcePage(null)}>Đóng</button>
+          <button onClick={() => setSourcePage(null)}>Close</button>
         </Modal>
       )}
       {!mock && (page === "Library" || (page === "Roadmap" && roadmapApproved)) && <LearningGuide step={stage==="upload"?2:stage==="review"?3:stage==="plan"&&page==="Library"?4:5} />}
       {page === "Library" && stage !== "complete" && (
         <div
           className="core-setup-progress"
-          aria-label="Tiến trình thiết lập môn học"
+          aria-label="Course setup progress"
         >
           <strong>
             COURSE SETUP / STEP{" "}
@@ -947,47 +947,48 @@ export function CoreJourney({
           )
         ) : stage === "complete" ? (
           <section className="card core-panel core-complete" role="status">
-            <span className="core-kicker">ĐÃ HOÀN TẤT</span>
-            <h2>Roadmap của bạn đã sẵn sàng</h2>
+            <span className="core-kicker">COMPLETED</span>
+            <h2>Your roadmap is ready</h2>
             <p>
-              Bạn có thể trở về trang môn học hoặc mở lộ trình để bắt đầu học.
+              You can return to your course page or open the roadmap to start
+              studying.
             </p>
             <div className="core-actions">
-              <button onClick={() => setStage("upload")}>Trở về môn học</button>
+              <button onClick={() => setStage("upload")}>Back to course</button>
               <button className="primary-action" onClick={() => go("Roadmap")}>
-                Xem roadmap →
+                View roadmap →
               </button>
             </div>
           </section>
         ) : null)}
       {page === "Roadmap" && !roadmapApproved && !tutorialEnrolled && (
         <section className="card core-panel">
-          <h2>Chưa có roadmap được duyệt</h2>
-          <p>Hoàn thành ba bước thiết lập trong tab Môn học.</p>
-          <button onClick={() => go("Library")}>Mở thiết lập môn học</button>
+          <h2>No approved roadmap yet</h2>
+          <p>Complete the three setup steps in the Courses tab.</p>
+          <button onClick={() => go("Library")}>Open course setup</button>
         </section>
       )}
       {showingRoadmap && (
         <>
           <section className="card core-panel">
-            <span className="core-kicker">S5 · Lộ trình</span>
+            <span className="core-kicker">S5 · Roadmap</span>
             <h2>
               {stage === "plan" && page === "Library"
-                ? "Duyệt roadmap được đề xuất"
-                : "Roadmap theo tuần"}
+                ? "Approve proposed roadmap"
+                : "Weekly roadmap"}
             </h2>
             {page === "Library" && (
               <p className="core-warning">
-                Kiểm tra thứ tự kiến thức nền, mốc kiểm tra và thời lượng trước
-                khi xác nhận.
+                Review prerequisite order, assessment milestones, and duration
+                before confirming.
               </p>
             )}
           </section>
           {!roadmap ? (
             <section className="card core-panel">
               <h3>No roadmap yet</h3>
-              <p>Xác nhận đề cương để tạo lộ trình.</p>
-              <button onClick={() => go("Library")}>Mở đề cương</button>
+              <p>Confirm your syllabus to generate a roadmap.</p>
+              <button onClick={() => go("Library")}>Open syllabus</button>
             </section>
           ) : (
             <>
@@ -1003,14 +1004,14 @@ export function CoreJourney({
                       ) > weekly,
                 )) && (
                 <p className="card core-warning" role="alert">
-                  Một số tuần vượt quỹ thời gian học. Hãy xem lại thời lượng
-                  trước khi xếp lịch.
+                  Some weeks exceed your study time budget. Review durations
+                  before scheduling.
                 </p>
               )}
               <div
                 className="core-tabs"
                 role="tablist"
-                aria-label="Cách xem roadmap"
+                aria-label="Roadmap view"
                 onKeyDown={(e) => {
                   if (
                     ["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)
@@ -1039,7 +1040,7 @@ export function CoreJourney({
                   aria-selected={roadmapTab === "timeline"}
                   onClick={() => setRoadmapTab("timeline")}
                 >
-                  Theo tuần
+                  Weekly
                 </button>
                 <button
                   role="tab"
@@ -1047,7 +1048,7 @@ export function CoreJourney({
                   aria-selected={roadmapTab === "graph"}
                   onClick={() => setRoadmapTab("graph")}
                 >
-                  Graph tiên quyết
+                  Prerequisite graph
                 </button>
               </div>
               {roadmapTab === "timeline" ? (
@@ -1068,14 +1069,14 @@ export function CoreJourney({
                       marginBottom: "12px",
                     }}
                   >
-                    <h3>Knowledge Graph môn học</h3>
+                    <h3>Course Knowledge Graph</h3>
                     {!mock && (
                       <button
                         type="button"
                         className="button"
                         onClick={() => setPlacementOpen(true)}
                       >
-                        Kiểm tra xếp lớp
+                        Placement check
                       </button>
                     )}
                   </div>
@@ -1107,26 +1108,25 @@ export function CoreJourney({
                   {layoutLoadError && (
                     <div role="status" className="core-warning core-graph-banner">
                       <span>
-                        Không thể tải vị trí đã lưu ({layoutLoadError}). Đang
-                        hiển thị bố cục mặc định.
+                        Could not load the saved layout ({layoutLoadError}). Showing the default layout.
                       </span>
                       <button
                         type="button"
                         onClick={() => setLayoutLoadRetry((n) => n + 1)}
                       >
-                        Thử tải lại vị trí
+                        Retry loading layout
                       </button>
                     </div>
                   )}
                   {layoutError && (
                     <div role="status" className="core-warning core-graph-banner">
-                      <span>Không thể lưu vị trí ({layoutError}).</span>
+                      <span>Could not save layout ({layoutError}).</span>
                       {failedLayout && (
                         <button
                           type="button"
                           onClick={() => void persistLayout(failedLayout)}
                         >
-                          Thử lưu lại vị trí
+                          Retry saving layout
                         </button>
                       )}
                     </div>
@@ -1145,18 +1145,17 @@ export function CoreJourney({
                     (graphData.nodes.length > 0 ? (
                       <div role="status" className="core-graph-empty">
                         <span>
-                          Không có chặng nào khớp bộ lọc (0/
-                          {graphData.nodes.length} chặng đang hiển thị).
+                          No stages match these filters (0/{graphData.nodes.length} shown).
                         </span>{" "}
                         <button type="button" onClick={clearGraphFilters}>
-                          Hiện tất cả chặng
+                          Show all stages
                         </button>
                       </div>
                     ) : (
                       !graphLoading &&
                       !graphLoadError && (
                         <p role="status">
-                          Chưa có chặng nào trong đồ thị môn học này.
+                          This course graph has no stages yet.
                         </p>
                       )
                     ))}
@@ -1188,10 +1187,10 @@ export function CoreJourney({
                   )}
                   {highlightedIds.length > 0 && (
                     <div role="status">
-                      Đang làm nổi bật {highlightedIds.length} chặng trên đường
-                      học.{" "}
+                      Highlighting {highlightedIds.length} stages on the
+                      learning path.{" "}
                       <button onClick={() => setHighlightedIds([])}>
-                        Bỏ tô sáng đường học
+                        Clear path highlight
                       </button>
                     </div>
                   )}
@@ -1301,15 +1300,15 @@ export function CoreJourney({
                           {e.kind} · {e.origin} ·{" "}
                           {Math.round(e.confidence * 100)}%
                         </small>
-                        <button onClick={() => removeEdge(e)}>Bỏ cạnh</button>
+                        <button onClick={() => removeEdge(e)}>Remove edge</button>
                       </div>
                     ))}
                   </div>
                   <div className="core-row">
                     <label>
-                      Học trước
+                      Learn first
                       <select
-                        aria-label="Học trước"
+                        aria-label="Learn first"
                         value={parent}
                         onChange={(e) => {
                           const next = e.target.value;
@@ -1319,14 +1318,14 @@ export function CoreJourney({
                           );
                         }}
                       >
-                        <option value="">Chọn chặng</option>
+                        <option value="">Select stage</option>
                         {edgeNodeOptions}
                       </select>
                     </label>
                     <label>
-                      Học sau
+                      Learn next
                       <select
-                        aria-label="Học sau"
+                        aria-label="Learn next"
                         value={child}
                         onChange={(e) => {
                           const next = e.target.value;
@@ -1336,7 +1335,7 @@ export function CoreJourney({
                           );
                         }}
                       >
-                        <option value="">Chọn chặng</option>
+                        <option value="">Select stage</option>
                         {edgeNodeOptions}
                       </select>
                     </label>
@@ -1344,7 +1343,7 @@ export function CoreJourney({
                       disabled={busy || !parent || !child || parent === child}
                       onClick={submitEdgeForm}
                     >
-                      Thêm cạnh
+                      Add edge
                     </button>
                   </div>
                   {edgeError && (
@@ -1357,11 +1356,11 @@ export function CoreJourney({
               {page === "Library" ? (
                 <section className="card core-panel core-confirm-plan">
                   <p>
-                    Đây là bản đề xuất. Bạn quyết định khi nào áp dụng lộ trình.
+                    This is a proposal. You decide when to apply the roadmap.
                   </p>
                   <div className="core-actions">
                     <button onClick={() => setStage("review")}>
-                      ← Quay lại sửa đề cương
+                      ← Back to edit syllabus
                     </button>
                     <button
                       className="primary-action"
@@ -1373,14 +1372,14 @@ export function CoreJourney({
                       }
                       onClick={approveRoadmap}
                     >
-                      Xác nhận roadmap
+                      Approve roadmap
                     </button>
                   </div>
                 </section>
               ) : (
                 <section className="card core-panel">
-                  <h3>Xếp vào lịch</h3>
-                  <p>Chọn thời gian học phù hợp trước khi tạo các buổi học.</p>
+                  <h3>Add to schedule</h3>
+                  <p>Choose suitable study hours before creating sessions.</p>
                   <button
                     className="primary-action"
                     onClick={() => {
@@ -1388,7 +1387,7 @@ export function CoreJourney({
                       setScheduleOpen(true);
                     }}
                   >
-                    Xếp vào lịch
+                    Add to schedule
                   </button>
                 </section>
               )}
@@ -1396,21 +1395,21 @@ export function CoreJourney({
           )}
           {scheduleOpen && (
             <Modal
-              title="Chọn thời gian học"
+              title="Choose study hours"
               onClose={() => setScheduleOpen(false)}
             >
               <div className="core-panel">
                 {schedulingNode && (
                   <p>
-                    Hiện chỉ có thể xếp lịch cho toàn bộ lộ trình, bao gồm chặng
-                    “
+                    Currently only the entire roadmap can be scheduled,
+                    including stage “
                     {title(roadmap?.nodes.find((n) => n.id === schedulingNode))}
-                    ”. Đây không phải thao tác chỉ xếp riêng chặng này.
+                    ”. This does not schedule this stage alone.
                   </p>
                 )}
                 <div className="core-row">
                   <label>
-                    Phút rảnh mỗi tuần
+                    Weekly available minutes
                     <input
                       type="number"
                       min="25"
@@ -1419,7 +1418,7 @@ export function CoreJourney({
                     />
                   </label>
                   <label>
-                    Tối đa phút mỗi ngày
+                    Max minutes per day
                     <input
                       type="number"
                       min="25"
@@ -1430,7 +1429,7 @@ export function CoreJourney({
                   </label>
                 </div>
                 <div className="core-actions">
-                  <button onClick={() => setScheduleOpen(false)}>Hủy</button>
+                  <button onClick={() => setScheduleOpen(false)}>Cancel</button>
                   <button
                     className="primary-action"
                     disabled={
@@ -1444,7 +1443,7 @@ export function CoreJourney({
                     }
                     onClick={schedule}
                   >
-                    Tạo lịch học
+                    Create schedule
                   </button>
                 </div>
               </div>
@@ -1455,12 +1454,13 @@ export function CoreJourney({
       {/* Live mode shows the real calendar (Workspace) instead. */}
       {page === "Schedule" && plan && (
         <section className="card core-panel">
-          <h2>{mock ? "S7 · Lịch học" : "New roadmap sessions"}</h2>
+          <h2>{mock ? "S7 · Study schedule" : "New roadmap sessions"}</h2>
           {!!plan?.unscheduled?.length && (
             <p role="alert">
-              {plan.unscheduled.length} chặng chưa xếp được. Tuần quá tải:{" "}
+              {plan.unscheduled.length} stages could not be scheduled.
+              Overloaded weeks:{" "}
               {plan.overloaded_weeks?.join(", ") ||
-                "Hãy tăng thời gian học hoặc kiểm tra giờ rảnh."}
+                "Increase study time or check your availability."}
             </p>
           )}
           {plan?.sessions.length ? (
@@ -1468,12 +1468,12 @@ export function CoreJourney({
               {plan.sessions.map((s) => (
                 <li key={s.id}>
                   <strong>{s.title}</strong>
-                  <span>{new Date(s.starts_at).toLocaleString("vi-VN")}</span>
+                  <span>{new Date(s.starts_at).toLocaleString("en-US")}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p>Xếp roadmap vào lịch để xem buổi học.</p>
+            <p>Add your roadmap to the schedule to view study sessions.</p>
           )}
         </section>
       )}

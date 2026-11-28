@@ -25,7 +25,7 @@ def test_ai_offline_history_and_progress_are_private_and_read_only(client, heade
     assert result.status_code == 200
     assert result.json()["provider"] == "offline"
     assert result.json()["fallback_reason"] == "not_configured"
-    assert "offline" in result.json()["reply"] and "nghỉ ngơi" in result.json()["reply"]
+    assert "offline" in result.json()["reply"].lower() and "rest" in result.json()["reply"].lower()
     assert client.get("/api/v1/schedule", headers=headers).json() == before
     assert len(client.get("/api/v1/ai/messages", headers=headers).json()) == 2
     other = register(client, "Other", "other@example.com")

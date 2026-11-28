@@ -28,8 +28,8 @@ describe("parseSyllabusText", () => {
       { week: 1, topics: ["Arrays", "linked lists"], source_page: 1 },
       { week: 2, topics: ["Stacks and queues"], source_page: 1 },
       { week: 3, topics: ["Trees", "binary search trees"], source_page: 1 },
-      { week: 4, topics: ["Ôn tập: Midterm exam"], source_page: 1 },
-      { week: 8, topics: ["Ôn tập: Final exam"], source_page: 1 },
+      { week: 4, topics: ["Review: Midterm exam"], source_page: 1 },
+      { week: 8, topics: ["Review: Final exam"], source_page: 1 },
     ]);
     expect(draft.outcomes.map((o) => o.code)).toEqual(["CLO1", "CLO2"]);
     expect(draft.assessments).toEqual([
@@ -56,8 +56,8 @@ describe("parseSyllabusText", () => {
       { week: 1, topics: ["Phân rã bài toán"], source_page: 2 },
       // A table cell is one topic, commas and all.
       { week: 2, topics: ["Trừu tượng hóa, mẫu hình"], source_page: 2 },
-      { week: 8, topics: ["Ôn tập: Giữa kỳ"], source_page: 2 },
-      { week: 15, topics: ["Ôn tập: Cuối kỳ"], source_page: 2 },
+      { week: 8, topics: ["Review: Giữa kỳ"], source_page: 2 },
+      { week: 15, topics: ["Review: Cuối kỳ"], source_page: 2 },
     ]);
     expect(draft.assessments.map((a) => [a.name, a.weight, a.due_week])).toEqual([
       ["Giữa kỳ", 30, 8],
@@ -88,7 +88,7 @@ describe("parseSyllabusText", () => {
       [1, ["Foundations of Computational Thinking: Theories"]],
       [2, ["Case study"]],
       [3, ["Algorithm design & Flowchart"]],
-      [4, ["Case study (tuần 4)"]],
+      [4, ["Case study (week 4)"]],
     ]);
     // Group rows (A1, A2) give way to their parts, dated by the last plan row naming them.
     expect(draft.assessments.map((a) => [a.name, a.weight, a.due_week])).toEqual([
@@ -134,13 +134,13 @@ describe("roadmapFrom", () => {
     expect(roadmap.edges.map((e) => [title(e.parent_id), title(e.child_id), e.kind])).toEqual([
       ["linked lists", "Stacks and queues", "soft"],
       ["Stacks and queues", "Trees", "soft"],
-      ["binary search trees", "Ôn tập: Midterm exam", "soft"],
-      ["Ôn tập: Midterm exam", "Ôn tập: Final exam", "soft"],
+      ["binary search trees", "Review: Midterm exam", "soft"],
+      ["Review: Midterm exam", "Review: Final exam", "soft"],
     ]);
     const midterm = roadmap.nodes.find((n) => n.title === "Midterm exam")!;
     expect(midterm.covers!.map(title)).toEqual([
       "Arrays", "linked lists", "Stacks and queues", "Trees", "binary search trees",
-      "Ôn tập: Midterm exam",
+      "Review: Midterm exam",
     ]);
     // Built as CoreJourney's preview graph is.
     const graph = normalizeGraph({

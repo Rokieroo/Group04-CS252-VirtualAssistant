@@ -174,7 +174,7 @@ def _validate(data: dict, pages: list[str]) -> tuple[dict, list[Warning]]:
     def cited(row, path):
         page = row.get("source_page")
         if page is None or page > len(pages) or not pages[page - 1].strip():
-            warn("missing_source", "Không xác minh được trang nguồn; cần nhập lại trường này.", path)
+            warn("missing_source", "Source page could not be verified; please re-enter this field.", path)
             return None
         return pages[page - 1]
 
@@ -192,7 +192,7 @@ def _validate(data: dict, pages: list[str]) -> tuple[dict, list[Warning]]:
                 row["value"] = target.isoformat()
         if not valid:
             if page is not None:
-                warn("ungrounded_field", "Trường không có trong trang nguồn.", path)
+                warn("ungrounded_field", "Field was not found on the source page.", path)
             del parsed["course"][field]
 
     for section in ("outcomes", "weeks", "assessments", "textbooks"):
@@ -204,34 +204,34 @@ def _validate(data: dict, pages: list[str]) -> tuple[dict, list[Warning]]:
                 continue
             primary = row.get("text") if section == "outcomes" else row.get("title")
             if primary is not None and not _contains(primary, page):
-                warn("ungrounded_field", "Nội dung không có trong trang nguồn.", path)
+                warn("ungrounded_field", "Content was not found on the source page.", path)
                 continue
             if section == "outcomes":
                 codes = {a.value for a in find_anchors([page]) if a.kind == "clo"}
                 if re.sub(r"\s+", "", row["code"]).upper() not in codes:
-                    warn("ungrounded_field", "Mã CLO không có trong trang nguồn.", path)
+                    warn("ungrounded_field", "CLO code was not found on the source page.", path)
                     continue
                 if row["bloom_level"] not in _BLOOM:
                     row["bloom_level"] = "understand"
             elif section == "weeks":
                 numbers = {int(m.group(1)) for m in _WEEK.finditer(page)}
                 if not row["estimated"] and row["week"] not in numbers:
-                    warn("ungrounded_field", "Số tuần không có trong trang nguồn.", path)
+                    warn("ungrounded_field", "Week number was not found on the source page.", path)
                     continue
                 for field in ("topics", "readings"):
                     grounded = [s for s in row[field] if _contains(s, page)]
                     if len(grounded) != len(row[field]):
-                        warn("ungrounded_field", "Chủ đề/bài đọc không có trong trang nguồn.", f"{path}.{field}")
+                        warn("ungrounded_field", "Topic or reading was not found on the source page.", f"{path}.{field}")
                     row[field] = grounded
                 if row["estimated"]:
-                    warn("estimated_week", "Tuần được ước lượng; cần người học kiểm tra.", path, False)
+                    warn("estimated_week", "Week number was estimated; please verify.", path, False)
             elif section == "assessments":
                 if "weight" in row and not any(
                     math.isclose(row["weight"], float(m.group(1).replace(",", ".")))
                     for m in _PERCENT.finditer(page)
                 ):
                     row.pop("weight")
-                    warn("ungrounded_field", "Trọng số không có trong trang nguồn.", f"{path}.weight")
+                    warn("ungrounded_field", "Weight was not found on the source page.", f"{path}.weight")
                 if row.get("kind") not in _KINDS:
                     row["kind"] = "other"
                 if row.get("due"):
@@ -242,10 +242,10 @@ def _validate(data: dict, pages: list[str]) -> tuple[dict, list[Warning]]:
                             day and day.isoformat() in {a.value for a in anchors if a.kind == "date"})
                     if not valid:
                         row.pop("due")
-                        warn("ungrounded_field", "Hạn không có trong trang nguồn.", f"{path}.due")
+                        warn("ungrounded_field", "Due date or week was not found on the source page.", f"{path}.due")
             elif row.get("authors") and not _contains(row["authors"], page):
                 row.pop("authors")
-                warn("ungrounded_field", "Tác giả không có trong trang nguồn.", f"{path}.authors")
+                warn("ungrounded_field", "Authors were not found on the source page.", f"{path}.authors")
             kept.append(row)
         parsed[section] = kept
 
@@ -253,49 +253,49 @@ def _validate(data: dict, pages: list[str]) -> tuple[dict, list[Warning]]:
     if assessments:
         total = sum(a.get("weight", 0) for a in assessments)
         if any("weight" not in a for a in assessments) or abs(total - 100) > 1 + 1e-9:
-            warn("weights_sum", f"Tổng trọng số là {total:g}%; cần 100% ± 1.", "assessments")
+            warn("weights_sum", f"Total weight is {total:g}%; must be 100% ± 1.", "assessments")
     else:
-        warn("missing_assessments", "Chưa trích được đánh giá; cần kiểm tra đề cương.", "assessments", False)
+        warn("missing_assessments", "No assessments extracted; please check the syllabus.", "assessments", False)
     weeks = parsed["weeks"]
     numbers = [w["week"] for w in weeks]
     if numbers != sorted(set(numbers)):
-        warn("week_order", "Tuần phải tăng dần và không trùng.", "weeks")
+        warn("week_order", "Weeks must increase without duplicates.", "weeks")
     if numbers and set(range(1, max(numbers) + 1)) - set(numbers):
-        warn("missing_weeks", "Có tuần trống trong lịch học.", "weeks", False)
+        warn("missing_weeks", "There are missing weeks in the schedule.", "weeks", False)
     seen_topics: dict[str, int] = {}
     for index, week in enumerate(weeks):
         if not week["topics"]:
-            warn("empty_week", "Tuần chưa có chủ đề.", f"weeks.{index}", False)
+            warn("empty_week", "Week has no topics yet.", f"weeks.{index}", False)
         for topic in week["topics"]:
             key = _key(topic)
             if key in seen_topics and seen_topics[key] != week["week"]:
-                warn("duplicate_topic", "Một chủ đề đang thuộc nhiều tuần.", f"weeks.{index}")
+                warn("duplicate_topic", "A topic appears in multiple weeks.", f"weeks.{index}")
             seen_topics[key] = week["week"]
     course = parsed["course"]
     start = parse_date(str(course.get("term_start", {}).get("value", "")))
     end = parse_date(str(course.get("term_end", {}).get("value", "")))
     if start and end and start > end:
-        warn("term_order", "Ngày bắt đầu nằm sau ngày kết thúc học kỳ.", "course")
+        warn("term_order", "Term start date is after term end date.", "course")
     for index, week in enumerate(weeks):
         if week["estimated"] and (
             not start or not end or start > end or
             week["week"] > math.ceil(((end - start).days + 1) / 7)
         ):
-            warn("unverified_estimate", "Chưa đủ học kỳ để xác minh tuần ước lượng.", f"weeks.{index}")
+            warn("unverified_estimate", "Term dates are incomplete to verify estimated weeks.", f"weeks.{index}")
     for index, assessment in enumerate(assessments):
         due = assessment.get("due", "")
         path = f"assessments.{index}.due"
         if not due:
-            warn("missing_due", "Mốc kiểm tra cần tuần hoặc ngày.", path)
+            warn("missing_due", "Assessment needs a due week or date.", path)
         elif day := parse_date(due):
             if (start and day < start) or (end and day > end):
-                warn("date_outside_term", "Ngày kiểm tra nằm ngoài học kỳ.", path)
+                warn("date_outside_term", "Assessment date is outside the term.", path)
             if not start or not end:
-                warn("unknown_term", "Chưa đủ ngày học kỳ để kiểm tra hạn.", path, False)
+                warn("unknown_term", "Term dates are incomplete to validate the due date.", path, False)
         elif match := _WEEK.fullmatch(due):
             week = int(match.group(1))
             if week < 1 or week > 52 or (numbers and week > max(numbers)):
-                warn("due_outside_weeks", "Tuần kiểm tra nằm ngoài lịch học.", path)
+                warn("due_outside_weeks", "Assessment week is outside the course schedule.", path)
     return parsed, warnings
 
 
@@ -304,7 +304,7 @@ def validate_syllabus(data: dict, pages: list[str]) -> SyllabusPreview:
     _check_pages(pages)
     parsed, warnings = _validate(data, pages)
     if not any(parsed[name] for name in ("weeks", "assessments", "outcomes")):
-        raise NotASyllabus("Không thấy tuần, đánh giá hoặc CLO; hãy gắn tài liệu vào một chặng.")
+        raise NotASyllabus("No weeks, assessments, or CLOs found; attach this document to a stage instead.")
     return SyllabusPreview(parsed, warnings, len(pages), "edited")
 
 
@@ -381,7 +381,7 @@ def preview_syllabus(pages: list[str], client: LLMClient | None = None) -> Sylla
                  len({a.value for a in anchors if a.kind == "week"}) >= 2 or
                  bool(fallback["assessments"]) or (bool(header) and bool(fallback["weeks"])))
     if not signature:
-        raise NotASyllabus("Không thấy tuần, đánh giá hoặc CLO; hãy gắn tài liệu vào một chặng.")
+        raise NotASyllabus("No weeks, assessments, or CLOs found; attach this document to a stage instead.")
     if client is None:
         data = fallback
         prior_warnings = []

@@ -73,8 +73,8 @@ def generate_queries(
     subject = " ".join(part for part in (topic, course) if part)
     clo_part = f" {clo}" if clo else ""
 
-    # Keep the Vietnamese and English queries separate, and make the format
-    # request explicit: "filetype:pdf" and "video" are visible to providers.
+    # Provider queries, never shown to the learner: Vietnamese ones still find
+    # Vietnamese sources, and "filetype:pdf" and "video" make the format explicit.
     templates = [
         f"{subject} bài giảng",
         f"{subject}{clo_part} lecture notes filetype:pdf",

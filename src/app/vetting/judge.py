@@ -139,10 +139,10 @@ def parse_judgement(answer: str, page_text: str) -> Judgement:
 
 
 def _goal(title: str, outcomes: Sequence[str], level: str) -> str:
-    lines = [f"Chặng: {title}"]
+    lines = [f"Stage: {title}"]
     lines += [f"CLO: {outcome}" for outcome in outcomes]
     if level:
-        lines.append(f"Trình độ người học: {level}")
+        lines.append(f"Learner level: {level}")
     return "\n".join(lines)
 
 

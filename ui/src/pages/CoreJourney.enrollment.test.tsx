@@ -33,16 +33,16 @@ it("removes a personal roadmap without adding it to the prepared catalog and ret
   );
   await user.click(screen.getByRole("button", { name: /Continue to review/ }));
   await user.click(
-    await screen.findByRole("button", { name: "Xác nhận đề cương" }),
+    await screen.findByRole("button", { name: "Confirm syllabus" }),
   );
   await user.click(
-    await screen.findByRole("button", { name: "Tạo roadmap →" }),
+    await screen.findByRole("button", { name: "Generate roadmap →" }),
   );
   await user.click(
-    await screen.findByRole("button", { name: "Xác nhận roadmap" }),
+    await screen.findByRole("button", { name: "Approve roadmap" }),
   );
   await user.click(
-    await screen.findByRole("button", { name: "Xem roadmap →" }),
+    await screen.findByRole("button", { name: "View roadmap →" }),
   );
   await user.click(screen.getByRole("button", { name: "Remove course" }));
   await user.click(screen.getByRole("button", { name: "Cancel" }));
@@ -54,7 +54,7 @@ it("removes a personal roadmap without adding it to the prepared catalog and ret
   await user.click(
     screen.getByRole("button", { name: "Open prepared Library" }),
   );
-  expect(screen.queryByText("Nội dung đã dán")).toBeNull();
+  expect(screen.queryByText("Pasted content")).toBeNull();
   expect(screen.getByRole("heading", { name: "Getting Started" })).toBeTruthy();
   await user.click(
     screen.getByRole("button", { name: "Open personal Courses" }),

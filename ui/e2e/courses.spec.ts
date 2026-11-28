@@ -81,7 +81,7 @@ async function openList(page: Page, recover: () => void) {
     "Temporarily unavailable",
   );
   recover();
-  await page.getByRole("button", { name: "Thử lại", exact: true }).click();
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
   await expect(page.locator(".course-library-card")).toHaveCount(2);
 }
 
@@ -91,9 +91,9 @@ test("owned courses retry, discover every saved roadmap, reopen and reload", asy
   const { requested, recover } = await backend(page);
   await openList(page, recover);
   const cards = page.locator(".course-library-card");
-  await cards.nth(1).getByRole("button", { name: "Lộ trình đã lưu" }).click();
-  await expect(cards.nth(1)).toContainText("Chưa có lộ trình đã lưu");
-  await cards.first().getByRole("button", { name: "Lộ trình đã lưu" }).click();
+  await cards.nth(1).getByRole("button", { name: "Saved roadmaps" }).click();
+  await expect(cards.nth(1)).toContainText("No saved roadmaps yet");
+  await cards.first().getByRole("button", { name: "Saved roadmaps" }).click();
   await expect(cards.first().locator("li")).toHaveCount(2);
   await page.screenshot({
     path: test.info().outputPath("saved-roadmaps.png"),
@@ -103,7 +103,7 @@ test("owned courses retry, discover every saved roadmap, reopen and reload", asy
     .first()
     .locator("li")
     .filter({ hasText: "Earlier roadmap" })
-    .getByRole("button", { name: "Mở lộ trình" })
+    .getByRole("button", { name: "Open roadmap" })
     .click();
   await expect(page).toHaveURL(/course=course-a.*kg_roadmap=old.*#roadmap/);
   await expect
@@ -127,18 +127,18 @@ test("duplicate titles retain distinct IDs and course creation uses the chosen I
   await page
     .locator(".course-library-card")
     .nth(1)
-    .getByRole("button", { name: "Mở đề cương", exact: true })
+    .getByRole("button", { name: "Open syllabus", exact: true })
     .click();
   await expect(page).toHaveURL(/course=course-b/);
   await expect(page.locator(".core-upload")).toBeVisible();
   await expect
     .poll(() => requested.includes("GET /api/v1/courses/course-b/syllabus"))
     .toBe(true);
-  await page.getByRole("button", { name: "Đổi môn học", exact: true }).click();
+  await page.getByRole("button", { name: "Switch course", exact: true }).click();
   await page
-    .getByLabel("Tên môn học", { exact: true })
+    .getByLabel("New course name", { exact: true })
     .fill("New personal course");
-  await page.getByRole("button", { name: "Tạo môn học", exact: true }).click();
+  await page.getByRole("button", { name: "Create course", exact: true }).click();
   await expect(page).toHaveURL(/course=created-course/);
   await expect(page.locator(".core-upload")).toBeVisible();
   expect(requested.filter((r) => r === "POST /api/v1/courses")).toHaveLength(1);
@@ -155,21 +155,21 @@ test("onboarding can be skipped and resumed after reload", async ({ page }) => {
     });
   });
   await openList(page, recover);
-  const guide = page.getByRole("region", { name: "Hướng dẫn bắt đầu" });
-  await expect(guide).toContainText("Bước 1/5");
+  const guide = page.getByRole("region", { name: "Getting started guide" });
+  await expect(guide).toContainText("Step 1/5");
   expect(
     (await new AxeBuilder({ page }).include(".learning-guide").analyze())
       .violations,
   ).toEqual([]);
-  const skip = guide.getByRole("button", { name: "Bỏ qua hướng dẫn" });
+  const skip = guide.getByRole("button", { name: "Dismiss guide" });
   await skip.focus();
   await page.keyboard.press("Enter");
   await expect(
-    guide.getByRole("button", { name: "Xem hướng dẫn" }),
+    guide.getByRole("button", { name: "Show guide" }),
   ).toBeVisible();
   await page.reload();
-  await guide.getByRole("button", { name: "Xem hướng dẫn" }).click();
-  await expect(guide).toContainText("Bước 1/5");
+  await guide.getByRole("button", { name: "Show guide" }).click();
+  await expect(guide).toContainText("Step 1/5");
 });
 
 test("weekly summary shows review data, saves a goal and disables reminders", async ({
@@ -216,20 +216,20 @@ test("weekly summary shows review data, saves a goal and disables reminders", as
     return route.fulfill({ json: path.endsWith("/goals") ? goals : [] });
   });
   await page.goto("/#schedule");
-  const report = page.getByRole("region", { name: "Tổng kết tuần" });
-  await expect(report).toContainText("4 lượt ôn");
+  const report = page.getByRole("region", { name: "Weekly summary" });
+  await expect(report).toContainText("4 reviews");
   expect(
     (await new AxeBuilder({ page }).include(".weekly-summary").analyze())
       .violations,
   ).toEqual([]);
-  await report.getByLabel("Tên mục tiêu").fill("Ôn chương một");
-  await report.getByRole("button", { name: "Lưu mục tiêu" }).click();
+  await report.getByLabel("Goal name").fill("Review chapter one");
+  await report.getByRole("button", { name: "Save goal" }).click();
   await expect.poll(() => goals.length).toBe(1);
-  await report.getByRole("button", { name: /Tắt nhắc/ }).click();
+  await report.getByRole("button", { name: /Turn off/ }).click();
   await page.reload();
-  await expect(report.getByRole("button", { name: /Bật nhắc/ })).toBeVisible();
+  await expect(report.getByRole("button", { name: /Turn on/ })).toBeVisible();
   await expect(
-    report.getByRole("option", { name: "Ôn chương một" }),
+    report.getByRole("option", { name: "Review chapter one" }),
   ).toHaveCount(1);
 });
 
@@ -279,7 +279,7 @@ test("saved syllabus resumes from the selected course after reload", async ({
   await page
     .locator(".course-library-card")
     .first()
-    .getByRole("button", { name: "Mở đề cương", exact: true })
+    .getByRole("button", { name: "Open syllabus", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "Review your syllabus", exact: true }),
@@ -303,18 +303,18 @@ test("browser back restores the previous course instead of keeping another cours
   await page
     .locator(".course-library-card")
     .first()
-    .getByRole("button", { name: "Mở đề cương", exact: true })
+    .getByRole("button", { name: "Open syllabus", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "Review your syllabus", exact: true }),
   ).toBeVisible();
   await navigate(page, "Roadmap");
   await navigate(page, "Courses");
-  await page.getByRole("button", { name: "Đổi môn học", exact: true }).click();
+  await page.getByRole("button", { name: "Switch course", exact: true }).click();
   await page
     .locator(".course-library-card")
     .nth(1)
-    .getByRole("button", { name: "Mở đề cương", exact: true })
+    .getByRole("button", { name: "Open syllabus", exact: true })
     .click();
   await expect(page.locator(".core-upload")).toBeVisible();
   await page.goBack();
@@ -354,8 +354,8 @@ test("creating a course preserves every path and switching graphs survives reloa
     route.fulfill({ json: [] }),
   );
   await openList(page, recover);
-  await page.getByLabel("Tên môn học", { exact: true }).fill("Third course");
-  await page.getByRole("button", { name: "Tạo môn học", exact: true }).click();
+  await page.getByLabel("New course name", { exact: true }).fill("Third course");
+  await page.getByRole("button", { name: "Create course", exact: true }).click();
   await expect(page).toHaveURL(/course=created-course/);
   await navigate(page, "Roadmap");
   const cards = page.locator(".root-course-card");

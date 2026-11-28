@@ -182,7 +182,7 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
     render(panel);
     await screen.findByText(/Web page/);
     expect(
-      screen.getAllByRole("button", { name: /tiêu chí thẩm định/ }),
+      screen.getAllByRole("button", { name: /verified source criteria/i }),
     ).toHaveLength(1);
   });
 
@@ -193,17 +193,17 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
     expect(screen.getByText(/★ 91%/)).toBeTruthy();
     expect(
       screen
-        .getByRole("button", { name: /Trang chặng/ })
+        .getByRole("button", { name: /Stage page/ })
         .hasAttribute("disabled"),
     ).toBe(true);
     expect(
       screen
-        .getByRole("button", { name: /Hỏi đáp AI/ })
+        .getByRole("button", { name: /Ask AI/ })
         .hasAttribute("disabled"),
     ).toBe(true);
     expect(
       screen
-        .getByRole("button", { name: /Luyện tập chặng này/ })
+        .getByRole("button", { name: /Practice this stage/ })
         .hasAttribute("disabled"),
     ).toBe(true);
   });
@@ -224,10 +224,10 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
       sources: [],
     });
     fireEvent.click(
-      screen.getByRole("button", { name: "Thử lại thông tin chặng" }),
+      screen.getByRole("button", { name: "Retry stage details" }),
     );
     await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
-    expect(await screen.findByText("Chưa tìm được nguồn đủ tốt")).toBeTruthy();
+    expect(await screen.findByText("No suitable sources found yet")).toBeTruthy();
   });
 
   it("moves focus into the dialog and back to the opener on close", async () => {
@@ -256,15 +256,15 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
     );
 
     expect(await screen.findByText(/Binary Search Trees/)).toBeTruthy();
-    expect(screen.getByText("Tuần 3")).toBeTruthy();
+    expect(screen.getByText("Week 3")).toBeTruthy();
     expect(
-      within(screen.getByRole("banner")).getByText(/45 phút/),
+      within(screen.getByRole("banner")).getByText(/45 min/),
     ).toBeTruthy();
     expect(screen.getByText(/CLO 1.2/)).toBeTruthy();
     expect(screen.getByText(/CLO 2.1/)).toBeTruthy();
 
     const syllabusChip = screen.getByRole("button", {
-      name: /Trang syllabus: 15/i,
+      name: /Syllabus page: 15/i,
     });
     fireEvent.click(syllabusChip);
     expect(pageSpy).toHaveBeenCalledWith(15);
@@ -306,7 +306,7 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
 
     // Close button
     fireEvent.click(
-      screen.getByRole("button", { name: /Đóng bảng thông tin chặng/i }),
+      screen.getByRole("button", { name: /Close stage details panel/i }),
     );
     expect(closeSpy).toHaveBeenCalledTimes(2);
   });
@@ -338,7 +338,7 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
     expect(selectSpy).toHaveBeenCalledWith("node-3");
   });
 
-  it("highlights learning path when 'Đường học tới đây' is clicked", async () => {
+  it("highlights learning path when 'Path to here' is clicked", async () => {
     const pathSpy = vi.fn();
     render(
       <NodePanel
@@ -353,7 +353,7 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
     );
 
     const pathBtn = await screen.findByRole("button", {
-      name: /Đường học tới đây/i,
+      name: /Path to here/i,
     });
     fireEvent.click(pathBtn);
 
@@ -380,7 +380,7 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
     expect(
       await screen.findByText(/Lecture 3 Slides - Trees.pdf/),
     ).toBeTruthy();
-    const pageBtn = screen.getByRole("button", { name: /Trang 12/i });
+    const pageBtn = screen.getByRole("button", { name: /Page 12/i });
     fireEvent.click(pageBtn);
     expect(matPageSpy).toHaveBeenCalledWith("mat-1", 12);
 
@@ -393,7 +393,7 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
     expect(screen.getByText("ocw.mit.edu")).toBeTruthy();
   });
 
-  it("displays exact spec text 'Chưa tìm được nguồn đủ tốt' when status is insufficient", async () => {
+  it("displays exact spec text 'No suitable sources found yet' when status is insufficient", async () => {
     vi.spyOn(materialsApi, "nodeSources").mockResolvedValue({
       node_id: "node-2",
       status: "insufficient",
@@ -412,8 +412,8 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
       />,
     );
 
-    expect(await screen.findByText("Chưa tìm được nguồn đủ tốt")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Tìm lại" })).toBeTruthy();
+    expect(await screen.findByText("No suitable sources found yet")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Search again" })).toBeTruthy();
   });
 
   it("displays exercises preview with citation chips and practice gateway", async () => {
@@ -431,10 +431,10 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
     );
 
     expect(await screen.findByText(/worst-case search time/)).toBeTruthy();
-    expect(screen.getByText(/MIT OCW · Trang 4/)).toBeTruthy();
+    expect(screen.getByText(/MIT OCW · Page 4/)).toBeTruthy();
 
     const practiceBtn = screen.getByRole("button", {
-      name: /Luyện tập chặng này/i,
+      name: /Practice this stage/i,
     });
     fireEvent.click(practiceBtn);
     expect(practiceSpy).toHaveBeenCalledWith("node-2", ["ex-1"]);
@@ -460,17 +460,17 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
     );
 
     fireEvent.click(
-      await screen.findByRole("button", { name: /Trang chặng \(S6\)/i }),
+      await screen.findByRole("button", { name: /Stage page \(S6\)/i }),
     );
     expect(stageSpy).toHaveBeenCalledWith("node-2");
 
     fireEvent.click(
-      screen.getByRole("button", { name: /Hỏi đáp AI \(S10\)/i }),
+      screen.getByRole("button", { name: /Ask AI \(S10\)/i }),
     );
     expect(askSpy).toHaveBeenCalledWith("node-2");
 
     fireEvent.click(
-      screen.getByRole("button", { name: /Xếp vào lịch \(S7\)/i }),
+      screen.getByRole("button", { name: /Add to schedule \(S7\)/i }),
     );
     expect(schedSpy).toHaveBeenCalledWith("node-2");
   });
@@ -534,32 +534,32 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
     );
 
     // Group 1: User materials
-    expect(await screen.findByText(/Tài liệu của bạn/)).toBeTruthy();
+    expect(await screen.findByText(/Your materials/)).toBeTruthy();
     expect(screen.getByText(/Personal Tree Notes.pdf/)).toBeTruthy();
 
     // Group 2: Verified catalog
-    expect(screen.getByText(/Nguồn đã xác minh từ Catalog/)).toBeTruthy();
+    expect(screen.getByText(/Verified catalog sources/)).toBeTruthy();
     expect(screen.getByText(/MIT OCW BST Lecture/)).toBeTruthy();
 
     // Group 3: External unverified recommendations
-    expect(screen.getByText(/Gợi ý từ nguồn ngoài/)).toBeTruthy();
+    expect(screen.getByText(/External source suggestions/)).toBeTruthy();
     expect(screen.getByText(/Wikipedia Binary Search Tree/)).toBeTruthy();
 
-    // Verify external source NEVER has '✓ Đã xác minh'
+    // Verify external source NEVER has '✓ Verified'
     const wikiArticle = screen.getByText(/Wikipedia Binary Search Tree/).closest("article");
     expect(wikiArticle).toBeTruthy();
-    expect(within(wikiArticle!).queryByText(/✓ Đã xác minh/)).toBeNull();
-    expect(within(wikiArticle!).getByText(/🌐 Nguồn ngoài/)).toBeTruthy();
+    expect(within(wikiArticle!).queryByText(/✓ Verified/)).toBeNull();
+    expect(within(wikiArticle!).getByText(/🌐 External source/)).toBeTruthy();
 
     // Test Pinning on catalog source
-    const pinBtns = screen.getAllByRole("button", { name: /Ghim/ });
+    const pinBtns = screen.getAllByRole("button", { name: /Pin/ });
     expect(pinBtns.length).toBeGreaterThan(0);
     fireEvent.click(pinBtns[0]);
     // Should toggle to pinned
-    expect(screen.getByText(/📌 Đã ghim/)).toBeTruthy();
+    expect(screen.getByText(/📌 Pinned/)).toBeTruthy();
 
-    // Test Dismissing ("Không phù hợp")
-    const notHelpfulBtns = screen.getAllByRole("button", { name: /Không phù hợp|Không hữu ích/ });
+    // Test Dismissing ("Not relevant" / "Not helpful")
+    const notHelpfulBtns = screen.getAllByRole("button", { name: /Not relevant|Not helpful/ });
     fireEvent.click(notHelpfulBtns[notHelpfulBtns.length - 1]); // dismiss Wikipedia
     await waitFor(() => {
       expect(screen.queryByText(/Wikipedia Binary Search Tree/)).toBeNull();
@@ -616,7 +616,7 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
       />,
     );
 
-    const retryBtn = await screen.findByRole("button", { name: /Tìm lại/i });
+    const retryBtn = await screen.findByRole("button", { name: /Search again/i });
     fireEvent.click(retryBtn);
 
     const nextNode: ExtendedNode = {
@@ -661,7 +661,7 @@ describe("NodePanel Component (Issue #109, Spec 8.6, 9.2, #94)", () => {
     const clearSpy = vi.spyOn(globalThis, "clearTimeout");
     try {
       const notHelpfulBtns = screen.getAllByRole("button", {
-        name: /Không phù hợp|Không hữu ích/i,
+        name: /Not relevant|Not helpful/i,
       });
       fireEvent.click(notHelpfulBtns[0]);
       const clearsBeforeUnmount = clearSpy.mock.calls.length;

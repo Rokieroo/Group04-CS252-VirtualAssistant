@@ -23,8 +23,8 @@ def check_branch(name: str) -> str | None:
     if BRANCH_RE.match(name):
         return None
     return (
-        f"'{name}' không đúng cú pháp <role>-<name>/<issue>-<task>. "
-        f"Role hợp lệ: {', '.join(ROLES)}. Ví dụ: ai-minh/12-item-generation"
+        f"'{name}' does not match <role>-<name>/<issue>-<task>. "
+        f"Valid roles: {', '.join(ROLES)}. Example: ai-minh/12-item-generation"
     )
 
 
@@ -35,12 +35,12 @@ def check_commit(message: str) -> str | None:
     if subject.startswith(("Merge ", "Revert ")):
         return None
     if not subject:
-        return "Commit message trống."
+        return "Commit message is empty."
     if len(subject) > MAX_SUBJECT:
-        return f"Dòng đầu dài {len(subject)} ký tự, tối đa {MAX_SUBJECT}."
+        return f"Subject line is {len(subject)} characters long, maximum is {MAX_SUBJECT}."
     if not COMMIT_RE.match(subject):
         return (
-            f"'{subject}' không đúng cú pháp <type>(<scope>): <mô tả>. "
-            f"Type hợp lệ: {', '.join(COMMIT_TYPES)}. Ví dụ: feat(ai): add item generation prompt"
+            f"'{subject}' does not match <type>(<scope>): <description>. "
+            f"Valid types: {', '.join(COMMIT_TYPES)}. Example: feat(ai): add item generation prompt"
         )
     return None

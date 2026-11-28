@@ -109,7 +109,7 @@ async function backend(
           warnings: [
             {
               code: "weights_sum",
-              message: "Tổng trọng số là 90%",
+              message: "Total weight is 90%",
               blocking: true,
               path: "assessments",
             },
@@ -169,7 +169,7 @@ test("PDF → four review tabs → citation → corrected confirmation payload",
   const requests = await backend(page);
   await page.goto("/");
   await page
-    .getByRole("button", { name: "Thêm đề cương", exact: true })
+    .getByRole("button", { name: "Add syllabus", exact: true })
     .click();
   await page.getByLabel("Syllabus file", { exact: true }).setInputFiles({
     name: "CSC10014.pdf",
@@ -181,36 +181,36 @@ test("PDF → four review tabs → citation → corrected confirmation payload",
     page.getByRole("heading", { name: "Review your syllabus", exact: true }),
   ).toBeFocused();
   await expect(
-    page.getByRole("button", { name: "Xác nhận đề cương", exact: true }),
+    page.getByRole("button", { name: "Confirm syllabus", exact: true }),
   ).toBeDisabled();
-  const cite = page.getByRole("button", { name: "tr. 1", exact: true }).last();
+  const cite = page.getByRole("button", { name: "p. 1", exact: true }).last();
   await cite.click();
   await expect(page.getByRole("dialog")).toContainText("Frame the problem");
   await page.keyboard.press("Escape");
   await expect(cite).toBeFocused();
-  await page.getByRole("tab", { name: "Chuẩn đầu ra", exact: true }).focus();
+  await page.getByRole("tab", { name: "Learning outcomes", exact: true }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(
-    page.getByRole("tab", { name: "Tuần & chủ đề", exact: true }),
+    page.getByRole("tab", { name: "Weeks & topics", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("End");
   await expect(
-    page.getByRole("tab", { name: "Giáo trình", exact: true }),
+    page.getByRole("tab", { name: "Textbooks", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
   await expect(
     page
-      .getByRole("tab", { name: "Giáo trình", exact: true })
+      .getByRole("tab", { name: "Textbooks", exact: true })
       .locator(".astryx-tab-indicator"),
   ).toHaveCSS("background-image", /rgb\(0, 255, 118\)/);
-  await page.getByLabel("Tác giả", { exact: true }).fill("Updated lecturer");
-  await page.getByRole("tab", { name: "Đánh giá", exact: true }).click();
-  await page.getByLabel("Trọng số %", { exact: true }).fill("100");
+  await page.getByLabel("Author", { exact: true }).fill("Updated lecturer");
+  await page.getByRole("tab", { name: "Assessments", exact: true }).click();
+  await page.getByLabel("Weight %", { exact: true }).fill("100");
   await expect(page.getByRole("alert")).toHaveCount(0);
   await page
-    .getByRole("button", { name: "Xác nhận đề cương", exact: true })
+    .getByRole("button", { name: "Confirm syllabus", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Đã xác nhận", exact: true }),
+    page.getByRole("button", { name: "Confirmed", exact: true }),
   ).toBeVisible();
   const saved = requests.find((r) => r.path.endsWith("/syllabus"))!;
   expect(saved.body.parsed.textbooks[0].authors).toBe("Updated lecturer");
@@ -233,7 +233,7 @@ test("pasted text can be reviewed and confirmed using only keyboard", async ({
   await backend(page);
   await page.goto("/");
   await page
-    .getByRole("button", { name: "Thêm đề cương", exact: true })
+    .getByRole("button", { name: "Add syllabus", exact: true })
     .click();
   await tabTo(page, page.getByRole("button", { name: "Prefer text?" }));
   await page.keyboard.press("Enter");
@@ -246,32 +246,32 @@ test("pasted text can be reviewed and confirmed using only keyboard", async ({
   ).toBeFocused();
   await tabTo(
     page,
-    page.getByRole("tab", { name: "Chuẩn đầu ra", exact: true }),
+    page.getByRole("tab", { name: "Learning outcomes", exact: true }),
   );
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("ArrowRight");
   await tabTo(
     page,
-    page.getByRole("spinbutton", { name: "Trọng số %", exact: true }),
+    page.getByRole("spinbutton", { name: "Weight %", exact: true }),
   );
   await page.keyboard.press("ControlOrMeta+A");
   await page.keyboard.type("100");
   await tabTo(
     page,
-    page.getByRole("button", { name: "Xác nhận đề cương", exact: true }),
+    page.getByRole("button", { name: "Confirm syllabus", exact: true }),
   );
   await page.keyboard.press("Enter");
   await expect(
-    page.getByRole("button", { name: "Đã xác nhận", exact: true }),
+    page.getByRole("button", { name: "Confirmed", exact: true }),
   ).toBeVisible();
 });
 for (const [status, message] of [
-  [400, "Tệp không hợp lệ"],
-  [413, "Tệp lớn hơn 20 MB"],
-  [415, "Chỉ hỗ trợ PDF hoặc DOCX"],
-  [422, "Không nhận ra đề cương"],
+  [400, "The file is invalid or corrupted"],
+  [413, "File exceeds 20 MB"],
+  [415, "Only PDF or DOCX files are supported"],
+  [422, "This does not look like a syllabus"],
 ] as const) {
-  test(`HTTP ${status} shows Vietnamese error and allows retry`, async ({
+  test(`HTTP ${status} shows English error and allows retry`, async ({
     page,
   }) => {
     await backend(page, {
@@ -280,7 +280,7 @@ for (const [status, message] of [
     });
     await page.goto("/");
     await page
-      .getByRole("button", { name: "Thêm đề cương", exact: true })
+      .getByRole("button", { name: "Add syllabus", exact: true })
       .click();
     await paste(page);
     await expect(page.getByRole("alert")).toContainText(message);
@@ -299,7 +299,7 @@ test("processing is indeterminate and prevents duplicate submission", async ({
   await backend(page, { delay });
   await page.goto("/");
   await page
-    .getByRole("button", { name: "Thêm đề cương", exact: true })
+    .getByRole("button", { name: "Add syllabus", exact: true })
     .click();
   await paste(page);
   await expect(page.getByRole("progressbar")).not.toHaveAttribute("value");
@@ -372,38 +372,38 @@ test("roadmap edits survive approval and schedule opens S7", async ({
   });
   await page.goto("/");
   await page
-    .getByRole("button", { name: "Thêm đề cương", exact: true })
+    .getByRole("button", { name: "Add syllabus", exact: true })
     .click();
   await paste(page);
-  await page.getByRole("tab", { name: "Đánh giá", exact: true }).click();
-  await page.getByLabel("Trọng số %", { exact: true }).fill("100");
+  await page.getByRole("tab", { name: "Assessments", exact: true }).click();
+  await page.getByLabel("Weight %", { exact: true }).fill("100");
   await page
-    .getByRole("button", { name: "Xác nhận đề cương", exact: true })
+    .getByRole("button", { name: "Confirm syllabus", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Tạo roadmap →", exact: true })
+    .getByRole("button", { name: "Generate roadmap →", exact: true })
     .click();
-  await page.getByRole("tab", { name: "Graph tiên quyết" }).click();
-  await page.getByLabel("Học trước", { exact: true }).selectOption("a");
-  await page.getByLabel("Học sau", { exact: true }).selectOption("b");
-  await page.getByRole("button", { name: "Thêm cạnh" }).click();
-  await page.getByLabel("Học trước", { exact: true }).selectOption("b");
-  await page.getByLabel("Học sau", { exact: true }).selectOption("a");
-  await page.getByRole("button", { name: "Thêm cạnh" }).click();
-  await expect(page.getByRole("alert")).toContainText("vòng lặp");
+  await page.getByRole("tab", { name: "Prerequisite graph" }).click();
+  await page.getByLabel("Learn first", { exact: true }).selectOption("a");
+  await page.getByLabel("Learn next", { exact: true }).selectOption("b");
+  await page.getByRole("button", { name: "Add edge" }).click();
+  await page.getByLabel("Learn first", { exact: true }).selectOption("b");
+  await page.getByLabel("Learn next", { exact: true }).selectOption("a");
+  await page.getByRole("button", { name: "Add edge" }).click();
+  await expect(page.getByRole("alert")).toContainText("cycle");
   await page
-    .getByRole("button", { name: "Xác nhận roadmap", exact: true })
+    .getByRole("button", { name: "Approve roadmap", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Xem roadmap →", exact: true }),
+    page.getByRole("button", { name: "View roadmap →", exact: true }),
   ).toBeVisible();
   expect(generated).toBe(1);
   expect(edges).toHaveLength(1);
   await page
-    .getByRole("button", { name: "Xem roadmap →", exact: true })
+    .getByRole("button", { name: "View roadmap →", exact: true })
     .click();
-  await page.getByRole("button", { name: "Xếp vào lịch", exact: true }).click();
-  await page.getByRole("button", { name: "Tạo lịch học", exact: true }).click();
+  await page.getByRole("button", { name: "Add to schedule", exact: true }).click();
+  await page.getByRole("button", { name: "Create schedule", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "New roadmap sessions" }),
   ).toBeVisible();
@@ -422,7 +422,7 @@ test("gradient fills survive scoped styles while account circles stay neutral", 
   await backend(page);
   await page.goto("/");
   await page
-    .getByRole("button", { name: "Thêm đề cương", exact: true })
+    .getByRole("button", { name: "Add syllabus", exact: true })
     .click();
   const settings = page.getByRole("button", {
     name: "Account settings",
@@ -482,7 +482,7 @@ test("saved gradients retain every stop, color the brand and upload labels, and 
   await backend(page);
   await page.goto("/");
   await page
-    .getByRole("button", { name: "Thêm đề cương", exact: true })
+    .getByRole("button", { name: "Add syllabus", exact: true })
     .click();
   const settings = page.getByRole("button", {
     name: "Account settings",
@@ -618,7 +618,7 @@ test("neon accents glow in all four themes and survive reload", async ({
   await backend(page);
   await page.goto("/");
   await page
-    .getByRole("button", { name: "Thêm đề cương", exact: true })
+    .getByRole("button", { name: "Add syllabus", exact: true })
     .click();
   const settings = page.getByRole("button", {
     name: "Account settings",
@@ -727,7 +727,7 @@ for (const accent of [
     await backend(page);
     await page.goto("/");
     await page
-      .getByRole("button", { name: "Thêm đề cương", exact: true })
+      .getByRole("button", { name: "Add syllabus", exact: true })
       .click();
     const account = page.getByRole("button", {
       name: "Account settings",

@@ -30,7 +30,7 @@ describe("VerifiedSourceCard component (Issue #104, #58, #94)", () => {
   it("shows the verified badge only for a verified source", () => {
     const { rerender } = render(<VerifiedSourceCard source={sampleSource} />);
     expect(
-      screen.getByRole("button", { name: /tiêu chí thẩm định/ }),
+      screen.getByRole("button", { name: /verified source criteria/i }),
     ).toBeTruthy();
     rerender(
       <VerifiedSourceCard
@@ -38,7 +38,7 @@ describe("VerifiedSourceCard component (Issue #104, #58, #94)", () => {
       />,
     );
     expect(
-      screen.queryByRole("button", { name: /tiêu chí thẩm định/ }),
+      screen.queryByRole("button", { name: /verified source criteria/i }),
     ).toBeNull();
   });
 
@@ -58,7 +58,7 @@ describe("VerifiedSourceCard component (Issue #104, #58, #94)", () => {
     ).toBeTruthy();
     expect(screen.getByText(/CC-BY-NC-SA-4.0/)).toBeTruthy();
     expect(screen.getByText("Video")).toBeTruthy();
-    expect(screen.getByText(/50 phút/)).toBeTruthy();
+    expect(screen.getByText(/50 min/)).toBeTruthy();
     expect(screen.getByText(/★ 92%/)).toBeTruthy();
     expect(
       screen.getByText(/Directly matches learning outcome CLO 1.2/),
@@ -74,14 +74,14 @@ describe("VerifiedSourceCard component (Issue #104, #58, #94)", () => {
     render(<VerifiedSourceCard source={sampleSource} />);
 
     const badgeBtn = screen.getByRole("button", {
-      name: /Xem tiêu chí thẩm định nguồn đã xác minh/i,
+      name: /View verified source criteria/i,
     });
     expect(screen.queryByRole("tooltip")).toBeNull();
 
     // Click to open
     fireEvent.click(badgeBtn);
     expect(screen.getByRole("tooltip")).toBeTruthy();
-    expect(screen.getByText(/Tiêu chí thẩm định nguồn uy tín/i)).toBeTruthy();
+    expect(screen.getByText(/Trusted source verification criteria/i)).toBeTruthy();
 
     // Press Escape to close
     fireEvent.keyDown(document, { key: "Escape" });
@@ -94,35 +94,35 @@ describe("VerifiedSourceCard component (Issue #104, #58, #94)", () => {
       <VerifiedSourceCard source={sampleSource} onFeedback={feedbackSpy} />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Hữu ích/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Helpful/ }));
     expect(feedbackSpy).toHaveBeenCalledWith(true);
 
-    fireEvent.click(screen.getByRole("button", { name: /Không hữu ích|Không phù hợp/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Not helpful|Not relevant/ }));
     expect(feedbackSpy).toHaveBeenCalledWith(false);
   });
 
-  it("never shows 'Đã xác minh' badge for an external source even if verification_status is set (Issue #159)", () => {
+  it("never shows 'Verified' badge for an external source even if verification_status is set (Issue #159)", () => {
     const externalSource: VerifiedSource = {
       ...sampleSource,
       kind: "external",
       verification_status: "verified",
     };
     render(<VerifiedSourceCard source={externalSource} />);
-    expect(screen.queryByRole("button", { name: /tiêu chí thẩm định/ })).toBeNull();
-    expect(screen.queryByText(/✓ Đã xác minh/)).toBeNull();
-    expect(screen.getByText(/Nguồn ngoài/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /verified source criteria/i })).toBeNull();
+    expect(screen.queryByText(/✓ Verified/)).toBeNull();
+    expect(screen.getByText(/External source/)).toBeTruthy();
   });
 
-  it("never shows 'Đã xác minh' badge for web kind sources", () => {
+  it("never shows 'Verified' badge for web kind sources", () => {
     const webSource: VerifiedSource = {
       ...sampleSource,
       kind: "web",
       verification_status: "verified",
     };
     render(<VerifiedSourceCard source={webSource} />);
-    expect(screen.queryByRole("button", { name: /tiêu chí thẩm định/ })).toBeNull();
-    expect(screen.queryByText(/✓ Đã xác minh/)).toBeNull();
-    expect(screen.getByText(/Nguồn ngoài/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /verified source criteria/i })).toBeNull();
+    expect(screen.queryByText(/✓ Verified/)).toBeNull();
+    expect(screen.getByText(/External source/)).toBeTruthy();
   });
 
   it("shows user material badge for user_material kind", () => {
@@ -131,29 +131,29 @@ describe("VerifiedSourceCard component (Issue #104, #58, #94)", () => {
       kind: "user_material",
     };
     render(<VerifiedSourceCard source={userMaterial} />);
-    expect(screen.getByText(/Tài liệu của bạn/)).toBeTruthy();
+    expect(screen.getByText(/Your material/)).toBeTruthy();
   });
 
   it("triggers pin callback when pin button is clicked", () => {
     const pinSpy = vi.fn();
     render(<VerifiedSourceCard source={sampleSource} onPin={pinSpy} />);
-    const pinBtn = screen.getByRole("button", { name: /Ghim/ });
+    const pinBtn = screen.getByRole("button", { name: /Pin/ });
     expect(pinBtn).toBeTruthy();
     fireEvent.click(pinBtn);
     expect(pinSpy).toHaveBeenCalledWith(true);
   });
 
-  it("renders InsufficientSourcesNotice with exact spec text 'Chưa tìm được nguồn đủ tốt'", () => {
+  it("renders InsufficientSourcesNotice with exact spec text 'No suitable sources found yet'", () => {
     const retrySpy = vi.fn();
     render(<InsufficientSourcesNotice onRetry={retrySpy} />);
 
-    expect(screen.getByText("Chưa tìm được nguồn đủ tốt")).toBeTruthy();
-    expect(screen.getByText(/Chưa có đủ tài liệu mở/)).toBeTruthy();
+    expect(screen.getByText("No suitable sources found yet")).toBeTruthy();
+    expect(screen.getByText(/Not enough open educational resources/)).toBeTruthy();
     expect(
-      screen.getByText(/ngưỡng chất lượng thẩm định ≥ 0.65/i),
+      screen.getByText(/quality threshold \(≥ 0.65\)/i),
     ).toBeTruthy();
 
-    const retryBtn = screen.getByRole("button", { name: "Tìm lại" });
+    const retryBtn = screen.getByRole("button", { name: "Search again" });
     fireEvent.click(retryBtn);
     expect(retrySpy).toHaveBeenCalled();
   });
@@ -171,5 +171,5 @@ it("does not claim a seven-criterion breakdown when the API returns no scores", 
     />,
   );
   expect(screen.getByText("★ 80%")).toBeTruthy();
-  expect(screen.queryByText(/7 tiêu chí/)).toBeNull();
+  expect(screen.queryByText(/7 criteria/)).toBeNull();
 });

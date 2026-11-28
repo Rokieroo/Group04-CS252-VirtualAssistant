@@ -10,18 +10,18 @@ const fixture: SyllabusDraft = {
   file_name: "CSC10014_syllabus.pdf",
   pages: 6,
   raw_text:
-    "CSC10014 · Nhập môn trợ lý ảo\nTuần 1: Problem framing, Solution ladder\nTuần 2: Retrieval\nGiữa kỳ: tuần 8 (30%)\nCuối kỳ: tuần 15 (70%)",
+    "CSC10014 · Introduction to Virtual Assistants\nWeek 1: Problem framing, Solution ladder\nWeek 2: Retrieval\nMidterm: week 8 (30%)\nFinal: week 15 (70%)",
   status: "draft",
   warnings: [],
   outcomes: [
     {
       code: "CLO1",
-      description: "Phát biểu bài toán và chọn bậc giải pháp phù hợp",
+      description: "Frame learning problems and choose the appropriate solution tier",
       source_page: 2,
     },
     {
       code: "CLO2",
-      description: "Đánh giá nguồn học và kết quả của trợ lý",
+      description: "Evaluate learning sources and assistant outputs",
       source_page: 2,
     },
   ],
@@ -32,18 +32,18 @@ const fixture: SyllabusDraft = {
     { week: 15, topics: ["Final review"], source_page: 5 },
   ],
   assessments: [
-    { name: "Giữa kỳ", weight: 30, due_week: 8, source_page: 5 },
-    { name: "Cuối kỳ", weight: 70, due_week: 15, source_page: 5 },
+    { name: "Midterm", weight: 30, due_week: 8, source_page: 5 },
+    { name: "Final", weight: 70, due_week: 15, source_page: 5 },
   ],
   textbooks: [
-    { title: "Tài liệu môn CSC10014", author: "Giảng viên", source_page: 6 },
+    { title: "CSC10014 Course Materials", author: "Instructor", source_page: 6 },
   ],
   source_pages: {
-    2: "CLO1: Phát biểu bài toán và chọn bậc giải pháp phù hợp. CLO2: Đánh giá nguồn học và kết quả của trợ lý.",
-    3: "Tuần 1: Problem framing; Solution ladder.",
-    4: "Tuần 2: Retrieval.",
-    5: "Giữa kỳ: 30%, tuần 8. Cuối kỳ: 70%, tuần 15.",
-    6: "Giáo trình: Tài liệu môn CSC10014.",
+    2: "CLO1: Frame learning problems and choose the appropriate solution tier. CLO2: Evaluate learning sources and assistant outputs.",
+    3: "Week 1: Problem framing; Solution ladder.",
+    4: "Week 2: Retrieval.",
+    5: "Midterm: 30%, week 8. Final: 70%, week 15.",
+    6: "Textbook: CSC10014 Course Materials.",
   },
 };
 const cloneFixture = () => structuredClone(fixture);
@@ -51,7 +51,7 @@ let mockConfirmed = cloneFixture();
 export const mockCoreService: CoreService = {
   async upload(file, options) {
     checkSyllabusInput(file);
-    const fileName = typeof file === "string" ? "Nội dung đã dán" : file.name;
+    const fileName = typeof file === "string" ? "Pasted content" : file.name;
     if (options?.goals && typeof file === "string") return goalsDraft(file);
     return parseSyllabusText(await readPages(file), fileName);
   },
@@ -89,7 +89,7 @@ function goalsDraft(text: string): SyllabusDraft {
   return {
     ...cloneFixture(),
     id: "sy_goals",
-    file_name: "Mục tiêu học tập",
+    file_name: "Learning goals",
     pages: 1,
     raw_text: text,
     outcomes: [],

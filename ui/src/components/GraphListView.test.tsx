@@ -47,12 +47,12 @@ describe("GraphListView Component (Accessible List Mode)", () => {
     render(<GraphListView nodes={sampleNodes} onSelect={vi.fn()} />);
 
     expect(
-      screen.getByRole("region", { name: "Danh sách chặng học tiếp cận" }),
+      screen.getByRole("region", { name: "Accessible stage list" }),
     ).toBeTruthy();
     expect(screen.getByRole("table")).toBeTruthy();
-    expect(screen.getByText("Tuần")).toBeTruthy();
-    expect(screen.getByText("Chặng học")).toBeTruthy();
-    expect(screen.getByText("Trạng thái")).toBeTruthy();
+    expect(screen.getByText("Week")).toBeTruthy();
+    expect(screen.getByText("Stage")).toBeTruthy();
+    expect(screen.getByText("Status")).toBeTruthy();
   });
 
   it("renders rows with proper badges, weeks and statuses", () => {
@@ -62,12 +62,12 @@ describe("GraphListView Component (Accessible List Mode)", () => {
     expect(screen.getByText("Hàng đợi ưu tiên và Heap")).toBeTruthy();
     expect(screen.getByText("Thi thực hành tuần 5")).toBeTruthy();
 
-    expect(screen.getByText("Đã vững")).toBeTruthy();
-    expect(screen.getByText("Cần ôn tập")).toBeTruthy();
-    expect(screen.getByText("Chưa học")).toBeTruthy();
+    expect(screen.getByText("Mastered")).toBeTruthy();
+    expect(screen.getByText("Review due")).toBeTruthy();
+    expect(screen.getByText("Not started")).toBeTruthy();
 
-    expect(screen.getByText("✓ 3 nguồn")).toBeTruthy();
-    expect(screen.getByText("⚠️ Chưa đủ")).toBeTruthy();
+    expect(screen.getByText("✓ 3 sources")).toBeTruthy();
+    expect(screen.getByText("⚠️ Insufficient")).toBeTruthy();
   });
 
   it("calls onSelect when row or detail button is clicked", () => {
@@ -75,12 +75,12 @@ describe("GraphListView Component (Accessible List Mode)", () => {
     render(<GraphListView nodes={sampleNodes} onSelect={onSelect} />);
 
     const topicBtn = screen.getByLabelText(
-      "Chọn chặng Cấu trúc dữ liệu mảng và danh sách",
+      "Select stage Cấu trúc dữ liệu mảng và danh sách",
     );
     fireEvent.click(topicBtn);
     expect(onSelect).toHaveBeenCalledWith("node-1");
 
-    const detailButtons = screen.getAllByText("Chi tiết");
+    const detailButtons = screen.getAllByText("Details");
     fireEvent.click(detailButtons[1]);
     expect(onSelect).toHaveBeenCalledWith("node-2");
   });
@@ -94,7 +94,7 @@ describe("GraphListView Component (Accessible List Mode)", () => {
       />,
     );
 
-    expect(screen.getByText("Đang chọn")).toBeTruthy();
+    expect(screen.getByText("Selected")).toBeTruthy();
     const rows = screen.getAllByRole("row");
     // Row 0 is header, Row 2 is node-2
     expect(rows[2].getAttribute("aria-selected")).toBe("true");
@@ -121,9 +121,9 @@ describe("GraphListView Component (Accessible List Mode)", () => {
         onSelect={vi.fn()}
       />,
     );
-    expect(screen.getByText(/0 nguồn đã xác minh/)).toBeTruthy();
-    expect(screen.getByText("✓ 2 nguồn")).toBeTruthy();
-    expect(screen.queryByText("✓ 4 nguồn")).toBeNull();
+    expect(screen.getByText(/0 verified sources/)).toBeTruthy();
+    expect(screen.getByText("✓ 2 sources")).toBeTruthy();
+    expect(screen.queryByText("✓ 4 sources")).toBeNull();
   });
   it("does not turn pending source checks into an insufficient verdict", () => {
     render(
@@ -140,8 +140,8 @@ describe("GraphListView Component (Accessible List Mode)", () => {
         onSelect={vi.fn()}
       />,
     );
-    expect(screen.getByText("Đang kiểm tra")).toBeTruthy();
-    expect(screen.queryByText(/0 nguồn đã xác minh/)).toBeNull();
-    expect(screen.getByText("Chưa có trạng thái")).toBeTruthy();
+    expect(screen.getByText("Checking")).toBeTruthy();
+    expect(screen.queryByText(/0 verified sources/)).toBeNull();
+    expect(screen.getByText("No status")).toBeTruthy();
   });
 });

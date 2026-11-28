@@ -251,15 +251,15 @@ export function GraphMinimap({
     <div
       className="graph-minimap"
       role="group"
-      aria-label="Bản đồ tổng quan đồ thị"
+      aria-label="Graph overview minimap"
     >
-      <span className="graph-minimap-label">Tổng quan ({nodeCount})</span>
+      <span className="graph-minimap-label">Overview ({nodeCount})</span>
       <canvas
         ref={canvasRef}
         className="graph-minimap-canvas"
         // A pointer shortcut only; keyboard and screen-reader users have the list view.
         aria-hidden="true"
-        title="Nhấn hoặc kéo để di chuyển góc nhìn"
+        title="Click or drag to pan viewport"
         style={{ touchAction: "none" }}
         onPointerDown={(e) => {
           e.stopPropagation();

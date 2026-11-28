@@ -83,7 +83,7 @@ def test_scan_text_finds_fake_key():
 
 def test_report_template_formats():
     text = REPORT_TEMPLATE.format(week=1, today="2026-10-24")
-    assert text.startswith("# Báo cáo QA tuần 1")
+    assert text.startswith("# Weekly QA Report - Week 1")
 
 
 def test_catalog_ingest_fills_csc10014_from_the_hand_lists_twice_without_new_rows(
@@ -103,9 +103,9 @@ def test_catalog_ingest_fills_csc10014_from_the_hand_lists_twice_without_new_row
     assert args.func(args) == 0
     second = capsys.readouterr().out
 
-    assert "== CSC10014: 13/13 chặng có >= 5 ứng viên pending/verified" in first
-    assert "[ OK ] manual_yaml" in first and "tạo {'courses'" in first
-    assert "tạo {}" in second and "13/13" in second
+    assert "== CSC10014: 13/13 stages have >= 5 pending/verified candidates" in first
+    assert "[ OK ] manual_yaml" in first and "created {'courses'" in first
+    assert "created {}" in second and "13/13" in second
 
 
 def test_run_returns_exit_code_and_handles_missing_command(monkeypatch, capsys):
@@ -130,7 +130,7 @@ def test_run_returns_exit_code_and_handles_missing_command(monkeypatch, capsys):
 
     monkeypatch.setattr(subprocess, "Popen", missing)
     assert devcli.run(["missing-cmd"]) == 127
-    assert "Không tìm thấy lệnh 'missing-cmd'" in capsys.readouterr().err
+    assert "Command 'missing-cmd' not found" in capsys.readouterr().err
 
 
 def test_run_handles_keyboard_interrupt_and_terminates_tree(monkeypatch):

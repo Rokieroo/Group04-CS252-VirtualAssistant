@@ -13,7 +13,7 @@ from devcli import ai, db, devops, qa, ui
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dev.py",
-        description="CLI phát triển dự án, chia theo 5 mảng: ui, ai, db, qa, devops.",
+        description="Project developer CLI organized across 5 domains: ui, ai, db, qa, devops.",
     )
     sub = parser.add_subparsers(dest="domain", required=True)
     for module in (ui, ai, db, qa, devops):
@@ -22,7 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    # Piped/redirected output on Windows defaults to cp1252, which turns Vietnamese into "?".
+    # Piped/redirected output on Windows defaults to cp1252, which can mangle non-ASCII characters.
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")

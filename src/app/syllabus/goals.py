@@ -38,7 +38,7 @@ def goals_syllabus(text: str) -> str:
     """The draft syllabus text for pasted goals; NotASyllabus when there are none."""
     items = goals(text)
     if not items:
-        raise NotASyllabus("Không thấy mục tiêu nào; mỗi dòng nên là một mục tiêu học.")
+        raise NotASyllabus("No learning goals found; enter one goal per line.")
     weeks = min(MAX_WEEKS, len(items))
     size, extra = divmod(len(items), weeks)
     lines, start = [HEADER], 0

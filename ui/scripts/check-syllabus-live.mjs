@@ -128,45 +128,45 @@ try {
         }),
       ).toBeVisible({ timeout: 20000 });
       await expect(
-        page.getByLabel("Mã CLO", { exact: true }).first(),
+        page.getByLabel("CLO code", { exact: true }).first(),
       ).toHaveValue("CLO1");
-      const citation = page.getByRole("button", { name: /^tr\. \d/ }).first();
+      const citation = page.getByRole("button", { name: /^p\. \d/ }).first();
       await citation.click();
       await expect(page.getByRole("dialog")).toContainText("CLO1");
       await page.keyboard.press("Escape");
       await expect(citation).toBeFocused();
       await page
-        .getByRole("tab", { name: "Tuần & chủ đề", exact: true })
+        .getByRole("tab", { name: "Weeks & topics", exact: true })
         .click();
-      await expect(page.getByLabel("Tuần", { exact: true })).toHaveCount(10);
-      await page.getByRole("tab", { name: "Giáo trình", exact: true }).click();
+      await expect(page.getByLabel("Week", { exact: true })).toHaveCount(10);
+      await page.getByRole("tab", { name: "Textbooks", exact: true }).click();
       await page
-        .getByRole("button", { name: "+ Thêm giáo trình", exact: true })
+        .getByRole("button", { name: "+ Add textbook", exact: true })
         .click();
       await page
-        .getByLabel("Tên giáo trình", { exact: true })
+        .getByLabel("Textbook title", { exact: true })
         .last()
         .fill("Reviewed CSC10014 notes");
       await page
-        .getByLabel("Tác giả", { exact: true })
+        .getByLabel("Author", { exact: true })
         .last()
         .fill("Course staff");
-      await page.getByRole("tab", { name: "Đánh giá", exact: true }).click();
-      const weight = page.getByLabel("Trọng số %", { exact: true }).first();
+      await page.getByRole("tab", { name: "Assessments", exact: true }).click();
+      const weight = page.getByLabel("Weight %", { exact: true }).first();
       const original = await weight.inputValue();
       await weight.fill("0");
       await expect(
-        page.getByRole("button", { name: "Xác nhận đề cương", exact: true }),
+        page.getByRole("button", { name: "Confirm syllabus", exact: true }),
       ).toBeDisabled();
       await weight.fill(original);
       await expect(
-        page.getByRole("button", { name: "Xác nhận đề cương", exact: true }),
+        page.getByRole("button", { name: "Confirm syllabus", exact: true }),
       ).toBeEnabled();
       await page
-        .getByRole("button", { name: "Xác nhận đề cương", exact: true })
+        .getByRole("button", { name: "Confirm syllabus", exact: true })
         .click();
       await expect(
-        page.getByRole("button", { name: "Đã xác nhận", exact: true }),
+        page.getByRole("button", { name: "Confirmed", exact: true }),
       ).toBeVisible();
       const headers = { Authorization: "Bearer " + token };
       const courses = await (

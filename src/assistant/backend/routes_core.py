@@ -124,7 +124,7 @@ def preview_syllabus(course_id: str, data: SyllabusParseIn, db: DB, user: Curren
             asdict(
                 Warning(
                     "estimated_schedule",
-                    "Lịch tuần được chia đều từ mục tiêu của bạn; hãy chỉnh lại cho vừa sức.",
+                    "Weekly schedule was split evenly from your goals; adjust it to match your pace.",
                 )
             )
         )

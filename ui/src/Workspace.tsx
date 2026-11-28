@@ -168,8 +168,8 @@ export default function Workspace() {
           onGoal={(id,title,form)=>void run(async()=>{
             await api.request(id?"/api/v1/goals/"+encodeURIComponent(id):"/api/v1/goals",id?"PATCH":"POST",{title,due_at:data.goals.find(g=>g.id===id)?.due_at ?? data.report.next_week_deadline});
             form.reset();
-          },"Đã lưu mục tiêu tuần sau.")}
-          onReminder={enabled=>void run(()=>api.request("/api/v1/me/learning-preferences","PATCH",{weekly_reminder:enabled}),"Đã lưu cài đặt nhắc nhở.")}
+          },"Next week's goal saved.")}
+          onReminder={enabled=>void run(()=>api.request("/api/v1/me/learning-preferences","PATCH",{weekly_reminder:enabled}),"Reminder setting saved.")}
           onAvailability={()=>{setTab("Planner");requestAnimationFrame(()=>document.getElementById("available-from")?.focus())}} />
         <div className="workspace-stats" aria-label="This week's progress">
           <div className="card"><b>{data.report.completed_tasks}/{data.report.total_tasks}</b><p>Tasks due this week completed</p></div>

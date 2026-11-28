@@ -9,26 +9,26 @@ from devcli import ROOT, run
 
 REPORTS = ROOT / "docs" / "notes" / "qa" / "reports"
 
-REPORT_TEMPLATE = """# Báo cáo QA tuần {week} (Weekly QA Report)
+REPORT_TEMPLATE = """# Weekly QA Report - Week {week}
 
-Báo cáo này tổng hợp kết quả kiểm thử của tuần {week}. Ngày tạo: {today}.
+This report summarizes QA results for week {week}. Created: {today}.
 
-## Kết luận
-- **Trạng thái**: _chưa điền_ (ví dụ: "Đạt, sẵn sàng demo" hoặc "Chưa đạt, còn 2 bug chặn")
+## Summary
+- **Status**: _pending_ (e.g., "Pass, ready for demo" or "Blocked, 2 critical bugs remaining")
 
-## Kết quả kiểm thử
-| Nhóm | Số test | Pass | Fail | Ghi chú |
+## Test Results
+| Group | Total | Pass | Fail | Notes |
 |---|---:|---:|---:|---|
-| Unit test (`dev qa test`) | | | | |
+| Unit tests (`dev qa test`) | | | | |
 | Benchmark (`dev ai benchmark stats`) | | | | |
-| Safeguard / red-team | | | | |
+| Safeguards / red-team | | | | |
 
-## Bug log
-| # | Mức độ | Mô tả | Role phụ trách | Issue | Trạng thái |
+## Bug Log
+| # | Severity | Description | Owner Role | Issue | Status |
 |---|---|---|---|---|---|
 
-## Hạn chế & Hướng cải thiện (Limitations)
-| # | Hạn chế | Hướng cải thiện |
+## Limitations & Improvements
+| # | Limitation | Next Steps |
 |---|---|---|
 """
 
@@ -45,22 +45,22 @@ def _report(args: argparse.Namespace) -> int:
     REPORTS.mkdir(parents=True, exist_ok=True)
     path = REPORTS / f"week-{args.week}.md"
     if path.exists():
-        print(f"{path.relative_to(ROOT)} đã tồn tại, không ghi đè.")
+        print(f"{path.relative_to(ROOT)} already exists; not overwriting.")
         return 1
     path.write_text(REPORT_TEMPLATE.format(week=args.week, today=datetime.now(UTC).date().isoformat()), encoding="utf-8")
-    print(f"[ OK ] Đã tạo {path.relative_to(ROOT)}")
+    print(f"[ OK ] Created {path.relative_to(ROOT)}")
     return 0
 
 
 def register(sub: argparse._SubParsersAction) -> None:
-    p = sub.add_parser("qa", help="QA/QC: chạy test, lint và tạo báo cáo QA hằng tuần")
+    p = sub.add_parser("qa", help="QA/QC: run tests, lint, and generate weekly QA reports")
     qa_sub = p.add_subparsers(dest="qa_command", required=True)
 
-    test = qa_sub.add_parser("test", help="chạy pytest; tham số thêm được chuyển cho pytest (vd: -k auth)")
+    test = qa_sub.add_parser("test", help="run pytest; extra arguments are forwarded to pytest (e.g. -k auth)")
     test.set_defaults(func=_test, pass_extra=True)
 
-    qa_sub.add_parser("lint", help="chạy ruff").set_defaults(func=_lint)
+    qa_sub.add_parser("lint", help="run ruff").set_defaults(func=_lint)
 
-    report = qa_sub.add_parser("report", help="tạo docs/notes/qa/reports/week-N.md từ template")
+    report = qa_sub.add_parser("report", help="create docs/notes/qa/reports/week-N.md from template")
     report.add_argument("--week", type=int, required=True)
     report.set_defaults(func=_report)

@@ -45,9 +45,9 @@ class StubProvider:
 def test_without_provider_the_reply_is_offline_and_grounded():
     reply = Companion().reply(context(mood="tired"), "Hi")
     assert (reply.provider, reply.fallback_reason) == ("offline", "not_configured")
-    assert "45 phút" in reply.text and "1/3" in reply.text
-    assert "Algebra, lúc 09:00 07/01" in reply.text  # local time, not UTC
-    assert "nghỉ ngơi" in reply.text
+    assert "45 minutes" in reply.text and "1/3" in reply.text
+    assert "Algebra, at 09:00 07/01" in reply.text  # local time, not UTC
+    assert "rest" in reply.text.lower()
 
 
 def test_provider_gets_prompt_facts_history_then_message_in_order():
@@ -69,7 +69,7 @@ def test_provider_failure_falls_back_offline():
     provider = StubProvider(error=ProviderUnavailable("ReadTimeout"))
     reply = Companion(provider).reply(context(next_session=None), "Hi")
     assert (reply.provider, reply.fallback_reason) == ("offline", "provider_unavailable")
-    assert "thêm giờ rảnh" in reply.text
+    assert "available hours" in reply.text
 
 
 @pytest.mark.parametrize(

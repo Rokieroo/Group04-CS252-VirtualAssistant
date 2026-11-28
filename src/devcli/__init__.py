@@ -33,7 +33,7 @@ def run(cmd: list[str], cwd: Path = ROOT) -> int:
         flags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) if os.name == "nt" else 0
         proc = subprocess.Popen(cmd, cwd=cwd, env=env, creationflags=flags)
     except FileNotFoundError:
-        print(f"Không tìm thấy lệnh '{cmd[0]}'. Hãy cài đặt nó trước (xem README).", file=sys.stderr)
+        print(f"Command '{cmd[0]}' not found. Please install it first (see README).", file=sys.stderr)
         return 127
     try:
         return proc.wait()

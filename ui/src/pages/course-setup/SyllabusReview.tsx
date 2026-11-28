@@ -8,10 +8,10 @@ type Sections = Pick<
 >;
 type ReviewTab = keyof Sections;
 const tabs: { id: ReviewTab; label: string }[] = [
-  { id: "outcomes", label: "Chuẩn đầu ra" },
-  { id: "weeks", label: "Tuần & chủ đề" },
-  { id: "assessments", label: "Đánh giá" },
-  { id: "textbooks", label: "Giáo trình" },
+  { id: "outcomes", label: "Learning outcomes" },
+  { id: "weeks", label: "Weeks & topics" },
+  { id: "assessments", label: "Assessments" },
+  { id: "textbooks", label: "Textbooks" },
 ];
 
 type Props = {
@@ -64,9 +64,9 @@ export function SyllabusReview({
     <section className="card core-panel" aria-labelledby="s4-title">
       <fieldset aria-busy={busy} disabled={busy} className="core-review-form">
         <div>
-          <span className="core-kicker">S4 · Kiểm tra</span>
-          <h2 id="s4-title">Duyệt đề cương</h2>
-          <p>Sửa từng phần trước khi xác nhận.</p>
+          <span className="core-kicker">S4 · Review</span>
+          <h2 id="s4-title">Review syllabus</h2>
+          <p>Edit each section before confirming.</p>
         </div>
         {warnings.length > 0 && (
           <div className="core-warning" role="alert">
@@ -89,8 +89,8 @@ export function SyllabusReview({
                         })
                       }
                     />
-                    Tôi đã kiểm tra trang nguồn và nhập lại nội dung bị thiếu
-                    hoặc sai.
+                    I have checked the source page and corrected any missing or
+                    inaccurate content.
                   </label>
                 )}
               </div>
@@ -98,7 +98,7 @@ export function SyllabusReview({
           </div>
         )}
         <details>
-          <summary>Thông tin môn học</summary>
+          <summary>Course information</summary>
           <div className="core-fields">
             {[
               "code",
@@ -111,12 +111,12 @@ export function SyllabusReview({
               <label key={key}>
                 {
                   {
-                    code: "Mã môn",
-                    title: "Tên môn",
-                    credits: "Tín chỉ",
-                    term_start: "Ngày bắt đầu",
-                    term_end: "Ngày kết thúc",
-                    language: "Ngôn ngữ",
+                    code: "Course code",
+                    title: "Course title",
+                    credits: "Credits",
+                    term_start: "Start date",
+                    term_end: "End date",
+                    language: "Language",
                   }[key]
                 }
                 <input
@@ -142,7 +142,7 @@ export function SyllabusReview({
         <TabList
           className="study-tabs"
           role="tablist"
-          aria-label="Các phần đề cương"
+          aria-label="Syllabus sections"
           size="lg"
           hasDivider
           value={reviewTab}
@@ -171,7 +171,7 @@ export function SyllabusReview({
                 {draft?.outcomes.map((o, i) => (
                   <div className="core-row" key={i}>
                     <label>
-                      Mã CLO
+                      CLO code
                       <input
                         value={o.code}
                         onChange={(e) =>
@@ -180,7 +180,7 @@ export function SyllabusReview({
                       />
                     </label>
                     <label>
-                      Mục tiêu
+                      Outcome description
                       <input
                         value={o.description}
                         onChange={(e) =>
@@ -191,7 +191,7 @@ export function SyllabusReview({
                       />
                     </label>
                     <label>
-                      Mức Bloom
+                      Bloom level
                       <select
                         value={o.bloom_level ?? "understand"}
                         onChange={(e) =>
@@ -214,7 +214,7 @@ export function SyllabusReview({
                     </label>
                     {sourceChip(o.source_page)}
                     <button onClick={() => removeRow("outcomes", i)}>
-                      Xóa
+                      Delete
                     </button>
                   </div>
                 ))}
@@ -232,7 +232,7 @@ export function SyllabusReview({
                     })
                   }
                 >
-                  + Thêm chuẩn đầu ra
+                  + Add learning outcome
                 </button>
               </>
             )}
@@ -241,7 +241,7 @@ export function SyllabusReview({
                 {draft?.weeks.map((w, i) => (
                   <div className="core-row" key={i}>
                     <label>
-                      Tuần
+                      Week
                       <input
                         type="number"
                         min="1"
@@ -252,7 +252,7 @@ export function SyllabusReview({
                       />
                     </label>
                     <label>
-                      Chủ đề (cách nhau bằng dấu phẩy)
+                      Topics (comma-separated)
                       <input
                         value={w.topics.join(", ")}
                         onChange={(e) =>
@@ -265,7 +265,7 @@ export function SyllabusReview({
                       />
                     </label>
                     <label>
-                      Bài đọc (mỗi dòng một mục)
+                      Readings (one per line)
                       <textarea
                         value={(w.readings ?? []).join("\n")}
                         onChange={(e) =>
@@ -283,10 +283,10 @@ export function SyllabusReview({
                           editRow("weeks", i, { estimated: e.target.checked })
                         }
                       />
-                      Tuần ước lượng
+                      Estimated week
                     </label>
                     {sourceChip(w.source_page)}
-                    <button onClick={() => removeRow("weeks", i)}>Xóa</button>
+                    <button onClick={() => removeRow("weeks", i)}>Delete</button>
                   </div>
                 ))}
                 <button
@@ -300,7 +300,7 @@ export function SyllabusReview({
                     })
                   }
                 >
-                  + Thêm tuần
+                  + Add week
                 </button>
               </>
             )}
@@ -309,7 +309,7 @@ export function SyllabusReview({
                 {draft?.assessments.map((a, i) => (
                   <div className="core-row" key={i}>
                     <label>
-                      Tên đánh giá
+                      Assessment name
                       <input
                         value={a.name}
                         onChange={(e) =>
@@ -318,7 +318,7 @@ export function SyllabusReview({
                       />
                     </label>
                     <label>
-                      Trọng số %
+                      Weight %
                       <input
                         type="number"
                         min="0"
@@ -332,7 +332,7 @@ export function SyllabusReview({
                       />
                     </label>
                     <label>
-                      Tuần
+                      Week
                       <input
                         type="number"
                         min="1"
@@ -346,7 +346,7 @@ export function SyllabusReview({
                       />
                     </label>
                     <label>
-                      Ngày hạn (thay cho tuần)
+                      Due date (instead of week)
                       <input
                         type="date"
                         value={a.due_date ?? ""}
@@ -359,7 +359,7 @@ export function SyllabusReview({
                       />
                     </label>
                     <label>
-                      Loại
+                      Type
                       <select
                         value={a.kind ?? "other"}
                         onChange={(e) =>
@@ -380,7 +380,7 @@ export function SyllabusReview({
                     </label>
                     {sourceChip(a.source_page)}
                     <button onClick={() => removeRow("assessments", i)}>
-                      Xóa
+                      Delete
                     </button>
                   </div>
                 ))}
@@ -395,7 +395,7 @@ export function SyllabusReview({
                     })
                   }
                 >
-                  + Thêm đánh giá
+                  + Add assessment
                 </button>
               </>
             )}
@@ -404,7 +404,7 @@ export function SyllabusReview({
                 {draft?.textbooks.map((b, i) => (
                   <div className="core-row" key={i}>
                     <label>
-                      Tên giáo trình
+                      Textbook title
                       <input
                         value={b.title}
                         onChange={(e) =>
@@ -413,7 +413,7 @@ export function SyllabusReview({
                       />
                     </label>
                     <label>
-                      Tác giả
+                      Author
                       <input
                         value={b.author}
                         onChange={(e) =>
@@ -422,7 +422,7 @@ export function SyllabusReview({
                       />
                     </label>
                     <label>
-                      Bắt buộc
+                      Required
                       <select
                         value={
                           b.required === undefined
@@ -438,14 +438,14 @@ export function SyllabusReview({
                           })
                         }
                       >
-                        <option value="unknown">Chưa rõ</option>
-                        <option value="true">Có</option>
-                        <option value="false">Không</option>
+                        <option value="unknown">Unknown</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
                       </select>
                     </label>
                     {sourceChip(b.source_page)}
                     <button onClick={() => removeRow("textbooks", i)}>
-                      Xóa
+                      Delete
                     </button>
                   </div>
                 ))}
@@ -460,7 +460,7 @@ export function SyllabusReview({
                     })
                   }
                 >
-                  + Thêm giáo trình
+                  + Add textbook
                 </button>
               </>
             )}
@@ -487,31 +487,31 @@ export function SyllabusReview({
         </div>
         {!mock && (
           <p className="hint">
-            Toàn bộ bản duyệt và trang nguồn được lưu khi xác nhận.
+            All reviewed fields and source pages are saved upon confirmation.
           </p>
         )}
         {draft.status === "confirmed" && (
           <p role="status">
-            Đã lưu bản duyệt đề cương. Bạn có thể tiếp tục tạo roadmap.
+            Syllabus review saved. You can now generate your roadmap.
           </p>
         )}
         <div className="core-actions">
-          <button onClick={() => onBack()}>Tải lại</button>
+          <button onClick={() => onBack()}>Re-upload</button>
           <button
             className="primary-action"
             disabled={blocked || busy || draft?.status === "confirmed"}
             onClick={confirm}
           >
             {draft?.status === "confirmed"
-              ? "Đã xác nhận"
-              : "Xác nhận đề cương"}
+              ? "Confirmed"
+              : "Confirm syllabus"}
           </button>
           <button
             disabled={draft?.status !== "confirmed" || busy}
             ref={nextStep}
             onClick={generate}
           >
-            Tạo roadmap →
+            Generate roadmap →
           </button>
         </div>
       </fieldset>

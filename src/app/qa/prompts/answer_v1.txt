@@ -10,7 +10,7 @@ Rules:
   - `quote`: an EXACT, VERBATIM substring (5 to 30 words) copied from that snippet.
 - Return strictly JSON matching this format:
   {
-    "answer": "Your concise answer in the same language as the question.",
+    "answer": "Your concise answer in English.",
     "citations": [
       {
         "source_id": "s_12",

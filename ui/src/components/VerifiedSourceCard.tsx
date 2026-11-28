@@ -34,15 +34,15 @@ export type VerifiedSourceCardProps = {
 
 const formatNames: Record<string, string> = {
   video: "Video",
-  article: "Bài viết / Đọc",
-  exercise: "Bài tập",
-  book: "Sách / PDF",
-  course: "Khóa học",
-  paper: "Bài báo khoa học",
+  article: "Article / Reading",
+  exercise: "Exercise",
+  book: "Book / PDF",
+  course: "Course",
+  paper: "Research paper",
 };
 
 export function formatLabel(format?: string): string {
-  if (!format) return "Tài liệu";
+  if (!format) return "Material";
   return formatNames[format.toLowerCase()] || format;
 }
 
@@ -107,7 +107,7 @@ export function VerifiedSourceCard({
   return (
     <article
       className={`verified-source-card ${compact ? "compact" : ""} ${source.pinned ? "pinned" : ""} ${className}`}
-      aria-label={`Nguồn học: ${source.title}`}
+      aria-label={`Learning source: ${source.title}`}
     >
       <div className="vsc-header">
         <div className="vsc-title-area">
@@ -125,7 +125,7 @@ export function VerifiedSourceCard({
           )}
 
           {domain && (
-            <span className="vsc-domain-chip" title="Tên miền thật">
+            <span className="vsc-domain-chip" title="Actual domain">
               🌐 <strong>{domain}</strong>
             </span>
           )}
@@ -135,19 +135,19 @@ export function VerifiedSourceCard({
           {isUserMaterial && (
             <span
               className="vsc-badge vsc-badge-user-material"
-              title="Tài liệu do bạn tải lên"
+              title="Material uploaded by you"
             >
-              📂 Tài liệu của bạn
+              📂 Your material
             </span>
           )}
 
           {isExternal && (
             <span
               className="vsc-badge vsc-badge-external"
-              title="Nguồn ngoài chưa qua thẩm định nội dung"
-              aria-label="Nguồn ngoài (chưa xác minh)"
+              title="External source not yet verified"
+              aria-label="External source (unverified)"
             >
-              🌐 Nguồn ngoài (chưa xác minh)
+              🌐 External source (unverified)
             </span>
           )}
 
@@ -158,10 +158,10 @@ export function VerifiedSourceCard({
                 className="vsc-badge vsc-badge-verified"
                 onClick={() => setShowCriteria(!showCriteria)}
                 aria-expanded={showCriteria}
-                aria-label="Xem tiêu chí thẩm định nguồn đã xác minh"
-                title="Nhấn để xem tiêu chí thẩm định"
+                aria-label="View verified source criteria"
+                title="Click to view verification criteria"
               >
-                ✓ Đã xác minh{" "}
+                ✓ Verified{" "}
                 {source.verified_at ? `· ${source.verified_at}` : ""}
               </button>
 
@@ -169,26 +169,25 @@ export function VerifiedSourceCard({
                 <div
                   className="vsc-criteria-tooltip"
                   role="tooltip"
-                  aria-label="Tiêu chí thẩm định nguồn"
+                  aria-label="Source verification criteria"
                 >
                   {/* The four checks of app/catalog/verification.py CHECKS (#101). */}
-                  <h4>Tiêu chí thẩm định nguồn uy tín</h4>
+                  <h4>Trusted source verification criteria</h4>
                   <ul>
                     <li>
-                      <strong>Tải được:</strong> trang mở được, robots.txt cho
-                      phép và có nội dung đọc được.
+                      <strong>Fetchable:</strong> page loads cleanly, robots.txt
+                      allows access, and readable content is present.
                     </li>
                     <li>
-                      <strong>Tên miền:</strong> thuộc trường hoặc tổ chức giáo
-                      dục trong danh sách tin cậy.
+                      <strong>Domain:</strong> belongs to an institution or
+                      educational provider on the trusted list.
                     </li>
                     <li>
-                      <strong>Giấy phép:</strong> giấy phép mở được nhận diện rõ
-                      ràng.
+                      <strong>License:</strong> clear, recognized open license.
                     </li>
                     <li>
-                      <strong>Thông tin mô tả:</strong> có tiêu đề, định dạng và
-                      ngôn ngữ hợp lệ.
+                      <strong>Metadata:</strong> valid title, format, and
+                      language metadata.
                     </li>
                   </ul>
                 </div>
@@ -204,14 +203,14 @@ export function VerifiedSourceCard({
 
           {source.duration_min ? (
             <span className="vsc-badge vsc-badge-duration">
-              ⏱ {source.duration_min} phút
+              ⏱ {source.duration_min} min
             </span>
           ) : null}
 
           {source.license && (
             <span
               className="vsc-badge vsc-badge-license"
-              title="Giấy phép nội dung"
+              title="Content license"
             >
               📜 {source.license}
             </span>
@@ -229,22 +228,22 @@ export function VerifiedSourceCard({
         <div className="vsc-meta-line">
           <span className="vsc-institution">🏫 {institutionOrProvider}</span>
           {source.pages && source.pages.length > 0 && (
-            <span>· Trang {source.pages.join(", ")}</span>
+            <span>· Page {source.pages.join(", ")}</span>
           )}
         </div>
       )}
 
       {source.reason && (
         <p className="vsc-reason">
-          <strong>Lý do chọn:</strong> {source.reason}
+          <strong>Why selected:</strong> {source.reason}
         </p>
       )}
 
       {source.score !== undefined && hasBreakdown && (
         <details className="vsc-breakdown">
           <summary className="vsc-badge vsc-badge-score">
-            ★ {Math.round(source.score * 100)}% ({breakdownEntries.length} tiêu
-            chí)
+            ★ {Math.round(source.score * 100)}% ({breakdownEntries.length}{" "}
+            criteria)
           </summary>
           <dl className="vsc-breakdown-grid">
             {breakdownEntries.map(([criterion, value]) => (
@@ -258,7 +257,7 @@ export function VerifiedSourceCard({
       )}
 
       {source.evidence_quote && (
-        <blockquote className="vsc-quote-box" title="Đoạn trích minh chứng">
+        <blockquote className="vsc-quote-box" title="Supporting quote">
           "{source.evidence_quote}"
         </blockquote>
       )}
@@ -271,17 +270,17 @@ export function VerifiedSourceCard({
                 type="button"
                 className="vsc-feedback-btn"
                 onClick={() => onFeedback(true)}
-                title="Đánh giá nguồn học này là hữu ích"
+                title="Mark this source as helpful"
               >
-                👍 Hữu ích
+                👍 Helpful
               </button>
               <button
                 type="button"
                 className="vsc-feedback-btn"
                 onClick={() => onFeedback(false)}
-                title="Đánh giá nguồn học này là không phù hợp"
+                title="Mark this source as not relevant"
               >
-                👎 Không phù hợp
+                👎 Not relevant
               </button>
             </>
           )}
@@ -290,9 +289,9 @@ export function VerifiedSourceCard({
               type="button"
               className={`vsc-pin-btn ${source.pinned ? "pinned" : ""}`}
               onClick={() => onPin(!source.pinned)}
-              title={source.pinned ? "Bỏ ghim" : "Ghim lên đầu"}
+              title={source.pinned ? "Unpin" : "Pin to top"}
             >
-              {source.pinned ? "📌 Đã ghim" : "📌 Ghim"}
+              {source.pinned ? "📌 Pinned" : "📌 Pin"}
             </button>
           )}
         </div>
@@ -317,11 +316,11 @@ export function InsufficientSourcesNotice({
     <div className="vsc-insufficient-notice" role="status">
       <div className="vsc-insufficient-header">
         <span aria-hidden="true">⚠️</span>
-        <h4 className="vsc-insufficient-title">Chưa tìm được nguồn đủ tốt</h4>
+        <h4 className="vsc-insufficient-title">No suitable sources found yet</h4>
       </div>
       <p className="vsc-insufficient-desc">
-        Chưa có đủ tài liệu mở đạt ngưỡng chất lượng thẩm định ≥ 0.65 cho chặng
-        này.
+        Not enough open educational resources meeting the verification quality
+        threshold (≥ 0.65) were found for this stage yet.
       </p>
       {onRetry && (
         <div>
@@ -331,7 +330,7 @@ export function InsufficientSourcesNotice({
             onClick={onRetry}
             disabled={busy}
           >
-            {busy ? "Đang tìm kiếm…" : "Tìm lại"}
+            {busy ? "Searching…" : "Search again"}
           </button>
         </div>
       )}

@@ -109,13 +109,13 @@ def _fit(item: TodayItem, budget: int) -> TodayItem | None:
                 item,
                 minutes=count * REVIEW_MINUTES,
                 item_ids=item.item_ids[:count],
-                reason=f"{item.reason} · hôm nay đủ thời gian cho {count}/{len(item.item_ids)} thẻ",
+                reason=f"{item.reason} · enough time today for {count}/{len(item.item_ids)} cards",
             )
     elif budget >= MIN_STUDY_MINUTES:
         return replace(
             item,
             minutes=budget,
-            reason=f"{item.reason} · hôm nay học {budget}/{item.minutes} phút",
+            reason=f"{item.reason} · study {budget}/{item.minutes} min today",
         )
     return None
 
@@ -139,15 +139,21 @@ def _candidates(learner: LearnerDay) -> list[TodayItem]:
 
     for node in ready:
         if node.planned_today:
-            add(node, "Lịch học đã xếp chặng này vào hôm nay")
+            add(node, "Scheduled on your study plan for today")
 
     for milestone in _checkpoints(learner):
         days = _days(milestone.due_at, learner)
         path = learning_path(list(by_id), learner.edges, milestone.id)
         left = [key for key in path if not by_id[key].done and key != milestone.id]
         for key in left:
-            add(by_id[key], f"{milestone.title} {_when(days)}, còn {len(left)} chặng phải học trước")
-        add(milestone, f"{milestone.title} {_when(days)}: các chặng cần thiết đã xong, ôn lại trước khi kiểm tra")
+            add(
+                by_id[key],
+                f"{milestone.title} {_when(days)}, {_count(len(left), 'prerequisite stage')} left",
+            )
+        add(
+            milestone,
+            f"{milestone.title} {_when(days)}: prerequisites done, review before the assessment",
+        )
 
     for node in sorted(ready, key=lambda n: (n.due_at is None, n.due_at or learner.ends_at)):
         if node.release_at is None or node.release_at < learner.ends_at:
@@ -202,13 +208,13 @@ def _reviews(learner: LearnerDay, by_id: dict[str, StudyNode]) -> list[TodayItem
     for node_id, cards in sorted(groups.items(), key=lambda group: group[1][0].due_at):
         node = by_id.get(node_id)
         overdue = -_days(cards[0].due_at, learner)
-        reason = f"{len(cards)} thẻ ôn tập đến hạn theo FSRS"
+        reason = f"{_count(len(cards), 'FSRS review card')} due"
         if overdue > 0:
-            reason += f", thẻ cũ nhất quá hạn {overdue} ngày"
+            reason += f", oldest overdue by {_count(overdue, 'day')}"
         items.append(
             TodayItem(
                 "review",
-                f"Ôn tập: {node.title}" if node else "Ôn tập thẻ đến hạn",
+                f"Review: {node.title}" if node else "Review due cards",
                 len(cards) * REVIEW_MINUTES,
                 reason,
                 node.id if node else None,
@@ -221,14 +227,14 @@ def _reviews(learner: LearnerDay, by_id: dict[str, StudyNode]) -> list[TodayItem
 def _open_reason(node: StudyNode, has_prerequisites: bool, learner: LearnerDay) -> str:
     parts = []
     if node.release_at is not None:
-        parts.append("Đã đến tuần học của chặng này")
+        parts.append("This stage's study week has started")
     if node.due_at is not None:
         days = _days(node.due_at, learner)
-        parts.append(f"quá hạn {-days} ngày" if days < 0 else f"hạn {_when(days)}")
+        parts.append(f"overdue by {_count(-days, 'day')}" if days < 0 else f"due {_when(days)}")
     if has_prerequisites:
-        parts.append("các chặng tiên quyết đã xong")
+        parts.append("prerequisites completed")
     if not parts:
-        parts.append("chặng tiếp theo trong lộ trình")
+        parts.append("next stage on the roadmap")
     reason = " · ".join(parts)
     return reason[0].upper() + reason[1:]
 
@@ -239,4 +245,8 @@ def _days(moment: datetime, learner: LearnerDay) -> int:
 
 
 def _when(days: int) -> str:
-    return "hôm nay" if days == 0 else f"còn {days} ngày"
+    return "today" if days == 0 else f"in {_count(days, 'day')}"
+
+
+def _count(n: int, noun: str) -> str:
+    return f"{n} {noun}" if n == 1 else f"{n} {noun}s"

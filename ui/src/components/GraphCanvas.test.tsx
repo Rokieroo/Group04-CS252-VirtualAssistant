@@ -116,8 +116,8 @@ describe("GraphCanvas Component", () => {
       <GraphCanvas nodes={sampleNodes} edges={sampleEdges} layout="week" />,
     );
 
-    expect(screen.getByText("Theo tuần")).toBeTruthy();
-    expect(screen.getByText("Lực (Obsidian)")).toBeTruthy();
+    expect(screen.getByText("By week")).toBeTruthy();
+    expect(screen.getByText("Force (Obsidian)")).toBeTruthy();
     expect(
       screen.getByRole("region", { name: "Knowledge Graph Canvas" }),
     ).toBeTruthy();
@@ -134,7 +134,7 @@ describe("GraphCanvas Component", () => {
       />,
     );
 
-    const forceBtn = screen.getByText("Lực (Obsidian)");
+    const forceBtn = screen.getByText("Force (Obsidian)");
     fireEvent.click(forceBtn);
     expect(onLayoutModeChange).toHaveBeenCalledWith("force");
   });
@@ -153,7 +153,7 @@ describe("GraphCanvas Component", () => {
 
     expect(
       screen.getByText(
-        /Chu trình tiên quyết bị chặn: node-2 → node-1 → node-2/i,
+        /Prerequisite cycle blocked: node-2 → node-1 → node-2/i,
       ),
     ).toBeTruthy();
     expect(onEdgeCreate).not.toHaveBeenCalled();
@@ -164,9 +164,9 @@ describe("GraphCanvas Component", () => {
       <GraphCanvas nodes={sampleNodes} edges={sampleEdges} layout="week" />,
     );
 
-    const zoomInBtn = screen.getByLabelText("Phóng to");
-    const zoomOutBtn = screen.getByLabelText("Thu nhỏ");
-    const resetBtn = screen.getByLabelText("Đặt lại góc nhìn");
+    const zoomInBtn = screen.getByLabelText("Zoom in");
+    const zoomOutBtn = screen.getByLabelText("Zoom out");
+    const resetBtn = screen.getByLabelText("Reset view");
 
     fireEvent.click(zoomInBtn);
     expect(screen.getByText("120%")).toBeTruthy();

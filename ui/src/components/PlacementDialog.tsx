@@ -56,23 +56,23 @@ export function PlacementDialog({
   const last = state?.last_attempt;
   const question = state?.status === "active" ? state.question : null;
   return (
-    <Modal title="Kiểm tra xếp lớp" onClose={onClose}>
+    <Modal title="Placement check" onClose={onClose}>
       {error && <p role="alert">{error}</p>}
       {last && (
         <p role="status">
-          {last.correct ? "Đúng." : "Chưa đúng."} Đáp án của nguồn:{" "}
+          {last.correct ? "Correct." : "Not quite."} Source answer:{" "}
           {last.source_answer ?? "—"}
         </p>
       )}
       {state && question && (
         <form onSubmit={submit}>
           <p className="sm">
-            Câu {state.asked + 1} / tối đa {state.max_questions} · {question.title}
+            Question {state.asked + 1} / max {state.max_questions} · {question.title}
           </p>
           <p>{question.exercise.prompt}</p>
           {question.exercise.choices.length > 0 ? (
             <fieldset>
-              <legend className="sm">Chọn một đáp án</legend>
+              <legend className="sm">Choose one answer</legend>
               {question.exercise.choices.map((choice) => (
                 <label key={choice}>
                   <input
@@ -88,7 +88,7 @@ export function PlacementDialog({
             </fieldset>
           ) : (
             <label>
-              Câu trả lời
+              Your answer
               <input
                 value={response}
                 maxLength={4000}
@@ -101,7 +101,7 @@ export function PlacementDialog({
             {question.exercise.citation.institution ||
               question.exercise.citation.title}
             {question.exercise.citation.page
-              ? ` · Trang ${question.exercise.citation.page}`
+              ? ` · Page ${question.exercise.citation.page}`
               : ""}
           </p>
           <button
@@ -109,32 +109,32 @@ export function PlacementDialog({
             type="submit"
             disabled={busy || !response.trim()}
           >
-            Trả lời
+            Submit answer
           </button>
         </form>
       )}
       {state?.status === "finished" && (
         <div role="status">
           <p>
-            Bạn đã biết {state.known.length} chặng: lộ trình bớt{" "}
-            {state.known_minutes} / {state.total_minutes} phút.
+            You already know {state.known.length} stages: roadmap shortened by{" "}
+            {state.known_minutes} / {state.total_minutes} min.
           </p>
           {state.skipped.length > 0 && (
             <p className="sm">
-              {state.skipped.length} chặng chưa có bài tập để kiểm tra nên giữ
-              nguyên.
+              {state.skipped.length} stages had no exercises to test and were
+              kept as-is.
             </p>
           )}
           <p className="sm">
-            Các chặng đã biết được tô trên graph; mở một chặng để sửa nếu chưa
-            đúng.
+            Known stages are marked on the graph; open any stage to adjust if
+            needed.
           </p>
           <button className="button" type="button" onClick={onClose}>
-            Xem graph
+            View graph
           </button>
         </div>
       )}
-      {busy && !state && <p role="status">Đang chuẩn bị câu hỏi…</p>}
+      {busy && !state && <p role="status">Preparing questions…</p>}
     </Modal>
   );
 }

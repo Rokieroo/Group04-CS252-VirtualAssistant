@@ -115,20 +115,20 @@ describe("CoreJourney Knowledge Graph loading & edge choices", () => {
 
     // Authoritative graph node renders even though /graph/layout failed.
     await screen.findByRole("button", {
-      name: "Chọn chặng Authoritative Topic",
+      name: "Select stage Authoritative Topic",
     });
     expect(
-      await screen.findByRole("button", { name: "Thử tải lại vị trí" }),
+      await screen.findByRole("button", { name: "Retry loading layout" }),
     ).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: "Retry graph loading" }),
     ).toBeNull();
 
     // Retry layout loading recovers cleanly without re-failing graph.
-    fireEvent.click(screen.getByRole("button", { name: "Thử tải lại vị trí" }));
+    fireEvent.click(screen.getByRole("button", { name: "Retry loading layout" }));
     await waitFor(() => {
       expect(
-        screen.queryByRole("button", { name: "Thử tải lại vị trí" }),
+        screen.queryByRole("button", { name: "Retry loading layout" }),
       ).toBeNull();
     });
     expect(layoutAttempt).toBe(2);
@@ -189,12 +189,12 @@ describe("CoreJourney Knowledge Graph loading & edge choices", () => {
       name: "Retry graph loading",
     });
     expect(
-      screen.queryByRole("button", { name: "Thử tải lại vị trí" }),
+      screen.queryByRole("button", { name: "Retry loading layout" }),
     ).toBeNull();
 
     fireEvent.click(retryGraph);
     await screen.findByRole("button", {
-      name: "Chọn chặng Recovered Graph Node",
+      name: "Select stage Recovered Graph Node",
     });
     expect(
       screen.queryByRole("button", { name: "Retry graph loading" }),
@@ -293,17 +293,17 @@ describe("CoreJourney Knowledge Graph loading & edge choices", () => {
     render(<CoreJourney page="Library" go={vi.fn()} courseId="c1" resumeSyllabus />);
 
     // 1. Generate first roadmap (rm-slow) and open its Graph tab while graph/layout stay in flight.
-    fireEvent.click(await screen.findByRole("button", { name: "Tạo roadmap →" }));
-    fireEvent.click(await screen.findByRole("tab", { name: "Graph tiên quyết" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Generate roadmap →" }));
+    fireEvent.click(await screen.findByRole("tab", { name: "Prerequisite graph" }));
     expect(screen.getByRole("button", { name: "Slow Seed" })).toBeTruthy();
 
     // 2. Switch to a second roadmap (rm-fast) in the same mounted CoreJourney instance.
-    fireEvent.click(screen.getByRole("button", { name: "← Quay lại sửa đề cương" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Tạo roadmap →" }));
-    await screen.findByRole("tab", { name: "Graph tiên quyết" });
-    await screen.findByRole("button", { name: "Danh sách" });
-    fireEvent.click(screen.getByRole("button", { name: "Danh sách" }));
-    await screen.findByRole("button", { name: "Chọn chặng Fast Active Topic" });
+    fireEvent.click(screen.getByRole("button", { name: "← Back to edit syllabus" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Generate roadmap →" }));
+    await screen.findByRole("tab", { name: "Prerequisite graph" });
+    await screen.findByRole("button", { name: "List" });
+    fireEvent.click(screen.getByRole("button", { name: "List" }));
+    await screen.findByRole("button", { name: "Select stage Fast Active Topic" });
 
     // 3. Resolve rm-slow's stale responses AFTER rm-fast is active; rm-fast must not be overwritten.
     slowGraph.resolve(
@@ -326,8 +326,8 @@ describe("CoreJourney Knowledge Graph loading & edge choices", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Chọn chặng Fast Active Topic" })).toBeTruthy();
-      expect(screen.queryByRole("button", { name: "Chọn chặng Stale Slow Topic" })).toBeNull();
+      expect(screen.getByRole("button", { name: "Select stage Fast Active Topic" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Select stage Stale Slow Topic" })).toBeNull();
     });
   });
 
@@ -393,34 +393,34 @@ describe("CoreJourney Knowledge Graph loading & edge choices", () => {
     );
 
     render(<CoreJourney page="Roadmap" go={vi.fn()} />);
-    const parentSelect = await screen.findByLabelText("Học trước");
-    const childSelect = screen.getByLabelText("Học sau");
+    const parentSelect = await screen.findByLabelText("Learn first");
+    const childSelect = screen.getByLabelText("Learn next");
 
     await waitFor(() => {
-      expect(parentSelect.textContent).toContain("Midterm Quiz · Mốc kiểm tra");
-      expect(parentSelect.textContent).toContain("Topic One · Chủ đề");
+      expect(parentSelect.textContent).toContain("Midterm Quiz · Milestone");
+      expect(parentSelect.textContent).toContain("Topic One · Topic");
     });
 
     // Self-edge disables submit and warns clearly.
     fireEvent.change(parentSelect, { target: { value: "m1" } });
     fireEvent.change(childSelect, { target: { value: "m1" } });
     expect(
-      (screen.getByRole("button", { name: "Thêm cạnh" }) as HTMLButtonElement)
+      (screen.getByRole("button", { name: "Add edge" }) as HTMLButtonElement)
         .disabled,
     ).toBe(true);
-    expect(screen.getByRole("alert").textContent).toContain("chính nó");
+    expect(screen.getByRole("alert").textContent).toContain("itself");
 
     // Cycle through milestone covers (m1 -> t1 when t1 -> m1 covers exists) is blocked before API call.
     fireEvent.change(parentSelect, { target: { value: "m1" } });
     fireEvent.change(childSelect, { target: { value: "t1" } });
-    fireEvent.click(screen.getByRole("button", { name: "Thêm cạnh" }));
-    expect(screen.getByRole("alert").textContent).toContain("vòng lặp");
+    fireEvent.click(screen.getByRole("button", { name: "Add edge" }));
+    expect(screen.getByRole("alert").textContent).toContain("cycle");
     expect(created).toHaveLength(0);
 
     // Valid milestone edge (m1 -> t2) succeeds and persists via API.
     fireEvent.change(parentSelect, { target: { value: "m1" } });
     fireEvent.change(childSelect, { target: { value: "t2" } });
-    fireEvent.click(screen.getByRole("button", { name: "Thêm cạnh" }));
+    fireEvent.click(screen.getByRole("button", { name: "Add edge" }));
     await waitFor(() => {
       expect(created).toEqual([{ parent_id: "m1", child_id: "t2" }]);
     });
