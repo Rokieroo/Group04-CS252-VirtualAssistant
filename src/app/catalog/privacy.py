@@ -46,7 +46,7 @@ _INLINE_PATTERNS = [
     # Slack tokens
     re.compile(r"\bxox[baprs]-[0-9a-zA-Z-]+\b"),
     # Phone numbers
-    re.compile(r"(?:\+84|0)[1-9](?:[\s.-]?\d){8}\b"),
+    re.compile(r"(?:\+84[\s.-]?|0)[1-9](?:[\s.-]?\d){8}\b"),
     re.compile(r"\b\+?1?[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b"),
     re.compile(r"\b555-\d{4}\b"),
     # National IDs, CCCD, SSN (9-12 digits)
